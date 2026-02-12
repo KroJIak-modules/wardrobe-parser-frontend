@@ -1,8 +1,0 @@
-import * as React from 'react';
-export interface DialogPrivateContextProps {
-    disableHeightTransition: boolean;
-    initialFocusRef?: React.RefObject<HTMLElement | null>;
-    initialFocusAction?: 'apply' | 'cancel';
-    onTooltipEscapeKeyDown?: (event: KeyboardEvent) => void;
-}
-export declare const DialogPrivateContext: React.Context<DialogPrivateContextProps>;
