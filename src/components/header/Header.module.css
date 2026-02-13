@@ -1,0 +1,113 @@
+.header {
+    position: sticky;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    height: 60px;
+    font-size: 16px;
+    box-sizing: border-box;
+    font-weight: 500;
+    text-transform: uppercase;
+    z-index: 100;
+    top: 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    background: none;
+}
+
+.logoContainer {
+    padding: 10px 0;
+    display: flex;
+    flex: 1;
+    justify-content: start;
+    align-items: center;
+    margin-left: 40px;
+    margin-right: auto;
+}
+
+.actionPanelContainer {
+
+    display: flex;
+    flex: 1;
+    justify-content: end;
+    margin-left: auto;
+    margin-right: 40px;
+}
+
+.logo {
+    justify-self: start;
+    width: 300px;
+    height: 100%;
+    min-height: 100px;
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+}
+
+.logo img {
+    max-width: 400px;
+}
+
+.navbar {
+    top: 20px;
+    position: sticky;
+    margin-left: auto;
+    margin-right: auto;
+    width: fit-content;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 7px 15px;
+    gap: 5px;
+    backdrop-filter: blur(10px);
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.15),
+            rgba(255, 255, 255, 0.1));
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 18px;
+    box-shadow: inset 0 0 10px rgba(30, 30, 30, 0.3);
+    color: rgba(0, 0, 0, 0.8);
+    z-index: 100;
+    text-transform: uppercase;
+    font-size: 16px;
+}
+
+.actionPanel {
+    width: fit-content;
+    top: 20px;
+    position: sticky;
+    margin-left: auto;
+    margin-right: 40px;
+    z-index: 100;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 7px 15px;
+    gap: 5px;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.15),
+            rgba(255, 255, 255, 0.05));
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 18px;
+    box-shadow: inset 0 0 8px rgba(30, 30, 30, 0.2);
+    text-transform: uppercase;
+    font-size: 16px;
+}
+
+.navItem {
+    padding: 10px 8px;
+    border-radius: 14px;
+    transition: all ease 0.3s;
+    cursor: pointer;
+}
+
+.navItem:hover {
+    background: rgba(205, 205, 205, 0.8);
+}
