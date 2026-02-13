@@ -3,6 +3,9 @@ import { Button } from '@gravity-ui/uikit';
 import Header from './components/header/Header';
 import { Outlet, Route } from 'react-router-dom';
 import { BrowserRouter, Routes } from 'react-router-dom';
+import HeroCarousel from './components/HeroCarousel/HeroCarousel';
+import NewItems from './pages/NewItems/NewItems';
+import Footer from './components/footer/Footer';
 
 export default function App() {
   return (
@@ -20,12 +23,15 @@ export default function App() {
           Нажмите, чтобы войти
         </button>
       </div>
-      <Header/>
-
-      <Routes>
-        <Route path="/" element={<div>Home</div>} />
-        <Route path="/test" element={<div>Test</div>} />
-      </Routes>
+      <Header />
+      <HeroCarousel />
+      <div className='container'>
+        <Routes>
+          <Route path="/" element={<NewItems />} />
+          <Route path="/test" element={<div>Test</div>} />
+        </Routes>
+      </div>
+      <Footer />
     </BrowserRouter>
   );
 }

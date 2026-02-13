@@ -1,23 +1,21 @@
 import React from 'react'
 import styles from './Header.module.css'
-import logo from '../../images/logo.png'
+import logo from '../../images/logo.svg'
+import { cn } from '@/lib/utils'
 
 const Header = ({ style }) => {
     return (
         <header className={styles.header} style={style}>
-            <div className={styles.logoContainer}>
-                <div className={styles.logo} style={{backgroundImage: `url(${logo})`}}>
-                </div>
+            <div className={cn(styles.logoContainer, 'mix-blend-difference')}>
+                <img className={cn(styles.logo, 'mix-blend-difference')} src={logo} />
             </div>
-            <div className={styles.navbarContainer}>
-                <nav className={styles.navbar}>
-                    <div className={`${styles.navItem}`}>Новинки</div>
-                    <div className={`${styles.navItem}`}>Дизайнеры</div>
-                    <div className={`${styles.navItem}`}>Мужское</div>
-                    <div className={`${styles.navItem}`}>Женское</div>
-                    <div className={`${styles.navItem}`}>Скидки</div>
-                </nav>
-            </div>
+            <nav className={styles.navbar}>
+                <div className={`${styles.navItem}`}>Новинки</div>
+                <div className={`${styles.navItem}`}>Дизайнеры</div>
+                <div className={`${styles.navItem}`}>Мужское</div>
+                <div className={`${styles.navItem}`}>Женское</div>
+                <div className={`${styles.navItem}`}>Скидки</div>
+            </nav>
             <div className={styles.actionPanelContainer}>
                 <div className={styles.actionPanel}>
                     <div className={`${styles.navItem}`}>Поиск</div>
