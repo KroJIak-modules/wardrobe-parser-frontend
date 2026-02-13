@@ -6,6 +6,8 @@ import { BrowserRouter, Routes } from 'react-router-dom';
 import HeroCarousel from './components/HeroCarousel/HeroCarousel';
 import NewItems from './pages/NewItems/NewItems';
 import Footer from './components/footer/Footer';
+import Navbar from './components/header/Navbar';
+import ActionPanel from './components/header/ActionPanel';
 
 export default function App() {
   return (
@@ -24,6 +26,8 @@ export default function App() {
         </button>
       </div>
       <Header />
+      <Navbar />
+      <ActionPanel />
       <HeroCarousel />
       <div className='container'>
         <Routes>

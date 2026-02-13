@@ -38,7 +38,7 @@ const HeroCarousel = () => {
                 align: "center",
                 loop: true,
             }}
-            className="w-full"
+            className="w-full z-10 mt-7"
         >
             <CarouselContent className="-ml-4">
                 {images.map((image, index) => (

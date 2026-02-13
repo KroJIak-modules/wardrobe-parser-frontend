@@ -43,7 +43,7 @@ const Footer = () => {
         },
     ])
     return (
-        <div className={styles.footer}>
+        <footer className={styles.footer}>
             {titles.length < 3 ? <div className={styles.column}></div> : null }
             {titles.map((title, index) => (
                 <div key={index} className={styles.column}>
@@ -54,7 +54,7 @@ const Footer = () => {
                 </div>
             ))}
             {titles.length < 3 ? <div className={styles.column}></div> : null }
-        </div>
+        </footer>
     )
 }
 

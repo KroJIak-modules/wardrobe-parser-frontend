@@ -9,19 +9,6 @@ const Header = ({ style }) => {
             <div className={cn(styles.logoContainer, 'mix-blend-difference')}>
                 <img className={cn(styles.logo, 'mix-blend-difference')} src={logo} />
             </div>
-            <nav className={styles.navbar}>
-                <div className={`${styles.navItem}`}>Новинки</div>
-                <div className={`${styles.navItem}`}>Дизайнеры</div>
-                <div className={`${styles.navItem}`}>Мужское</div>
-                <div className={`${styles.navItem}`}>Женское</div>
-                <div className={`${styles.navItem}`}>Скидки</div>
-            </nav>
-            <div className={styles.actionPanelContainer}>
-                <div className={styles.actionPanel}>
-                    <div className={`${styles.navItem}`}>Поиск</div>
-                    <div className={`${styles.navItem}`}>Корзина</div>
-                </div>
-            </div>
         </header>
     )
 }
