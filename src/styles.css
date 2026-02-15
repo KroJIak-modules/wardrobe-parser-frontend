@@ -20,6 +20,10 @@ body {
     background-color: #ffffff;
 }
 
+button {
+    cursor: pointer;
+}
+
 .main {
     position: relative;
     height: 100vh;

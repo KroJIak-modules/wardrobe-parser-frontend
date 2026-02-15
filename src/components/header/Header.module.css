@@ -28,10 +28,10 @@
 }
 
 .actionPanelContainer {
-
     display: flex;
     flex: 1;
-    justify-content: end;
+    justify-content: center;
+    align-items: center;
     margin-left: auto;
     margin-right: 40px;
 }
@@ -39,8 +39,10 @@
 .logo {
     justify-self: start;
     width: 300px;
-    height: 100%;
-    min-height: 100px;
+    max-width: 20%;
+    height: auto;
+    /* min-height: 100px; */
+    align-self: center;
     background-repeat: no-repeat;
     background-size: contain;
     background-position: center;
@@ -56,17 +58,18 @@
     margin-left: auto;
     margin-right: auto;
     width: fit-content;
+    max-width: 33%;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: space-around;
     padding: 7px 15px;
     gap: 5px;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(5px);
     background: linear-gradient(135deg,
             rgba(255, 255, 255, 0.15),
             rgba(255, 255, 255, 0.1));
-    -webkit-backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(5px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 18px;
     box-shadow: inset 0 0 10px rgba(30, 30, 30, 0.3);
@@ -106,6 +109,7 @@
     border-radius: 14px;
     transition: all ease 0.3s;
     cursor: pointer;
+    flex: 1;
 }
 
 .navItem:hover {
