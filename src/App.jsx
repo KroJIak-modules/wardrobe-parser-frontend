@@ -69,7 +69,8 @@ function AppContent() {
       <Header />
       <Navbar setNavHeight={setNavHeight} />
       <ActionPanel navHeight={navHeight} />
-      {!location.pathname.includes('show') && <HeroCarousel navHeight={navHeight}/>}
+      <div style={{marginTop: -(navHeight * 0.00001) + 'px'}}>
+      {!location.pathname.includes('show') && <HeroCarousel />}
       <div className='container'>
         <Routes>
           <Route path="/" element={<NewItems />} />
@@ -77,6 +78,7 @@ function AppContent() {
         </Routes>
       </div>
       <Footer />
+      </div>
     </>
   );
 }
