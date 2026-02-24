@@ -1,4 +1,4 @@
-import React, { use, useEffect } from 'react';
+import React, { use, useEffect, useState } from 'react';
 import { Button } from '@gravity-ui/uikit';
 import Header from './components/header/Header';
 import { Outlet, Route, useLocation } from 'react-router-dom';
@@ -28,8 +28,28 @@ function AppContent() {
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 100);
+    } else {
+      const handleWheel = (e) => {
+        const scrollTop = window.scrollY;
+        const screenHeight = window.innerHeight;
+
+        if (e.deltaY > 0 && scrollTop > 0 && scrollTop < screenHeight) {
+          e.preventDefault();
+          window.scrollTo({
+            top: screenHeight,
+            behavior: 'smooth',
+          });
+        }
+      };
+
+      window.addEventListener('wheel', handleWheel, { passive: false });
+      return () => window.removeEventListener('wheel', handleWheel);
     }
   }, [location.pathname]);
+
+  const [navHeight, setNavHeight] = useState(0);
+
+  console.log(navHeight);
 
   return (
     <>
@@ -37,21 +57,19 @@ function AppContent() {
         <div className='main'>
           <button
             className='startButton'
-            onClick={() => {
-              window.scrollTo({
-                top: window.innerHeight,
-                behavior: 'smooth',
-              });
-            }}
+            onClick={() => window.scrollTo({
+              top: window.innerHeight,
+              behavior: 'smooth',
+            })}
           >
             Нажмите, чтобы войти
           </button>
         </div>
       )}
       <Header />
-      <Navbar />
-      <ActionPanel />
-      {!location.pathname.includes('show') && <HeroCarousel />}
+      <Navbar setNavHeight={setNavHeight} />
+      <ActionPanel navHeight={navHeight} />
+      {!location.pathname.includes('show') && <HeroCarousel navHeight={navHeight}/>}
       <div className='container'>
         <Routes>
           <Route path="/" element={<NewItems />} />

@@ -1,50 +1,133 @@
-import React from 'react'
-import styles from './Header.module.css'
-import { useEffect, useRef, useState } from 'react'
+import React, { useRef, useEffect, useState } from 'react';
+import styles from './Header.module.css';
 
-const Navbar = () => {
-    const ref = useRef(null);
+const Navbar = ({setNavHeight}) => {
+  const navRef = useRef(null);
 
-    useEffect(() => {
-        if (ref.current) {
-            ref.current.style.marginTop = `-${ref.current.offsetHeight * 1.3}px`;
-        }
-    }, []);
+  useEffect(() => {
+    if (navRef.current) {
+      navRef.current.style.marginTop = `-${navRef.current.offsetHeight * 1.3}px`;
+      setNavHeight(navRef.current.offsetHeight)
+    }
+  }, []);
 
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuItems = [
+    {
+      id: 'news',
+      label: 'Новинки',
+      content: (
+        <div>
+          <h4>Новые поступления</h4>
+          <ul>
+            <li>Коллекция Осень 2024</li>
+            <li>Лимитированные серии</li>
+            <li>Хиты сезона</li>
+          </ul>
+        </div>
+      )
+    },
+    {
+      id: 'designers',
+      label: 'Дизайнеры',
+      content: (
+        <div>
+          <h4>Известные бренды</h4>
+          <ul>
+            <li>Gucci</li>
+            <li>Prada</li>
+            <li>Versace</li>
+          </ul>
+        </div>
+      )
+    },
+    {
+      id: 'men',
+      label: 'Мужское',
+      content: (
+        <div>
+          <h4>Для мужчин</h4>
+          <ul>
+            <li>Костюмы</li>
+            <li>Обувь</li>
+            <li>Аксессуары</li>
+          </ul>
+        </div>
+      )
+    },
+    {
+      id: 'women',
+      label: 'Женское',
+      content: (
+        <div>
+          <h4>Для женщин</h4>
+          <ul>
+            <li>Платья</li>
+            <li>Сумки</li>
+            <li>Ювелирка</li>
+          </ul>
+        </div>
+      )
+    },
+    {
+      id: 'discounts',
+      label: 'Скидки',
+      content: (
+        <div>
+          <h4>🔥 Распродажа</h4>
+          <ul>
+            <li>До -70%</li>
+            <li>Ликвидация складов</li>
+            <li>Акции дня</li>
+          </ul>
+        </div>
+      )
+    },
+  ];
 
-    const [isNewsOpen, setIsNewsOpen] = useState(false);
-    const [isDesignersOpen, setIsDesignersOpen] = useState(false);
-    const [isMenOpen, setIsMenOpen] = useState(false);
-    const [isWomenOpen, setIsWomenOpen] = useState(false);
-    const [isDiscountsOpen, setIsDiscountsOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState(null);
 
-    useEffect(() => {
-        if (isNewsOpen || isDesignersOpen || isMenOpen || isWomenOpen || isDiscountsOpen) {
-            setIsMenuOpen(true);
-        } else {
-            setIsMenuOpen(false);
-        }
-    }, [isNewsOpen, isDesignersOpen, isMenOpen, isWomenOpen, isDiscountsOpen]);
+  const handleMouseEnter = (id) => {
+    setActiveItem(id)
+  };
+  const handleMouseLeave = () => {
+    setActiveItem(null)
+  };
 
-    return (
-        <nav ref={ref} className={styles.navbar}>
-            <div className={styles.navItems} onMouseMove={() => setIsMenuOpen(true)} >
-                <div className={styles.navItem} onMouseOver={() => setIsNewsOpen(true)} onMouseLeave={() => setIsNewsOpen(false)}>Новинки</div>
-                <div className={styles.navItem} onMouseOver={() => setIsDesignersOpen(true)} onMouseLeave={() => setIsDesignersOpen(false)}>Дизайнеры</div>
-                <div className={styles.navItem} onMouseOver={() => setIsMenOpen(true)} onMouseLeave={() => setIsMenOpen(false)}>Мужское</div>
-                <div className={styles.navItem} onMouseOver={() => setIsWomenOpen(true)} onMouseLeave={() => setIsWomenOpen(false)}>Женское</div>
-                <div className={styles.navItem} onMouseOver={() => setIsDiscountsOpen(true)} onMouseLeave={() => setIsDiscountsOpen(false)}>Скидки</div>
-            </div>
-            <div className={styles.dropMenu} style={{display: isMenuOpen ? 'flex' : 'none'}}>
-                <div className={styles.dropMenuItem} style={{display: isNewsOpen ? 'block' : 'none', opacity: isNewsOpen ? 1 : 0}}>Новинки</div>
-                <div className={styles.dropMenuItem} style={{display: isDesignersOpen ? 'block' : 'none', opacity: isDesignersOpen ? 1 : 0}}>Дизайнеры</div>
-                <div className={styles.dropMenuItem} style={{display: isMenOpen ? 'block' : 'none', opacity: isMenOpen ? 1 : 0}}>Мужское</div>
-                <div className={styles.dropMenuItem} style={{display: isWomenOpen ? 'block' : 'none', opacity: isWomenOpen ? 1 : 0}}>Женское</div>
-                <div className={styles.dropMenuItem} style={{display: isDiscountsOpen ? 'block' : 'none', opacity: isDiscountsOpen ? 1 : 0}}>Скидки</div>
-            </div>
-        </nav>
-    )
-}
+  useEffect(() => {
+    setNavHeight(navRef.current.offsetHeight)
+  }, [activeItem])
 
-export default Navbar
+  return (
+    <nav
+      ref={navRef}
+      className={styles.navbar}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className={styles.navItems}>
+        {menuItems.map((item) => (
+          <div
+            key={item.id}
+            className={styles.navItem}
+            onMouseEnter={() => handleMouseEnter(item.id)}
+          >
+            {item.label}
+          </div>
+        ))}
+      </div>
+
+      <div className={styles.dropMenu}>
+        {menuItems.map((item) => (
+          <div
+            key={item.id}
+            className={`${styles.dropMenuItem} ${activeItem === item.id ? styles.active : ''}`}
+            onMouseEnter={() => handleMouseEnter(item.id)}
+          >
+            {item.content}
+          </div>
+        ))}
+      </div>
+    </nav>
+  );
+};
+
+export default Navbar;

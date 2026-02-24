@@ -13,7 +13,7 @@ import image3 from '../../images/carousel/3.png'
 import { cn } from '@/lib/utils'
 
 
-const HeroCarousel = () => {
+const HeroCarousel = ({navHeight}) => {
     const images = [image2, image3, image1]
 
     const [api, setApi] = React.useState(null)
@@ -38,7 +38,8 @@ const HeroCarousel = () => {
                 align: "center",
                 loop: true,
             }}
-            className="w-full z-10 mt-7"
+            className="w-full z-10"
+            style={{marginTop: -(navHeight * 0.00001 - 20) + 'px'}}
         >
             <CarouselContent className="-ml-4">
                 {images.map((image, index) => (

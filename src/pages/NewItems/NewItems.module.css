@@ -38,6 +38,7 @@
     text-align: left;
     background: #FFF;
     padding: 20px 20px;
+    align-self: flex-start;
     gap: 14px;
 }
 
