@@ -1,13 +1,14 @@
 import { Link, useParams } from "react-router-dom";
-import { useCatalog } from "../shared/catalog-context";
+import { useLiveData } from "../shared/live-data-context";
+import { toSlug } from "../shared/utils";
 
 export function CategoryPage() {
   const { slug } = useParams();
-  const { categories, products } = useCatalog();
+  const { categories, products } = useLiveData();
 
   const category = categories.find((item) => item.slug === slug);
   const filtered = category
-    ? products.filter((product) => product.categoryId === category.id)
+    ? products.filter((product) => toSlug(product.product_type || "Other") === category.slug)
     : [];
 
   if (!category) {
@@ -22,7 +23,7 @@ export function CategoryPage() {
       <div className="product-grid">
         {filtered.map((product) => (
           <article key={product.id} className="card">
-            <img src={product.imageUrl} alt={product.title} className="thumb" />
+            <div className="thumb thumb--placeholder">No image</div>
             <h3>{product.title}</h3>
             <p className="muted">
               {product.price} {product.currency}

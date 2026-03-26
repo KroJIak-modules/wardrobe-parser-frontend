@@ -1,9 +1,10 @@
 import { Link, useParams } from "react-router-dom";
-import { useCatalog } from "../shared/catalog-context";
+import { useLiveData } from "../shared/live-data-context";
+import { toSlug } from "../shared/utils";
 
 export function ProductPage() {
   const { id } = useParams();
-  const { categories, products } = useCatalog();
+  const { categories, products } = useLiveData();
 
   const product = products.find((item) => item.id === Number(id));
 
@@ -11,20 +12,25 @@ export function ProductPage() {
     return <p>Product not found.</p>;
   }
 
-  const category = categories.find((item) => item.id === product.categoryId);
+  const category = categories.find((item) => item.slug === toSlug(product.product_type || "Other"));
 
   return (
     <article className="section detail">
-      <img src={product.imageUrl} alt={product.title} className="detail-image" />
+      <div className="detail-image detail-image--placeholder">No image</div>
       <div>
         <h1>{product.title}</h1>
-        <p className="muted">SKU: {product.sku}</p>
+        <p className="muted">Handle: {product.handle}</p>
+        <p className="muted">Brand: {product.vendor || "-"}</p>
+        <p className="muted">Status: {product.status}</p>
+        <p className="muted">Images: {product.image_count}</p>
         <p className="muted">Category: {category?.name ?? "Unknown"}</p>
         <p className="price">
           {product.price} {product.currency}
         </p>
-        <p>{product.description}</p>
-        <p className="muted">Stock: {product.stock}</p>
+        <p className="muted">Updated: {new Date(product.updated_at).toLocaleString()}</p>
+        <a className="btn-link" href={product.url} target="_blank" rel="noreferrer">
+          Open source page
+        </a>
         {category ? (
           <Link className="btn-link" to={`/category/${category.slug}`}>
             More from this category

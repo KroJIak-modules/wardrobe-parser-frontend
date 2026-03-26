@@ -4,6 +4,12 @@
   background: #f6f6f6;
 }
 
+.chip-list {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -113,6 +119,14 @@ a {
   background: #efefef;
 }
 
+.thumb--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888888;
+  font-size: 13px;
+}
+
 .btn-link,
 button {
   display: inline-block;
@@ -139,6 +153,14 @@ button {
   background: #efefef;
 }
 
+.detail-image--placeholder {
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888888;
+}
+
 .price {
   font-size: 24px;
   font-weight: 700;
@@ -158,6 +180,27 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 14px;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab {
+  border: 1px solid #d6d6d6;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tab--active {
+  border-color: #111111;
+  font-weight: 600;
 }
 
 .form {
@@ -208,6 +251,43 @@ textarea {
 .actions {
   display: flex;
   gap: 6px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 20;
+}
+
+.modal {
+  width: min(760px, 100%);
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #dfdfdf;
+  padding: 14px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.dropzone {
+  border: 1px dashed #bfbfbf;
+  border-radius: 8px;
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666666;
+  background: #fafafa;
 }
 
 @media (max-width: 760px) {

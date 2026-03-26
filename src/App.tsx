@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { CatalogProvider } from "./shared/catalog-context";
+import { LiveDataProvider } from "./shared/live-data-context";
 import { SiteLayout } from "./site/layout";
 import { HomePage } from "./site/home-page";
 import { CategoryPage } from "./site/category-page";
@@ -8,7 +8,7 @@ import { AdminPage } from "./admin/admin-page";
 
 export function App() {
   return (
-    <CatalogProvider>
+    <LiveDataProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<SiteLayout />}>
@@ -20,6 +20,6 @@ export function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </CatalogProvider>
+    </LiveDataProvider>
   );
 }

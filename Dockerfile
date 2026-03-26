@@ -9,9 +9,9 @@ RUN npm ci --no-audit --no-fund
 # Копируем остальные файлы (node_modules уже установлены)
 COPY . .
 
-# Аргумент для API URL (будет передан из docker-compose)
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
+# Аргумент для API URL Parser service (будет передан из docker-compose)
+ARG VITE_SERVICE_API_URL
+ENV VITE_SERVICE_API_URL=$VITE_SERVICE_API_URL
 
 # Билдим приложение
 RUN npm run build
