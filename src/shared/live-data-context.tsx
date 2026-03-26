@@ -78,6 +78,16 @@ export type DedupCandidate = {
   right: ServiceProduct;
 };
 
+export type ProductUrlPreview = {
+  handle: string;
+  title: string;
+  vendor: string | null;
+  product_type: string | null;
+  product_url: string;
+  price: number | null;
+  currency: string;
+};
+
 type LiveDataContextValue = {
   products: ServiceProduct[];
   categories: CategoryView[];
@@ -90,7 +100,18 @@ type LiveDataContextValue = {
   error: string | null;
   refresh: () => Promise<void>;
   runSync: () => Promise<{ ok: boolean; message: string }>;
-  addProductByUrl: (url: string) => Promise<{ ok: boolean; message: string }>;
+  previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
+  addProductByUrl: (
+    url: string,
+    payload?: {
+      title?: string;
+      vendor?: string | null;
+      product_type?: string | null;
+      price?: number | null;
+      currency?: string;
+      image_count?: number;
+    }
+  ) => Promise<{ ok: boolean; message: string }>;
   createManualProduct: (payload: {
     title: string;
     price: number | null;
@@ -108,7 +129,7 @@ type LiveDataContextValue = {
   rejectDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
 };
 
-const API_BASE = "/api";
+const API_BASE = "/api/v1";
 
 const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefined);
 
@@ -140,12 +161,12 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const [productsRes, sourcesRes, latestJobRes, categoriesRes, dedupRes, jobsHistoryRes] = await Promise.all([
-        fetch(`${API_BASE}/api/v1/products?limit=500`),
-        fetch(`${API_BASE}/api/v1/shopify/sources`),
-        fetch(`${API_BASE}/api/v1/jobs/latest`),
-        fetch(`${API_BASE}/api/v1/categories/tree`),
-        fetch(`${API_BASE}/api/v1/dedup/candidates?limit=80`),
-        fetch(`${API_BASE}/api/v1/jobs?limit=15&offset=0`),
+        fetch(`${API_BASE}/products?limit=200`),
+        fetch(`${API_BASE}/shopify/sources`),
+        fetch(`${API_BASE}/jobs/latest`),
+        fetch(`${API_BASE}/categories/tree`),
+        fetch(`${API_BASE}/dedup/candidates?limit=80`),
+        fetch(`${API_BASE}/jobs?limit=15&offset=0`),
       ]);
 
       if (!productsRes.ok) {
@@ -189,7 +210,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
   const runSync = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/jobs`, {
+      const res = await fetch(`${API_BASE}/jobs`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -211,13 +232,43 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh]);
 
+  const previewProductByUrl = useCallback(async (url: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/products/preview-by-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!res.ok) {
+        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+        return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, preview: null };
+      }
+
+      const payload = (await res.json()) as ProductUrlPreview;
+      return { ok: true, message: "Preview получен", preview: payload };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", preview: null };
+    }
+  }, []);
+
   const addProductByUrl = useCallback(
-    async (url: string) => {
+    async (
+      url: string,
+      payload?: {
+        title?: string;
+        vendor?: string | null;
+        product_type?: string | null;
+        price?: number | null;
+        currency?: string;
+        image_count?: number;
+      }
+    ) => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/products/add-by-url`, {
+        const res = await fetch(`${API_BASE}/products/add-by-url`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, ...(payload || {}) }),
         });
 
         if (!res.ok) {
@@ -243,7 +294,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       image_count: number;
     }) => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/products/manual`, {
+        const res = await fetch(`${API_BASE}/products/manual`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -268,7 +319,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${API_BASE}/api/v1/products/upload-image`, {
+      const res = await fetch(`${API_BASE}/products/upload-image`, {
         method: "POST",
         body: formData,
       });
@@ -285,7 +336,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const createCategory = useCallback(
     async (name: string, parentId: number | null) => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/categories`, {
+        const res = await fetch(`${API_BASE}/categories`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, parent_id: parentId }),
@@ -306,7 +357,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const updateCategory = useCallback(
     async (id: number, payload: { name?: string; parent_id?: number | null }) => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/categories/${id}`, {
+        const res = await fetch(`${API_BASE}/categories/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -327,7 +378,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const deleteCategory = useCallback(
     async (id: number) => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/categories/${id}`, {
+        const res = await fetch(`${API_BASE}/categories/${id}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -346,7 +397,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const addCategoryKeyword = useCallback(
     async (id: number, keyword: string) => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/categories/${id}/keywords`, {
+        const res = await fetch(`${API_BASE}/categories/${id}/keywords`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ keyword }),
@@ -368,7 +419,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     async (id: number, keyword: string) => {
       try {
         const encodedKeyword = encodeURIComponent(keyword);
-        const res = await fetch(`${API_BASE}/api/v1/categories/${id}/keywords/${encodedKeyword}`, {
+        const res = await fetch(`${API_BASE}/categories/${id}/keywords/${encodedKeyword}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -387,7 +438,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const mergeDedupPair = useCallback(
     async (primaryProductId: number, duplicateProductId: number) => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/dedup/merge`, {
+        const res = await fetch(`${API_BASE}/dedup/merge`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ primary_product_id: primaryProductId, duplicate_product_id: duplicateProductId }),
@@ -408,7 +459,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const rejectDedupPair = useCallback(
     async (productAId: number, productBId: number) => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/dedup/reject`, {
+        const res = await fetch(`${API_BASE}/dedup/reject`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ product_a_id: productAId, product_b_id: productBId }),
@@ -447,6 +498,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       error,
       refresh,
       runSync,
+      previewProductByUrl,
       addProductByUrl,
       createManualProduct,
       uploadProductImage,
@@ -470,6 +522,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       error,
       refresh,
       runSync,
+      previewProductByUrl,
       addProductByUrl,
       createManualProduct,
       uploadProductImage,

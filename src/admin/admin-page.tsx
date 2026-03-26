@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
 import { Link } from "react-router-dom";
 import { useLiveData } from "../shared/live-data-context";
 
 type AdminTab = "products" | "dedup" | "categories" | "sync" | "sources" | "settings";
-type AddMode = "url" | "manual";
+
+type UploadPreview = {
+  file: File;
+  url: string;
+};
 
 const tabs: { key: AdminTab; label: string }[] = [
   { key: "products", label: "Все товары" },
@@ -24,6 +28,8 @@ const whitelist = [
   "archived.co",
 ];
 
+const currencyOptions = ["RUB", "EUR", "USD"];
+
 export function AdminPage() {
   const {
     products,
@@ -33,6 +39,7 @@ export function AdminPage() {
     error,
     refresh,
     runSync,
+    previewProductByUrl,
     addProductByUrl,
     createManualProduct,
     uploadProductImage,
@@ -51,34 +58,46 @@ export function AdminPage() {
   const [tab, setTab] = useState<AdminTab>("products");
   const [syncMessage, setSyncMessage] = useState<string>("");
   const [openModal, setOpenModal] = useState<boolean>(false);
-  const [addMode, setAddMode] = useState<AddMode>("url");
-  const [productUrl, setProductUrl] = useState<string>("");
 
-  const [manualTitle, setManualTitle] = useState<string>("");
-  const [manualPrice, setManualPrice] = useState<string>("");
-  const [manualCurrency, setManualCurrency] = useState<string>("USD");
-  const [manualCategory, setManualCategory] = useState<string>("");
-  const [manualImageFile, setManualImageFile] = useState<File | null>(null);
-  const [newCategoryName, setNewCategoryName] = useState<string>("");
-  const [newCategoryParentId, setNewCategoryParentId] = useState<string>("");
+  const [productUrl, setProductUrl] = useState<string>("");
+  const [productTitle, setProductTitle] = useState<string>("");
+  const [productVendor, setProductVendor] = useState<string>("");
+  const [productCategory, setProductCategory] = useState<string>("");
+  const [productPrice, setProductPrice] = useState<string>("");
+  const [productCurrency, setProductCurrency] = useState<string>("USD");
+  const [imagePreviews, setImagePreviews] = useState<UploadPreview[]>([]);
+  const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
+
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [renameCategoryName, setRenameCategoryName] = useState<string>("");
   const [keywordInput, setKeywordInput] = useState<string>("");
+  const [newCategoryName, setNewCategoryName] = useState<string>("");
+  const [newCategoryParentId, setNewCategoryParentId] = useState<number | null>(null);
+
   const [productSearch, setProductSearch] = useState<string>("");
   const [productVendorFilter, setProductVendorFilter] = useState<string>("");
   const [productStatusFilter, setProductStatusFilter] = useState<string>("");
+
   const [usdRate, setUsdRate] = useState<string>("95");
   const [weightRule, setWeightRule] = useState<string>("default");
   const [ssrEnabled, setSsrEnabled] = useState<boolean>(false);
 
   const canRunSync = latestJob?.status !== "in_progress";
 
+  useEffect(() => {
+    return () => {
+      for (const item of imagePreviews) {
+        URL.revokeObjectURL(item.url);
+      }
+    };
+  }, [imagePreviews]);
+
   const categoryOptions = useMemo(() => {
     const rows: { id: number; name: string }[] = [];
     const walk = (nodes: typeof adminCategories, prefix: string) => {
       for (const node of nodes) {
         rows.push({ id: node.id, name: `${prefix}${node.name}` });
-        walk(node.children, `${prefix}-- `);
+        walk(node.children, `${prefix}  `);
       }
     };
     walk(adminCategories, "");
@@ -102,6 +121,13 @@ export function AdminPage() {
     walk(adminCategories);
     return found;
   }, [adminCategories, selectedCategoryId]);
+
+  const newCategoryParentName = useMemo(() => {
+    if (newCategoryParentId === null) {
+      return "root";
+    }
+    return categoryOptions.find((item) => item.id === newCategoryParentId)?.name || "unknown";
+  }, [categoryOptions, newCategoryParentId]);
 
   const productVendors = useMemo(() => {
     const set = new Set<string>();
@@ -137,74 +163,136 @@ export function AdminPage() {
     return date.toLocaleString("ru-RU");
   };
 
+  const resetProductForm = () => {
+    for (const item of imagePreviews) {
+      URL.revokeObjectURL(item.url);
+    }
+    setProductUrl("");
+    setProductTitle("");
+    setProductVendor("");
+    setProductCategory("");
+    setProductPrice("");
+    setProductCurrency("USD");
+    setImagePreviews([]);
+    setZoomedImageUrl(null);
+  };
+
+  const closeProductModal = () => {
+    resetProductForm();
+    setOpenModal(false);
+  };
+
+  const addFiles = (files: File[]) => {
+    if (files.length === 0) {
+      return;
+    }
+    const newItems = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
+    setImagePreviews((prev) => [...prev, ...newItems]);
+  };
+
+  const onDropImage = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const files = [...event.dataTransfer.files].filter((file) => file.type.startsWith("image/"));
+    addFiles(files);
+  };
+
+  const onPickImage = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? [...event.target.files].filter((file) => file.type.startsWith("image/")) : [];
+    addFiles(files);
+    event.target.value = "";
+  };
+
+  const removePreviewImage = (index: number) => {
+    setImagePreviews((prev) => {
+      const target = prev[index];
+      if (target) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter((_, idx) => idx !== index);
+    });
+  };
+
+  const uploadSelectedImages = async () => {
+    let uploadedCount = 0;
+    for (const item of imagePreviews) {
+      const uploadResult = await uploadProductImage(item.file);
+      if (!uploadResult.ok) {
+        setSyncMessage(uploadResult.message);
+        return { ok: false, count: uploadedCount };
+      }
+      uploadedCount += 1;
+    }
+    return { ok: true, count: uploadedCount };
+  };
+
+  const onFetchPreview = async () => {
+    if (!productUrl.trim()) {
+      setSyncMessage("Ссылка не указана");
+      return;
+    }
+
+    const result = await previewProductByUrl(productUrl.trim());
+    setSyncMessage(result.message);
+    if (result.ok && result.preview) {
+      setProductTitle(result.preview.title || "");
+      setProductVendor(result.preview.vendor || "");
+      setProductCategory(result.preview.product_type || "");
+      setProductPrice(result.preview.price !== null ? String(result.preview.price) : "");
+      setProductCurrency((result.preview.currency || "USD").toUpperCase());
+    }
+  };
+
+  const onSaveProduct = async () => {
+    if (!productTitle.trim()) {
+      setSyncMessage("Введите название товара");
+      return;
+    }
+
+    const parsedPrice = productPrice.trim() ? Number(productPrice) : null;
+    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
+      setSyncMessage("Цена должна быть числом");
+      return;
+    }
+
+    const uploaded = await uploadSelectedImages();
+    if (!uploaded.ok) {
+      return;
+    }
+
+    const currency = (productCurrency.trim() || "USD").toUpperCase();
+
+    const result = productUrl.trim()
+      ? await addProductByUrl(productUrl.trim(), {
+          title: productTitle.trim(),
+          vendor: productVendor.trim() || null,
+          product_type: productCategory.trim() || null,
+          price: parsedPrice,
+          currency,
+          image_count: uploaded.count,
+        })
+      : await createManualProduct({
+          title: productTitle.trim(),
+          price: parsedPrice,
+          currency,
+          product_type: productCategory.trim() || null,
+          image_count: uploaded.count,
+        });
+
+    setSyncMessage(result.message);
+    if (result.ok) {
+      closeProductModal();
+    }
+  };
+
   const onRunSync = async () => {
     setSyncMessage("Запуск...");
     const result = await runSync();
     setSyncMessage(result.message);
   };
 
-  const onDropImage = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (file) {
-      setManualImageFile(file);
-    }
-  };
-
-  const onPickImage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setManualImageFile(file);
-    }
-  };
-
-  const onValidateUrl = async () => {
-    const result = await addProductByUrl(productUrl);
-    setSyncMessage(result.message);
-    if (result.ok) {
-      setProductUrl("");
-      setOpenModal(false);
-    }
-  };
-
-  const onSaveManual = async () => {
-    if (!manualTitle.trim()) {
-      setSyncMessage("Введите название товара");
-      return;
-    }
-
-    const parsedPrice = manualPrice.trim() ? Number(manualPrice) : null;
-    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
-      setSyncMessage("Цена должна быть числом");
-      return;
-    }
-
-    let imageCount = 0;
-    if (manualImageFile) {
-      const uploadResult = await uploadProductImage(manualImageFile);
-      if (!uploadResult.ok) {
-        setSyncMessage(uploadResult.message);
-        return;
-      }
-      imageCount = 1;
-    }
-
-    const result = await createManualProduct({
-      title: manualTitle.trim(),
-      price: parsedPrice,
-      currency: manualCurrency.trim() || "USD",
-      product_type: manualCategory.trim() || null,
-      image_count: imageCount,
-    });
-    setSyncMessage(result.message);
-    if (result.ok) {
-      setManualTitle("");
-      setManualPrice("");
-      setManualCurrency("USD");
-      setManualCategory("");
-      setManualImageFile(null);
-      setOpenModal(false);
-    }
+  const onStartCategoryCreate = (parentId: number | null) => {
+    setNewCategoryParentId(parentId);
+    setNewCategoryName("");
   };
 
   const onCreateCategory = async () => {
@@ -212,12 +300,12 @@ export function AdminPage() {
       setSyncMessage("Введите название категории");
       return;
     }
-    const parentId = newCategoryParentId ? Number(newCategoryParentId) : null;
-    const result = await createCategory(newCategoryName.trim(), parentId);
+
+    const result = await createCategory(newCategoryName.trim(), newCategoryParentId);
     setSyncMessage(result.message);
     if (result.ok) {
       setNewCategoryName("");
-      setNewCategoryParentId("");
+      setNewCategoryParentId(null);
     }
   };
 
@@ -274,28 +362,43 @@ export function AdminPage() {
     setSyncMessage(result.message);
   };
 
-  const renderTree = (nodes: typeof adminCategories) => {
+  const renderTree = (nodes: typeof adminCategories, prefix = "") => {
     return (
       <div className="cat-tree-column">
-        {nodes.map((node) => (
-          <div key={node.id} className="cat-tree-node">
-            <div className="cat-tree-item">
-              <button
-                type="button"
-                className={selectedCategoryId === node.id ? "tab tab--active" : "tab"}
-                onClick={() => {
-                  setSelectedCategoryId(node.id);
-                  setRenameCategoryName(node.name);
-                }}
-              >
-                {node.name}
-              </button>
-              <span className="muted">{node.is_fallback ? "fallback" : `${node.keywords.length} keywords`}</span>
-            </div>
+        {nodes.map((node, index) => {
+          const isLast = index === nodes.length - 1;
+          const branch = prefix ? `${prefix}${isLast ? "└─ " : "├─ "}` : "";
+          const nextPrefix = `${prefix}${isLast ? "   " : "│  "}`;
 
-            {node.children.length > 0 ? <div className="cat-tree-children">{renderTree(node.children)}</div> : null}
-          </div>
-        ))}
+          return (
+            <div key={node.id} className="cat-tree-node">
+              <div className="cat-tree-item">
+                <button
+                  type="button"
+                  className={selectedCategoryId === node.id ? "tab tab--active cat-tree-btn" : "tab cat-tree-btn"}
+                  onClick={() => {
+                    setSelectedCategoryId(node.id);
+                    setRenameCategoryName(node.name);
+                  }}
+                >
+                  <span className="cat-tree-branch">{branch}</span>
+                  <span>{node.name}</span>
+                </button>
+                <button
+                  type="button"
+                  className="tree-plus"
+                  title="Добавить дочернюю категорию"
+                  onClick={() => onStartCategoryCreate(node.id)}
+                >
+                  +
+                </button>
+                <span className="muted">{node.is_fallback ? "fallback" : `${node.keywords.length} keywords`}</span>
+              </div>
+
+              {node.children.length > 0 ? <div className="cat-tree-children">{renderTree(node.children, nextPrefix)}</div> : null}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -304,7 +407,7 @@ export function AdminPage() {
     <section className="section admin">
       <div className="admin-head">
         <h1>Admin Panel</h1>
-        <p className="muted">Текущая итерация: реальные данные, вкладки, синхронизация, modal добавления.</p>
+        <p className="muted">Реальные данные: дерево категорий, синхронизация, дедуп и управление товарами.</p>
         <div className="actions">
           <button type="button" onClick={onRunSync} disabled={!canRunSync}>
             Синхронизировать товары
@@ -426,7 +529,9 @@ export function AdminPage() {
                   <div className="dedup-col">
                     <strong>{candidate.left.title}</strong>
                     <p className="muted">{candidate.left.vendor || "-"}</p>
-                    <p className="muted">{candidate.left.price ?? "-"} {candidate.left.currency}</p>
+                    <p className="muted">
+                      {candidate.left.price ?? "-"} {candidate.left.currency}
+                    </p>
                     <a className="btn-link" href={candidate.left.url} target="_blank" rel="noreferrer">
                       Открыть источник
                     </a>
@@ -438,7 +543,9 @@ export function AdminPage() {
                   <div className="dedup-col">
                     <strong>{candidate.right.title}</strong>
                     <p className="muted">{candidate.right.vendor || "-"}</p>
-                    <p className="muted">{candidate.right.price ?? "-"} {candidate.right.currency}</p>
+                    <p className="muted">
+                      {candidate.right.price ?? "-"} {candidate.right.currency}
+                    </p>
                     <a className="btn-link" href={candidate.right.url} target="_blank" rel="noreferrer">
                       Открыть источник
                     </a>
@@ -463,79 +570,104 @@ export function AdminPage() {
       {tab === "categories" ? (
         <div className="card">
           <h2>Категории</h2>
-          <div className="form">
-            <input
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Новая категория"
-            />
-            <select value={newCategoryParentId} onChange={(e) => setNewCategoryParentId(e.target.value)}>
-              <option value="">Без родителя</option>
-              {categoryOptions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <button type="button" onClick={onCreateCategory}>
-              Создать категорию
-            </button>
-          </div>
-
-          <div className="cat-tree-wrap">{renderTree(adminCategories)}</div>
-
-          {selectedCategory ? (
-            <div className="card" style={{ marginTop: "1rem" }}>
-              <h3>Редактирование: {selectedCategory.name}</h3>
-              <div className="form">
-                <input
-                  value={renameCategoryName}
-                  onChange={(e) => setRenameCategoryName(e.target.value)}
-                  placeholder="Новое имя"
-                />
-                <button type="button" onClick={onRenameCategory}>
-                  Переименовать
-                </button>
-                <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_fallback}>
-                  Удалить
+          <div className="categories-layout">
+            <div>
+              <div className="actions" style={{ marginBottom: "0.5rem" }}>
+                <button type="button" className="tree-plus" onClick={() => onStartCategoryCreate(null)}>
+                  + root
                 </button>
               </div>
 
-              <p className="muted">Keywords (локальные):</p>
-              <div className="chip-list">
-                {selectedCategory.keywords.map((keyword) => (
-                  <button key={keyword} type="button" className="tag" onClick={() => void onRemoveKeyword(keyword)}>
-                    {keyword} x
-                  </button>
-                ))}
-              </div>
-              <div className="form">
-                <input
-                  value={keywordInput}
-                  onChange={(e) => setKeywordInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void onAddKeyword();
-                    }
-                  }}
-                  placeholder="Введите keyword и нажмите Enter"
-                />
-                <button type="button" onClick={onAddKeyword}>
-                  Добавить keyword
-                </button>
-              </div>
+              {newCategoryParentId !== null || newCategoryName ? (
+                <div className="form" style={{ marginTop: 0 }}>
+                  <p className="muted">Новая категория: parent = {newCategoryParentName}</p>
+                  <input
+                    value={newCategoryName}
+                    onChange={(event) => setNewCategoryName(event.target.value)}
+                    placeholder="Название категории"
+                  />
+                  <div className="actions">
+                    <button type="button" onClick={onCreateCategory}>
+                      Создать
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewCategoryName("");
+                        setNewCategoryParentId(null);
+                      }}
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
-              <p className="muted">Effective keywords (с наследованием):</p>
-              <div className="chip-list">
-                {selectedCategory.effective_keywords.map((keyword) => (
-                  <span key={keyword} className="tag">
-                    {keyword}
-                  </span>
-                ))}
-              </div>
+              <div className="cat-tree-wrap">{renderTree(adminCategories)}</div>
             </div>
-          ) : null}
+
+            <div className="card">
+              {selectedCategory ? (
+                <>
+                  <h3>Редактирование: {selectedCategory.name}</h3>
+                  <div className="form">
+                    <input
+                      value={renameCategoryName}
+                      onChange={(event) => setRenameCategoryName(event.target.value)}
+                      placeholder="Новое имя"
+                    />
+                    <div className="actions">
+                      <button type="button" onClick={onRenameCategory}>
+                        Переименовать
+                      </button>
+                      <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_fallback}>
+                        Удалить
+                      </button>
+                    </div>
+                    {selectedCategory.is_fallback ? (
+                      <p className="muted">Категория "Прочее" системная и не удаляется.</p>
+                    ) : null}
+                  </div>
+
+                  <p className="muted">Keywords (локальные):</p>
+                  <div className="chip-list">
+                    {selectedCategory.keywords.map((keyword) => (
+                      <button key={keyword} type="button" className="tag" onClick={() => void onRemoveKeyword(keyword)}>
+                        {keyword} x
+                      </button>
+                    ))}
+                  </div>
+                  <div className="form">
+                    <input
+                      value={keywordInput}
+                      onChange={(event) => setKeywordInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void onAddKeyword();
+                        }
+                      }}
+                      placeholder="Введите keyword и нажмите Enter"
+                    />
+                    <button type="button" onClick={onAddKeyword}>
+                      Добавить keyword
+                    </button>
+                  </div>
+
+                  <p className="muted">Effective keywords (с наследованием):</p>
+                  <div className="chip-list">
+                    {selectedCategory.effective_keywords.map((keyword) => (
+                      <span key={keyword} className="tag">
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="muted">Выбери категорию в дереве слева, чтобы редактировать теги и имя.</p>
+              )}
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -543,7 +675,7 @@ export function AdminPage() {
         <div className="card">
           <h2>Синхронизация</h2>
           <p className="muted">Статус: {latestJob?.status || "not_started"}</p>
-          <p className="muted">Последняя синхронизация: {latestJob?.completed_at || "-"}</p>
+          <p className="muted">Последняя синхронизация: {formatDateTime(latestJob?.completed_at)}</p>
           <p className="muted">
             Изменения: new={latestJob?.new_products || 0}, updated={latestJob?.updated_products || 0}
           </p>
@@ -587,22 +719,10 @@ export function AdminPage() {
         <div className="card">
           <h2>Настройки</h2>
           <div className="form">
-            <input
-              value={usdRate}
-              onChange={(event) => setUsdRate(event.target.value)}
-              placeholder="Курс USD"
-            />
-            <input
-              value={weightRule}
-              onChange={(event) => setWeightRule(event.target.value)}
-              placeholder="Правило веса"
-            />
+            <input value={usdRate} onChange={(event) => setUsdRate(event.target.value)} placeholder="Курс USD" />
+            <input value={weightRule} onChange={(event) => setWeightRule(event.target.value)} placeholder="Правило веса" />
             <label className="muted" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <input
-                type="checkbox"
-                checked={ssrEnabled}
-                onChange={(event) => setSsrEnabled(event.target.checked)}
-              />
+              <input type="checkbox" checked={ssrEnabled} onChange={(event) => setSsrEnabled(event.target.checked)} />
               SSR включен
             </label>
             <button
@@ -618,76 +738,96 @@ export function AdminPage() {
       ) : null}
 
       {openModal ? (
-        <div className="modal-backdrop" onClick={() => setOpenModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-backdrop" onClick={closeProductModal}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-head">
               <h2>Добавить товар</h2>
-              <button type="button" onClick={() => setOpenModal(false)}>
+              <button type="button" onClick={closeProductModal}>
                 Закрыть
               </button>
             </div>
 
-            <div className="tabs">
-              <button
-                type="button"
-                className={addMode === "url" ? "tab tab--active" : "tab"}
-                onClick={() => setAddMode("url")}
-              >
-                По ссылке
-              </button>
-              <button
-                type="button"
-                className={addMode === "manual" ? "tab tab--active" : "tab"}
-                onClick={() => setAddMode("manual")}
-              >
-                Вручную
-              </button>
-            </div>
-
-            {addMode === "url" ? (
-              <div className="form">
+            <div className="form">
+              <div className="url-fetch-row">
                 <input
                   value={productUrl}
-                  onChange={(e) => setProductUrl(e.target.value)}
-                  placeholder="https://shop.example.com/products/..."
+                  onChange={(event) => setProductUrl(event.target.value)}
+                  placeholder="Ссылка (опционально): https://shop.example.com/products/..."
                 />
-                <button type="button" onClick={onValidateUrl}>
-                  Добавить по ссылке
+                <button type="button" className="mini-btn" onClick={onFetchPreview} title="Подтянуть поля из URL">
+                  ⇣
                 </button>
-                <p className="muted">Whitelist: {whitelist.join(", ")}</p>
               </div>
-            ) : null}
 
-            {addMode === "manual" ? (
-              <div className="form">
-                <input value={manualTitle} onChange={(e) => setManualTitle(e.target.value)} placeholder="Название" />
-                <div className="row2">
-                  <input value={manualPrice} onChange={(e) => setManualPrice(e.target.value)} placeholder="Цена" />
-                  <input value={manualCurrency} onChange={(e) => setManualCurrency(e.target.value)} placeholder="Валюта" />
-                </div>
-                <select value={manualCategory} onChange={(e) => setManualCategory(e.target.value)}>
-                  <option value="">Выбери категорию</option>
-                  {categoryOptions.map((item) => (
-                    <option key={item.id} value={item.name}>
-                      {item.name}
+              <input value={productTitle} onChange={(event) => setProductTitle(event.target.value)} placeholder="Название" />
+
+              <div className="row2">
+                <input value={productVendor} onChange={(event) => setProductVendor(event.target.value)} placeholder="Бренд" />
+                <input
+                  value={productCategory}
+                  onChange={(event) => setProductCategory(event.target.value)}
+                  placeholder="Категория / product_type"
+                />
+              </div>
+
+              <div className="row2">
+                <input value={productPrice} onChange={(event) => setProductPrice(event.target.value)} placeholder="Цена" />
+                <select value={productCurrency} onChange={(event) => setProductCurrency(event.target.value)}>
+                  {currencyOptions.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
                     </option>
                   ))}
                 </select>
-
-                <div className="dropzone" onDrop={onDropImage} onDragOver={(e) => e.preventDefault()}>
-                  Drag-and-drop изображение сюда
-                </div>
-                <label className="btn-link" htmlFor="image-file">
-                  +
-                </label>
-                <input id="image-file" type="file" accept="image/*" onChange={onPickImage} style={{ display: "none" }} />
-                <p className="muted">{manualImageFile ? `Файл: ${manualImageFile.name}` : "Файл не выбран"}</p>
-                <button type="button" onClick={onSaveManual}>
-                  Сохранить
-                </button>
               </div>
-            ) : null}
 
+              <div className="dropzone" onDrop={onDropImage} onDragOver={(event) => event.preventDefault()}>
+                Drag-and-drop изображений сюда
+              </div>
+              <label className="btn-link" htmlFor="image-file">
+                + добавить фото
+              </label>
+              <input
+                id="image-file"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={onPickImage}
+                style={{ display: "none" }}
+              />
+
+              {imagePreviews.length > 0 ? (
+                <div className="image-preview-grid">
+                  {imagePreviews.map((item, index) => (
+                    <div key={`${item.file.name}-${index}`} className="image-preview-card">
+                      <button type="button" className="image-preview-btn" onClick={() => setZoomedImageUrl(item.url)}>
+                        <img src={item.url} alt={item.file.name} className="image-preview" />
+                      </button>
+                      <div className="actions" style={{ marginTop: "0.35rem" }}>
+                        <button type="button" onClick={() => removePreviewImage(index)}>
+                          Удалить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">Фото не выбраны</p>
+              )}
+
+              <button type="button" onClick={onSaveProduct}>
+                Сохранить товар
+              </button>
+              <p className="muted">Whitelist: {whitelist.join(", ")}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {zoomedImageUrl ? (
+        <div className="modal-backdrop" onClick={() => setZoomedImageUrl(null)}>
+          <div className="zoom-modal" onClick={(event) => event.stopPropagation()}>
+            <img src={zoomedImageUrl} alt="preview" className="zoom-image" />
           </div>
         </div>
       ) : null}
