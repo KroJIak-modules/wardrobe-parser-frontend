@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
 import { Link } from "react-router-dom";
 import { useLiveData } from "../shared/live-data-context";
+import { toImageGatewayUrl } from "../shared/live-data-context";
 
 type AdminTab = "products" | "dedup" | "categories" | "sync" | "sources" | "settings";
 
@@ -33,11 +34,14 @@ const currencyOptions = ["RUB", "EUR", "USD"];
 export function AdminPage() {
   const {
     products,
+    productsTotal,
+    productsHasMore,
     sources,
     latestJob,
     loading,
     error,
     refresh,
+    loadMoreProducts,
     runSync,
     previewProductByUrl,
     addProductByUrl,
@@ -53,6 +57,7 @@ export function AdminPage() {
     mergeDedupPair,
     rejectDedupPair,
     jobsHistory,
+    toggleSourceEnabled,
   } = useLiveData();
 
   const [tab, setTab] = useState<AdminTab>("products");
@@ -70,12 +75,17 @@ export function AdminPage() {
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [renameCategoryName, setRenameCategoryName] = useState<string>("");
+  const [lastSavedCategoryName, setLastSavedCategoryName] = useState<string>("");
   const [keywordInput, setKeywordInput] = useState<string>("");
+  const [createFormOpen, setCreateFormOpen] = useState<boolean>(false);
   const [newCategoryName, setNewCategoryName] = useState<string>("");
   const [newCategoryParentId, setNewCategoryParentId] = useState<number | null>(null);
+  const [newCategoryKeywords, setNewCategoryKeywords] = useState<string>("");
 
   const [productSearch, setProductSearch] = useState<string>("");
+  const [productSourceFilter, setProductSourceFilter] = useState<string>("");
   const [productVendorFilter, setProductVendorFilter] = useState<string>("");
+  const [productTypeFilter, setProductTypeFilter] = useState<string>("");
   const [productStatusFilter, setProductStatusFilter] = useState<string>("");
 
   const [usdRate, setUsdRate] = useState<string>("95");
@@ -122,6 +132,69 @@ export function AdminPage() {
     return found;
   }, [adminCategories, selectedCategoryId]);
 
+  const flattenedAdminCategories = useMemo(() => {
+    const list: { id: number; name: string; effective_keywords: string[] }[] = [];
+    const walk = (nodes: typeof adminCategories) => {
+      for (const node of nodes) {
+        list.push({ id: node.id, name: node.name, effective_keywords: node.effective_keywords || [] });
+        walk(node.children);
+      }
+    };
+    walk(adminCategories);
+    return list;
+  }, [adminCategories]);
+
+  const inferInternalCategoryName = (product: (typeof products)[number]) => {
+    const haystack = `${product.title} ${product.vendor || ""} ${product.product_type || ""}`.toLowerCase();
+    let best: { name: string; score: number } | null = null;
+
+    for (const category of flattenedAdminCategories) {
+      let score = 0;
+      for (const keyword of category.effective_keywords) {
+        const normalized = keyword.trim().toLowerCase();
+        if (!normalized) {
+          continue;
+        }
+        if (haystack.includes(normalized)) {
+          score += normalized.length;
+        }
+      }
+      if (score > 0 && (!best || score > best.score)) {
+        best = { name: category.name, score };
+      }
+    }
+
+    return best?.name || "Прочее";
+  };
+
+  useEffect(() => {
+    if (!selectedCategory) {
+      return;
+    }
+    setRenameCategoryName(selectedCategory.name);
+    setLastSavedCategoryName(selectedCategory.name);
+  }, [selectedCategory?.id, selectedCategory?.name]);
+
+  useEffect(() => {
+    if (!selectedCategoryId) {
+      return;
+    }
+    const normalized = renameCategoryName.trim();
+    if (!normalized || normalized === lastSavedCategoryName) {
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      const result = await updateCategory(selectedCategoryId, { name: normalized });
+      setSyncMessage(result.message);
+      if (result.ok) {
+        setLastSavedCategoryName(normalized);
+      }
+    }, 450);
+
+    return () => window.clearTimeout(timer);
+  }, [renameCategoryName, lastSavedCategoryName, selectedCategoryId, updateCategory]);
+
   const newCategoryParentName = useMemo(() => {
     if (newCategoryParentId === null) {
       return "root";
@@ -139,18 +212,52 @@ export function AdminPage() {
     return [...set.values()].sort((a, b) => a.localeCompare(b));
   }, [products]);
 
+  const productTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const product of products) {
+      if (product.product_type) {
+        set.add(product.product_type);
+      }
+    }
+    return [...set.values()].sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const searchValue = productSearch.trim().toLowerCase();
-      const matchesSearch =
-        !searchValue ||
-        product.title.toLowerCase().includes(searchValue) ||
-        product.handle.toLowerCase().includes(searchValue);
+      const searchText = [
+        String(product.id),
+        product.title,
+        product.handle,
+        product.vendor || "",
+        product.product_type || "",
+        product.url,
+        product.status,
+        product.currency,
+        String(product.price ?? ""),
+      ]
+        .join(" ")
+        .toLowerCase();
+      const matchesSearch = !searchValue || searchText.includes(searchValue);
+
+      const matchesSource = !productSourceFilter || String(product.source_id) === productSourceFilter;
       const matchesVendor = !productVendorFilter || product.vendor === productVendorFilter;
+      const matchesType = !productTypeFilter || product.product_type === productTypeFilter;
       const matchesStatus = !productStatusFilter || product.status === productStatusFilter;
-      return matchesSearch && matchesVendor && matchesStatus;
+
+      return matchesSearch && matchesSource && matchesVendor && matchesType && matchesStatus;
     });
-  }, [products, productSearch, productVendorFilter, productStatusFilter]);
+  }, [products, productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
+
+  const sourceById = useMemo(() => {
+    const map = new Map<number, (typeof sources)[number]>();
+    for (const source of sources) {
+      if (source.source_id !== null) {
+        map.set(source.source_id, source);
+      }
+    }
+    return map;
+  }, [sources]);
 
   const formatDateTime = (value: string | null | undefined) => {
     if (!value) {
@@ -161,6 +268,39 @@ export function AdminPage() {
       return value;
     }
     return date.toLocaleString("ru-RU");
+  };
+
+  const parseUsdRate = () => {
+    const parsed = Number(usdRate);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 95;
+  };
+
+  const convertToRub = (price: number | null, currency: string) => {
+    if (price === null) {
+      return null;
+    }
+    if (currency === "RUB") {
+      return price;
+    }
+    const usd = parseUsdRate();
+    const eur = usd * 1.1;
+    if (currency === "USD") {
+      return price * usd;
+    }
+    if (currency === "EUR") {
+      return price * eur;
+    }
+    return null;
+  };
+
+  const statusBadge = (status: string) => {
+    if (status === "available") {
+      return { label: "Доступен", cls: "status-pill status-pill--ok" };
+    }
+    if (status === "out_of_stock") {
+      return { label: "Нет в наличии", cls: "status-pill status-pill--bad" };
+    }
+    return { label: "Comming soon", cls: "status-pill status-pill--muted" };
   };
 
   const resetProductForm = () => {
@@ -291,8 +431,10 @@ export function AdminPage() {
   };
 
   const onStartCategoryCreate = (parentId: number | null) => {
+    setCreateFormOpen(true);
     setNewCategoryParentId(parentId);
     setNewCategoryName("");
+    setNewCategoryKeywords("");
   };
 
   const onCreateCategory = async () => {
@@ -303,20 +445,26 @@ export function AdminPage() {
 
     const result = await createCategory(newCategoryName.trim(), newCategoryParentId);
     setSyncMessage(result.message);
-    if (result.ok) {
-      setNewCategoryName("");
-      setNewCategoryParentId(null);
-    }
-  };
 
-  const onRenameCategory = async () => {
-    if (!selectedCategoryId || !renameCategoryName.trim()) {
-      return;
-    }
-    const result = await updateCategory(selectedCategoryId, { name: renameCategoryName.trim() });
-    setSyncMessage(result.message);
-    if (result.ok) {
-      setRenameCategoryName("");
+    if (result.ok && result.categoryId) {
+      const keywords = newCategoryKeywords
+        .split(/[\n,;]/)
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean);
+
+      for (const keyword of keywords) {
+        const addResult = await addCategoryKeyword(result.categoryId, keyword);
+        if (!addResult.ok) {
+          setSyncMessage(addResult.message);
+          break;
+        }
+      }
+
+      setCreateFormOpen(false);
+      setNewCategoryParentId(null);
+      setNewCategoryName("");
+      setNewCategoryKeywords("");
+      await refresh();
     }
   };
 
@@ -376,10 +524,7 @@ export function AdminPage() {
                 <button
                   type="button"
                   className={selectedCategoryId === node.id ? "tab tab--active cat-tree-btn" : "tab cat-tree-btn"}
-                  onClick={() => {
-                    setSelectedCategoryId(node.id);
-                    setRenameCategoryName(node.name);
-                  }}
+                  onClick={() => setSelectedCategoryId(node.id)}
                 >
                   <span className="cat-tree-branch">{branch}</span>
                   <span>{node.name}</span>
@@ -392,9 +537,8 @@ export function AdminPage() {
                 >
                   +
                 </button>
-                <span className="muted">{node.is_fallback ? "fallback" : `${node.keywords.length} keywords`}</span>
+                <span className="muted">{node.is_fallback ? "fallback" : `${node.keywords.length} ключей`}</span>
               </div>
-
               {node.children.length > 0 ? <div className="cat-tree-children">{renderTree(node.children, nextPrefix)}</div> : null}
             </div>
           );
@@ -443,72 +587,117 @@ export function AdminPage() {
 
       {tab === "products" ? (
         <div className="card">
-          <h2>Все товары ({filteredProducts.length})</h2>
-          <div className="row2">
-            <input
-              value={productSearch}
-              onChange={(event) => setProductSearch(event.target.value)}
-              placeholder="Поиск по title/handle"
-            />
-            <select value={productVendorFilter} onChange={(event) => setProductVendorFilter(event.target.value)}>
-              <option value="">Все бренды</option>
-              {productVendors.map((vendor) => (
-                <option key={vendor} value={vendor}>
-                  {vendor}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="row2" style={{ marginTop: "0.75rem" }}>
-            <select value={productStatusFilter} onChange={(event) => setProductStatusFilter(event.target.value)}>
-              <option value="">Все статусы</option>
-              <option value="available">available</option>
-              <option value="out_of_stock">out_of_stock</option>
-              <option value="discontinued">discontinued</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                setProductSearch("");
-                setProductVendorFilter("");
-                setProductStatusFilter("");
-              }}
-            >
-              Сброс фильтров
-            </button>
-          </div>
-          <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
-            <table className="products-table">
-              <thead>
-                <tr>
-                  <th>Название</th>
-                  <th>Бренд</th>
-                  <th>Категория</th>
-                  <th>Статус</th>
-                  <th>Цена</th>
-                  <th>Источник</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map((product) => (
-                  <tr key={product.id}>
-                    <td>{product.title}</td>
-                    <td>{product.vendor || "-"}</td>
-                    <td>{product.product_type || "Other"}</td>
-                    <td>{product.status || "-"}</td>
-                    <td>
-                      {product.price} {product.currency}
-                    </td>
-                    <td>
-                      <a className="btn-link" href={product.url} target="_blank" rel="noreferrer">
-                        Source
-                      </a>
-                    </td>
-                  </tr>
+          <h2>
+            Все товары ({filteredProducts.length}/{productsTotal})
+          </h2>
+
+          <div className="products-layout">
+            <aside className="products-filters card">
+              <h3>Фильтры</h3>
+              <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Поиск" />
+              <select value={productSourceFilter} onChange={(event) => setProductSourceFilter(event.target.value)}>
+                <option value="">Все сайты</option>
+                {sources
+                  .filter((source) => source.source_id !== null)
+                  .map((source) => (
+                    <option key={source.key} value={String(source.source_id)}>
+                      {source.name}
+                    </option>
+                  ))}
+              </select>
+              <select value={productVendorFilter} onChange={(event) => setProductVendorFilter(event.target.value)}>
+                <option value="">Все бренды</option>
+                {productVendors.map((vendor) => (
+                  <option key={vendor} value={vendor}>
+                    {vendor}
+                  </option>
                 ))}
-              </tbody>
-            </table>
-            {filteredProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
+              </select>
+              <select value={productTypeFilter} onChange={(event) => setProductTypeFilter(event.target.value)}>
+                <option value="">Все локальные категории</option>
+                {productTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+              <select value={productStatusFilter} onChange={(event) => setProductStatusFilter(event.target.value)}>
+                <option value="">Все статусы</option>
+                <option value="available">Доступен</option>
+                <option value="out_of_stock">Нет в наличии</option>
+                <option value="discontinued">Comming soon</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  setProductSearch("");
+                  setProductSourceFilter("");
+                  setProductVendorFilter("");
+                  setProductTypeFilter("");
+                  setProductStatusFilter("");
+                }}
+              >
+                Сбросить
+              </button>
+            </aside>
+
+            <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
+              <table className="products-table">
+                <thead>
+                  <tr>
+                    <th>Фото</th>
+                    <th>Название</th>
+                    <th>Сайт</th>
+                    <th>Локальная категория</th>
+                    <th>Категория</th>
+                    <th>Статус</th>
+                    <th>Оригинальная цена</th>
+                    <th>Итоговая цена (RUB)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map((product) => {
+                    const status = statusBadge(product.status);
+                    const rubPrice = convertToRub(product.price, product.currency);
+                    const source = sourceById.get(product.source_id);
+                    return (
+                      <tr key={product.id}>
+                        <td>
+                          {toImageGatewayUrl(product.image_ids?.[0]) ? (
+                            <img className="thumb-mini-image" src={toImageGatewayUrl(product.image_ids?.[0]) || undefined} alt={product.title} />
+                          ) : (
+                            <div className="thumb-mini">{product.image_count > 0 ? `${product.image_count} фото` : "Нет фото"}</div>
+                          )}
+                        </td>
+                        <td>
+                          <Link className="btn-link" to={`/product/${product.id}`}>
+                            {product.title}
+                          </Link>
+                        </td>
+                        <td>{source?.name || `#${product.source_id}`}</td>
+                        <td>{product.product_type || "-"}</td>
+                        <td>{inferInternalCategoryName(product)}</td>
+                        <td>
+                          <span className={status.cls}>{status.label}</span>
+                        </td>
+                        <td>
+                          {product.price ?? "-"} {product.currency}
+                        </td>
+                        <td>{rubPrice === null ? "-" : `${Math.round(rubPrice)} RUB`}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filteredProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
+              {productsHasMore ? (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <button type="button" onClick={() => void loadMoreProducts()}>
+                    Загрузить еще
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}
@@ -577,36 +766,35 @@ export function AdminPage() {
                   + root
                 </button>
               </div>
+              <div className="cat-tree-wrap">{renderTree(adminCategories)}</div>
+            </div>
 
-              {newCategoryParentId !== null || newCategoryName ? (
-                <div className="form" style={{ marginTop: 0 }}>
-                  <p className="muted">Новая категория: parent = {newCategoryParentName}</p>
+            <div className="card">
+              {createFormOpen ? (
+                <div className="form">
+                  <h3>Создание категории</h3>
+                  <p className="muted">Родитель: {newCategoryParentName}</p>
                   <input
                     value={newCategoryName}
                     onChange={(event) => setNewCategoryName(event.target.value)}
-                    placeholder="Название категории"
+                    placeholder="Название"
+                  />
+                  <textarea
+                    value={newCategoryKeywords}
+                    onChange={(event) => setNewCategoryKeywords(event.target.value)}
+                    placeholder="Ключевые слова (через запятую или с новой строки, опционально)"
                   />
                   <div className="actions">
                     <button type="button" onClick={onCreateCategory}>
                       Создать
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewCategoryName("");
-                        setNewCategoryParentId(null);
-                      }}
-                    >
+                    <button type="button" onClick={() => setCreateFormOpen(false)}>
                       Отмена
                     </button>
                   </div>
                 </div>
               ) : null}
 
-              <div className="cat-tree-wrap">{renderTree(adminCategories)}</div>
-            </div>
-
-            <div className="card">
               {selectedCategory ? (
                 <>
                   <h3>Редактирование: {selectedCategory.name}</h3>
@@ -614,27 +802,25 @@ export function AdminPage() {
                     <input
                       value={renameCategoryName}
                       onChange={(event) => setRenameCategoryName(event.target.value)}
-                      placeholder="Новое имя"
+                      placeholder="Название категории"
                     />
-                    <div className="actions">
-                      <button type="button" onClick={onRenameCategory}>
-                        Переименовать
-                      </button>
-                      <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_fallback}>
-                        Удалить
-                      </button>
-                    </div>
+                    <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_fallback}>
+                      Удалить
+                    </button>
                     {selectedCategory.is_fallback ? (
-                      <p className="muted">Категория "Прочее" системная и не удаляется.</p>
+                      <p className="muted">Данная категория системная, ее нельзя удалить.</p>
                     ) : null}
                   </div>
 
-                  <p className="muted">Keywords (локальные):</p>
+                  <p className="muted">Ключевые слова (локальные):</p>
                   <div className="chip-list">
                     {selectedCategory.keywords.map((keyword) => (
-                      <button key={keyword} type="button" className="tag" onClick={() => void onRemoveKeyword(keyword)}>
-                        {keyword} x
-                      </button>
+                      <span key={keyword} className="tag tag--with-action">
+                        <span>{keyword}</span>
+                        <button type="button" className="tag-x" onClick={() => void onRemoveKeyword(keyword)}>
+                          x
+                        </button>
+                      </span>
                     ))}
                   </div>
                   <div className="form">
@@ -647,24 +833,26 @@ export function AdminPage() {
                           void onAddKeyword();
                         }
                       }}
-                      placeholder="Введите keyword и нажмите Enter"
+                      placeholder="Введите ключ и нажмите Enter"
                     />
                     <button type="button" onClick={onAddKeyword}>
-                      Добавить keyword
+                      Добавить ключ
                     </button>
                   </div>
 
-                  <p className="muted">Effective keywords (с наследованием):</p>
+                  <p className="muted">Ключевые слова (наследованные):</p>
                   <div className="chip-list">
-                    {selectedCategory.effective_keywords.map((keyword) => (
-                      <span key={keyword} className="tag">
-                        {keyword}
-                      </span>
-                    ))}
+                    {selectedCategory.effective_keywords
+                      .filter((keyword) => !selectedCategory.keywords.includes(keyword))
+                      .map((keyword) => (
+                        <span key={keyword} className="tag">
+                          {keyword}
+                        </span>
+                      ))}
                   </div>
                 </>
               ) : (
-                <p className="muted">Выбери категорию в дереве слева, чтобы редактировать теги и имя.</p>
+                <p className="muted">Выбери категорию в дереве слева, чтобы редактировать название и ключи.</p>
               )}
             </div>
           </div>
@@ -674,17 +862,20 @@ export function AdminPage() {
       {tab === "sync" ? (
         <div className="card">
           <h2>Синхронизация</h2>
-          <p className="muted">Статус: {latestJob?.status || "not_started"}</p>
           <p className="muted">Последняя синхронизация: {formatDateTime(latestJob?.completed_at)}</p>
-          <p className="muted">
-            Изменения: new={latestJob?.new_products || 0}, updated={latestJob?.updated_products || 0}
-          </p>
+          <p className="muted">Следующая синхронизация: {formatDateTime(latestJob?.next_scheduled_at)}</p>
+          <div className="sync-stats">
+            <span className="sync-pill sync-pill--new">new: {latestJob?.new_products || 0}</span>
+            <span className="sync-pill sync-pill--updated">updated: {latestJob?.updated_products || 0}</span>
+            <span className="sync-pill sync-pill--missing">missing: 0</span>
+          </div>
+
           <h3 style={{ marginTop: "1rem" }}>История запусков</h3>
           <div className="list">
             {jobsHistory.map((job) => (
               <div key={job.id} className="list-row">
                 <div>
-                  <strong>{job.status}</strong>
+                  <strong>{job.id}</strong>
                   <p className="muted">{formatDateTime(job.created_at)}</p>
                   <p className="muted">
                     new={job.new_products} updated={job.updated_products} errors={job.error_count}
@@ -707,8 +898,23 @@ export function AdminPage() {
                 <div>
                   <strong>{source.name}</strong>
                   <p className="muted">{source.base_url}</p>
+                  <p className="muted">
+                    Товаров: {source.products_count} • Категорий: {source.categories_count}
+                  </p>
                 </div>
-                <span className="muted">{source.enabled ? "enabled" : "disabled"}</span>
+                <label className="switch-wrap">
+                  <input
+                    type="checkbox"
+                    checked={source.enabled}
+                    onChange={(event) => {
+                      void (async () => {
+                        const result = await toggleSourceEnabled(source.key, event.target.checked);
+                        setSyncMessage(result.message);
+                      })();
+                    }}
+                  />
+                  <span>{source.enabled ? "Включен" : "Выключен"}</span>
+                </label>
               </div>
             ))}
           </div>

@@ -3,11 +3,14 @@ import { toSlug } from "./utils";
 
 type Source = {
   key: string;
+  source_id: number | null;
   name: string;
   base_url: string;
   parser_type: string;
   enabled: boolean;
   notes: string | null;
+  products_count: number;
+  categories_count: number;
 };
 
 type ServiceProduct = {
@@ -21,9 +24,18 @@ type ServiceProduct = {
   currency: string;
   status: string;
   image_count: number;
+  image_urls: string[];
+  image_ids: number[];
   created_at: string;
   updated_at: string;
 };
+
+export function toImageGatewayUrl(imageId: number | null | undefined) {
+  if (!imageId || imageId <= 0) {
+    return null;
+  }
+  return `/api/v1/images/${imageId}`;
+}
 
 type JobsLatest = {
   status: string;
@@ -86,10 +98,13 @@ export type ProductUrlPreview = {
   product_url: string;
   price: number | null;
   currency: string;
+  image_urls: string[];
 };
 
 type LiveDataContextValue = {
   products: ServiceProduct[];
+  productsTotal: number;
+  productsHasMore: boolean;
   categories: CategoryView[];
   adminCategories: AdminCategoryNode[];
   dedupCandidates: DedupCandidate[];
@@ -99,6 +114,7 @@ type LiveDataContextValue = {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  loadMoreProducts: () => Promise<void>;
   runSync: () => Promise<{ ok: boolean; message: string }>;
   previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   addProductByUrl: (
@@ -120,13 +136,14 @@ type LiveDataContextValue = {
     image_count: number;
   }) => Promise<{ ok: boolean; message: string }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string }>;
-  createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string }>;
+  createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string; categoryId?: number }>;
   updateCategory: (id: number, payload: { name?: string; parent_id?: number | null }) => Promise<{ ok: boolean; message: string }>;
   deleteCategory: (id: number) => Promise<{ ok: boolean; message: string }>;
   addCategoryKeyword: (id: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
   removeCategoryKeyword: (id: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
   mergeDedupPair: (primaryProductId: number, duplicateProductId: number) => Promise<{ ok: boolean; message: string }>;
   rejectDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
+  toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
 };
 
 const API_BASE = "/api/v1";
@@ -135,6 +152,8 @@ const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefine
 
 export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<ServiceProduct[]>([]);
+  const [productsTotal, setProductsTotal] = useState<number>(0);
+  const [productsHasMore, setProductsHasMore] = useState<boolean>(false);
   const [sources, setSources] = useState<Source[]>([]);
   const [adminCategories, setAdminCategories] = useState<AdminCategoryNode[]>([]);
   const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
@@ -161,8 +180,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const [productsRes, sourcesRes, latestJobRes, categoriesRes, dedupRes, jobsHistoryRes] = await Promise.all([
-        fetch(`${API_BASE}/products?limit=200`),
-        fetch(`${API_BASE}/shopify/sources`),
+        fetch(`${API_BASE}/products?limit=200&offset=0`),
+        fetch(`${API_BASE}/shopify/sources-admin`),
         fetch(`${API_BASE}/jobs/latest`),
         fetch(`${API_BASE}/categories/tree`),
         fetch(`${API_BASE}/dedup/candidates?limit=80`),
@@ -188,7 +207,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         throw new Error(`Jobs history API error: ${jobsHistoryRes.status}`);
       }
 
-      const productsPayload = (await productsRes.json()) as { items: ServiceProduct[] };
+      const productsPayload = (await productsRes.json()) as { items: ServiceProduct[]; total: number; limit: number; offset: number };
       const sourcesPayload = (await sourcesRes.json()) as Source[];
       const latestPayload = (await latestJobRes.json()) as JobsLatest;
       const categoriesPayload = (await categoriesRes.json()) as AdminCategoryNode[];
@@ -196,6 +215,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       const jobsHistoryPayload = (await jobsHistoryRes.json()) as SyncJobHistoryItem[];
 
       setProducts(productsPayload.items || []);
+      setProductsTotal(productsPayload.total || 0);
+      setProductsHasMore((productsPayload.items || []).length + (productsPayload.offset || 0) < (productsPayload.total || 0));
       setSources(sourcesPayload || []);
       setLatestJob(latestPayload);
       setAdminCategories(categoriesPayload || []);
@@ -207,6 +228,26 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, []);
+
+  const loadMoreProducts = useCallback(async () => {
+    if (!productsHasMore) {
+      return;
+    }
+    try {
+      const offset = products.length;
+      const res = await fetch(`${API_BASE}/products?limit=200&offset=${offset}`);
+      if (!res.ok) {
+        throw new Error(`Products API error: ${res.status}`);
+      }
+      const payload = (await res.json()) as { items: ServiceProduct[]; total: number; offset: number };
+      const nextItems = payload.items || [];
+      setProducts((prev) => [...prev, ...nextItems]);
+      setProductsTotal(payload.total || 0);
+      setProductsHasMore(nextItems.length + (payload.offset || 0) < (payload.total || 0));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [productsHasMore, products.length]);
 
   const runSync = useCallback(async () => {
     try {
@@ -345,8 +386,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
+        const created = (await res.json()) as { id: number };
         await refresh();
-        return { ok: true, message: "Категория создана" };
+        return { ok: true, message: "Категория создана", categoryId: created.id };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
@@ -477,6 +519,27 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     [refresh]
   );
 
+  const toggleSourceEnabled = useCallback(
+    async (sourceKey: string, enabled: boolean) => {
+      try {
+        const res = await fetch(`${API_BASE}/shopify/sources/${sourceKey}/enabled`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: enabled ? "Источник включен" : "Источник выключен" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
   useEffect(() => {
     void refresh();
     const timer = window.setInterval(() => {
@@ -488,6 +551,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       products,
+      productsTotal,
+      productsHasMore,
       categories,
       adminCategories,
       dedupCandidates,
@@ -497,6 +562,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       refresh,
+      loadMoreProducts,
       runSync,
       previewProductByUrl,
       addProductByUrl,
@@ -509,9 +575,12 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       removeCategoryKeyword,
       mergeDedupPair,
       rejectDedupPair,
+      toggleSourceEnabled,
     }),
     [
       products,
+      productsTotal,
+      productsHasMore,
       categories,
       adminCategories,
       dedupCandidates,
@@ -521,6 +590,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       refresh,
+      loadMoreProducts,
       runSync,
       previewProductByUrl,
       addProductByUrl,
@@ -533,6 +603,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       removeCategoryKeyword,
       mergeDedupPair,
       rejectDedupPair,
+      toggleSourceEnabled,
     ]
   );
 

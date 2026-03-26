@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLiveData } from "../shared/live-data-context";
+import { toImageGatewayUrl } from "../shared/live-data-context";
 
 export function HomePage() {
   const { categories, products, loading, error } = useLiveData();
@@ -23,7 +24,11 @@ export function HomePage() {
       <div className="product-grid">
         {products.map((product) => (
           <article key={product.id} className="card">
-            <div className="thumb thumb--placeholder">No image</div>
+            {toImageGatewayUrl(product.image_ids?.[0]) ? (
+              <img className="thumb" src={toImageGatewayUrl(product.image_ids?.[0]) || undefined} alt={product.title} loading="lazy" />
+            ) : (
+              <div className="thumb thumb--placeholder">No image</div>
+            )}
             <h3>{product.title}</h3>
             <p className="muted">
               {product.price} {product.currency}

@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useLiveData } from "../shared/live-data-context";
+import { toImageGatewayUrl } from "../shared/live-data-context";
 import { toSlug } from "../shared/utils";
 
 export function CategoryPage() {
@@ -18,12 +19,16 @@ export function CategoryPage() {
   return (
     <section className="section">
       <h1>{category.name}</h1>
-      <p className="muted">{category.description}</p>
+      <p className="muted">Товаров в категории: {filtered.length}</p>
 
       <div className="product-grid">
         {filtered.map((product) => (
           <article key={product.id} className="card">
-            <div className="thumb thumb--placeholder">No image</div>
+            {toImageGatewayUrl(product.image_ids?.[0]) ? (
+              <img className="thumb" src={toImageGatewayUrl(product.image_ids?.[0]) || undefined} alt={product.title} loading="lazy" />
+            ) : (
+              <div className="thumb thumb--placeholder">No image</div>
+            )}
             <h3>{product.title}</h3>
             <p className="muted">
               {product.price} {product.currency}
