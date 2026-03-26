@@ -37,6 +37,22 @@ type JobsLatest = {
   new_images: number;
 } | null;
 
+export type SyncJobHistoryItem = {
+  id: string;
+  status: string;
+  triggered_by: string;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  total_products: number | null;
+  new_products: number;
+  updated_products: number;
+  new_images: number;
+  error_count: number;
+  http_429_count: number;
+  http_5xx_count: number;
+};
+
 type CategoryView = {
   slug: string;
   name: string;
@@ -54,10 +70,20 @@ export type AdminCategoryNode = {
   children: AdminCategoryNode[];
 };
 
+export type DedupCandidate = {
+  pair_key: string;
+  score: number;
+  reasons: string[];
+  left: ServiceProduct;
+  right: ServiceProduct;
+};
+
 type LiveDataContextValue = {
   products: ServiceProduct[];
   categories: CategoryView[];
   adminCategories: AdminCategoryNode[];
+  dedupCandidates: DedupCandidate[];
+  jobsHistory: SyncJobHistoryItem[];
   sources: Source[];
   latestJob: JobsLatest;
   loading: boolean;
@@ -78,12 +104,11 @@ type LiveDataContextValue = {
   deleteCategory: (id: number) => Promise<{ ok: boolean; message: string }>;
   addCategoryKeyword: (id: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
   removeCategoryKeyword: (id: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
+  mergeDedupPair: (primaryProductId: number, duplicateProductId: number) => Promise<{ ok: boolean; message: string }>;
+  rejectDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
 };
 
-const API_BASE =
-  import.meta.env.VITE_SERVICE_API_URL ||
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:10520";
+const API_BASE = "/api";
 
 const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefined);
 
@@ -91,6 +116,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<ServiceProduct[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [adminCategories, setAdminCategories] = useState<AdminCategoryNode[]>([]);
+  const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
+  const [jobsHistory, setJobsHistory] = useState<SyncJobHistoryItem[]>([]);
   const [latestJob, setLatestJob] = useState<JobsLatest>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,11 +139,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const [productsRes, sourcesRes, latestJobRes, categoriesRes] = await Promise.all([
+      const [productsRes, sourcesRes, latestJobRes, categoriesRes, dedupRes, jobsHistoryRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/products?limit=500`),
         fetch(`${API_BASE}/api/v1/shopify/sources`),
         fetch(`${API_BASE}/api/v1/jobs/latest`),
         fetch(`${API_BASE}/api/v1/categories/tree`),
+        fetch(`${API_BASE}/api/v1/dedup/candidates?limit=80`),
+        fetch(`${API_BASE}/api/v1/jobs?limit=15&offset=0`),
       ]);
 
       if (!productsRes.ok) {
@@ -131,16 +160,26 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       if (!categoriesRes.ok) {
         throw new Error(`Categories API error: ${categoriesRes.status}`);
       }
+      if (!dedupRes.ok) {
+        throw new Error(`Dedup API error: ${dedupRes.status}`);
+      }
+      if (!jobsHistoryRes.ok) {
+        throw new Error(`Jobs history API error: ${jobsHistoryRes.status}`);
+      }
 
       const productsPayload = (await productsRes.json()) as { items: ServiceProduct[] };
       const sourcesPayload = (await sourcesRes.json()) as Source[];
       const latestPayload = (await latestJobRes.json()) as JobsLatest;
       const categoriesPayload = (await categoriesRes.json()) as AdminCategoryNode[];
+      const dedupPayload = (await dedupRes.json()) as { items: DedupCandidate[] };
+      const jobsHistoryPayload = (await jobsHistoryRes.json()) as SyncJobHistoryItem[];
 
       setProducts(productsPayload.items || []);
       setSources(sourcesPayload || []);
       setLatestJob(latestPayload);
       setAdminCategories(categoriesPayload || []);
+      setDedupCandidates(dedupPayload.items || []);
+      setJobsHistory(jobsHistoryPayload || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -345,6 +384,48 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     [refresh]
   );
 
+  const mergeDedupPair = useCallback(
+    async (primaryProductId: number, duplicateProductId: number) => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/dedup/merge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ primary_product_id: primaryProductId, duplicate_product_id: duplicateProductId }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Дубликаты объединены" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const rejectDedupPair = useCallback(
+    async (productAId: number, productBId: number) => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/dedup/reject`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product_a_id: productAId, product_b_id: productBId }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Пара помечена как не дубль" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
   useEffect(() => {
     void refresh();
     const timer = window.setInterval(() => {
@@ -358,6 +439,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       products,
       categories,
       adminCategories,
+      dedupCandidates,
+      jobsHistory,
       sources,
       latestJob,
       loading,
@@ -372,11 +455,15 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       deleteCategory,
       addCategoryKeyword,
       removeCategoryKeyword,
+      mergeDedupPair,
+      rejectDedupPair,
     }),
     [
       products,
       categories,
       adminCategories,
+      dedupCandidates,
+      jobsHistory,
       sources,
       latestJob,
       loading,
@@ -391,6 +478,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       deleteCategory,
       addCategoryKeyword,
       removeCategoryKeyword,
+      mergeDedupPair,
+      rejectDedupPair,
     ]
   );
 
