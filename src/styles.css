@@ -22,9 +22,7 @@
 }
 
 .cat-tree-node {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  display: block;
 }
 
 .cat-tree-item {
@@ -55,7 +53,29 @@
 
 .cat-tree-children {
   border-left: 1px dashed #c9c9c9;
-  padding-left: 1rem;
+  margin-left: 0.75rem;
+  margin-top: 0.45rem;
+  padding-left: 0.75rem;
+}
+
+.category-tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0 18px;
+}
+
+.category-tree-node {
+  display: block;
+}
+
+.category-tree-children {
+  margin-top: 6px;
+}
+
+.tag--active {
+  border-color: #111111;
+  font-weight: 600;
 }
 
 .dedup-list {

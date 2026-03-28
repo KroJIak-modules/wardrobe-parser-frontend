@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useLiveData } from "../shared/live-data-context";
 import { toImageGatewayUrl } from "../shared/live-data-context";
@@ -5,12 +6,54 @@ import { toSlug } from "../shared/utils";
 
 export function CategoryPage() {
   const { slug } = useParams();
-  const { categories, products } = useLiveData();
+  const { categories, products, productsHasMore, loadMoreProducts, loadingMoreProducts } = useLiveData();
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const category = categories.find((item) => item.slug === slug);
+  const flatten = (items: typeof categories): typeof categories => {
+    const list: typeof categories = [];
+    for (const item of items) {
+      list.push(item);
+      list.push(...flatten(item.children));
+    }
+    return list;
+  };
+
+  const flatCategories = flatten(categories);
+  const category = flatCategories.find((item) => item.slug === slug);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !category) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting) && productsHasMore && !loadingMoreProducts) {
+          void loadMoreProducts();
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [productsHasMore, loadingMoreProducts, loadMoreProducts, category]);
+
   const filtered = category
-    ? products.filter((product) => toSlug(product.product_type || "Other") === category.slug)
+    ? products.filter((product) => toSlug(product.product_type || "Прочее") === category.slug)
     : [];
+
+  const renderCategoryButtons = (items: typeof categories, depth = 0) => {
+    return items.map((node) => (
+      <div key={node.slug} className="category-tree-node" style={{ marginLeft: `${depth * 14}px` }}>
+        <Link to={`/category/${node.slug}`} className={node.slug === slug ? "tag tag--active" : "tag"}>
+          {node.name} ({node.count})
+        </Link>
+        {node.children.length > 0 ? <div className="category-tree-children">{renderCategoryButtons(node.children, depth + 1)}</div> : null}
+      </div>
+    ));
+  };
 
   if (!category) {
     return <p>Category not found.</p>;
@@ -20,6 +63,7 @@ export function CategoryPage() {
     <section className="section">
       <h1>{category.name}</h1>
       <p className="muted">Товаров в категории: {filtered.length}</p>
+      <div className="category-tree-list">{renderCategoryButtons(categories)}</div>
 
       <div className="product-grid">
         {filtered.map((product) => (
@@ -39,6 +83,7 @@ export function CategoryPage() {
           </article>
         ))}
       </div>
+      <div ref={sentinelRef} style={{ height: "1px" }} />
     </section>
   );
 }

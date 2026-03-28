@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useLiveData } from "../shared/live-data-context";
 import { toImageGatewayUrl } from "../shared/live-data-context";
@@ -6,23 +6,67 @@ import { toSlug } from "../shared/utils";
 
 export function ProductPage() {
   const { id } = useParams();
-  const { categories, products } = useLiveData();
+  const { categories, products, getProductById } = useLiveData();
 
-  const product = products.find((item) => item.id === Number(id));
+  const productId = Number(id);
+  const product = products.find((item) => item.id === productId);
+  const [resolvedProduct, setResolvedProduct] = useState<typeof product | null>(product || null);
+  const [loadingProduct, setLoadingProduct] = useState<boolean>(false);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
 
-  if (!product) {
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!Number.isFinite(productId) || productId <= 0) {
+        setResolvedProduct(null);
+        return;
+      }
+
+      if (product) {
+        setResolvedProduct(product);
+        return;
+      }
+
+      setLoadingProduct(true);
+      const fetched = await getProductById(productId);
+      if (!cancelled) {
+        setResolvedProduct(fetched);
+        setLoadingProduct(false);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId, product, getProductById]);
+
+  if (loadingProduct) {
+    return null;
+  }
+
+  if (!resolvedProduct) {
     return <p>Product not found.</p>;
   }
 
-  const category = categories.find((item) => item.slug === toSlug(product.product_type || "Other"));
+  const flatCategories = (items: typeof categories): typeof categories => {
+    const list: typeof categories = [];
+    for (const item of items) {
+      list.push(item);
+      list.push(...flatCategories(item.children));
+    }
+    return list;
+  };
+
+  const category = flatCategories(categories).find((item) => item.slug === toSlug(resolvedProduct.product_type || "Прочее"));
   const images = useMemo(() => {
-    const byIds = (product.image_ids || []).map((id) => toImageGatewayUrl(id)).filter((item): item is string => Boolean(item));
+    const byIds = (resolvedProduct.image_ids || []).map((id) => toImageGatewayUrl(id)).filter((item): item is string => Boolean(item));
     if (byIds.length > 0) {
       return byIds;
     }
-    return (product.image_urls || []).filter(Boolean);
-  }, [product.image_ids, product.image_urls]);
+    return (resolvedProduct.image_urls || []).filter(Boolean);
+  }, [resolvedProduct.image_ids, resolvedProduct.image_urls]);
 
   const showPrev = () => {
     if (images.length === 0) {
@@ -45,7 +89,7 @@ export function ProductPage() {
       <div>
         {activeImage ? (
           <div className="product-slider">
-            <img className="detail-image" src={activeImage} alt={`${product.title} ${activeImageIndex + 1}`} />
+            <img className="detail-image" src={activeImage} alt={`${resolvedProduct.title} ${activeImageIndex + 1}`} />
             {images.length > 1 ? (
               <>
                 <button type="button" className="slider-arrow slider-arrow--left" onClick={showPrev}>
@@ -77,17 +121,17 @@ export function ProductPage() {
         ) : null}
       </div>
       <div>
-        <h1>{product.title}</h1>
-        <p className="muted">Handle: {product.handle}</p>
-        <p className="muted">Brand: {product.vendor || "-"}</p>
-        <p className="muted">Status: {product.status}</p>
-        <p className="muted">Images: {product.image_count}</p>
+        <h1>{resolvedProduct.title}</h1>
+        <p className="muted">Handle: {resolvedProduct.handle}</p>
+        <p className="muted">Brand: {resolvedProduct.vendor || "-"}</p>
+        <p className="muted">Status: {resolvedProduct.status}</p>
+        <p className="muted">Images: {resolvedProduct.image_count}</p>
         <p className="muted">Category: {category?.name ?? "Unknown"}</p>
         <p className="price">
-          {product.price} {product.currency}
+          {resolvedProduct.price} {resolvedProduct.currency}
         </p>
-        <p className="muted">Updated: {new Date(product.updated_at).toLocaleString()}</p>
-        <a className="btn-link" href={product.url} target="_blank" rel="noreferrer">
+        <p className="muted">Updated: {new Date(resolvedProduct.updated_at).toLocaleString()}</p>
+        <a className="btn-link" href={resolvedProduct.url} target="_blank" rel="noreferrer">
           Open source page
         </a>
         {category ? (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Link } from "react-router-dom";
 import { useLiveData } from "../shared/live-data-context";
 import { toImageGatewayUrl } from "../shared/live-data-context";
@@ -30,6 +30,27 @@ const whitelist = [
 ];
 
 const currencyOptions = ["RUB", "EUR", "USD"];
+const API_BASE = "/api/v1";
+const PAGE_SIZE = 200;
+const NO_BRAND_VALUE = "__NO_BRAND__";
+
+type AdminListProduct = {
+  id: number;
+  source_id: number;
+  handle: string;
+  title: string;
+  vendor: string | null;
+  product_type: string | null;
+  url: string;
+  price: number | null;
+  currency: string;
+  status: string;
+  image_count: number;
+  image_urls: string[];
+  image_ids: number[];
+  created_at: string;
+  updated_at: string;
+};
 
 export function AdminPage() {
   const {
@@ -38,7 +59,7 @@ export function AdminPage() {
     productsHasMore,
     sources,
     latestJob,
-    loading,
+    loadingMoreProducts,
     error,
     refresh,
     loadMoreProducts,
@@ -91,6 +112,13 @@ export function AdminPage() {
   const [usdRate, setUsdRate] = useState<string>("95");
   const [weightRule, setWeightRule] = useState<string>("default");
   const [ssrEnabled, setSsrEnabled] = useState<boolean>(false);
+  const productsSentinelRef = useRef<HTMLDivElement | null>(null);
+  const [syncInProgressLocal, setSyncInProgressLocal] = useState<boolean>(false);
+
+  const [filteredServerProducts, setFilteredServerProducts] = useState<AdminListProduct[]>([]);
+  const [filteredServerTotal, setFilteredServerTotal] = useState<number>(0);
+  const [filteredServerHasMore, setFilteredServerHasMore] = useState<boolean>(false);
+  const [loadingFilteredServer, setLoadingFilteredServer] = useState<boolean>(false);
 
   const canRunSync = latestJob?.status !== "in_progress";
 
@@ -241,13 +269,159 @@ export function AdminPage() {
       const matchesSearch = !searchValue || searchText.includes(searchValue);
 
       const matchesSource = !productSourceFilter || String(product.source_id) === productSourceFilter;
-      const matchesVendor = !productVendorFilter || product.vendor === productVendorFilter;
+      const matchesVendor = !productVendorFilter
+        || (productVendorFilter === NO_BRAND_VALUE
+          ? !product.vendor || !product.vendor.trim()
+          : product.vendor === productVendorFilter);
       const matchesType = !productTypeFilter || product.product_type === productTypeFilter;
       const matchesStatus = !productStatusFilter || product.status === productStatusFilter;
 
       return matchesSearch && matchesSource && matchesVendor && matchesType && matchesStatus;
     });
   }, [products, productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
+
+  const hasActiveFilters = useMemo(() => {
+    return Boolean(
+      productSearch.trim() ||
+      productSourceFilter ||
+      productVendorFilter ||
+      productTypeFilter ||
+      productStatusFilter
+    );
+  }, [productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
+
+  const buildFilterQuery = () => {
+    const params = new URLSearchParams();
+    params.set("limit", String(PAGE_SIZE));
+    if (productSearch.trim()) {
+      params.set("search", productSearch.trim());
+    }
+    if (productSourceFilter) {
+      params.set("source_id", productSourceFilter);
+    }
+    if (productVendorFilter) {
+      params.set("vendor", productVendorFilter);
+    }
+    if (productTypeFilter) {
+      params.set("product_type", productTypeFilter);
+    }
+    if (productStatusFilter) {
+      params.set("status", productStatusFilter);
+    }
+    return params;
+  };
+
+  useEffect(() => {
+    if (!hasActiveFilters) {
+      setFilteredServerProducts([]);
+      setFilteredServerTotal(0);
+      setFilteredServerHasMore(false);
+      return;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setLoadingFilteredServer(true);
+        const params = buildFilterQuery();
+        params.set("offset", "0");
+        const res = await fetch(`${API_BASE}/products?${params.toString()}`);
+        if (!res.ok) {
+          throw new Error(`Products API error: ${res.status}`);
+        }
+        const payload = (await res.json()) as { items: AdminListProduct[]; total: number; offset: number };
+        if (cancelled) {
+          return;
+        }
+        const items = payload.items || [];
+        setFilteredServerProducts(items);
+        setFilteredServerTotal(payload.total || 0);
+        setFilteredServerHasMore(items.length + (payload.offset || 0) < (payload.total || 0));
+      } catch (e) {
+        if (!cancelled) {
+          setSyncMessage(e instanceof Error ? e.message : "Ошибка фильтрации");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingFilteredServer(false);
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasActiveFilters, productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
+
+  const loadMoreFilteredProducts = async () => {
+    if (!filteredServerHasMore || loadingFilteredServer) {
+      return;
+    }
+    try {
+      setLoadingFilteredServer(true);
+      const params = buildFilterQuery();
+      params.set("offset", String(filteredServerProducts.length));
+      const res = await fetch(`${API_BASE}/products?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error(`Products API error: ${res.status}`);
+      }
+      const payload = (await res.json()) as { items: AdminListProduct[]; total: number; offset: number };
+      const nextItems = payload.items || [];
+      setFilteredServerProducts((prev) => {
+        const known = new Set(prev.map((item) => item.id));
+        const toAdd = nextItems.filter((item) => !known.has(item.id));
+        return [...prev, ...toAdd];
+      });
+      setFilteredServerTotal(payload.total || 0);
+      setFilteredServerHasMore(nextItems.length + (payload.offset || 0) < (payload.total || 0));
+    } catch (e) {
+      setSyncMessage(e instanceof Error ? e.message : "Ошибка догрузки");
+    } finally {
+      setLoadingFilteredServer(false);
+    }
+  };
+
+  const displayedProducts = hasActiveFilters ? filteredServerProducts : filteredProducts;
+  const displayedTotal = hasActiveFilters ? filteredServerTotal : productsTotal;
+  const displayedHasMore = hasActiveFilters ? filteredServerHasMore : productsHasMore;
+  const displayedLoadingMore = hasActiveFilters ? loadingFilteredServer : loadingMoreProducts;
+
+  useEffect(() => {
+    if (tab !== "products") {
+      return;
+    }
+    const node = productsSentinelRef.current;
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) {
+          return;
+        }
+        if (!displayedHasMore || displayedLoadingMore) {
+          return;
+        }
+        if (hasActiveFilters) {
+          void loadMoreFilteredProducts();
+        } else {
+          void loadMoreProducts();
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [
+    tab,
+    displayedHasMore,
+    displayedLoadingMore,
+    hasActiveFilters,
+    loadMoreProducts,
+    filteredServerProducts.length,
+  ]);
 
   const sourceById = useMemo(() => {
     const map = new Map<number, (typeof sources)[number]>();
@@ -261,13 +435,20 @@ export function AdminPage() {
 
   const formatDateTime = (value: string | null | undefined) => {
     if (!value) {
-      return "-";
+      return "--.--.----, --:--:--";
     }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
       return value;
     }
-    return date.toLocaleString("ru-RU");
+    return date.toLocaleString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
   };
 
   const parseUsdRate = () => {
@@ -425,12 +606,17 @@ export function AdminPage() {
   };
 
   const onRunSync = async () => {
-    setSyncMessage("Запуск...");
+    setSyncInProgressLocal(true);
     const result = await runSync();
-    setSyncMessage(result.message);
+    setSyncInProgressLocal(false);
+    if (!result.ok) {
+      setSyncMessage(result.message);
+    }
+    await refresh();
   };
 
   const onStartCategoryCreate = (parentId: number | null) => {
+    setSelectedCategoryId(null);
     setCreateFormOpen(true);
     setNewCategoryParentId(parentId);
     setNewCategoryName("");
@@ -486,9 +672,10 @@ export function AdminPage() {
       return;
     }
     const result = await addCategoryKeyword(selectedCategoryId, keywordInput.trim());
-    setSyncMessage(result.message);
     if (result.ok) {
       setKeywordInput("");
+    } else {
+      setSyncMessage(result.message);
     }
   };
 
@@ -497,7 +684,9 @@ export function AdminPage() {
       return;
     }
     const result = await removeCategoryKeyword(selectedCategoryId, keyword);
-    setSyncMessage(result.message);
+    if (!result.ok) {
+      setSyncMessage(result.message);
+    }
   };
 
   const onMergePair = async (primaryId: number, duplicateId: number) => {
@@ -510,23 +699,21 @@ export function AdminPage() {
     setSyncMessage(result.message);
   };
 
-  const renderTree = (nodes: typeof adminCategories, prefix = "") => {
+  const renderTree = (nodes: typeof adminCategories, depth = 0) => {
     return (
       <div className="cat-tree-column">
-        {nodes.map((node, index) => {
-          const isLast = index === nodes.length - 1;
-          const branch = prefix ? `${prefix}${isLast ? "└─ " : "├─ "}` : "";
-          const nextPrefix = `${prefix}${isLast ? "   " : "│  "}`;
-
+        {nodes.map((node) => {
           return (
-            <div key={node.id} className="cat-tree-node">
+            <div key={node.id} className="cat-tree-node" style={{ marginLeft: `${depth * 12}px` }}>
               <div className="cat-tree-item">
                 <button
                   type="button"
                   className={selectedCategoryId === node.id ? "tab tab--active cat-tree-btn" : "tab cat-tree-btn"}
-                  onClick={() => setSelectedCategoryId(node.id)}
+                  onClick={() => {
+                    setCreateFormOpen(false);
+                    setSelectedCategoryId(node.id);
+                  }}
                 >
-                  <span className="cat-tree-branch">{branch}</span>
                   <span>{node.name}</span>
                 </button>
                 <button
@@ -539,7 +726,7 @@ export function AdminPage() {
                 </button>
                 <span className="muted">{node.is_fallback ? "fallback" : `${node.keywords.length} ключей`}</span>
               </div>
-              {node.children.length > 0 ? <div className="cat-tree-children">{renderTree(node.children, nextPrefix)}</div> : null}
+              {node.children.length > 0 ? <div className="cat-tree-children">{renderTree(node.children, depth + 1)}</div> : null}
             </div>
           );
         })}
@@ -553,8 +740,8 @@ export function AdminPage() {
         <h1>Admin Panel</h1>
         <p className="muted">Реальные данные: дерево категорий, синхронизация, дедуп и управление товарами.</p>
         <div className="actions">
-          <button type="button" onClick={onRunSync} disabled={!canRunSync}>
-            Синхронизировать товары
+          <button type="button" onClick={onRunSync} disabled={!canRunSync || syncInProgressLocal}>
+            {syncInProgressLocal ? "Синхронизация..." : "Синхронизировать товары"}
           </button>
           <button type="button" onClick={() => setOpenModal(true)}>
             Добавить товар
@@ -566,7 +753,7 @@ export function AdminPage() {
             Открыть витрину
           </Link>
         </div>
-        <p className="muted">{syncMessage}</p>
+        {syncMessage ? <p className="muted">{syncMessage}</p> : null}
       </div>
 
       <div className="tabs">
@@ -582,14 +769,16 @@ export function AdminPage() {
         ))}
       </div>
 
-      {loading ? <p className="muted">Loading...</p> : null}
       {error ? <p className="muted">Error: {error}</p> : null}
 
       {tab === "products" ? (
         <div className="card">
           <h2>
-            Все товары ({filteredProducts.length}/{productsTotal})
+            {hasActiveFilters && !productSourceFilter
+              ? `Все товары (${displayedProducts.length}/${displayedTotal})`
+              : `Все товары (${hasActiveFilters ? displayedTotal : productsTotal})`}
           </h2>
+          <p className="muted">Подгрузка товаров выполняется автоматически при скролле вниз.</p>
 
           <div className="products-layout">
             <aside className="products-filters card">
@@ -607,6 +796,7 @@ export function AdminPage() {
               </select>
               <select value={productVendorFilter} onChange={(event) => setProductVendorFilter(event.target.value)}>
                 <option value="">Все бренды</option>
+                <option value={NO_BRAND_VALUE}>Без бренда</option>
                 {productVendors.map((vendor) => (
                   <option key={vendor} value={vendor}>
                     {vendor}
@@ -656,7 +846,7 @@ export function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product) => {
+                  {displayedProducts.map((product) => {
                     const status = statusBadge(product.status);
                     const rubPrice = convertToRub(product.price, product.currency);
                     const source = sourceById.get(product.source_id);
@@ -674,7 +864,15 @@ export function AdminPage() {
                             {product.title}
                           </Link>
                         </td>
-                        <td>{source?.name || `#${product.source_id}`}</td>
+                        <td>
+                          {source?.base_url ? (
+                            <a className="btn-link" href={source.base_url} target="_blank" rel="noreferrer">
+                              {source?.name || source.base_url}
+                            </a>
+                          ) : (
+                            source?.name || `#${product.source_id}`
+                          )}
+                        </td>
                         <td>{product.product_type || "-"}</td>
                         <td>{inferInternalCategoryName(product)}</td>
                         <td>
@@ -689,14 +887,9 @@ export function AdminPage() {
                   })}
                 </tbody>
               </table>
-              {filteredProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
-              {productsHasMore ? (
-                <div style={{ marginTop: "0.75rem" }}>
-                  <button type="button" onClick={() => void loadMoreProducts()}>
-                    Загрузить еще
-                  </button>
-                </div>
-              ) : null}
+              {displayedProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
+              {displayedLoadingMore ? <p className="muted">Подгружаем еще товары...</p> : null}
+              <div ref={productsSentinelRef} style={{ height: "1px" }} />
             </div>
           </div>
         </div>
@@ -773,7 +966,7 @@ export function AdminPage() {
               {createFormOpen ? (
                 <div className="form">
                   <h3>Создание категории</h3>
-                  <p className="muted">Родитель: {newCategoryParentName}</p>
+                  {newCategoryParentId !== null ? <p className="muted">Родитель: {newCategoryParentName}</p> : null}
                   <input
                     value={newCategoryName}
                     onChange={(event) => setNewCategoryName(event.target.value)}
@@ -795,7 +988,7 @@ export function AdminPage() {
                 </div>
               ) : null}
 
-              {selectedCategory ? (
+              {!createFormOpen && selectedCategory ? (
                 <>
                   <h3>Редактирование: {selectedCategory.name}</h3>
                   <div className="form">
@@ -834,11 +1027,13 @@ export function AdminPage() {
                         }
                       }}
                       placeholder="Введите ключ и нажмите Enter"
+                      disabled={selectedCategory.is_fallback}
                     />
-                    <button type="button" onClick={onAddKeyword}>
+                    <button type="button" onClick={onAddKeyword} disabled={selectedCategory.is_fallback}>
                       Добавить ключ
                     </button>
                   </div>
+                  {selectedCategory.is_fallback ? <p className="muted">У системной категории ключей быть не должно.</p> : null}
 
                   <p className="muted">Ключевые слова (наследованные):</p>
                   <div className="chip-list">
@@ -862,17 +1057,38 @@ export function AdminPage() {
       {tab === "sync" ? (
         <div className="card">
           <h2>Синхронизация</h2>
-          <p className="muted">Последняя синхронизация: {formatDateTime(latestJob?.completed_at)}</p>
-          <p className="muted">Следующая синхронизация: {formatDateTime(latestJob?.next_scheduled_at)}</p>
+          {(() => {
+            const minutes = latestJob?.sync_period_minutes || 300;
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            const ru = (n: number, one: string, few: string, many: string) => {
+              const n10 = n % 10;
+              const n100 = n % 100;
+              if (n10 === 1 && n100 !== 11) return one;
+              if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
+              return many;
+            };
+            const chunks: string[] = [];
+            if (hours > 0) {
+              chunks.push(`${hours} ${ru(hours, "час", "часа", "часов")}`);
+            }
+            if (mins > 0) {
+              chunks.push(`${mins} ${ru(mins, "минута", "минуты", "минут")}`);
+            }
+            const periodText = chunks.length > 0 ? chunks.join(" ") : "0 минут";
+            return <p className="muted">Период синхронизации: {periodText}</p>;
+          })()}
+          <p className="muted">Последняя синхронизация: {syncInProgressLocal ? "-" : formatDateTime(latestJob?.completed_at)}</p>
+          <p className="muted">Следующая синхронизация: {syncInProgressLocal ? "-" : formatDateTime(latestJob?.next_scheduled_at)}</p>
           <div className="sync-stats">
-            <span className="sync-pill sync-pill--new">new: {latestJob?.new_products || 0}</span>
-            <span className="sync-pill sync-pill--updated">updated: {latestJob?.updated_products || 0}</span>
-            <span className="sync-pill sync-pill--missing">missing: 0</span>
+            <span className="sync-pill sync-pill--new">new: {syncInProgressLocal ? "-" : latestJob?.new_products || 0}</span>
+            <span className="sync-pill sync-pill--updated">updated: {syncInProgressLocal ? "-" : latestJob?.updated_products || 0}</span>
+            <span className="sync-pill sync-pill--missing">missing: {syncInProgressLocal ? "-" : 0}</span>
           </div>
 
           <h3 style={{ marginTop: "1rem" }}>История запусков</h3>
           <div className="list">
-            {jobsHistory.map((job) => (
+            {(syncInProgressLocal ? [] : jobsHistory).map((job) => (
               <div key={job.id} className="list-row">
                 <div>
                   <strong>{job.id}</strong>
@@ -884,7 +1100,7 @@ export function AdminPage() {
                 <span className="muted">{job.triggered_by}</span>
               </div>
             ))}
-            {jobsHistory.length === 0 ? <p className="muted">История пуста</p> : null}
+            {(syncInProgressLocal || jobsHistory.length === 0) ? <p className="muted">История пуста</p> : null}
           </div>
         </div>
       ) : null}

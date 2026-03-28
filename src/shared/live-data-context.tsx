@@ -47,6 +47,7 @@ type JobsLatest = {
   new_products: number;
   updated_products: number;
   new_images: number;
+  sync_period_minutes: number;
 } | null;
 
 export type SyncJobHistoryItem = {
@@ -66,9 +67,12 @@ export type SyncJobHistoryItem = {
 };
 
 type CategoryView = {
+  id: number;
   slug: string;
   name: string;
+  parent_id: number | null;
   count: number;
+  children: CategoryView[];
 };
 
 export type AdminCategoryNode = {
@@ -112,9 +116,11 @@ type LiveDataContextValue = {
   sources: Source[];
   latestJob: JobsLatest;
   loading: boolean;
+  loadingMoreProducts: boolean;
   error: string | null;
   refresh: () => Promise<void>;
   loadMoreProducts: () => Promise<void>;
+  getProductById: (id: number) => Promise<ServiceProduct | null>;
   runSync: () => Promise<{ ok: boolean; message: string }>;
   previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   addProductByUrl: (
@@ -147,6 +153,7 @@ type LiveDataContextValue = {
 };
 
 const API_BASE = "/api/v1";
+const PRODUCTS_PAGE_SIZE = 200;
 
 const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefined);
 
@@ -160,27 +167,39 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [jobsHistory, setJobsHistory] = useState<SyncJobHistoryItem[]>([]);
   const [latestJob, setLatestJob] = useState<JobsLatest>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMoreProducts, setLoadingMoreProducts] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const categories = useMemo<CategoryView[]>(() => {
     const counts = new Map<string, number>();
     for (const product of products) {
-      const raw = product.product_type?.trim() || "Other";
+      const raw = product.product_type?.trim() || "Прочее";
       counts.set(raw, (counts.get(raw) || 0) + 1);
     }
-    return [...counts.entries()].map(([name, count]) => ({
-      name,
-      slug: toSlug(name),
-      count,
-    }));
-  }, [products]);
+
+    const build = (nodes: AdminCategoryNode[]): CategoryView[] => {
+      return nodes.map((node) => {
+        const nodeCount = counts.get(node.name) || 0;
+        return {
+          id: node.id,
+          slug: node.slug || toSlug(node.name),
+          name: node.name,
+          parent_id: node.parent_id,
+          count: nodeCount,
+          children: build(node.children || []),
+        };
+      });
+    };
+
+    return build(adminCategories);
+  }, [products, adminCategories]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [productsRes, sourcesRes, latestJobRes, categoriesRes, dedupRes, jobsHistoryRes] = await Promise.all([
-        fetch(`${API_BASE}/products?limit=200&offset=0`),
+        fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`),
         fetch(`${API_BASE}/shopify/sources-admin`),
         fetch(`${API_BASE}/jobs/latest`),
         fetch(`${API_BASE}/categories/tree`),
@@ -230,24 +249,55 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadMoreProducts = useCallback(async () => {
-    if (!productsHasMore) {
+    if (!productsHasMore || loadingMoreProducts) {
       return;
     }
     try {
+      setLoadingMoreProducts(true);
       const offset = products.length;
-      const res = await fetch(`${API_BASE}/products?limit=200&offset=${offset}`);
+      const res = await fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
       if (!res.ok) {
         throw new Error(`Products API error: ${res.status}`);
       }
       const payload = (await res.json()) as { items: ServiceProduct[]; total: number; offset: number };
       const nextItems = payload.items || [];
-      setProducts((prev) => [...prev, ...nextItems]);
+      setProducts((prev) => {
+        const known = new Set(prev.map((item) => item.id));
+        const toAdd = nextItems.filter((item) => !known.has(item.id));
+        return [...prev, ...toAdd];
+      });
       setProductsTotal(payload.total || 0);
       setProductsHasMore(nextItems.length + (payload.offset || 0) < (payload.total || 0));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setLoadingMoreProducts(false);
     }
-  }, [productsHasMore, products.length]);
+  }, [productsHasMore, products.length, loadingMoreProducts]);
+
+  const getProductById = useCallback(async (id: number) => {
+    try {
+      const existing = products.find((item) => item.id === id);
+      if (existing) {
+        return existing;
+      }
+
+      const res = await fetch(`${API_BASE}/products/${id}`);
+      if (!res.ok) {
+        return null;
+      }
+      const payload = (await res.json()) as ServiceProduct;
+      setProducts((prev) => {
+        if (prev.some((item) => item.id === payload.id)) {
+          return prev;
+        }
+        return [...prev, payload];
+      });
+      return payload;
+    } catch {
+      return null;
+    }
+  }, [products]);
 
   const runSync = useCallback(async () => {
     try {
@@ -449,7 +499,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
         await refresh();
-        return { ok: true, message: "Ключевое слово добавлено" };
+        return { ok: true, message: "OK" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
@@ -469,7 +519,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
         await refresh();
-        return { ok: true, message: "Ключевое слово удалено" };
+        return { ok: true, message: "OK" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
@@ -542,10 +592,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => {
-      void refresh();
-    }, 15000);
-    return () => window.clearInterval(timer);
+    return undefined;
   }, [refresh]);
 
   const value = useMemo(
@@ -560,9 +607,11 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       sources,
       latestJob,
       loading,
+      loadingMoreProducts,
       error,
       refresh,
       loadMoreProducts,
+      getProductById,
       runSync,
       previewProductByUrl,
       addProductByUrl,
@@ -588,9 +637,11 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       sources,
       latestJob,
       loading,
+      loadingMoreProducts,
       error,
       refresh,
       loadMoreProducts,
+      getProductById,
       runSync,
       previewProductByUrl,
       addProductByUrl,
