@@ -9,6 +9,7 @@ import Footer from './components/footer/Footer';
 import Navbar from './components/header/Navbar';
 import ActionPanel from './components/header/ActionPanel';
 import ShowItem from './pages/ShowItem/ShowItem';
+import AboutMe from './pages/AboutMe/AboutMe';
 
 
 export default function App() {
@@ -53,7 +54,7 @@ function AppContent() {
 
   return (
     <>
-      {!location.pathname.includes('show') && (
+      {!location.pathname.includes('show') || !location.pathname.includes('about') && (
         <div className='main'>
           <button
             className='startButton'
@@ -70,11 +71,12 @@ function AppContent() {
       <Navbar setNavHeight={setNavHeight} />
       <ActionPanel navHeight={navHeight} />
       <div style={{marginTop: -(navHeight * 0.00001) + 'px'}}>
-      {!location.pathname.includes('show') && <HeroCarousel />}
+      {!location.pathname.includes('show') || !location.pathname.includes('about') && <HeroCarousel />}
       <div className='container'>
         <Routes>
           <Route path="/" element={<NewItems />} />
           <Route path="/show" element={<ShowItem />} />
+          <Route path="/about" element={<AboutMe />} />
         </Routes>
       </div>
       <Footer />
