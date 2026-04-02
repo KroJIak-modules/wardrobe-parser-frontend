@@ -59,11 +59,13 @@ export function AdminPage() {
     productsHasMore,
     sources,
     latestJob,
+    latestJobDetails,
     loadingMoreProducts,
     error,
     refresh,
     loadMoreProducts,
     runSync,
+    cancelSync,
     previewProductByUrl,
     addProductByUrl,
     createManualProduct,
@@ -120,7 +122,8 @@ export function AdminPage() {
   const [filteredServerHasMore, setFilteredServerHasMore] = useState<boolean>(false);
   const [loadingFilteredServer, setLoadingFilteredServer] = useState<boolean>(false);
 
-  const canRunSync = latestJob?.status !== "in_progress";
+  const canRunSync = !latestJob || !["in_progress", "pending"].includes(latestJob.status);
+  const canCancelSync = Boolean(latestJob?.can_cancel && latestJob?.job_id);
 
   useEffect(() => {
     return () => {
@@ -433,6 +436,23 @@ export function AdminPage() {
     return map;
   }, [sources]);
 
+  const latestProblemSources = useMemo(() => {
+    const sourceRuns = latestJobDetails?.source_runs || [];
+    return sourceRuns
+      .filter((run) => run.status === "partial" || run.status === "failed")
+      .map((run) => ({
+        ...run,
+        sourceName: sourceById.get(run.source_id)?.name || `#${run.source_id}`,
+        sourceUrl: sourceById.get(run.source_id)?.base_url || "",
+      }))
+      .sort((left, right) => {
+        if (left.status !== right.status) {
+          return left.status === "failed" ? -1 : 1;
+        }
+        return right.products_failed - left.products_failed;
+      });
+  }, [latestJobDetails?.source_runs, sourceById]);
+
   const formatDateTime = (value: string | null | undefined) => {
     if (!value) {
       return "--.--.----, --:--:--";
@@ -615,6 +635,15 @@ export function AdminPage() {
     await refresh();
   };
 
+  const onCancelSync = async () => {
+    if (!latestJob?.job_id) {
+      return;
+    }
+    const result = await cancelSync(latestJob.job_id);
+    setSyncMessage(result.message);
+    await refresh();
+  };
+
   const onStartCategoryCreate = (parentId: number | null) => {
     setSelectedCategoryId(null);
     setCreateFormOpen(true);
@@ -743,6 +772,9 @@ export function AdminPage() {
           <button type="button" onClick={onRunSync} disabled={!canRunSync || syncInProgressLocal}>
             {syncInProgressLocal ? "Синхронизация..." : "Синхронизировать товары"}
           </button>
+          <button type="button" onClick={onCancelSync} disabled={!canCancelSync}>
+            Отменить синхронизацию
+          </button>
           <button type="button" onClick={() => setOpenModal(true)}>
             Добавить товар
           </button>
@@ -753,6 +785,32 @@ export function AdminPage() {
             Открыть витрину
           </Link>
         </div>
+        {latestJob ? (
+          <div className="muted">
+            <p>
+              Sync status: {latestJob.status}
+              {" | "}
+              Sources: {latestJob.progress_percent}% ({latestJob.processed_sources}/{latestJob.total_sources})
+            </p>
+            <p>
+              Products: {latestJob.products_progress_percent}% ({latestJob.processed_products}/{latestJob.expected_products || "?"})
+              {latestJob.failed_products > 0 ? ` | Failed: ${latestJob.failed_products}` : ""}
+              {" | "}
+              On site: {latestJob.site_products_total}
+            </p>
+            <p>
+              Current source: {latestJob.current_source_name || "-"}
+              {latestJob.current_source_index > 0 ? ` (${latestJob.current_source_index}/${latestJob.total_sources})` : ""}
+              {" | "}
+              Stage: {latestJob.current_stage || "-"}
+              {" | "}
+              Source products: {latestJob.current_source_processed_products}/{latestJob.current_source_total_products || "?"}
+            </p>
+            <p>
+              Current product: {latestJob.current_product_title || "-"}
+            </p>
+          </div>
+        ) : null}
         {syncMessage ? <p className="muted">{syncMessage}</p> : null}
       </div>
 
@@ -1085,6 +1143,48 @@ export function AdminPage() {
             <span className="sync-pill sync-pill--updated">updated: {syncInProgressLocal ? "-" : latestJob?.updated_products || 0}</span>
             <span className="sync-pill sync-pill--missing">missing: {syncInProgressLocal ? "-" : 0}</span>
           </div>
+
+          <h3 style={{ marginTop: "1rem" }}>Проблемные источники</h3>
+          {latestProblemSources.length > 0 ? (
+            <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
+              <table className="products-table">
+                <thead>
+                  <tr>
+                    <th>Сайт</th>
+                    <th>Статус</th>
+                    <th>Discovery</th>
+                    <th>Fetched</th>
+                    <th>Failed</th>
+                    <th>Причина</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {latestProblemSources.map((run) => (
+                    <tr key={run.id}>
+                      <td>
+                        {run.sourceUrl ? (
+                          <a className="btn-link" href={run.sourceUrl} target="_blank" rel="noreferrer">
+                            {run.sourceName}
+                          </a>
+                        ) : (
+                          run.sourceName
+                        )}
+                      </td>
+                      <td>{run.status}</td>
+                      <td>{run.products_discovered}</td>
+                      <td>{run.products_fetched}</td>
+                      <td>{run.products_failed}</td>
+                      <td>{run.error_message || run.discovery_mode || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted">
+              {latestJobDetails?.id ? "По последней джобе проблемных источников нет." : "Детали последней джобы еще не загружены."}
+            </p>
+          )}
 
           <h3 style={{ marginTop: "1rem" }}>История запусков</h3>
           <div className="list">

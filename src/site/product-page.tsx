@@ -12,7 +12,9 @@ export function ProductPage() {
   const product = products.find((item) => item.id === productId);
   const [resolvedProduct, setResolvedProduct] = useState<typeof product | null>(product || null);
   const [loadingProduct, setLoadingProduct] = useState<boolean>(false);
+  const [errorProduct, setErrorProduct] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,18 +22,24 @@ export function ProductPage() {
     const run = async () => {
       if (!Number.isFinite(productId) || productId <= 0) {
         setResolvedProduct(null);
+        setErrorProduct("Invalid product ID");
         return;
       }
 
       if (product) {
         setResolvedProduct(product);
+        setErrorProduct(null);
         return;
       }
 
       setLoadingProduct(true);
+      setErrorProduct(null);
       const fetched = await getProductById(productId);
       if (!cancelled) {
         setResolvedProduct(fetched);
+        if (!fetched) {
+          setErrorProduct(`Product #${productId} not found`);
+        }
         setLoadingProduct(false);
       }
     };
@@ -42,12 +50,30 @@ export function ProductPage() {
     };
   }, [productId, product, getProductById]);
 
+  // Keep hook order stable across renders to avoid runtime hook errors on refresh.
+  const images = useMemo(() => {
+    if (!resolvedProduct) {
+      return [] as string[];
+    }
+    const byIds = (resolvedProduct.image_ids || [])
+      .map((imageId) => toImageGatewayUrl(imageId))
+      .filter((item): item is string => Boolean(item));
+    if (byIds.length > 0) {
+      return byIds;
+    }
+    return (resolvedProduct.image_urls || []).filter(Boolean);
+  }, [resolvedProduct]);
+
   if (loadingProduct) {
-    return null;
+    return <div className="section detail" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "200px" }}>
+      <p>Loading product...</p>
+    </div>;
   }
 
-  if (!resolvedProduct) {
-    return <p>Product not found.</p>;
+  if (errorProduct || !resolvedProduct) {
+    return <div className="section detail">
+      <p style={{ color: "red" }}>{errorProduct || "Product not found"}</p>
+    </div>;
   }
 
   const flatCategories = (items: typeof categories): typeof categories => {
@@ -60,13 +86,6 @@ export function ProductPage() {
   };
 
   const category = flatCategories(categories).find((item) => item.slug === toSlug(resolvedProduct.product_type || "Прочее"));
-  const images = useMemo(() => {
-    const byIds = (resolvedProduct.image_ids || []).map((id) => toImageGatewayUrl(id)).filter((item): item is string => Boolean(item));
-    if (byIds.length > 0) {
-      return byIds;
-    }
-    return (resolvedProduct.image_urls || []).filter(Boolean);
-  }, [resolvedProduct.image_ids, resolvedProduct.image_urls]);
 
   const showPrev = () => {
     if (images.length === 0) {
@@ -131,6 +150,41 @@ export function ProductPage() {
           {resolvedProduct.price} {resolvedProduct.currency}
         </p>
         <p className="muted">Updated: {new Date(resolvedProduct.updated_at).toLocaleString()}</p>
+        
+        {resolvedProduct.variants && resolvedProduct.variants.length > 0 && (
+          <div className="variants-section">
+            <h3>Available Options:</h3>
+            <div className="variants-grid">
+              {resolvedProduct.variants.map((variant, idx) => {
+                const variantLabel = [variant.option1, variant.option2, variant.option3]
+                  .filter(Boolean)
+                  .join(" / ") || variant.title;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`variant-btn ${!variant.available ? "variant-btn--disabled" : ""} ${
+                        selectedVariantIndex === idx ? "variant-btn--selected" : ""
+                    }`}
+                      onClick={() => variant.available && setSelectedVariantIndex(idx)}
+                    disabled={!variant.available}
+                    title={!variant.available ? "Out of stock" : ""}
+                  >
+                    {variantLabel}
+                  </button>
+                );
+              })}
+            </div>
+              {selectedVariantIndex !== null && resolvedProduct.variants[selectedVariantIndex] && (
+              <p className="muted">
+                  Selected: {resolvedProduct.variants[selectedVariantIndex].title}
+                  {resolvedProduct.variants[selectedVariantIndex].inventory_quantity > 0 &&
+                    ` (${resolvedProduct.variants[selectedVariantIndex].inventory_quantity} in stock)`}
+              </p>
+            )}
+          </div>
+        )}
+        
         <a className="btn-link" href={resolvedProduct.url} target="_blank" rel="noreferrer">
           Open source page
         </a>

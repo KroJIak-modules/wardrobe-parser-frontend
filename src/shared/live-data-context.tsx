@@ -13,6 +13,17 @@ type Source = {
   categories_count: number;
 };
 
+type ProductVariant = {
+  title: string;
+  option1: string | null;
+  option2: string | null;
+  option3: string | null;
+  available: boolean;
+  price: string | number | null;
+  inventory_quantity: number;
+  sku: string | null;
+};
+
 type ServiceProduct = {
   id: number;
   handle: string;
@@ -26,6 +37,7 @@ type ServiceProduct = {
   image_count: number;
   image_urls: string[];
   image_ids: number[];
+  variants: ProductVariant[];
   created_at: string;
   updated_at: string;
 };
@@ -38,6 +50,7 @@ export function toImageGatewayUrl(imageId: number | null | undefined) {
 }
 
 type JobsLatest = {
+  job_id: string;
   status: string;
   created_at: string;
   started_at: string | null;
@@ -47,6 +60,21 @@ type JobsLatest = {
   new_products: number;
   updated_products: number;
   new_images: number;
+  total_sources: number;
+  processed_sources: number;
+  progress_percent: number;
+  processed_products: number;
+  expected_products: number;
+  failed_products: number;
+  products_progress_percent: number;
+  current_source_name: string | null;
+  current_source_index: number;
+  current_stage: string | null;
+  current_source_processed_products: number;
+  current_source_total_products: number;
+  current_product_title: string | null;
+  site_products_total: number;
+  can_cancel: boolean;
   sync_period_minutes: number;
 } | null;
 
@@ -64,6 +92,23 @@ export type SyncJobHistoryItem = {
   error_count: number;
   http_429_count: number;
   http_5xx_count: number;
+};
+
+export type SourceRunItem = {
+  id: number;
+  source_id: number;
+  status: string;
+  products_discovered: number;
+  products_fetched: number;
+  products_failed: number;
+  error_message: string | null;
+  discovery_mode: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+};
+
+export type SyncJobDetails = SyncJobHistoryItem & {
+  source_runs: SourceRunItem[];
 };
 
 type CategoryView = {
@@ -113,6 +158,7 @@ type LiveDataContextValue = {
   adminCategories: AdminCategoryNode[];
   dedupCandidates: DedupCandidate[];
   jobsHistory: SyncJobHistoryItem[];
+  latestJobDetails: SyncJobDetails | null;
   sources: Source[];
   latestJob: JobsLatest;
   loading: boolean;
@@ -122,6 +168,7 @@ type LiveDataContextValue = {
   loadMoreProducts: () => Promise<void>;
   getProductById: (id: number) => Promise<ServiceProduct | null>;
   runSync: () => Promise<{ ok: boolean; message: string }>;
+  cancelSync: (jobId: string) => Promise<{ ok: boolean; message: string }>;
   previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   addProductByUrl: (
     url: string,
@@ -165,6 +212,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [adminCategories, setAdminCategories] = useState<AdminCategoryNode[]>([]);
   const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
   const [jobsHistory, setJobsHistory] = useState<SyncJobHistoryItem[]>([]);
+  const [latestJobDetails, setLatestJobDetails] = useState<SyncJobDetails | null>(null);
   const [latestJob, setLatestJob] = useState<JobsLatest>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState<boolean>(false);
@@ -193,6 +241,21 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     return build(adminCategories);
   }, [products, adminCategories]);
+
+  const fetchJobDetails = useCallback(async (jobId: string | null | undefined) => {
+    if (!jobId) {
+      setLatestJobDetails(null);
+      return;
+    }
+
+    const res = await fetch(`${API_BASE}/jobs/${jobId}`);
+    if (!res.ok) {
+      throw new Error(`Job details API error: ${res.status}`);
+    }
+
+    const payload = (await res.json()) as SyncJobDetails;
+    setLatestJobDetails(payload);
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -241,12 +304,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       setAdminCategories(categoriesPayload || []);
       setDedupCandidates(dedupPayload.items || []);
       setJobsHistory(jobsHistoryPayload || []);
+      await fetchJobDetails(latestPayload?.job_id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchJobDetails]);
 
   const loadMoreProducts = useCallback(async () => {
     if (!productsHasMore || loadingMoreProducts) {
@@ -318,6 +382,23 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
       await refresh();
       return { ok: true, message: "Синхронизация запущена" };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+    }
+  }, [refresh]);
+
+  const cancelSync = useCallback(async (jobId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/jobs/${jobId}/cancel`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        return { ok: false, message: `Ошибка отмены: ${res.status}` };
+      }
+
+      await refresh();
+      return { ok: true, message: "Синхронизация отменена" };
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
     }
@@ -595,6 +676,31 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     return undefined;
   }, [refresh]);
 
+  useEffect(() => {
+    if (!latestJob || !["pending", "in_progress"].includes(latestJob.status)) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/jobs/latest`);
+        if (!res.ok) {
+          return;
+        }
+        const payload = (await res.json()) as JobsLatest;
+        setLatestJob(payload);
+        await fetchJobDetails(payload?.job_id);
+        if (payload && !["pending", "in_progress"].includes(payload.status)) {
+          await refresh();
+        }
+      } catch {
+        // Keep silent; next poll tick will retry.
+      }
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+  }, [fetchJobDetails, latestJob?.status, refresh]);
+
   const value = useMemo(
     () => ({
       products,
@@ -604,6 +710,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       adminCategories,
       dedupCandidates,
       jobsHistory,
+      latestJobDetails,
       sources,
       latestJob,
       loading,
@@ -613,6 +720,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       loadMoreProducts,
       getProductById,
       runSync,
+      cancelSync,
       previewProductByUrl,
       addProductByUrl,
       createManualProduct,
@@ -634,6 +742,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       adminCategories,
       dedupCandidates,
       jobsHistory,
+      latestJobDetails,
       sources,
       latestJob,
       loading,
@@ -643,6 +752,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       loadMoreProducts,
       getProductById,
       runSync,
+      cancelSync,
       previewProductByUrl,
       addProductByUrl,
       createManualProduct,

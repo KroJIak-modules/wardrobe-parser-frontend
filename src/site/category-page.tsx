@@ -44,13 +44,13 @@ export function CategoryPage() {
     ? products.filter((product) => toSlug(product.product_type || "Прочее") === category.slug)
     : [];
 
-  const renderCategoryButtons = (items: typeof categories, depth = 0) => {
+  const renderColumnChildren = (items: typeof categories) => {
     return items.map((node) => (
-      <div key={node.slug} className="category-tree-node" style={{ marginLeft: `${depth * 14}px` }}>
+      <div key={node.slug} className="category-column-item">
         <Link to={`/category/${node.slug}`} className={node.slug === slug ? "tag tag--active" : "tag"}>
           {node.name} ({node.count})
         </Link>
-        {node.children.length > 0 ? <div className="category-tree-children">{renderCategoryButtons(node.children, depth + 1)}</div> : null}
+        {node.children.length > 0 ? <div className="category-column-children">{renderColumnChildren(node.children)}</div> : null}
       </div>
     ));
   };
@@ -63,7 +63,16 @@ export function CategoryPage() {
     <section className="section">
       <h1>{category.name}</h1>
       <p className="muted">Товаров в категории: {filtered.length}</p>
-      <div className="category-tree-list">{renderCategoryButtons(categories)}</div>
+      <div className="category-columns">
+        {categories.map((node) => (
+          <div key={node.slug} className="category-column">
+            <Link to={`/category/${node.slug}`} className={node.slug === slug ? "tag tag--active category-column-root" : "tag category-column-root"}>
+              {node.name} ({node.count})
+            </Link>
+            {node.children.length > 0 ? <div className="category-column-children">{renderColumnChildren(node.children)}</div> : null}
+          </div>
+        ))}
+      </div>
 
       <div className="product-grid">
         {filtered.map((product) => (
