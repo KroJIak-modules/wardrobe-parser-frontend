@@ -4,6 +4,7 @@ import image1 from '@/images/product.png';
 import image2 from '@/images/main.png';
 import image3 from '@/images/carousel/1.png'
 import NewItems from '../NewItems/NewItems';
+import Sources from '@/components/Sources/sources'
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const OPINION_COLLAPSED_HEIGHT = 120;
@@ -25,6 +26,7 @@ const ShowItem = () => {
     })
 
     const [selectedSize, setSelectedSize] = useState(null);
+    const [opened, setWindow] = useState(false)
     const [isOpinionExpanded, setIsOpinionExpanded] = useState(false);
     const [isOpinionOverflowing, setIsOpinionOverflowing] = useState(false);
     const [showModalSources, setShowModalSources] = useState(false);
@@ -67,6 +69,7 @@ const ShowItem = () => {
 
     return (
         <>
+        <Sources open={opened} onClose={() => setWindow(false)} />
             <div className={styles.mainShow}>
                 <div className={styles.images}>
                     {item.images.slice(0, Math.min(item.images.length, 4)).map((img, ind) =>
@@ -138,7 +141,7 @@ const ShowItem = () => {
                 
                 <div className={styles.modalSources} style={{display: showModalSources ? 'flex' : 'none'}}>
                     <div className={styles.modalSourcesHeader}>
-                        <div className={styles.modalTitle}>Источники</div>
+                        <div className={styles.modalTitle} onClick={() => setWindow(true)}>Источники</div>
                         <button className={styles.closeModalButton}
                                 onClick={() => setShowModalSources(false)}>+</button>
                     </div>
