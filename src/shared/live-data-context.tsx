@@ -11,6 +11,14 @@ type Source = {
   notes: string | null;
   products_count: number;
   categories_count: number;
+  supplier_id: number | null;
+  supplier_key: string | null;
+  supplier_name: string | null;
+  seller_delivery_rub: number;
+  promo_factor: number;
+  promo_only_no_discount: boolean;
+  buyout_surcharge_value: number;
+  buyout_surcharge_currency: string;
 };
 
 type ProductVariant = {
@@ -33,6 +41,13 @@ type ServiceProduct = {
   url: string;
   price: number | null;
   currency: string;
+  source_price?: number | null;
+  source_currency?: string | null;
+  final_price?: number | null;
+  final_currency?: string | null;
+  pricing_manual_required?: boolean;
+  pricing_reason?: string | null;
+  pricing_components?: Record<string, unknown>;
   status: string;
   image_count: number;
   image_urls: string[];
@@ -150,6 +165,54 @@ export type ProductUrlPreview = {
   image_urls: string[];
 };
 
+export type WeightRule = {
+  id: number;
+  weight_grams: number;
+  keywords: string[];
+};
+
+export type WeightMissingProduct = {
+  id: number;
+  title: string;
+  url: string;
+  source_id: number;
+  source_name: string;
+};
+
+export type PricingSettings = {
+  markup_multiplier: number;
+  weight_tolerance: number;
+  promo_factor: number;
+  customs_threshold_eur: number;
+  customs_threshold_currency: string;
+  customs_duty_rate: number;
+  seller_delivery_rub: number;
+  usd_to_rub: number;
+  eur_to_rub: number;
+  suppliers: PricingSupplier[];
+  formula_latex: string;
+  formula_lines: string[];
+  formula_legend: Array<{ key: string; description: string }>;
+};
+
+export type PricingSupplierRate = {
+  step_500g: number;
+  rate_rub: number;
+};
+
+export type PricingSupplier = {
+  id: number;
+  key: string;
+  name: string;
+  country_code: string;
+  country_name: string;
+  rate_currency: string;
+  rate_per_500g_value: number;
+  rate_per_500g_rub: number;
+  max_step_500g: number;
+  rates: PricingSupplierRate[];
+};
+
 type LiveDataContextValue = {
   products: ServiceProduct[];
   productsTotal: number;
@@ -159,6 +222,9 @@ type LiveDataContextValue = {
   dedupCandidates: DedupCandidate[];
   jobsHistory: SyncJobHistoryItem[];
   latestJobDetails: SyncJobDetails | null;
+  weightRules: WeightRule[];
+  weightMissingProducts: WeightMissingProduct[];
+  pricingSettings: PricingSettings | null;
   sources: Source[];
   latestJob: JobsLatest;
   loading: boolean;
@@ -197,6 +263,45 @@ type LiveDataContextValue = {
   mergeDedupPair: (primaryProductId: number, duplicateProductId: number) => Promise<{ ok: boolean; message: string }>;
   rejectDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  createWeightRule: (weightGrams: number) => Promise<{ ok: boolean; message: string }>;
+  updateWeightRule: (id: number, weightGrams: number) => Promise<{ ok: boolean; message: string }>;
+  deleteWeightRule: (id: number) => Promise<{ ok: boolean; message: string }>;
+  addWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
+  removeWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
+  updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
+  updatePricingSupplier: (
+    supplierId: number,
+    payload: {
+      name?: string;
+      country_code?: string;
+      country_name?: string;
+      rate_currency?: string;
+      rate_per_500g_value?: number;
+      rate_per_500g_rub?: number;
+      max_step_500g?: number;
+    }
+  ) => Promise<{ ok: boolean; message: string }>;
+  createPricingSupplier: (payload: {
+    key?: string;
+    name: string;
+    country_code: string;
+    country_name: string;
+    rate_currency: string;
+    rate_per_500g_value: number;
+    max_step_500g?: number;
+  }) => Promise<{ ok: boolean; message: string }>;
+  deletePricingSupplier: (supplierId: number) => Promise<{ ok: boolean; message: string }>;
+  assignSourceSupplier: (
+    sourceKey: string,
+      payload: {
+        supplier_id?: number;
+        seller_delivery_rub?: number;
+        promo_factor?: number;
+        promo_only_no_discount?: boolean;
+        buyout_surcharge_value?: number;
+        buyout_surcharge_currency?: string;
+      }
+  ) => Promise<{ ok: boolean; message: string }>;
 };
 
 const API_BASE = "/api/v1";
@@ -213,6 +318,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
   const [jobsHistory, setJobsHistory] = useState<SyncJobHistoryItem[]>([]);
   const [latestJobDetails, setLatestJobDetails] = useState<SyncJobDetails | null>(null);
+  const [weightRules, setWeightRules] = useState<WeightRule[]>([]);
+  const [weightMissingProducts, setWeightMissingProducts] = useState<WeightMissingProduct[]>([]);
+  const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(null);
   const [latestJob, setLatestJob] = useState<JobsLatest>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState<boolean>(false);
@@ -261,13 +369,26 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const [productsRes, sourcesRes, latestJobRes, categoriesRes, dedupRes, jobsHistoryRes] = await Promise.all([
+      const [
+        productsRes,
+        sourcesRes,
+        latestJobRes,
+        categoriesRes,
+        dedupRes,
+        jobsHistoryRes,
+        weightRulesRes,
+        missingWeightRes,
+        pricingSettingsRes,
+      ] = await Promise.all([
         fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`),
         fetch(`${API_BASE}/shopify/sources-admin`),
         fetch(`${API_BASE}/jobs/latest`),
         fetch(`${API_BASE}/categories/tree`),
         fetch(`${API_BASE}/dedup/candidates?limit=80`),
         fetch(`${API_BASE}/jobs?limit=15&offset=0`),
+        fetch(`${API_BASE}/settings/weight-rules`),
+        fetch(`${API_BASE}/settings/weight-rules/missing-products?limit=1000`),
+        fetch(`${API_BASE}/settings/pricing`),
       ]);
 
       if (!productsRes.ok) {
@@ -288,6 +409,15 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       if (!jobsHistoryRes.ok) {
         throw new Error(`Jobs history API error: ${jobsHistoryRes.status}`);
       }
+      if (!weightRulesRes.ok) {
+        throw new Error(`Weight rules API error: ${weightRulesRes.status}`);
+      }
+      if (!missingWeightRes.ok) {
+        throw new Error(`Missing weight API error: ${missingWeightRes.status}`);
+      }
+      if (!pricingSettingsRes.ok) {
+        throw new Error(`Pricing settings API error: ${pricingSettingsRes.status}`);
+      }
 
       const productsPayload = (await productsRes.json()) as { items: ServiceProduct[]; total: number; limit: number; offset: number };
       const sourcesPayload = (await sourcesRes.json()) as Source[];
@@ -295,6 +425,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       const categoriesPayload = (await categoriesRes.json()) as AdminCategoryNode[];
       const dedupPayload = (await dedupRes.json()) as { items: DedupCandidate[] };
       const jobsHistoryPayload = (await jobsHistoryRes.json()) as SyncJobHistoryItem[];
+      const weightRulesPayload = (await weightRulesRes.json()) as WeightRule[];
+      const missingWeightPayload = (await missingWeightRes.json()) as WeightMissingProduct[];
+      const pricingSettingsPayload = (await pricingSettingsRes.json()) as PricingSettings;
 
       setProducts(productsPayload.items || []);
       setProductsTotal(productsPayload.total || 0);
@@ -304,6 +437,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       setAdminCategories(categoriesPayload || []);
       setDedupCandidates(dedupPayload.items || []);
       setJobsHistory(jobsHistoryPayload || []);
+      setWeightRules(weightRulesPayload || []);
+      setWeightMissingProducts(missingWeightPayload || []);
+      setPricingSettings(pricingSettingsPayload || null);
       await fetchJobDetails(latestPayload?.job_id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -671,6 +807,240 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     [refresh]
   );
 
+  const assignSourceSupplier = useCallback(
+    async (
+      sourceKey: string,
+      payload: {
+        supplier_id?: number;
+        seller_delivery_rub?: number;
+        promo_factor?: number;
+        promo_only_no_discount?: boolean;
+        buyout_surcharge_value?: number;
+        buyout_surcharge_currency?: string;
+      }
+    ) => {
+      try {
+        const res = await fetch(`${API_BASE}/shopify/sources/${sourceKey}/supplier`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Настройки источника обновлены" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const createWeightRule = useCallback(
+    async (weightGrams: number) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/weight-rules`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weight_grams: weightGrams }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Правило веса добавлено" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const updateWeightRule = useCallback(
+    async (id: number, weightGrams: number) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/weight-rules/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weight_grams: weightGrams }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Вес правила обновлен" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const deleteWeightRule = useCallback(
+    async (id: number) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/weight-rules/${id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Правило веса удалено" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const addWeightKeyword = useCallback(
+    async (ruleId: number, keyword: string) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/weight-rules/${ruleId}/keywords`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keyword }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Ключевое слово добавлено" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const removeWeightKeyword = useCallback(
+    async (ruleId: number, keyword: string) => {
+      try {
+        const encodedKeyword = encodeURIComponent(keyword);
+        const res = await fetch(`${API_BASE}/settings/weight-rules/${ruleId}/keywords/${encodedKeyword}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Ключевое слово удалено" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const updatePricingSettings = useCallback(
+    async (payload: Partial<PricingSettings>) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/pricing`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Параметры формулы сохранены" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const updatePricingSupplier = useCallback(
+    async (
+      supplierId: number,
+      payload: {
+        name?: string;
+        country_code?: string;
+        country_name?: string;
+        rate_currency?: string;
+        rate_per_500g_value?: number;
+        rate_per_500g_rub?: number;
+        max_step_500g?: number;
+      }
+    ) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/pricing/suppliers/${supplierId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Тариф поставщика обновлен" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const createPricingSupplier = useCallback(
+    async (payload: {
+      key?: string;
+      name: string;
+      country_code: string;
+      country_name: string;
+      rate_currency: string;
+      rate_per_500g_value: number;
+      max_step_500g?: number;
+    }) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/pricing/suppliers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Поставщик добавлен" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
+  const deletePricingSupplier = useCallback(
+    async (supplierId: number) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/pricing/suppliers/${supplierId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await refresh();
+        return { ok: true, message: "Поставщик удален" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh]
+  );
+
   useEffect(() => {
     void refresh();
     return undefined;
@@ -711,6 +1081,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       dedupCandidates,
       jobsHistory,
       latestJobDetails,
+      weightRules,
+      weightMissingProducts,
+      pricingSettings,
       sources,
       latestJob,
       loading,
@@ -733,6 +1106,16 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       mergeDedupPair,
       rejectDedupPair,
       toggleSourceEnabled,
+      assignSourceSupplier,
+      createWeightRule,
+      updateWeightRule,
+      deleteWeightRule,
+      addWeightKeyword,
+      removeWeightKeyword,
+      updatePricingSettings,
+      updatePricingSupplier,
+      createPricingSupplier,
+      deletePricingSupplier,
     }),
     [
       products,
@@ -743,6 +1126,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       dedupCandidates,
       jobsHistory,
       latestJobDetails,
+      weightRules,
+      weightMissingProducts,
+      pricingSettings,
       sources,
       latestJob,
       loading,
@@ -765,6 +1151,16 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       mergeDedupPair,
       rejectDedupPair,
       toggleSourceEnabled,
+      assignSourceSupplier,
+      createWeightRule,
+      updateWeightRule,
+      deleteWeightRule,
+      addWeightKeyword,
+      removeWeightKeyword,
+      updatePricingSettings,
+      updatePricingSupplier,
+      createPricingSupplier,
+      deletePricingSupplier,
     ]
   );
 
