@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import styles from './Designers.module.css'
 
 
@@ -7,51 +8,51 @@ const Designers = () => {
     const brands = [
         {
             letter: "A",
-            brandNames: ["aboba19", "adolf", "adik"]
+            brandNames: ["designer1", "designer3", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adik"]
+            letter: "B",
+            brandNames: ["designer1", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik"]
+            letter: "C",
+            brandNames: ["designer1", "designer3", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik"]
+            letter: "D",
+            brandNames: ["designer1", "designer3", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik"]
+            letter: "E",
+            brandNames: ["designer1", "designer3", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik", "abibas"]
+            letter: "F",
+            brandNames: ["designer1", "designer3", "designer2", "abibas"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik"]
+            letter: "G",
+            brandNames: ["designer1", "designer3", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["adik"]
+            letter: "H",
+            brandNames: ["designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik"]
+            letter: "I",
+            brandNames: ["designer1", "designer3", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik"]
+            letter: "J",
+            brandNames: ["designer1", "designer3", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik"]
+            letter: "K",
+            brandNames: ["designer1", "designer3", "designer2"]
         },
         {
-            letter: "A",
-            brandNames: ["aboba19", "adolf", "adik", "abibas"]
+            letter: "L",
+            brandNames: ["designer1", "designer3", "designer2", "abibas"]
         },
     ]
 
@@ -69,7 +70,9 @@ const Designers = () => {
                 <div style={{display: "grid" ,justifyItems: "start", rowGap: "1vh"}}>
                 <div className={styles.textSearch}>{brands.letter}</div>
                 {brands.brandNames.map((brand,ind) => 
-                <button className={styles.textBrand}>{brand}</button>)}
+                <Link to='/designer' state={{ brandName: brand }}>
+                <div className={styles.textBrand}>{brand}</div>
+                </Link>)}
                 </div>
             </div>)}
 

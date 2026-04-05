@@ -79,7 +79,7 @@ const Navbar = ({setNavHeight}) => {
     {
       id: 'discounts',
       label: 'Скидки',
-      link: 'discouns',
+      link: 'discounts',
       content: (
         <div>
           <h4>🔥 Распродажа</h4>

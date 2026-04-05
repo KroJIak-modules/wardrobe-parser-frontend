@@ -12,6 +12,7 @@ import ShowItem from './pages/ShowItem/ShowItem';
 import AboutMe from './pages/AboutMe/AboutMe';
 import Designers from './pages/Designers/Designers';
 import Cart from './pages/Cart/Cart';
+import ShowDesigner from './pages/ShowDesigner/ShowDesigner';
 
 
 export default function App() {
@@ -79,7 +80,8 @@ function AppContent() {
           <Route path="/" element={<NewItems title={"Новинки"} />} />
           <Route path="/men" element={<NewItems title={"Мужское"} />} />
           <Route path="/women" element={<NewItems title={"Женское"} />} />
-          <Route path="/sales" element={<NewItems title={"Скидки"} />} />
+          <Route path="/discounts" element={<NewItems title={"Скидки"} />} />
+          <Route path="/designer" element={<ShowDesigner title={""}/>} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/designers" element={<Designers />} />
           <Route path="/show" element={<ShowItem />} />
