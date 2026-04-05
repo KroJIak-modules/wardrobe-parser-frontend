@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useLiveData } from "../shared/live-data-context";
-import { toImageGatewayUrl } from "../shared/live-data-context";
+import { getProductPrimaryImageUrl } from "../shared/live-data-context";
+import { ImageWithFallback } from "../shared/image-with-fallback";
 
 export function HomePage() {
-  const { categories, products, error, productsHasMore, loadMoreProducts, loadingMoreProducts } = useLiveData();
+  const { categories, products, error, productsHasMore, loadMoreProducts, loadingMoreProducts, loading } = useLiveData();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const availableProducts = useMemo(() => products.filter((product) => product.status === "available"), [products]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -15,11 +17,17 @@ export function HomePage() {
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting) && productsHasMore && !loadingMoreProducts) {
+        if (!entries.some((entry) => entry.isIntersecting)) {
+          return;
+        }
+        if (window.scrollY < 120) {
+          return;
+        }
+        if (productsHasMore && !loadingMoreProducts) {
           void loadMoreProducts();
         }
       },
-      { rootMargin: "600px 0px" }
+      { rootMargin: "200px 0px" }
     );
     observer.observe(node);
 
@@ -30,12 +38,22 @@ export function HomePage() {
     return items.map((category) => (
       <div key={category.slug} className="category-column-item">
         <Link to={`/category/${category.slug}`} className="tag">
-          {category.name} ({category.count})
+          {category.name} ({category.count || 0})
         </Link>
         {category.children.length > 0 ? <div className="category-column-children">{renderColumnChildren(category.children)}</div> : null}
       </div>
     ));
   };
+
+  if (loading && availableProducts.length === 0) {
+    return (
+      <section className="section">
+        <div className="center-loader">
+          <p>Загружаем товары...</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="section">
@@ -47,7 +65,7 @@ export function HomePage() {
         {categories.map((category) => (
           <div key={category.slug} className="category-column">
             <Link to={`/category/${category.slug}`} className="tag category-column-root">
-              {category.name} ({category.count})
+              {category.name} ({category.count || 0})
             </Link>
             {category.children.length > 0 ? <div className="category-column-children">{renderColumnChildren(category.children)}</div> : null}
           </div>
@@ -55,13 +73,17 @@ export function HomePage() {
       </div>
 
       <div className="product-grid">
-        {products.map((product) => (
+        {availableProducts.map((product) => (
           <article key={product.id} className="card">
-            {toImageGatewayUrl(product.image_ids?.[0]) ? (
-              <img className="thumb" src={toImageGatewayUrl(product.image_ids?.[0]) || undefined} alt={product.title} loading="lazy" />
-            ) : (
-              <div className="thumb thumb--placeholder">No image</div>
-            )}
+            <ImageWithFallback
+              src={getProductPrimaryImageUrl(product)}
+              alt={product.title}
+              className="thumb"
+              placeholderClassName="thumb thumb--placeholder"
+              placeholderText={product.image_count > 0 ? "Image" : "No image"}
+              loadingText={product.image_count > 0 ? "Загружаем..." : "No image"}
+              fallbackText="No image"
+            />
             <h3>{product.title}</h3>
             <p className="muted">
               {product.price} {product.currency}

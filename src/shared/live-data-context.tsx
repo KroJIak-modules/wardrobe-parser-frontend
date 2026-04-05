@@ -1,5 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { toSlug } from "./utils";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 type Source = {
   key: string;
@@ -53,6 +52,10 @@ type ServiceProduct = {
   image_urls: string[];
   image_ids: number[];
   variants: ProductVariant[];
+  is_favorite?: boolean;
+  internal_category_id?: number | null;
+  internal_category_name?: string | null;
+  internal_category_slug?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -62,6 +65,31 @@ export function toImageGatewayUrl(imageId: number | null | undefined) {
     return null;
   }
   return `/api/v1/images/${imageId}`;
+}
+
+export function normalizeImageSourceUrl(url: string | null | undefined): string | null {
+  const raw = (url || "").trim();
+  if (!raw) {
+    return null;
+  }
+  if (raw.startsWith("//")) {
+    return `https:${raw}`;
+  }
+  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("/")) {
+    return raw;
+  }
+  return null;
+}
+
+export function getProductPrimaryImageUrl(product: {
+  image_ids?: number[] | null;
+  image_urls?: string[] | null;
+}): string | null {
+  const byId = toImageGatewayUrl(product.image_ids?.[0]);
+  if (byId) {
+    return byId;
+  }
+  return normalizeImageSourceUrl(product.image_urls?.[0]);
 }
 
 type JobsLatest = {
@@ -141,6 +169,8 @@ export type AdminCategoryNode = {
   slug: string;
   parent_id: number | null;
   is_fallback: boolean;
+  is_favorite: boolean;
+  product_count: number;
   keywords: string[];
   effective_keywords: string[];
   children: AdminCategoryNode[];
@@ -187,8 +217,27 @@ export type PricingSettings = {
   customs_threshold_currency: string;
   customs_duty_rate: number;
   seller_delivery_rub: number;
-  usd_to_rub: number;
-  eur_to_rub: number;
+  bybit_usdt_to_rub: number;
+  bybit_extra_rub: number;
+  eur_to_usd_rate: number;
+  gbp_to_usd_rate: number;
+  payment_fee_rate: number;
+  customs_processing_rate: number;
+  customs_fixed_rub: number;
+  shipping_alt_threshold_eur: number;
+  tax_rate: number;
+  insurance_rules: Array<Record<string, unknown>>;
+  service_fee_rules: Array<Record<string, unknown>>;
+  shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
+  bybit_rate_status?: string;
+  bybit_rate_warning?: string | null;
+  bybit_bucket_step_usdt?: number;
+  bybit_bucket_max_usdt?: number;
+  bybit_bucket_rates?: Array<Record<string, unknown>>;
+  bybit_worker_auto_enabled?: boolean;
+  bybit_worker_interval_sec?: number;
+  bybit_last_updated_at?: string | null;
+  bybit_last_error?: string | null;
   suppliers: PricingSupplier[];
   formula_latex: string;
   formula_lines: string[];
@@ -220,8 +269,7 @@ type LiveDataContextValue = {
   categories: CategoryView[];
   adminCategories: AdminCategoryNode[];
   dedupCandidates: DedupCandidate[];
-  jobsHistory: SyncJobHistoryItem[];
-  latestJobDetails: SyncJobDetails | null;
+  loadingDedupCandidates: boolean;
   weightRules: WeightRule[];
   weightMissingProducts: WeightMissingProduct[];
   pricingSettings: PricingSettings | null;
@@ -302,10 +350,11 @@ type LiveDataContextValue = {
         buyout_surcharge_currency?: string;
       }
   ) => Promise<{ ok: boolean; message: string }>;
+  toggleProductFavorite: (productId: number, favorite: boolean) => Promise<{ ok: boolean; message: string }>;
 };
 
 const API_BASE = "/api/v1";
-const PRODUCTS_PAGE_SIZE = 200;
+const PRODUCTS_PAGE_SIZE = 100;
 
 const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefined);
 
@@ -316,8 +365,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [sources, setSources] = useState<Source[]>([]);
   const [adminCategories, setAdminCategories] = useState<AdminCategoryNode[]>([]);
   const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
-  const [jobsHistory, setJobsHistory] = useState<SyncJobHistoryItem[]>([]);
-  const [latestJobDetails, setLatestJobDetails] = useState<SyncJobDetails | null>(null);
+  const [loadingDedupCandidates, setLoadingDedupCandidates] = useState<boolean>(true);
   const [weightRules, setWeightRules] = useState<WeightRule[]>([]);
   const [weightMissingProducts, setWeightMissingProducts] = useState<WeightMissingProduct[]>([]);
   const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(null);
@@ -325,44 +373,36 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const loadingMoreLockRef = useRef<boolean>(false);
 
   const categories = useMemo<CategoryView[]>(() => {
-    const counts = new Map<string, number>();
-    for (const product of products) {
-      const raw = product.product_type?.trim() || "Прочее";
-      counts.set(raw, (counts.get(raw) || 0) + 1);
-    }
-
     const build = (nodes: AdminCategoryNode[]): CategoryView[] => {
-      return nodes.map((node) => {
-        const nodeCount = counts.get(node.name) || 0;
-        return {
-          id: node.id,
-          slug: node.slug || toSlug(node.name),
-          name: node.name,
-          parent_id: node.parent_id,
-          count: nodeCount,
-          children: build(node.children || []),
-        };
-      });
+      return nodes.map((node) => ({
+        id: node.id,
+        slug: node.slug,
+        name: node.name,
+        parent_id: node.parent_id,
+        count: Number(node.product_count || 0),
+        children: build(node.children || []),
+      }));
     };
-
     return build(adminCategories);
-  }, [products, adminCategories]);
+  }, [adminCategories]);
 
-  const fetchJobDetails = useCallback(async (jobId: string | null | undefined) => {
-    if (!jobId) {
-      setLatestJobDetails(null);
-      return;
+  const fetchDedupCandidates = useCallback(async () => {
+    setLoadingDedupCandidates(true);
+    try {
+      const dedupRes = await fetch(`${API_BASE}/dedup/candidates?limit=80`);
+      if (!dedupRes.ok) {
+        throw new Error(`Dedup API error: ${dedupRes.status}`);
+      }
+      const dedupPayload = (await dedupRes.json()) as { items: DedupCandidate[] };
+      setDedupCandidates(dedupPayload.items || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setLoadingDedupCandidates(false);
     }
-
-    const res = await fetch(`${API_BASE}/jobs/${jobId}`);
-    if (!res.ok) {
-      throw new Error(`Job details API error: ${res.status}`);
-    }
-
-    const payload = (await res.json()) as SyncJobDetails;
-    setLatestJobDetails(payload);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -374,8 +414,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         sourcesRes,
         latestJobRes,
         categoriesRes,
-        dedupRes,
-        jobsHistoryRes,
         weightRulesRes,
         missingWeightRes,
         pricingSettingsRes,
@@ -384,10 +422,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         fetch(`${API_BASE}/shopify/sources-admin`),
         fetch(`${API_BASE}/jobs/latest`),
         fetch(`${API_BASE}/categories/tree`),
-        fetch(`${API_BASE}/dedup/candidates?limit=80`),
-        fetch(`${API_BASE}/jobs?limit=15&offset=0`),
         fetch(`${API_BASE}/settings/weight-rules`),
-        fetch(`${API_BASE}/settings/weight-rules/missing-products?limit=1000`),
+        fetch(`${API_BASE}/settings/weight-rules/missing-products?limit=100`),
         fetch(`${API_BASE}/settings/pricing`),
       ]);
 
@@ -403,12 +439,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       if (!categoriesRes.ok) {
         throw new Error(`Categories API error: ${categoriesRes.status}`);
       }
-      if (!dedupRes.ok) {
-        throw new Error(`Dedup API error: ${dedupRes.status}`);
-      }
-      if (!jobsHistoryRes.ok) {
-        throw new Error(`Jobs history API error: ${jobsHistoryRes.status}`);
-      }
       if (!weightRulesRes.ok) {
         throw new Error(`Weight rules API error: ${weightRulesRes.status}`);
       }
@@ -423,8 +453,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       const sourcesPayload = (await sourcesRes.json()) as Source[];
       const latestPayload = (await latestJobRes.json()) as JobsLatest;
       const categoriesPayload = (await categoriesRes.json()) as AdminCategoryNode[];
-      const dedupPayload = (await dedupRes.json()) as { items: DedupCandidate[] };
-      const jobsHistoryPayload = (await jobsHistoryRes.json()) as SyncJobHistoryItem[];
       const weightRulesPayload = (await weightRulesRes.json()) as WeightRule[];
       const missingWeightPayload = (await missingWeightRes.json()) as WeightMissingProduct[];
       const pricingSettingsPayload = (await pricingSettingsRes.json()) as PricingSettings;
@@ -435,23 +463,22 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       setSources(sourcesPayload || []);
       setLatestJob(latestPayload);
       setAdminCategories(categoriesPayload || []);
-      setDedupCandidates(dedupPayload.items || []);
-      setJobsHistory(jobsHistoryPayload || []);
       setWeightRules(weightRulesPayload || []);
       setWeightMissingProducts(missingWeightPayload || []);
       setPricingSettings(pricingSettingsPayload || null);
-      await fetchJobDetails(latestPayload?.job_id);
+      void fetchDedupCandidates();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  }, [fetchJobDetails]);
+  }, [fetchDedupCandidates]);
 
   const loadMoreProducts = useCallback(async () => {
-    if (!productsHasMore || loadingMoreProducts) {
+    if (!productsHasMore || loadingMoreProducts || loadingMoreLockRef.current) {
       return;
     }
+    loadingMoreLockRef.current = true;
     try {
       setLoadingMoreProducts(true);
       const offset = products.length;
@@ -461,19 +488,26 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       }
       const payload = (await res.json()) as { items: ServiceProduct[]; total: number; offset: number };
       const nextItems = payload.items || [];
+      const known = new Set(products.map((item) => item.id));
+      const toAdd = nextItems.filter((item) => !known.has(item.id));
       setProducts((prev) => {
         const known = new Set(prev.map((item) => item.id));
         const toAdd = nextItems.filter((item) => !known.has(item.id));
         return [...prev, ...toAdd];
       });
       setProductsTotal(payload.total || 0);
-      setProductsHasMore(nextItems.length + (payload.offset || 0) < (payload.total || 0));
+      if (toAdd.length === 0) {
+        setProductsHasMore(false);
+      } else {
+        setProductsHasMore(nextItems.length + (payload.offset || 0) < (payload.total || 0));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoadingMoreProducts(false);
+      loadingMoreLockRef.current = false;
     }
-  }, [productsHasMore, products.length, loadingMoreProducts]);
+  }, [productsHasMore, products, loadingMoreProducts]);
 
   const getProductById = useCallback(async (id: number) => {
     try {
@@ -838,6 +872,30 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     [refresh]
   );
 
+  const toggleProductFavorite = useCallback(async (productId: number, favorite: boolean) => {
+    try {
+      const res = await fetch(`${API_BASE}/products/${productId}/favorite`, {
+        method: favorite ? "POST" : "DELETE",
+      });
+      if (!res.ok) {
+        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+        return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+      }
+
+      setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, is_favorite: favorite } : item)));
+
+      const categoriesRes = await fetch(`${API_BASE}/categories/tree`);
+      if (categoriesRes.ok) {
+        const categoriesPayload = (await categoriesRes.json()) as AdminCategoryNode[];
+        setAdminCategories(categoriesPayload || []);
+      }
+
+      return { ok: true, message: favorite ? "Добавлено в избранное" : "Убрано из избранного" };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+    }
+  }, []);
+
   const createWeightRule = useCallback(
     async (weightGrams: number) => {
       try {
@@ -1059,7 +1117,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         }
         const payload = (await res.json()) as JobsLatest;
         setLatestJob(payload);
-        await fetchJobDetails(payload?.job_id);
         if (payload && !["pending", "in_progress"].includes(payload.status)) {
           await refresh();
         }
@@ -1069,7 +1126,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }, 3000);
 
     return () => window.clearInterval(timer);
-  }, [fetchJobDetails, latestJob?.status, refresh]);
+  }, [latestJob?.status, refresh]);
 
   const value = useMemo(
     () => ({
@@ -1079,8 +1136,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       categories,
       adminCategories,
       dedupCandidates,
-      jobsHistory,
-      latestJobDetails,
+      loadingDedupCandidates,
       weightRules,
       weightMissingProducts,
       pricingSettings,
@@ -1107,6 +1163,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       rejectDedupPair,
       toggleSourceEnabled,
       assignSourceSupplier,
+      toggleProductFavorite,
       createWeightRule,
       updateWeightRule,
       deleteWeightRule,
@@ -1124,8 +1181,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       categories,
       adminCategories,
       dedupCandidates,
-      jobsHistory,
-      latestJobDetails,
+      loadingDedupCandidates,
       weightRules,
       weightMissingProducts,
       pricingSettings,
@@ -1152,6 +1208,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       rejectDedupPair,
       toggleSourceEnabled,
       assignSourceSupplier,
+      toggleProductFavorite,
       createWeightRule,
       updateWeightRule,
       deleteWeightRule,

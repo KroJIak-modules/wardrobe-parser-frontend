@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { renderToString } from "katex";
 import "katex/dist/katex.min.css";
 import { useLiveData, type PricingSettings } from "../shared/live-data-context";
-import { toImageGatewayUrl } from "../shared/live-data-context";
+import { getProductPrimaryImageUrl } from "../shared/live-data-context";
+import { ImageWithFallback } from "../shared/image-with-fallback";
 
-type AdminTab = "products" | "dedup" | "categories" | "sync" | "sources" | "pricing" | "weight";
+type AdminTab = "products" | "dedup" | "categories" | "sources" | "pricing" | "weight";
 
 type UploadPreview = {
   file: File;
@@ -21,7 +22,6 @@ const tabs: { key: AdminTab; label: string }[] = [
   { key: "products", label: "Все товары" },
   { key: "dedup", label: "Дедубликация" },
   { key: "categories", label: "Категории" },
-  { key: "sync", label: "Синхронизация" },
   { key: "sources", label: "Источники" },
   { key: "pricing", label: "Ценообразование" },
   { key: "weight", label: "Вес" },
@@ -39,37 +39,83 @@ const whitelist = [
 
 const currencyOptions = ["RUB", "EUR", "USD"];
 const API_BASE = "/api/v1";
-const PAGE_SIZE = 200;
+const PAGE_SIZE = 100;
 const NO_BRAND_VALUE = "__NO_BRAND__";
 const pricingNumericKeys = [
   "markup_multiplier",
   "weight_tolerance",
   "customs_duty_rate",
-  "usd_to_rub",
-  "eur_to_rub",
+  "customs_processing_rate",
+  "customs_fixed_rub",
+  "payment_fee_rate",
+  "tax_rate",
+  "shipping_alt_threshold_eur",
+  "bybit_extra_rub",
+  "eur_to_usd_rate",
+  "gbp_to_usd_rate",
 ] as const;
 type PricingFieldKey = (typeof pricingNumericKeys)[number];
 
 const legendKeyToLatex: Record<string, string> = {
   SP: "SP",
-  SP_EUR: "SP_{EUR}",
-  SP_RUB: "SP_{RUB}",
-  THR_EUR: "THR_{EUR}",
-  DUTY: "DUTY",
-  EUR2RUB: "EUR2RUB",
-  CDT_EUR: "CDT_{EUR}",
-  CDT_RUB: "CDT_{RUB}",
-  SDC_RUB: "SDC_{RUB}",
-  BSC_RUB: "BSC_{RUB}",
-  STC_RUB: "STC_{RUB}",
+  SPU: "SPU",
+  SPE: "SPE",
+  SPR: "SPR",
+  BBR: "BBR",
+  BEX: "BEX",
+  BFX: "BFX",
+  E2U: "E2U",
+  G2U: "G2U",
+  PRM: "PRM",
+  BSC: "BSC",
+  BUY: "BUY",
+  PFR: "PFR",
+  PFRP: "PFRP",
+  THR: "THR",
+  DUT: "DUT",
+  CPR: "CPR",
+  CFX: "CFX",
+  CDR: "CDR",
+  SDC: "SDC",
+  SSR: "SSR",
+  SUP: "SUP",
+  STP: "STP",
+  INS: "INS",
+  SVC: "SVC",
+  SUB: "SUB",
+  TXR: "TXR",
+  TAX: "TAX",
   MP: "MP",
-  WT: "WT",
-  WEIGHT_G: "WEIGHT_G",
-  STEP: "STEP",
-  PROMO: "PROMO",
-  SUPPLIER: "SUPPLIER",
-  "SSR[SUPPLIER][STEP]": "SSR_{SUPPLIER,STEP}",
-  FP_RUB: "FP_{RUB}",
+  FPR: "FPR",
+  // Backward compatibility for older payload keys:
+  SP_USD: "SPU",
+  SP_EUR: "SPE",
+  SP_RUB: "SPR",
+  THR_EUR: "THR",
+  DUTY: "DUT",
+  CUSTOMS_PROC: "CPR",
+  CUSTOMS_FIXED: "CFX",
+  CUSTOMS_RUB: "CDR",
+  BYBIT_USDT_RUB: "BBR",
+  BYBIT_EXTRA: "BEX",
+  FX_USDT_RUB: "BFX",
+  EUR2USD: "E2U",
+  GBP2USD: "G2U",
+  PROMO: "PRM",
+  BSC_RUB: "BSC",
+  BUYOUT_RUB: "BUY",
+  PAYMENT_FEE_RUB: "PFR",
+  PAYMENT_FEE_RATE: "PFRP",
+  SDC_RUB: "SDC",
+  STC_RUB: "SSR",
+  "SSR[SUPPLIER][STEP]": "SSR[SUP,STP]",
+  SUPPLIER: "SUP",
+  STEP: "STP",
+  INSURANCE_RUB: "INS",
+  SERVICE_FEE_RUB: "SVC",
+  TAX_RATE: "TXR",
+  TAX_RUB: "TAX",
+  FP_RUB: "FPR",
 };
 
 const pricingFieldMeta: Array<{ key: PricingFieldKey; symbolLatex: string; label: string; hint: string; step?: string }> = [
@@ -77,36 +123,78 @@ const pricingFieldMeta: Array<{ key: PricingFieldKey; symbolLatex: string; label
     key: "markup_multiplier",
     symbolLatex: "MP",
     label: "Наценка",
-    hint: "Во сколько раз увеличиваем итог после всех расходов. Пример: 1.25 = +25%.",
+    hint: "Показывает, насколько увеличиваем итоговую сумму после всех расходов. Пример: 1.25 означает +25% к финалу.",
     step: "0.01",
   },
   {
     key: "weight_tolerance",
     symbolLatex: "WT",
     label: "Запас по весу",
-    hint: "Коэффициент запаса к весу. Нужен на случай, если фактический вес чуть выше расчетного.",
+    hint: "Запас на случай, если фактический вес окажется больше ожидаемого. Чем выше значение, тем выше расчетная доставка.",
     step: "0.01",
   },
   {
     key: "customs_duty_rate",
-    symbolLatex: "DUTY",
+    symbolLatex: "DUT",
     label: "Ставка пошлины",
     hint: "Процент пошлины на сумму выше порога. Пример: 0.15 = 15%.",
     step: "0.001",
   },
   {
-    key: "usd_to_rub",
-    symbolLatex: "USD2RUB",
-    label: "Курс USD к RUB",
-    hint: "Курс доллара к рублю для перевода цены в рубли.",
+    key: "customs_processing_rate",
+    symbolLatex: "CPR",
+    label: "Обработка пошлины",
+    hint: "Дополнительная комиссия на саму пошлину. Пример: 0.08 = 8%.",
+    step: "0.001",
+  },
+  {
+    key: "customs_fixed_rub",
+    symbolLatex: "CFX",
+    label: "Фикс таможни (RUB)",
+    hint: "Фиксированная добавка к таможне в рублях, если пошлина срабатывает.",
     step: "0.01",
   },
   {
-    key: "eur_to_rub",
-    symbolLatex: "EUR2RUB",
-    label: "Курс EUR к RUB",
-    hint: "Курс евро к рублю для пошлины и перевода цены в рубли.",
+    key: "payment_fee_rate",
+    symbolLatex: "PFRP",
+    label: "Комиссия платёжки",
+    hint: "Комиссия платежной системы с суммы выкупа товара. Пример: 0.02 = 2%.",
+    step: "0.001",
+  },
+  {
+    key: "tax_rate",
+    symbolLatex: "TXR",
+    label: "Налог",
+    hint: "Налог на полную итоговую сумму. Пример: 0.06 = 6%.",
+    step: "0.001",
+  },
+  {
+    key: "shipping_alt_threshold_eur",
+    symbolLatex: "ATH",
+    label: "Порог alt-доставки",
+    hint: "Если цена товара выше этого порога, для US/EU применяется альтернативный тариф доставки.",
     step: "0.01",
+  },
+  {
+    key: "bybit_extra_rub",
+    symbolLatex: "BEX",
+    label: "Добавка к курсу",
+    hint: "Надбавка к курсу Bybit в рублях.",
+    step: "0.01",
+  },
+  {
+    key: "eur_to_usd_rate",
+    symbolLatex: "E2U",
+    label: "EUR -> USD",
+    hint: "Коэффициент перевода цены товара из EUR в USD.",
+    step: "0.0001",
+  },
+  {
+    key: "gbp_to_usd_rate",
+    symbolLatex: "G2U",
+    label: "GBP -> USD",
+    hint: "Коэффициент перевода цены товара из GBP в USD.",
+    step: "0.0001",
   },
 ];
 
@@ -239,6 +327,14 @@ const renderLatexInline = (latex: string): string =>
     strict: "ignore",
   });
 
+const renderLegendSymbol = (key: string): string => {
+  const fromMap = legendKeyToLatex[key];
+  if (fromMap) {
+    return renderLatexInline(fromMap);
+  }
+  return renderLatexInline(`\\text{${escapeLatexText(key)}}`);
+};
+
 function HelpHint({ text }: { text: string }) {
   return (
     <span className="help-hint" tabIndex={0} aria-label={text}>
@@ -266,6 +362,10 @@ type AdminListProduct = {
   image_count: number;
   image_urls: string[];
   image_ids: number[];
+  is_favorite?: boolean;
+  internal_category_id?: number | null;
+  internal_category_name?: string | null;
+  internal_category_slug?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -277,7 +377,6 @@ export function AdminPage() {
     productsHasMore,
     sources,
     latestJob,
-    latestJobDetails,
     loadingMoreProducts,
     error,
     refresh,
@@ -295,9 +394,10 @@ export function AdminPage() {
     addCategoryKeyword,
     removeCategoryKeyword,
     dedupCandidates,
+    loadingDedupCandidates,
     mergeDedupPair,
     rejectDedupPair,
-    jobsHistory,
+    loading,
     toggleSourceEnabled,
     weightRules,
     weightMissingProducts,
@@ -312,6 +412,7 @@ export function AdminPage() {
     createPricingSupplier,
     deletePricingSupplier,
     assignSourceSupplier,
+    toggleProductFavorite,
   } = useLiveData();
 
   const [tab, setTab] = useState<AdminTab>("products");
@@ -365,16 +466,16 @@ export function AdminPage() {
     eur: "0",
   });
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
-  const [syncInProgressLocal, setSyncInProgressLocal] = useState<boolean>(false);
+  const bybitWarnToastShownRef = useRef<string | null>(null);
 
   const [filteredServerProducts, setFilteredServerProducts] = useState<AdminListProduct[]>([]);
   const [filteredServerTotal, setFilteredServerTotal] = useState<number>(0);
   const [filteredServerHasMore, setFilteredServerHasMore] = useState<boolean>(false);
   const [loadingFilteredServer, setLoadingFilteredServer] = useState<boolean>(false);
 
-  const canRunSync = !latestJob || !["in_progress", "pending"].includes(latestJob.status);
+  const isSyncInProgress = Boolean(latestJob && ["in_progress", "pending"].includes(latestJob.status));
+  const canRunSync = !isSyncInProgress;
   const canCancelSync = Boolean(latestJob?.can_cancel && latestJob?.job_id);
-  const showHeaderSyncProgress = Boolean(syncInProgressLocal || (latestJob && ["in_progress", "pending"].includes(latestJob.status)));
 
   const pushToast = (message: string) => {
     const text = message.trim();
@@ -420,6 +521,19 @@ export function AdminPage() {
     pushToast(`Error: ${error}`);
   }, [error]);
 
+  useEffect(() => {
+    const warning = pricingSettings?.bybit_rate_warning?.trim();
+    if (!warning) {
+      bybitWarnToastShownRef.current = null;
+      return;
+    }
+    if (bybitWarnToastShownRef.current === warning) {
+      return;
+    }
+    bybitWarnToastShownRef.current = warning;
+    pushToast(warning);
+  }, [pricingSettings?.bybit_rate_warning]);
+
   const categoryOptions = useMemo(() => {
     const rows: { id: number; name: string }[] = [];
     const walk = (nodes: typeof adminCategories, prefix: string) => {
@@ -463,6 +577,9 @@ export function AdminPage() {
   }, [adminCategories]);
 
   const inferInternalCategoryName = (product: (typeof products)[number]) => {
+    if (product.internal_category_name && product.internal_category_name.trim()) {
+      return product.internal_category_name.trim();
+    }
     const haystack = `${product.title} ${product.vendor || ""} ${product.product_type || ""}`.toLowerCase();
     let best: { name: string; score: number } | null = null;
 
@@ -612,12 +729,15 @@ export function AdminPage() {
     if (!pricingSettings) {
       return { usdToRub: 95, eurToRub: 105 };
     }
-    const draftUsd = Number((pricingDrafts.usd_to_rub ?? String(pricingSettings.usd_to_rub)).trim());
-    const draftEur = Number((pricingDrafts.eur_to_rub ?? String(pricingSettings.eur_to_rub)).trim());
-    const usdToRub = Number.isFinite(draftUsd) && draftUsd > 0 ? draftUsd : Number(pricingSettings.usd_to_rub);
-    const eurToRub = Number.isFinite(draftEur) && draftEur > 0 ? draftEur : Number(pricingSettings.eur_to_rub);
+    const bybitBase = Number(pricingSettings.bybit_usdt_to_rub);
+    const draftExtra = Number((pricingDrafts.bybit_extra_rub ?? String(pricingSettings.bybit_extra_rub)).trim());
+    const draftEurToUsd = Number((pricingDrafts.eur_to_usd_rate ?? String(pricingSettings.eur_to_usd_rate)).trim());
+    const bybitExtra = Number.isFinite(draftExtra) ? draftExtra : Number(pricingSettings.bybit_extra_rub);
+    const eurToUsd = Number.isFinite(draftEurToUsd) && draftEurToUsd > 0 ? draftEurToUsd : Number(pricingSettings.eur_to_usd_rate);
+    const usdToRub = (Number.isFinite(bybitBase) && bybitBase > 0 ? bybitBase : 95) + Math.max(0, bybitExtra);
+    const eurToRub = usdToRub * eurToUsd;
     return { usdToRub, eurToRub };
-  }, [pricingSettings, pricingDrafts.usd_to_rub, pricingDrafts.eur_to_rub]);
+  }, [pricingSettings, pricingDrafts.bybit_extra_rub, pricingDrafts.eur_to_usd_rate]);
 
   const setThresholdField = (field: TriCurrencyAmountKey, raw: string) => {
     setThresholdDraft((prev) => {
@@ -983,26 +1103,41 @@ export function AdminPage() {
   }, [pricingSettings?.formula_latex]);
 
   const pricingExample = useMemo(() => {
-    const eurToRub = pricingSettings ? Number(pricingSettings.eur_to_rub) : null;
-    const usdToRub = pricingSettings ? Number(pricingSettings.usd_to_rub) : null;
     for (const product of products) {
       const components = (product.pricing_components || {}) as Record<string, unknown>;
       const finalPrice = toFiniteNumber(product.final_price);
       const sourcePriceRub = toFiniteNumber(components.source_price_rub);
+      const sourcePriceUsd = toFiniteNumber(components.source_price_usd);
       const sourcePriceEur = toFiniteNumber(components.source_price_eur);
       const sourcePriceRaw = toFiniteNumber(components.source_price) ?? toFiniteNumber(product.source_price) ?? toFiniteNumber(product.price);
       const sourceCurrency = normalizeCurrencyCode(
         String(components.source_currency || product.source_currency || product.currency || "USD"),
         "USD"
       );
-      const spAfterPromo = toFiniteNumber(components.sp_after_promo_rub);
+      const bybitBase = toFiniteNumber(components.bybit_bucket_rate_rub) ?? toFiniteNumber(components.bybit_usdt_to_rub);
+      const bybitExtra = toFiniteNumber(components.bybit_extra_rub);
+      const bybitFx = toFiniteNumber(components.effective_usdt_to_rub);
+      const buyoutSurchargeRub = toFiniteNumber(components.buyout_surcharge_rub);
+      const buyoutRub = toFiniteNumber(components.buyout_rub);
+      const paymentFeeRate = toFiniteNumber(components.payment_fee_rate);
+      const paymentFeeRub = toFiniteNumber(components.payment_fee_rub);
+      const insuranceRub = toFiniteNumber(components.insurance_rub);
       const customsRub = toFiniteNumber(components.customs_duty_rub);
-      const sellerDeliveryRub = toFiniteNumber(components.seller_delivery_rub);
-      const supplierTransportRub = toFiniteNumber(components.supplier_transport_rub);
+      const spAfterPromoEur = toFiniteNumber(components.sp_after_promo_eur);
       const customsThresholdEur = toFiniteNumber(components.customs_threshold_eur);
       const customsDutyRate = toFiniteNumber(components.customs_duty_rate);
-      const weightGrams = toFiniteNumber(components.weight_grams);
-      const weightTolerance = toFiniteNumber(components.weight_tolerance);
+      const customsProcessingRate = toFiniteNumber(components.customs_processing_rate);
+      const customsFixedRub = toFiniteNumber(components.customs_fixed_rub);
+      const eurToUsdRate = toFiniteNumber(components.eur_to_usd_rate);
+      const gbpToUsdRate = toFiniteNumber(components.gbp_to_usd_rate);
+      const sellerDeliveryRub = toFiniteNumber(components.seller_delivery_rub);
+      const supplierTransportRub = toFiniteNumber(components.supplier_transport_rub);
+      const serviceFeeRub = toFiniteNumber(components.service_fee_rub);
+      const subtotalRub = toFiniteNumber(components.subtotal_rub);
+      const subtotalAfterMarkupRub = toFiniteNumber(components.subtotal_after_markup_rub);
+      const passThroughCostsRub = toFiniteNumber(components.pass_through_costs_rub);
+      const taxRate = toFiniteNumber(components.tax_rate);
+      const taxRub = toFiniteNumber(components.tax_rub);
       const shippingSteps = toFiniteNumber(components.shipping_steps_500g);
       const promoFactor = toFiniteNumber(components.promo_factor);
       const markup = toFiniteNumber(components.markup_multiplier);
@@ -1010,46 +1145,183 @@ export function AdminPage() {
       if (
         finalPrice === null
         || sourcePriceRub === null
+        || sourcePriceUsd === null
         || sourcePriceEur === null
         || sourcePriceRaw === null
-        || spAfterPromo === null
+        || bybitBase === null
+        || bybitExtra === null
+        || bybitFx === null
+        || buyoutSurchargeRub === null
+        || buyoutRub === null
+        || paymentFeeRate === null
+        || paymentFeeRub === null
+        || insuranceRub === null
         || customsRub === null
-        || sellerDeliveryRub === null
-        || supplierTransportRub === null
+        || spAfterPromoEur === null
         || customsThresholdEur === null
         || customsDutyRate === null
-        || weightGrams === null
-        || weightTolerance === null
+        || customsProcessingRate === null
+        || customsFixedRub === null
+        || eurToUsdRate === null
+        || gbpToUsdRate === null
+        || sellerDeliveryRub === null
+        || supplierTransportRub === null
+        || serviceFeeRub === null
+        || subtotalRub === null
+        || subtotalAfterMarkupRub === null
+        || taxRate === null
+        || taxRub === null
         || shippingSteps === null
         || promoFactor === null
-        || usdToRub === null
-        || eurToRub === null
         || markup === null
       ) {
         continue;
       }
 
-      const supplierLabelLatex = `\\text{${escapeLatexText(supplierName)}}`;
-      const thresholdRub = customsThresholdEur * eurToRub;
-      const thresholdInSource = fromRubByRates(thresholdRub, sourceCurrency, usdToRub, eurToRub);
-      const sourceToRub = sourceCurrency === "USD" ? usdToRub : sourceCurrency === "EUR" ? eurToRub : 1;
-      const sourceToRubLabel = sourceCurrency === "RUB" ? "RUB2RUB" : `${sourceCurrency}2RUB`;
+      const subtotalBeforeMarkup = subtotalRub;
+      const subtotalAfterMarkup = subtotalAfterMarkupRub;
+      const labelVar = (symbol: string) => symbol;
+      const labelGroup = (symbol: string, value: number, digits = 4) => `${symbol}=${formatCompactNumber(value, digits)}`;
       const exampleLatex =
-        `\\left\\lceil\\Big(` +
-        `\\underbrace{${formatCompactNumber(sourcePriceRub)}}_{SP_{RUB}}\\cdot\\underbrace{${formatCompactNumber(promoFactor, 4)}}_{PROMO}` +
-        `+\\underbrace{\\max\\!\\left(0,\\underbrace{${formatCompactNumber(sourcePriceRaw)}}_{SP_{${sourceCurrency}}}-\\underbrace{${formatCompactNumber(thresholdInSource)}}_{THR_{${sourceCurrency}}}\\right)\\cdot\\underbrace{${formatCompactNumber(customsDutyRate, 4)}}_{DUTY}\\cdot\\underbrace{${formatCompactNumber(sourceToRub)}}_{${sourceToRubLabel}}}_{CDT_{RUB}=${formatCompactNumber(customsRub)}}` +
-        `+\\underbrace{${formatCompactNumber(sellerDeliveryRub)}}_{SDC_{RUB}}` +
-        `+\\underbrace{${formatCompactNumber(supplierTransportRub)}}_{STC_{RUB}=SSR[\\underbrace{${supplierLabelLatex}}_{SUPPLIER}][\\underbrace{\\left\\lceil\\frac{\\underbrace{${formatCompactNumber(weightGrams)}}_{WEIGHT_G}\\cdot\\underbrace{${formatCompactNumber(weightTolerance, 4)}}_{WT}}{500}\\right\\rceil}_{STEP}]}` +
-        `\\Big)\\cdot\\underbrace{${formatCompactNumber(markup, 4)}}_{MP}\\right\\rceil`;
+        `\\lceil` +
+        `\\underbrace{` +
+        `\\underbrace{(` +
+        `\\underbrace{${formatCompactNumber(sourcePriceUsd)}}_{${labelVar("SPU")}}` +
+        `\\cdot(` +
+        `\\underbrace{${formatCompactNumber(bybitBase, 4)}}_{${labelVar("BBR")}}+\\underbrace{${formatCompactNumber(bybitExtra, 4)}}_{${labelVar("BEX")}}` +
+        `)` +
+        `\\cdot\\underbrace{${formatCompactNumber(promoFactor, 4)}}_{${labelVar("PRM")}}` +
+        `+\\underbrace{${formatCompactNumber(buyoutSurchargeRub)}}_{${labelVar("BSC")}}` +
+        `)}_{${labelGroup("BUY", buyoutRub)}}` +
+        `+\\underbrace{(` +
+        `\\underbrace{${formatCompactNumber(buyoutRub)}}_{${labelVar("BUY")}}` +
+        `\\cdot\\underbrace{${formatCompactNumber(paymentFeeRate, 4)}}_{${labelVar("PFRP")}}` +
+        `)}_{${labelGroup("PFR", paymentFeeRub)}}` +
+        `+\\underbrace{${formatCompactNumber(insuranceRub)}}_{${labelVar("INS")}}` +
+        `+\\underbrace{(` +
+        `(\\max(0,\\underbrace{${formatCompactNumber(spAfterPromoEur, 4)}}_{${labelVar("SPE")}}-\\underbrace{${formatCompactNumber(customsThresholdEur, 4)}}_{${labelVar("THR")}})` +
+        `\\cdot\\underbrace{${formatCompactNumber(customsDutyRate, 4)}}_{${labelVar("DUT")}}` +
+        `\\cdot(1+\\underbrace{${formatCompactNumber(customsProcessingRate, 4)}}_{${labelVar("CPR")}}))` +
+        `\\cdot\\underbrace{${formatCompactNumber(eurToUsdRate, 4)}}_{${labelVar("E2U")}}` +
+        `\\cdot(` +
+        `\\underbrace{${formatCompactNumber(bybitBase, 4)}}_{${labelVar("BBR")}}+\\underbrace{${formatCompactNumber(bybitExtra, 4)}}_{${labelVar("BEX")}}` +
+        `)` +
+        `+\\underbrace{${formatCompactNumber(customsFixedRub)}}_{${labelVar("CFX")}}` +
+        `)}_{${labelGroup("CDR", customsRub)}}` +
+        `+\\underbrace{${formatCompactNumber(sellerDeliveryRub)}}_{${labelVar("SDC")}}` +
+        `+\\underbrace{${formatCompactNumber(supplierTransportRub)}}_{SSR[\\text{${escapeLatexText(supplierName)}}][\\underbrace{${formatCompactNumber(shippingSteps)}}_{${labelVar("STP")}}]}` +
+        `+\\underbrace{${formatCompactNumber(serviceFeeRub)}}_{${labelVar("SVC")}}` +
+        `}_{${labelGroup("SUB", subtotalBeforeMarkup)}}` +
+        `\\cdot\\underbrace{${formatCompactNumber(markup, 4)}}_{${labelVar("MP")}}` +
+        `+\\underbrace{(` +
+        `\\underbrace{${formatCompactNumber(subtotalAfterMarkup)}}_{SUB\\cdot MP}` +
+        `\\cdot\\underbrace{${formatCompactNumber(taxRate, 4)}}_{${labelVar("TXR")}}` +
+        `)}_{${labelGroup("TAX", taxRub)}}` +
+        `\\rceil`;
       const summarySpLatex = renderLatexInline("SP");
-      const summaryFpLatex = renderLatexInline("FP_{RUB}");
-      const summaryRubLatex = renderLatexInline("SP_{RUB}");
-      const marginRub = Math.round(finalPrice) - sourcePriceRub;
+      const summaryFpLatex = renderLatexInline("FPR");
+      const summaryRubLatex = renderLatexInline("SPR");
+      const marginRub =
+        toFiniteNumber(components.margin_rub)
+        ?? ((subtotalAfterMarkupRub !== null && passThroughCostsRub !== null)
+          ? subtotalAfterMarkupRub - passThroughCostsRub
+          : Math.round(finalPrice) - sourcePriceRub);
+      const usedKeys = new Set([
+        "SP",
+        "SPU",
+        "SPE",
+        "SPR",
+        "BBR",
+        "BEX",
+        "BFX",
+        "E2U",
+        "G2U",
+        "PRM",
+        "BSC",
+        "BUY",
+        "PFRP",
+        "PFR",
+        "THR",
+        "DUT",
+        "CPR",
+        "CFX",
+        "CDR",
+        "SDC",
+        "SSR",
+        "SUP",
+        "STP",
+        "INS",
+        "SVC",
+        "SUB",
+        "TXR",
+        "TAX",
+        "MP",
+        "FPR",
+      ]);
+      const keyValues: Record<string, unknown> = {
+        SP: sourcePriceRaw,
+        SPU: sourcePriceUsd,
+        SPE: sourcePriceEur,
+        SPR: sourcePriceRub,
+        BBR: bybitBase,
+        BEX: bybitExtra,
+        BFX: bybitFx,
+        E2U: eurToUsdRate,
+        G2U: gbpToUsdRate,
+        PRM: promoFactor,
+        BSC: buyoutSurchargeRub,
+        BUY: buyoutRub,
+        PFRP: toFiniteNumber(components.payment_fee_rate),
+        PFR: paymentFeeRub,
+        THR: customsThresholdEur,
+        DUT: customsDutyRate,
+        CPR: customsProcessingRate,
+        CFX: customsFixedRub,
+        CDR: customsRub,
+        SDC: sellerDeliveryRub,
+        SSR: supplierTransportRub,
+        SUP: supplierName,
+        STP: shippingSteps,
+        INS: insuranceRub,
+        SVC: serviceFeeRub,
+        SUB: subtotalRub,
+        TXR: toFiniteNumber(components.tax_rate),
+        TAX: taxRub,
+        MP: markup,
+        FPR: finalPrice,
+      };
+      const legendDim: Record<string, boolean> = {};
+      const isZeroOrEmpty = (value: unknown): boolean => {
+        if (value === null || value === undefined) {
+          return true;
+        }
+        if (typeof value === "number") {
+          return Math.abs(value) <= 0.0000001;
+        }
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (!trimmed) {
+            return true;
+          }
+          const parsed = Number(trimmed);
+          if (Number.isFinite(parsed)) {
+            return Math.abs(parsed) <= 0.0000001;
+          }
+          return false;
+        }
+        return false;
+      };
+      for (const item of pricingSettings?.formula_legend || []) {
+        const key = item.key;
+        const used = usedKeys.has(key);
+        const zero = isZeroOrEmpty(keyValues[key]);
+        legendDim[key] = !used || zero;
+      }
       return {
         productId: product.id,
         title: product.title,
         url: product.url,
-        imageUrl: toImageGatewayUrl(product.image_ids?.[0]) || product.image_urls?.[0] || "",
+        imageUrl: getProductPrimaryImageUrl(product) || "",
         finalPrice: Math.round(finalPrice),
         sourcePrice: sourcePriceRaw,
         sourcePriceRub,
@@ -1058,6 +1330,7 @@ export function AdminPage() {
         summaryFpLatex,
         summaryRubLatex,
         marginRub,
+        legendDim,
         formulaHtml: renderLatexInline(exampleLatex),
       };
     }
@@ -1269,23 +1542,6 @@ export function AdminPage() {
     return map;
   }, [sources]);
 
-  const latestProblemSources = useMemo(() => {
-    const sourceRuns = latestJobDetails?.source_runs || [];
-    return sourceRuns
-      .filter((run) => run.status === "partial" || run.status === "failed")
-      .map((run) => ({
-        ...run,
-        sourceName: sourceById.get(run.source_id)?.name || `#${run.source_id}`,
-        sourceUrl: sourceById.get(run.source_id)?.base_url || "",
-      }))
-      .sort((left, right) => {
-        if (left.status !== right.status) {
-          return left.status === "failed" ? -1 : 1;
-        }
-        return right.products_failed - left.products_failed;
-      });
-  }, [latestJobDetails?.source_runs, sourceById]);
-
   const formatDateTime = (value: string | null | undefined) => {
     if (!value) {
       return "--.--.----, --:--:--";
@@ -1303,6 +1559,50 @@ export function AdminPage() {
       second: "2-digit",
     });
   };
+
+  const bybitWorkerInfo = useMemo(() => {
+    if (!pricingSettings) {
+      return {
+        stateLabel: "Нет данных",
+        stateClass: "status-pill status-pill--muted",
+        autoEnabled: false,
+        intervalSec: 0,
+        ageLabel: "-",
+      };
+    }
+    const autoEnabled = pricingSettings.bybit_worker_auto_enabled !== false;
+    const intervalSec = Math.max(30, Number(pricingSettings.bybit_worker_interval_sec || 1800));
+    const lastUpdatedRaw = pricingSettings.bybit_last_updated_at || null;
+    const lastUpdatedDate = lastUpdatedRaw ? new Date(lastUpdatedRaw) : null;
+    const staleAfterMs = intervalSec * 2 * 1000;
+
+    let stateLabel = "Нет обновлений";
+    let stateClass = "status-pill status-pill--muted";
+    if (!autoEnabled) {
+      stateLabel = "Выключен";
+    } else if (pricingSettings.bybit_last_error) {
+      stateLabel = "Ошибка";
+      stateClass = "status-pill status-pill--bad";
+    } else if (lastUpdatedDate && !Number.isNaN(lastUpdatedDate.getTime()) && (Date.now() - lastUpdatedDate.getTime()) <= staleAfterMs) {
+      stateLabel = "Работает";
+      stateClass = "status-pill status-pill--ok";
+    } else {
+      stateLabel = "Задержка";
+      stateClass = "status-pill status-pill--warn";
+    }
+
+    const ageLabel = lastUpdatedDate && !Number.isNaN(lastUpdatedDate.getTime())
+      ? `${Math.max(0, Math.floor((Date.now() - lastUpdatedDate.getTime()) / 60000))} мин назад`
+      : "-";
+
+    return {
+      stateLabel,
+      stateClass,
+      autoEnabled,
+      intervalSec,
+      ageLabel,
+    };
+  }, [pricingSettings]);
 
   const statusBadge = (status: string) => {
     if (status === "available") {
@@ -1436,9 +1736,7 @@ export function AdminPage() {
   };
 
   const onRunSync = async () => {
-    setSyncInProgressLocal(true);
     const result = await runSync();
-    setSyncInProgressLocal(false);
     if (!result.ok) {
       pushToast(result.message);
     }
@@ -1616,6 +1914,11 @@ export function AdminPage() {
     pushToast(result.message);
   };
 
+  const onToggleProductFavorite = async (productId: number, nextFavorite: boolean) => {
+    const result = await toggleProductFavorite(productId, nextFavorite);
+    pushToast(result.message);
+  };
+
   const renderTree = (nodes: typeof adminCategories, depth = 0) => {
     return (
       <div className="cat-tree-column">
@@ -1641,7 +1944,9 @@ export function AdminPage() {
                 >
                   +
                 </button>
-                <span className="muted">{node.is_fallback ? "fallback" : `${node.keywords.length} ключей`}</span>
+                <span className="muted">
+                  {node.is_fallback ? "системная" : node.is_favorite ? "избранное" : `${node.keywords.length} ключей`}
+                </span>
               </div>
               {node.children.length > 0 ? <div className="cat-tree-children">{renderTree(node.children, depth + 1)}</div> : null}
             </div>
@@ -1656,8 +1961,8 @@ export function AdminPage() {
       <div className="admin-head">
         <h1>Admin Panel</h1>
         <div className="actions">
-          <button type="button" onClick={onRunSync} disabled={!canRunSync || syncInProgressLocal}>
-            {syncInProgressLocal ? "Синхронизация..." : "Синхронизировать товары"}
+          <button type="button" onClick={onRunSync} disabled={!canRunSync}>
+            {isSyncInProgress ? "Синхронизация..." : "Синхронизировать товары"}
           </button>
           <button type="button" onClick={onCancelSync} disabled={!canCancelSync}>
             Отменить синхронизацию
@@ -1669,30 +1974,32 @@ export function AdminPage() {
             Открыть витрину
           </Link>
         </div>
-        {showHeaderSyncProgress && latestJob ? (
-          <div className="muted">
-            <p>
-              Sync status: {latestJob.status}
-              {" | "}
-              Sources: {latestJob.progress_percent}% ({latestJob.processed_sources}/{latestJob.total_sources})
-            </p>
-            <p>
-              Products: {latestJob.products_progress_percent}% ({latestJob.processed_products}/{latestJob.expected_products || "?"})
-              {latestJob.failed_products > 0 ? ` | Failed: ${latestJob.failed_products}` : ""}
-              {" | "}
-              On site: {latestJob.site_products_total}
-            </p>
-            <p>
-              Current source: {latestJob.current_source_name || "-"}
-              {latestJob.current_source_index > 0 ? ` (${latestJob.current_source_index}/${latestJob.total_sources})` : ""}
-              {" | "}
-              Stage: {latestJob.current_stage || "-"}
-              {" | "}
-              Source products: {latestJob.current_source_processed_products}/{latestJob.current_source_total_products || "?"}
-            </p>
-            <p>
-              Current product: {latestJob.current_product_title || "-"}
-            </p>
+        {latestJob ? (
+          <div className="sync-summary">
+            {isSyncInProgress ? (
+              <>
+                <p className="muted">
+                  Этап: {latestJob.current_stage || "discovery"} • Сайт: {latestJob.current_source_name || "-"} (
+                  {latestJob.current_source_index || 0}/{latestJob.total_sources || 0})
+                </p>
+                <div className="sync-progress">
+                  <div className="sync-progress__bar" style={{ width: `${Math.max(0, Math.min(100, latestJob.progress_percent || 0))}%` }} />
+                </div>
+                <p className="muted">
+                  {Math.max(0, Math.min(100, latestJob.progress_percent || 0))}% • Сайты: {latestJob.processed_sources}/{latestJob.total_sources}
+                </p>
+              </>
+            ) : (
+              latestJob.status === "completed" ? (
+                <p className="muted">
+                  Синхронизация завершена! Дата последней синхронизиации: {formatDateTime(latestJob.completed_at)}
+                </p>
+              ) : (
+                <p className="muted">
+                  Последний запуск: {latestJob.status}. Дата: {formatDateTime(latestJob.completed_at || latestJob.started_at || latestJob.created_at)}
+                </p>
+              )
+            )}
           </div>
         ) : null}
       </div>
@@ -1713,7 +2020,9 @@ export function AdminPage() {
       {tab === "products" ? (
         <div className="card">
           <h2>
-            {hasActiveFilters && !productSourceFilter
+            {loading && displayedProducts.length === 0
+              ? "Все товары (загрузка...)"
+              : hasActiveFilters && !productSourceFilter
               ? `Все товары (${displayedProducts.length}/${displayedTotal})`
               : `Все товары (${hasActiveFilters ? displayedTotal : productsTotal})`}
           </h2>
@@ -1774,6 +2083,7 @@ export function AdminPage() {
               <table className="products-table">
                 <thead>
                   <tr>
+                    <th>★</th>
                     <th>Фото</th>
                     <th>Название</th>
                     <th>Сайт</th>
@@ -1795,11 +2105,24 @@ export function AdminPage() {
                     return (
                       <tr key={product.id}>
                         <td>
-                          {toImageGatewayUrl(product.image_ids?.[0]) ? (
-                            <img className="thumb-mini-image" src={toImageGatewayUrl(product.image_ids?.[0]) || undefined} alt={product.title} />
-                          ) : (
-                            <div className="thumb-mini">{product.image_count > 0 ? `${product.image_count} фото` : "Нет фото"}</div>
-                          )}
+                          <button
+                            type="button"
+                            className={product.is_favorite ? "favorite-btn favorite-btn--active" : "favorite-btn"}
+                            onClick={() => void onToggleProductFavorite(product.id, !product.is_favorite)}
+                            title={product.is_favorite ? "Убрать из избранного" : "Добавить в избранное"}
+                          >
+                            ★
+                          </button>
+                        </td>
+                        <td>
+                          <ImageWithFallback
+                            src={getProductPrimaryImageUrl(product)}
+                            alt={product.title}
+                            className="thumb-mini-image"
+                            placeholderClassName="thumb-mini"
+                            placeholderText={product.image_count > 0 ? `${product.image_count} фото` : "Нет фото"}
+                            loadingText={product.image_count > 0 ? "Загружаем..." : "Нет фото"}
+                          />
                         </td>
                         <td>
                           <Link className="btn-link" to={`/product/${product.id}`}>
@@ -1829,7 +2152,8 @@ export function AdminPage() {
                   })}
                 </tbody>
               </table>
-              {displayedProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
+              {loading && displayedProducts.length === 0 ? <p className="muted">Идет загрузка списка товаров...</p> : null}
+              {!loading && displayedProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
               {displayedLoadingMore ? <p className="muted">Подгружаем еще товары...</p> : null}
               <div ref={productsSentinelRef} style={{ height: "1px" }} />
             </div>
@@ -1840,7 +2164,7 @@ export function AdminPage() {
       {tab === "dedup" ? (
         <div className="card">
           <h2>Дедубликация</h2>
-          <p className="muted">Кандидатов: {dedupCandidates.length}</p>
+          <p className="muted">{loadingDedupCandidates ? "Кандидатов: загрузка..." : `Кандидатов: ${dedupCandidates.length}`}</p>
           <div className="dedup-list">
             {dedupCandidates.map((candidate) => (
               <div key={candidate.pair_key} className="dedup-item">
@@ -1886,7 +2210,8 @@ export function AdminPage() {
                 </div>
               </div>
             ))}
-            {dedupCandidates.length === 0 ? <p className="muted">Кандидатов нет</p> : null}
+            {loadingDedupCandidates ? <p className="muted">Идет загрузка кандидатов дедубликации...</p> : null}
+            {!loadingDedupCandidates && dedupCandidates.length === 0 ? <p className="muted">Кандидатов нет</p> : null}
           </div>
         </div>
       ) : null}
@@ -1939,10 +2264,10 @@ export function AdminPage() {
                       onChange={(event) => setRenameCategoryName(event.target.value)}
                       placeholder="Название категории"
                     />
-                    <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_fallback}>
+                    <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_fallback || selectedCategory.is_favorite}>
                       Удалить
                     </button>
-                    {selectedCategory.is_fallback ? (
+                    {selectedCategory.is_fallback || selectedCategory.is_favorite ? (
                       <p className="muted">Данная категория системная, ее нельзя удалить.</p>
                     ) : null}
                   </div>
@@ -1969,13 +2294,13 @@ export function AdminPage() {
                         }
                       }}
                       placeholder="Введите ключ и нажмите Enter"
-                      disabled={selectedCategory.is_fallback}
+                      disabled={selectedCategory.is_fallback || selectedCategory.is_favorite}
                     />
-                    <button type="button" onClick={onAddKeyword} disabled={selectedCategory.is_fallback}>
+                    <button type="button" onClick={onAddKeyword} disabled={selectedCategory.is_fallback || selectedCategory.is_favorite}>
                       Добавить ключ
                     </button>
                   </div>
-                  {selectedCategory.is_fallback ? <p className="muted">У системной категории ключей быть не должно.</p> : null}
+                  {selectedCategory.is_fallback || selectedCategory.is_favorite ? <p className="muted">У системной категории ключей быть не должно.</p> : null}
 
                   <p className="muted">Ключевые слова (наследованные):</p>
                   <div className="chip-list">
@@ -1992,99 +2317,6 @@ export function AdminPage() {
                 <p className="muted">Выбери категорию в дереве слева, чтобы редактировать название и ключи.</p>
               )}
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {tab === "sync" ? (
-        <div className="card">
-          <h2>Синхронизация</h2>
-          {(() => {
-            const minutes = latestJob?.sync_period_minutes || 300;
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            const ru = (n: number, one: string, few: string, many: string) => {
-              const n10 = n % 10;
-              const n100 = n % 100;
-              if (n10 === 1 && n100 !== 11) return one;
-              if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
-              return many;
-            };
-            const chunks: string[] = [];
-            if (hours > 0) {
-              chunks.push(`${hours} ${ru(hours, "час", "часа", "часов")}`);
-            }
-            if (mins > 0) {
-              chunks.push(`${mins} ${ru(mins, "минута", "минуты", "минут")}`);
-            }
-            const periodText = chunks.length > 0 ? chunks.join(" ") : "0 минут";
-            return <p className="muted">Период синхронизации: {periodText}</p>;
-          })()}
-          <p className="muted">Последняя синхронизация: {syncInProgressLocal ? "-" : formatDateTime(latestJob?.completed_at)}</p>
-          <p className="muted">Следующая синхронизация: {syncInProgressLocal ? "-" : formatDateTime(latestJob?.next_scheduled_at)}</p>
-          <div className="sync-stats">
-            <span className="sync-pill sync-pill--new">new: {syncInProgressLocal ? "-" : latestJob?.new_products || 0}</span>
-            <span className="sync-pill sync-pill--updated">updated: {syncInProgressLocal ? "-" : latestJob?.updated_products || 0}</span>
-            <span className="sync-pill sync-pill--missing">missing: {syncInProgressLocal ? "-" : 0}</span>
-          </div>
-
-          <h3 style={{ marginTop: "1rem" }}>Проблемные источники</h3>
-          {latestProblemSources.length > 0 ? (
-            <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
-              <table className="products-table">
-                <thead>
-                  <tr>
-                    <th>Сайт</th>
-                    <th>Статус</th>
-                    <th>Discovery</th>
-                    <th>Fetched</th>
-                    <th>Failed</th>
-                    <th>Причина</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {latestProblemSources.map((run) => (
-                    <tr key={run.id}>
-                      <td>
-                        {run.sourceUrl ? (
-                          <a className="btn-link" href={run.sourceUrl} target="_blank" rel="noreferrer">
-                            {run.sourceName}
-                          </a>
-                        ) : (
-                          run.sourceName
-                        )}
-                      </td>
-                      <td>{run.status}</td>
-                      <td>{run.products_discovered}</td>
-                      <td>{run.products_fetched}</td>
-                      <td>{run.products_failed}</td>
-                      <td>{run.error_message || run.discovery_mode || "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="muted">
-              {latestJobDetails?.id ? "По последней джобе проблемных источников нет." : "Детали последней джобы еще не загружены."}
-            </p>
-          )}
-
-          <h3 style={{ marginTop: "1rem" }}>История запусков</h3>
-          <div className="list">
-            {(syncInProgressLocal ? [] : jobsHistory).map((job) => (
-              <div key={job.id} className="list-row">
-                <div>
-                  <strong>{job.id}</strong>
-                  <p className="muted">{formatDateTime(job.created_at)}</p>
-                  <p className="muted">
-                    new={job.new_products} updated={job.updated_products} errors={job.error_count}
-                  </p>
-                </div>
-                <span className="muted">{job.triggered_by}</span>
-              </div>
-            ))}
-            {(syncInProgressLocal || jobsHistory.length === 0) ? <p className="muted">История пуста</p> : null}
           </div>
         </div>
       ) : null}
@@ -2126,6 +2358,41 @@ export function AdminPage() {
           <h2>Настройки ценообразования</h2>
           {pricingSettings ? (
             <>
+              <div className="pricing-worker-box">
+                <h3 className="with-help">
+                  Состояние воркера Bybit
+                  <HelpHint text="Здесь видно, как работает фоновый процесс обновления курса Bybit, и можно быстро проверить расчет для нужной суммы." />
+                </h3>
+                <div className="pricing-worker-grid">
+                  <div className="pricing-worker-item">
+                    <span className="muted">Состояние</span>
+                    <span className={bybitWorkerInfo.stateClass}>{bybitWorkerInfo.stateLabel}</span>
+                  </div>
+                  <div className="pricing-worker-item">
+                    <span className="muted">Режим</span>
+                    <strong>{bybitWorkerInfo.autoEnabled ? "Автообновление включено" : "Автообновление выключено"}</strong>
+                  </div>
+                  <div className="pricing-worker-item">
+                    <span className="muted">Интервал</span>
+                    <strong>{Math.max(1, Math.round(bybitWorkerInfo.intervalSec / 60))} мин</strong>
+                  </div>
+                  <div className="pricing-worker-item">
+                    <span className="muted">Последнее обновление</span>
+                    <strong>{formatDateTime(pricingSettings.bybit_last_updated_at)}</strong>
+                    <span className="muted">{bybitWorkerInfo.ageLabel}</span>
+                  </div>
+                  <div className="pricing-worker-item">
+                    <span className="muted">Статус ответа</span>
+                    <strong>{pricingSettings.bybit_rate_status || "-"}</strong>
+                  </div>
+                  <div className="pricing-worker-item">
+                    <span className="muted">Ошибка</span>
+                    <strong>{pricingSettings.bybit_last_error || "-"}</strong>
+                  </div>
+                </div>
+
+              </div>
+
               <div className="pricing-formula-box">
                 <h3 className="with-help">
                   Формула финальной цены
@@ -2174,7 +2441,10 @@ export function AdminPage() {
                 <div className="pricing-formula-legend pricing-legend-grid">
                   {pricingSettings.formula_legend.map((item) => (
                     <div key={item.key} className="pricing-legend-item">
-                      <p className="pricing-legend-key" dangerouslySetInnerHTML={{ __html: renderLatexInline(legendKeyToLatex[item.key] || `\\text{${item.key}}`) }} />
+                      <p
+                        className={pricingExample?.legendDim?.[item.key] ? "pricing-legend-key pricing-legend-key--dim" : "pricing-legend-key"}
+                        dangerouslySetInnerHTML={{ __html: renderLegendSymbol(item.key) }}
+                      />
                       <p className="muted">{item.description}</p>
                     </div>
                   ))}
@@ -2456,7 +2726,7 @@ export function AdminPage() {
               </div>
             </>
           ) : (
-            <p className="muted">Загрузка настроек ценообразования...</p>
+            <p className="muted">Идет проверка актуального курса на Bybit...</p>
           )}
         </div>
       ) : null}
