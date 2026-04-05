@@ -1,0 +1,60 @@
+
+.mainContainer {
+    display: grid;
+    row-gap: 10vh;
+}
+
+.alphabet {
+  position: relative;
+  width: 1012px;
+  height: 31px;
+
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 13px;
+}
+
+.text {
+height: 100%;
+font-family: 'SF Compact Rounded';
+}
+
+.textSearch {
+justify-content: start;
+font-style: normal;
+font-weight: 500;
+font-size: 26px;
+}
+
+.textBrand {
+font-weight: 400;
+font-size: 18px;
+line-height: 170%;
+letter-spacing: 0%;
+
+}
+
+
+.brands {
+    width: 100vw;
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(6, 1fr);
+    row-gap: 10vh;    
+}
+
+.brand {
+    display: grid;
+    justify-items: center;
+    row-gap: 1vh;
+}
+
+.letterContainer {
+    display: grid;
+
+}

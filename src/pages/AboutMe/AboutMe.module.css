@@ -7,6 +7,13 @@
     height: 100vh;
 }
 
+.title {
+    font-size: 32px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+
 .textfieldinner {
 width: 390px;
 height: 521px;

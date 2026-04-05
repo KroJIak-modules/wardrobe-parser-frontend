@@ -10,6 +10,8 @@ import Navbar from './components/header/Navbar';
 import ActionPanel from './components/header/ActionPanel';
 import ShowItem from './pages/ShowItem/ShowItem';
 import AboutMe from './pages/AboutMe/AboutMe';
+import Designers from './pages/Designers/Designers';
+import Cart from './pages/Cart/Cart';
 
 
 export default function App() {
@@ -75,6 +77,8 @@ function AppContent() {
       <div className='container'>
         <Routes>
           <Route path="/" element={<NewItems />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/designers" element={<Designers />} />
           <Route path="/show" element={<ShowItem />} />
           <Route path="/about" element={<AboutMe />} />
         </Routes>
