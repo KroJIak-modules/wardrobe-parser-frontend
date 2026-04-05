@@ -76,7 +76,10 @@ function AppContent() {
       {!location.pathname.includes('show') || !location.pathname.includes('about') && <HeroCarousel />}
       <div className='container'>
         <Routes>
-          <Route path="/" element={<NewItems />} />
+          <Route path="/" element={<NewItems title={"Новинки"} />} />
+          <Route path="/men" element={<NewItems title={"Мужское"} />} />
+          <Route path="/women" element={<NewItems title={"Женское"} />} />
+          <Route path="/sales" element={<NewItems title={"Скидки"} />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/designers" element={<Designers />} />
           <Route path="/show" element={<ShowItem />} />

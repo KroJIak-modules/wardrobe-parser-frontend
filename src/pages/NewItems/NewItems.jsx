@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import image from '@/images/product.png'
 import { Link } from 'react-router-dom'
 
-const NewItems = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true }) => {
+const NewItems = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true, title }) => {
   const products = [
     {
       brand: 'Nofaithstudios',
@@ -39,7 +39,7 @@ const NewItems = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true }) =>
   ];
   return (
     <>
-      {showTitle ? <h1 className={styles.title}>Новинки</h1> : ""}
+      {showTitle ? <h1 className={styles.title}>{title}</h1> : ""}
       <div className={cn(styles.products)}>
         {products
           .slice(numberOfItems * (numberOfPage - 1),

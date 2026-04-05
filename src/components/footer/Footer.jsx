@@ -25,7 +25,7 @@ const Footer = () => {
             elements: [
                 {
                     name: "Обо мне",
-                    link: "https://www.instagram.com/anton_shell/",
+                    link: "/about",
                 },
                 {
                     name: "Отзывы",

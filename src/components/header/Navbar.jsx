@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import styles from './Header.module.css';
+import { Link } from 'react-router-dom';
 
 const Navbar = ({setNavHeight}) => {
   const navRef = useRef(null);
@@ -15,9 +16,11 @@ const Navbar = ({setNavHeight}) => {
     {
       id: 'news',
       label: 'Новинки',
+      link: '/',
       content: (
         <div>
-          <h4>Новые поступления</h4>
+          <h4>Новые поступления
+          </h4>
           <ul>
             <li>Коллекция Осень 2024</li>
             <li>Лимитированные серии</li>
@@ -29,9 +32,11 @@ const Navbar = ({setNavHeight}) => {
     {
       id: 'designers',
       label: 'Дизайнеры',
+      link: '/designers',
       content: (
         <div>
-          <h4>Известные бренды</h4>
+          <h4>Известные бренды
+          </h4>
           <ul>
             <li>Gucci</li>
             <li>Prada</li>
@@ -43,9 +48,11 @@ const Navbar = ({setNavHeight}) => {
     {
       id: 'men',
       label: 'Мужское',
+      link: '/men',
       content: (
         <div>
-          <h4>Для мужчин</h4>
+          <h4>Для мужчин
+          </h4>
           <ul>
             <li>Костюмы</li>
             <li>Обувь</li>
@@ -57,6 +64,7 @@ const Navbar = ({setNavHeight}) => {
     {
       id: 'women',
       label: 'Женское',
+      link: '/women',
       content: (
         <div>
           <h4>Для женщин</h4>
@@ -71,6 +79,7 @@ const Navbar = ({setNavHeight}) => {
     {
       id: 'discounts',
       label: 'Скидки',
+      link: 'discouns',
       content: (
         <div>
           <h4>🔥 Распродажа</h4>
@@ -105,6 +114,7 @@ const Navbar = ({setNavHeight}) => {
     >
       <div className={styles.navItems}>
         {menuItems.map((item) => (
+          <Link to={item.link}>
           <div
             key={item.id}
             className={styles.navItem}
@@ -112,6 +122,7 @@ const Navbar = ({setNavHeight}) => {
           >
             {item.label}
           </div>
+          </Link>
         ))}
       </div>
 
@@ -124,6 +135,7 @@ const Navbar = ({setNavHeight}) => {
           >
             {item.content}
           </div>
+          
         ))}
       </div>
     </nav>
