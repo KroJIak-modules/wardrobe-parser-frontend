@@ -10,7 +10,7 @@ Internal frontend module for Wardrobe Parser Platform.
 cp .env.local.example .env.local
 ```
 
-2. Set API target in `.env.local` (service URL, for example `http://localhost:10520`).
+2. Set API target in `.env.local` (backend URL, for example `http://localhost:10510`).
 
 3. Run dev server:
 
@@ -25,6 +25,6 @@ In dev mode, Vite proxies `/api` to `VITE_LOCAL_API_URL`.
 ## Docker runtime
 
 In Docker, frontend also calls `/api/*`.
-Nginx in the container proxies `/api` to the internal `service:8000`.
+Nginx in the container proxies `/api` to the internal `backend:8000`.
 
 `frontend/.env.local` is ignored by Docker build (`frontend/.dockerignore`) and should not affect docker-compose runtime.
