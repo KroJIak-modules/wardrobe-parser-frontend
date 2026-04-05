@@ -13,6 +13,7 @@ import AboutMe from './pages/AboutMe/AboutMe';
 import Designers from './pages/Designers/Designers';
 import Cart from './pages/Cart/Cart';
 import ShowDesigner from './pages/ShowDesigner/ShowDesigner';
+import QnA from './pages/QnA/QnA';
 
 
 export default function App() {
@@ -82,6 +83,7 @@ function AppContent() {
           <Route path="/women" element={<NewItems title={"Женское"} />} />
           <Route path="/discounts" element={<NewItems title={"Скидки"} />} />
           <Route path="/designer" element={<ShowDesigner title={""}/>} />
+          <Route path="/questions" element={<QnA title={"Вопросы"}/>} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/designers" element={<Designers />} />
           <Route path="/show" element={<ShowItem />} />
