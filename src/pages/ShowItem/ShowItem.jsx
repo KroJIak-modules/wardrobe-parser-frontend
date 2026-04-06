@@ -15,6 +15,24 @@ const ShowItem = () => {
 
     const navigte = useNavigate();
 
+    const sources = [
+        {
+            source: "fartech",
+            price: "19 900",
+            href:"https.example.com"
+        },
+        {
+            source: "fartech",
+            price: "19 900",
+            href:"https.example.com"
+        },
+        // {
+        //     source: "fartech",
+        //     price: "19 900",
+        //     href:"https.example.com"
+        // },
+    ]
+
     const [item, setItem] = useState({
         images: [image1, image2, image3, image1, image2, image3],
         brand: "Nofaithstudios",
@@ -69,6 +87,57 @@ const ShowItem = () => {
 
     return (
         <>
+        <div>
+            
+            
+            {showModalSources && <div className={styles.blur} onClick={() => setShowModalSources(false)}></div>}
+  <div className={styles.modalSources} style={{display: showModalSources ? 'flex' : 'none'}}>
+     {<div  className={styles.modalSources} style={{display: showModalSources ? 'flex' : 'none'}}>
+            <div className={styles.modalSourcesHeader}>
+                <div className={styles.modalTitle} onClick={() => setWindow(true)}>Источники</div>
+                <button className={styles.closeModalButton}
+                    onClick={() => setShowModalSources(false)}>+</button>
+                </div>
+                <div className={styles.modalSourcesBlock}>
+                    <div className={styles.modalSourcesContainer}>
+                        <div className={styles.itemSizesBlock}>
+                        <select className={styles.itemSizes}>
+                            <option value="" selected disabled hidden>Размер</option>
+                            {item.activeSizes.map((size, inds) =>
+                                <option
+                                    key={`${inds}-size-button`}
+                                    className={`
+                                ${styles.itemSize} 
+                                ${item.activeSizes.includes(size) ? styles.itemActiveSize : ''} 
+                                ${selectedSize === size ? styles.itemSelectedSize : ''}
+                            `}
+                                    onClick={() => setSelectedSize(size)}
+                                    disabled={!item.activeSizes.includes(size)}
+
+                                >
+                                    {size}
+                                </option>
+                            )}
+                        </select>
+                    </div>
+                    <div className={styles.designerSourceContainer}>
+                        {sources.map((source, index) => 
+                        <div className={styles.designer}>
+                            <div className={styles.desNamePrice}>
+                                <div style={{fontWeight: "500"}}>{source.source}</div>
+                                <div style={{fontWeight: "500"}}>{source.price}</div>
+                            </div>
+                            <div className={styles.desNamePrice}>
+                                <button className={styles.button}>Открыть источник</button>
+                                <button className={styles.button}>Выбрать</button>
+                            </div>
+                        </div>)}
+                    </div>
+                    </div>
+                </div>
+               </div>}
+  </div>
+        </div>
         <Sources open={opened} onClose={() => setWindow(false)} />
             <div className={styles.mainShow}>
                 <div className={styles.images}>
@@ -139,16 +208,7 @@ const ShowItem = () => {
                     <button className={styles.showSource} onClick={() => setShowModalSources(true)}>Открыть источник товара</button>
                 </div>
                 
-                <div className={styles.modalSources} style={{display: showModalSources ? 'flex' : 'none'}}>
-                    <div className={styles.modalSourcesHeader}>
-                        <div className={styles.modalTitle} onClick={() => setWindow(true)}>Источники</div>
-                        <button className={styles.closeModalButton}
-                                onClick={() => setShowModalSources(false)}>+</button>
-                    </div>
-                    <div className={styles.modalSourcesBlock}>
-                        <div className={styles.modalSourcesContainer}></div>
-                    </div>
-                </div>
+                
             </div>
 
             <div className='container'>
