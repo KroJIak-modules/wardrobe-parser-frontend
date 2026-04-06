@@ -2,7 +2,7 @@ import { useState } from 'react';
 import styles from './Cart.module.css'
 import image1 from '@/images/product.png';
 
-const Cart = (showTitle=true) => {
+const Cart = (showTitle=true, title ) => {
 
     //калище
     const updateNumber = (indexToUpdate, newNumber) => {

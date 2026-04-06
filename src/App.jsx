@@ -58,7 +58,7 @@ function AppContent() {
 
   return (
     <>
-      {!location.pathname.includes('show') || !location.pathname.includes('about') && (
+      {!location.pathname.includes('show') && !location.pathname.includes('about') && (
         <div className='main'>
           <button
             className='startButton'
@@ -75,7 +75,7 @@ function AppContent() {
       <Navbar setNavHeight={setNavHeight} />
       <ActionPanel navHeight={navHeight} />
       <div style={{marginTop: -(navHeight * 0.00001) + 'px'}}>
-      {!location.pathname.includes('show') || !location.pathname.includes('about') && <HeroCarousel />}
+      {!location.pathname.includes('show') && !location.pathname.includes('about') && <HeroCarousel />}
       <div className='container'>
         <Routes>
           <Route path="/" element={<NewItems title={"Новинки"} />} />
