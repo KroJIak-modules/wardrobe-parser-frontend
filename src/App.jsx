@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from 'react';
+import React, { use, useEffect, useRef, useState } from 'react';
 import { Button } from '@gravity-ui/uikit';
 import Header from './components/header/Header';
 import { Outlet, Route, useLocation } from 'react-router-dom';
@@ -37,6 +37,7 @@ function AppContent() {
       const handleWheel = (e) => {
         const scrollTop = window.scrollY;
         const screenHeight = window.innerHeight;
+        
 
         if (e.deltaY > 0 && scrollTop > 0 && scrollTop < screenHeight) {
           e.preventDefault();
@@ -53,6 +54,7 @@ function AppContent() {
   }, [location.pathname]);
 
   const [navHeight, setNavHeight] = useState(0);
+  const headerRef = useRef(null);
 
   console.log(navHeight);
 
@@ -62,16 +64,18 @@ function AppContent() {
         <div className='main'>
           <button
             className='startButton'
-            onClick={() => window.scrollTo({
-              top: window.innerHeight,
-              behavior: 'smooth',
+            onClick={() => headerRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
             })}
           >
             Нажмите, чтобы войти
           </button>
         </div>
       )}
+      <div ref={headerRef}>
       <Header />
+      </div>
       <Navbar setNavHeight={setNavHeight} />
       <ActionPanel navHeight={navHeight} />
       <div style={{marginTop: -(navHeight * 0.00001) + 'px'}}>
