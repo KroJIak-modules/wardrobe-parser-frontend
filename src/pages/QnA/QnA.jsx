@@ -9,7 +9,7 @@ const AccordionItem = ({ title, text }) => {
   return (
     <div>
       <div className={styles.QHeader}>
-        <div style={{textTransform: "uppercase"}}>{title}</div>
+        <div className={styles.questionTitle}>{title}</div>
         <button style={{ backgroundImage: `url(${Union})` }}
           className={`${styles.button} ${open ? styles.open : ""}`} onClick={() => setOpen(!open)}>
           <img

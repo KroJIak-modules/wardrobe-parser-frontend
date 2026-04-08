@@ -33,7 +33,7 @@ const Footer = () => {
                 },
                 {
                     name: "Вопросы",
-                    link: "https://www.instagram.com/anton_shell/",
+                    link: "/questions",
                 },
                 {
                     name: "Публичная оферта",
