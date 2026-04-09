@@ -71,3 +71,13 @@
     font-weight: 400;
     color: #9a9a9a;
 }
+
+@media screen and (max-width: 1024px) {
+  .products {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    padding: 0px 0px;
+    width: 100%;
+}
+}

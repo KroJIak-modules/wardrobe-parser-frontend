@@ -31,3 +31,13 @@
     color: rgba(0, 0, 0, 0.8);
     font-weight: 500;
 }
+
+@media screen and (max-width: 1024px) {
+    .footer {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    padding: 20px 80px;
+    justify-content: space-around;
+}
+}

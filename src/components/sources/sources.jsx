@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styles from "./sources.module.css";
 
-//не отображается mainContainer
 const Sources = ({ open, onClose }) => {
   const [selectedSize, setSelectedSize] = useState("");
 

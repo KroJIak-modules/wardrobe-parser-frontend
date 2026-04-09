@@ -180,3 +180,9 @@
 .dropMenuItem li:hover {
     color: rgba(0, 0, 0, 0.95);
 }
+
+@media screen and (max-width: 1024px) {
+    .navbar {display: none;}
+    .actionPanel {display: none;}
+    .logoContainer {display: none;}
+}

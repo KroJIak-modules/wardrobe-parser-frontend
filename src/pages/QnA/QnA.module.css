@@ -78,3 +78,7 @@ flex-grow: 0;
   width: 620px;
   height: 37px;
 }
+
+@media screen and (max-width: 768px) {
+  
+}
