@@ -4,7 +4,7 @@ import image1 from '@/images/product.png';
 import image2 from '@/images/main.png';
 import image3 from '@/images/carousel/1.png'
 import NewItems from '../NewItems/NewItems';
-import Sources from '@/components/Sources/sources'
+import Sources from '@/components/sources/sources'
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const OPINION_COLLAPSED_HEIGHT = 120;
