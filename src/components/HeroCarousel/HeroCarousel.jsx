@@ -44,7 +44,7 @@ const HeroCarousel = () => {
                 {images.map((image, index) => (
                     <CarouselItem
                         key={index}
-                        className="p-0 basis-[50%]"
+                        className={styles.CarouselItem}
                     >
                         <div className="overflow-hidden">
                             <div

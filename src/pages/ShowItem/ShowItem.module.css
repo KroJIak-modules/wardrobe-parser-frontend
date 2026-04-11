@@ -338,8 +338,9 @@
 
 .blur {
     position: fixed;
-    z-index: 50;
-    transform: translate(-50%, -100%);
+    z-index: 100;
+    top: 0;
+    left: 0;
     height: 200vh;
     width: 200vw;
     backdrop-filter: blur(10px);

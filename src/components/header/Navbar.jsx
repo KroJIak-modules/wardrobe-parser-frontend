@@ -107,6 +107,7 @@ const Navbar = ({setNavHeight}) => {
   }, [activeItem])
 
   return (
+    <>
     <nav
       ref={navRef}
       className={styles.navbar}
@@ -139,6 +140,7 @@ const Navbar = ({setNavHeight}) => {
         ))}
       </div>
     </nav>
+    </>
   );
 };
 
