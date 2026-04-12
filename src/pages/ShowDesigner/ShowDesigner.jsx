@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import styles from './ShowDesigner.module.css'
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils'
 import image from '@/images/product.png'
-
+import arrowopen from '@/images/arrowopen.svg'
 
 const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true}) => {
 
     const options = ["сортировка", "наличие", "раздел", "дизайнеры", "пол"]
+    const [isOpinionExpanded, setIsOpinionExpanded] = useState(false);
+    const [isOpinionOverflowing, setIsOpinionOverflowing] = useState(false);
     const location = useLocation()
+    const opinionRef = useRef(null);
     const description = "Paradoxe Paris — артизанальный французский бренд, основанный в 2017 году. Внимание к деталям, отказ от декоративности, ремесленная строгость - основные принципы создателей бренда. Эли Саад и Жереми Себаун движимы не желанием понравится потребителю, а общей одержимостью процессом создания своих вещей. Работы они начинают не с рисунка, а с lorem ipsum"
     const title = location.state?.brandName
-    const [isExpanded, setIsExpanded] = useState(false);
     const products = [
     {
       brand: 'Nofaithstudios',
@@ -49,18 +51,40 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
         <>
         {showTitle ? <h1 className={styles.title}>{title}</h1> : ""}
         <div className={styles.mainContainer}>
-            <div className={`${styles.description} ${isExpanded ? styles.expanded : ''}`}>
-                {description}
-            <button className={styles.read} onClick={() => setIsExpanded(!isExpanded)}>
-                {isExpanded ? 'свернуть' : 'читать дальше'}
-            </button>
-        </div>
+
+{/* ниработайт свертка бренд описание нащальника */}
+          <div className={styles.itemOpinionContainer}
+              style={isOpinionExpanded ? { overflowY: "scroll" } : {overflowY: "hidden"}}>
+             <span
+                 ref={opinionRef}
+                 className={`${styles.itemOpinion} ${!isOpinionExpanded ? styles.itemOpinionCollapsed : ''}`}
+             >
+                 {description}
+             </span>
+             {isOpinionOverflowing && (
+                 <button
+                     type='button'
+                     className={isOpinionExpanded ? styles.toggleOpinionButton : styles.toggleOpinionButtonShow}
+                     onClick={() => setIsOpinionExpanded(prev => !prev)}
+                 >
+                     {isOpinionExpanded ? 'Скрыть' : '...Читать дальше'}
+                 </button>
+             )}
+         </div>
+
+
         <div className={styles.options}>
             {options.map((option,index) =>
             <div style={{margin: "auto"}}>
                 {option}
             </div>
             )}
+        </div>
+        <div className={styles.mobileOptions}>
+          <div>фильтры</div>
+          <div style={{display: "flex", flexDirection: "row", gap: "5px"}}>
+            <img src={arrowopen}/>
+          сортировка</div>
         </div>
         <div className={cn(styles.products)}>
         {products

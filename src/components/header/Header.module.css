@@ -220,22 +220,19 @@
 
     background: none;
 }
-    .button {
-  /* кнопка */
 
-/* Auto layout */
-display: flex;
-flex-direction: column;
-justify-content: center;
-align-items: center;
-width: 40px;
-height: 34px;
+.button {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 
-
-background: rgba(255, 255, 255, 0.15);
-box-shadow: inset 0px -2px 5px rgba(0, 0, 0, 0.1), inset 0px 2px 5px rgba(0, 0, 0, 0.1);
-border-radius: 10px;
-
+    width: 40px;
+    height: 34px;
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0px -2px 5px rgba(0, 0, 0, 0.1), inset 0px 2px 5px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
 }
 
 .logo {
@@ -399,4 +396,13 @@ scrollbar-width: none; /* Firefox */
         margin-top: 40px;
         gap: 40px;
     }
+
+    .count {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+    align-items: center;
+}
 }

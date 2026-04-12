@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 
-const Header = ({ style }) => {
+const Header = ({ style, numberOfitems }) => {
 
     const Handlekeydown = (e) => {
         if (e.key === 'Enter' && searchItem.trim() !== "") {
@@ -192,7 +192,8 @@ const Header = ({ style }) => {
                     <img className={cn(styles.logo, 'mix-blend-difference')} src={logo} />
                     <Link to='/cart'>
                     <button className={styles.button}>
-                        <img className={cn(styles.logo, 'mix-blend-difference')} src={cart} />
+                        <img className={styles.logo} src={cart} />
+                        <span className={styles.count}>{numberOfitems}</span>
                     </button>
                     </Link>
                 </div>

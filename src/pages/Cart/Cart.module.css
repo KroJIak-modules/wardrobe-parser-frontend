@@ -18,7 +18,6 @@ flex-direction: row;
 justify-content: space-between;
 align-items: center;
 padding: 7px;
-gap: 485px;
 background: linear-gradient(180deg, rgba(189, 189, 189, 0.81) 0%, #FFFFFF 33.21%, #BDBDBD 84.42%, #F0F0F0 100%);
 border: 1px solid #9C9C9C;
 border-start-start-radius: 3px;

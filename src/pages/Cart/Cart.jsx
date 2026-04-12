@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import styles from './Cart.module.css'
 import image1 from '@/images/product.png';
+import cross from '@/images/close.svg'
 
-const Cart = (showTitle=true, title ) => {
+const Cart = ({ showTitle = true, title }) => {
 
     //калище
+    const deleteItem = (indexToDelete) => {
+  setProducts(products.filter((_, index) => index !== indexToDelete));
+};
+    //калище 2x
     const updateNumber = (indexToUpdate, newNumber) => {
   setProducts(products.map((product, index) => 
     index === indexToUpdate 
@@ -43,11 +48,12 @@ const Cart = (showTitle=true, title ) => {
 
             <div style={{display: "flex", flexDirection: "column", rowGap: "38px"}}>
             {products.map((product,index) =>
-            <div>
+            <div key={index}>
             <div className={styles.productCardHeader}>
                 <h1 className={styles.h1}>ПОД ЗАКАЗ</h1>
+                <img style={{ width: "16px", height: "16px"}} src={cross} onClick={() => deleteItem(index)}/>
             </div>
-            <div key={index} className={styles.productCard}>
+            <div className={styles.productCard}>
                 <div className={styles.productCardImage} style={{backgroundImage: `url(${product.image})`}} />
                 <div className={styles.productCardInfo}>
                     <div className={styles.infoGroup}>

@@ -74,7 +74,7 @@ function AppContent() {
         </div>
       )}
       <div ref={headerRef}>
-      <Header />
+      <Header numberOfitems={2} />
       </div>
       <Navbar setNavHeight={setNavHeight} />
       <ActionPanel navHeight={navHeight} />
