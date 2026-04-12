@@ -17,6 +17,12 @@ order: 1;
 flex-grow: 0;
 }
 
+.mainContainer {
+  display: flex;
+  flex-direction: column;
+  width: 612px;
+}
+
 .title {
     font-size: 32px;
     text-transform: uppercase;
@@ -24,7 +30,8 @@ flex-grow: 0;
 }
 
 .question {
-    margin-top: 30px;
+  margin-top: 30px;
+  width: 100%;
 }
 
 .questionTitle {
@@ -75,10 +82,19 @@ flex-grow: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 620px;
+  width: 612px;
   height: 37px;
 }
 
+
+
 @media screen and (max-width: 768px) {
-  
+
+  .mainContainer{
+    width: 90vw;
+  }
+
+  .QHeader {
+    width: 90vw;
+  }
 }

@@ -7,7 +7,7 @@ const AccordionItem = ({ title, text }) => {
   const contentRef = useRef(null);
 
   return (
-    <div>
+    <div className={styles.mainContainer}>
       <div className={styles.QHeader}>
         <div className={styles.questionTitle}>{title}</div>
         <button style={{ backgroundImage: `url(${Union})` }}
@@ -33,7 +33,7 @@ const Accordion = (showTitle = true, title ) => {
     const questions = [
     {
       title: "question",
-      anwser: "anwser"
+      anwser: "Антон не просто продает одежду — он продает образ жизни.Антон не просто продает одежду — он продает образ жизни.Антон не просто продает одежду — он продает образ жизни.Антон не просто продает одежду — он продает образ жизни.Антон не просто продает одежду — он продает образ жизни."
     },
     {
       title: "question",
