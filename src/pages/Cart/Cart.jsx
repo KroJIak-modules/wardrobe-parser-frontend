@@ -39,7 +39,7 @@ const Cart = (showTitle=true, title ) => {
     return (
         <>
         {showTitle ? <h1 className={styles.title}>Корзина</h1> : ""}
-        <div style={{display: "flex", flexDirection: "row", gap: "80px", paddingLeft: "150px", paddingRight: "150px", paddingTop: "52px"}}>
+        <div className={styles.mainContainer}>
 
             <div style={{display: "flex", flexDirection: "column", rowGap: "38px"}}>
             {products.map((product,index) =>
