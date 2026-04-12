@@ -65,7 +65,7 @@ const Cart = (showTitle=true, title ) => {
                             <button onClick={() => updateNumber(index, product.number + 1)} style={{ width: "10px", height: "30px", flexShrink: 0 }}>+</button>
                         </div>
                         </div>
-                        <div className={styles.h1} style={{ textAlign: "right", marginLeft: "auto" }}>{product.price}</div>
+                        <div className={styles.h1} style={{ textAlign: "right", marginLeft: "auto" }}>{product.price} ₽</div>
                         </div>
                     </div>
                     </div>
@@ -75,7 +75,7 @@ const Cart = (showTitle=true, title ) => {
             </div>
 
             <div className={styles.total}>
-                <h1 className={styles.h1}>ИТОГО: {total}₽</h1>
+                <h1 className={styles.h1}>ИТОГО: {total} ₽</h1>
                 <div className={styles.totalDesc}>{totalDesc}</div>
                 <button className={styles.copy}>Скопировать запрос вручную</button>
                 <button className={styles.send}>отправить запрос</button>

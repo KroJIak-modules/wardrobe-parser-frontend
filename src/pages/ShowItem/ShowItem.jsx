@@ -87,6 +87,7 @@ const ShowItem = () => {
 
     return (
         <>
+        {/* менюшка выбора источника */}
         <div>   
             {showModalSources && <div className={styles.blur} onClick={() => setShowModalSources(false)}></div>}
             <div className={styles.modalSources} style={{display: showModalSources ? 'flex' : 'none'}}>
@@ -123,7 +124,7 @@ const ShowItem = () => {
                             <div className={styles.designer}>
                                 <div className={styles.desNamePrice}>
                                     <div style={{fontWeight: "500"}}>{source.source}</div>
-                                    <div style={{fontWeight: "500"}}>{source.price}</div>
+                                    <div style={{fontWeight: "500"}}>{source.price} ₽</div>
                                 </div>
                                 <div className={styles.desNamePrice}>
                                     <button className={styles.button}>Открыть источник</button>
@@ -136,26 +137,29 @@ const ShowItem = () => {
                </div>}
             </div>
         </div>
-        <Sources open={opened} onClose={() => setWindow(false)} />
+
+
             <div className={styles.mainShow}>
-                <div className={styles.images}>
-                    {item.images.slice(0, Math.min(item.images.length, 4)).map((img, ind) =>
-                        <button
-                            onClick={() => setActiveImage(ind)}
-                            className={`${styles.image} ${ind === activeImage ? styles.selectedImage : ''}`}
-                            style={{ backgroundImage: `url(${img})` }}
-                            key={`${ind}-select-button`}
-                        >
-                        </button>
-                    )}
-                </div>
-                <div className={styles.mainImage}>
-                    <div
-                        className={styles.activeImage}
-                        style={{ backgroundImage: `url(${item?.images[activeImage]})` }}
-                    >
+                
+                    <div className={styles.images}>
+                        {item.images.slice(0, Math.min(item.images.length, 4)).map((img, ind) =>
+                            <button
+                                onClick={() => setActiveImage(ind)}
+                                className={`${styles.image} ${ind === activeImage ? styles.selectedImage : ''}`}
+                                style={{ backgroundImage: `url(${img})` }}
+                                key={`${ind}-select-button`}
+                            >
+                            </button>
+                        )}
                     </div>
-                </div>
+                    <div className={styles.mainImage}>
+                        <div
+                            className={styles.activeImage}
+                            style={{ backgroundImage: `url(${item?.images[activeImage]})` }}
+                        >
+                        </div>
+                    </div>
+
                 <div className={styles.opinion}>
                     <span className={styles.itemBrand}>{item.brand}</span>
                     <span className={styles.itemName}>{item.name}</span>
@@ -203,7 +207,7 @@ const ShowItem = () => {
                             </button>
                         )}
                     </div>
-                    <button className={styles.showSource} onClick={() => setShowModalSources(true)}>Открыть источник товара</button>
+                    <button className={styles.showSource} onClick={() => setShowModalSources(true)}>Выбрать источник товара</button>
                 </div>
                 
                 
