@@ -26,11 +26,11 @@ const ShowItem = () => {
             price: "19 900",
             href:"https.example.com"
         },
-        // {
-        //     source: "fartech",
-        //     price: "19 900",
-        //     href:"https.example.com"
-        // },
+        {
+            source: "fartech",
+            price: "19 900",
+            href:"https.example.com"
+        },
     ]
 
     const [item, setItem] = useState({

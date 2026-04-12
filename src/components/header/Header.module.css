@@ -185,6 +185,10 @@
     color: rgba(0, 0, 0, 0.95);
 }
 
+.burger {
+    display: none;
+}
+
 @media screen and (max-width: 1024px) {
     .navbar {display: none;}
     .actionPanel {display: none;}
