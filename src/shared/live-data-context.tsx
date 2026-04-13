@@ -13,7 +13,6 @@ type Source = {
   supplier_id: number | null;
   supplier_key: string | null;
   supplier_name: string | null;
-  seller_delivery_rub: number;
   promo_factor: number;
   promo_only_no_discount: boolean;
   buyout_surcharge_value: number;
@@ -216,7 +215,6 @@ export type PricingSettings = {
   customs_threshold_eur: number;
   customs_threshold_currency: string;
   customs_duty_rate: number;
-  seller_delivery_rub: number;
   bybit_usdt_to_rub: number;
   bybit_extra_rub: number;
   eur_to_usd_rate: number;
@@ -253,8 +251,7 @@ export type PricingSupplier = {
   id: number;
   key: string;
   name: string;
-  country_code: string;
-  country_name: string;
+  category: string;
   rate_currency: string;
   rate_per_500g_value: number;
   rate_per_500g_rub: number;
@@ -321,8 +318,7 @@ type LiveDataContextValue = {
     supplierId: number,
     payload: {
       name?: string;
-      country_code?: string;
-      country_name?: string;
+      category?: string;
       rate_currency?: string;
       rate_per_500g_value?: number;
       rate_per_500g_rub?: number;
@@ -332,8 +328,7 @@ type LiveDataContextValue = {
   createPricingSupplier: (payload: {
     key?: string;
     name: string;
-    country_code: string;
-    country_name: string;
+    category: string;
     rate_currency: string;
     rate_per_500g_value: number;
     max_step_500g?: number;
@@ -343,7 +338,6 @@ type LiveDataContextValue = {
     sourceKey: string,
       payload: {
         supplier_id?: number;
-        seller_delivery_rub?: number;
         promo_factor?: number;
         promo_only_no_discount?: boolean;
         buyout_surcharge_value?: number;
@@ -846,7 +840,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       sourceKey: string,
       payload: {
         supplier_id?: number;
-        seller_delivery_rub?: number;
         promo_factor?: number;
         promo_only_no_discount?: boolean;
         buyout_surcharge_value?: number;
@@ -1024,8 +1017,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       supplierId: number,
       payload: {
         name?: string;
-        country_code?: string;
-        country_name?: string;
+        category?: string;
         rate_currency?: string;
         rate_per_500g_value?: number;
         rate_per_500g_rub?: number;
@@ -1055,8 +1047,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     async (payload: {
       key?: string;
       name: string;
-      country_code: string;
-      country_name: string;
+      category: string;
       rate_currency: string;
       rate_per_500g_value: number;
       max_step_500g?: number;

@@ -76,7 +76,6 @@ const legendKeyToLatex: Record<string, string> = {
   CPR: "CPR",
   CFX: "CFX",
   CDR: "CDR",
-  SDC: "SDC",
   SSR: "SSR",
   SUP: "SUP",
   STP: "STP",
@@ -106,7 +105,6 @@ const legendKeyToLatex: Record<string, string> = {
   BUYOUT_RUB: "BUY",
   PAYMENT_FEE_RUB: "PFR",
   PAYMENT_FEE_RATE: "PFRP",
-  SDC_RUB: "SDC",
   STC_RUB: "SSR",
   "SSR[SUPPLIER][STEP]": "SSR[SUP,STP]",
   SUPPLIER: "SUP",
@@ -178,7 +176,7 @@ const pricingFieldMeta: Array<{ key: PricingFieldKey; symbolLatex: string; label
   {
     key: "bybit_extra_rub",
     symbolLatex: "BEX",
-    label: "Добавка к курсу",
+    label: "Надбавка к курсу",
     hint: "Надбавка к курсу Bybit в рублях.",
     step: "0.01",
   },
@@ -236,44 +234,63 @@ const escapeLatexText = (value: string): string =>
     .replace(/\\/g, "\\textbackslash{}")
     .replace(/([{}$&#_^%~])/g, "\\$1");
 
-type CurrencyCode = "RUB" | "USD" | "EUR";
+type CurrencyCode = "RUB" | "USD" | "EUR" | "GBP";
+type SupplierCategory = "main" | "alt";
 
 const normalizeCurrencyCode = (value: string | null | undefined, fallback: CurrencyCode = "RUB"): CurrencyCode => {
   const upper = (value || "").trim().toUpperCase();
-  if (upper === "RUB" || upper === "USD" || upper === "EUR") {
+  if (upper === "RUB" || upper === "USD" || upper === "EUR" || upper === "GBP") {
     return upper;
   }
   return fallback;
 };
 
-const toRubByRates = (value: number, currency: CurrencyCode, usdToRub: number, eurToRub: number): number => {
+const toRubByRates = (value: number, currency: CurrencyCode, usdToRub: number, eurToRub: number, gbpToRub: number): number => {
   if (currency === "RUB") {
     return value;
   }
   if (currency === "USD") {
     return value * usdToRub;
   }
+  if (currency === "GBP") {
+    return value * gbpToRub;
+  }
   return value * eurToRub;
 };
 
-const fromRubByRates = (valueRub: number, currency: CurrencyCode, usdToRub: number, eurToRub: number): number => {
+const fromRubByRates = (valueRub: number, currency: CurrencyCode, usdToRub: number, eurToRub: number, gbpToRub: number): number => {
   if (currency === "RUB") {
     return valueRub;
   }
   if (currency === "USD") {
     return usdToRub > 0 ? valueRub / usdToRub : 0;
   }
+  if (currency === "GBP") {
+    return gbpToRub > 0 ? valueRub / gbpToRub : 0;
+  }
   return eurToRub > 0 ? valueRub / eurToRub : 0;
 };
+
+const normalizeSupplierCategory = (value: string | null | undefined, fallback: SupplierCategory = "main"): SupplierCategory => {
+  const raw = (value || "").trim().toLowerCase();
+  if (raw === "main" || raw === "alt") {
+    return raw;
+  }
+  return fallback;
+};
+
+const formatSupplierCategory = (value: string | null | undefined): string =>
+  normalizeSupplierCategory(value) === "alt" ? "Alt" : "Main";
 
 type TriCurrencyDraft = {
   currency: CurrencyCode;
   rub: string;
   usd: string;
   eur: string;
+  gbp: string;
 };
 
-type TriCurrencyAmountKey = "rub" | "usd" | "eur";
+type TriCurrencyAmountKey = "rub" | "usd" | "eur" | "gbp";
 
 const currencyToAmountKey = (currency: CurrencyCode): TriCurrencyAmountKey => {
   if (currency === "RUB") {
@@ -281,6 +298,9 @@ const currencyToAmountKey = (currency: CurrencyCode): TriCurrencyAmountKey => {
   }
   if (currency === "USD") {
     return "usd";
+  }
+  if (currency === "GBP") {
+    return "gbp";
   }
   return "eur";
 };
@@ -291,6 +311,9 @@ const amountKeyToCurrency = (key: TriCurrencyAmountKey): CurrencyCode => {
   }
   if (key === "usd") {
     return "USD";
+  }
+  if (key === "gbp") {
+    return "GBP";
   }
   return "EUR";
 };
@@ -307,16 +330,19 @@ const buildTriCurrencyDraft = (
   activeCurrency: CurrencyCode,
   activeValue: number,
   usdToRub: number,
-  eurToRub: number
+  eurToRub: number,
+  gbpToRub: number
 ): TriCurrencyDraft => {
-  const rub = toRubByRates(activeValue, activeCurrency, usdToRub, eurToRub);
-  const usd = fromRubByRates(rub, "USD", usdToRub, eurToRub);
-  const eur = fromRubByRates(rub, "EUR", usdToRub, eurToRub);
+  const rub = toRubByRates(activeValue, activeCurrency, usdToRub, eurToRub, gbpToRub);
+  const usd = fromRubByRates(rub, "USD", usdToRub, eurToRub, gbpToRub);
+  const eur = fromRubByRates(rub, "EUR", usdToRub, eurToRub, gbpToRub);
+  const gbp = fromRubByRates(rub, "GBP", usdToRub, eurToRub, gbpToRub);
   return {
     currency: activeCurrency,
     rub: formatCompactNumber(rub, 4),
     usd: formatCompactNumber(usd, 4),
     eur: formatCompactNumber(eur, 4),
+    gbp: formatCompactNumber(gbp, 4),
   };
 };
 
@@ -454,16 +480,16 @@ export function AdminPage() {
     supplierId: string;
     promoPercent: string;
     promoOnlyNoDiscount: boolean;
-    sdc: TriCurrencyDraft;
     buyout: TriCurrencyDraft;
   }>>({});
   const [newSupplierName, setNewSupplierName] = useState<string>("");
-  const [newSupplierCountryCode, setNewSupplierCountryCode] = useState<string>("CN");
+  const [newSupplierCategory, setNewSupplierCategory] = useState<SupplierCategory>("main");
   const [newSupplierRateDraft, setNewSupplierRateDraft] = useState<TriCurrencyDraft>({
     currency: "RUB",
     rub: "0",
     usd: "0",
     eur: "0",
+    gbp: "0",
   });
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
   const bybitWarnToastShownRef = useRef<string | null>(null);
@@ -727,17 +753,20 @@ export function AdminPage() {
 
   const pricingRates = useMemo(() => {
     if (!pricingSettings) {
-      return { usdToRub: 95, eurToRub: 105 };
+      return { usdToRub: 95, eurToRub: 105, gbpToRub: 133 };
     }
     const bybitBase = Number(pricingSettings.bybit_usdt_to_rub);
     const draftExtra = Number((pricingDrafts.bybit_extra_rub ?? String(pricingSettings.bybit_extra_rub)).trim());
     const draftEurToUsd = Number((pricingDrafts.eur_to_usd_rate ?? String(pricingSettings.eur_to_usd_rate)).trim());
+    const draftGbpToUsd = Number((pricingDrafts.gbp_to_usd_rate ?? String(pricingSettings.gbp_to_usd_rate)).trim());
     const bybitExtra = Number.isFinite(draftExtra) ? draftExtra : Number(pricingSettings.bybit_extra_rub);
     const eurToUsd = Number.isFinite(draftEurToUsd) && draftEurToUsd > 0 ? draftEurToUsd : Number(pricingSettings.eur_to_usd_rate);
+    const gbpToUsd = Number.isFinite(draftGbpToUsd) && draftGbpToUsd > 0 ? draftGbpToUsd : Number(pricingSettings.gbp_to_usd_rate);
     const usdToRub = (Number.isFinite(bybitBase) && bybitBase > 0 ? bybitBase : 95) + Math.max(0, bybitExtra);
     const eurToRub = usdToRub * eurToUsd;
-    return { usdToRub, eurToRub };
-  }, [pricingSettings, pricingDrafts.bybit_extra_rub, pricingDrafts.eur_to_usd_rate]);
+    const gbpToRub = usdToRub * gbpToUsd;
+    return { usdToRub, eurToRub, gbpToRub };
+  }, [pricingSettings, pricingDrafts.bybit_extra_rub, pricingDrafts.eur_to_usd_rate, pricingDrafts.gbp_to_usd_rate]);
 
   const setThresholdField = (field: TriCurrencyAmountKey, raw: string) => {
     setThresholdDraft((prev) => {
@@ -753,7 +782,8 @@ export function AdminPage() {
         amountKeyToCurrency(field),
         parsed,
         pricingRates.usdToRub,
-        pricingRates.eurToRub
+        pricingRates.eurToRub,
+        pricingRates.gbpToRub
       );
     });
   };
@@ -775,7 +805,8 @@ export function AdminPage() {
           amountKeyToCurrency(field),
           parsed,
           pricingRates.usdToRub,
-          pricingRates.eurToRub
+          pricingRates.eurToRub,
+          pricingRates.gbpToRub
         ),
       };
     });
@@ -792,32 +823,9 @@ export function AdminPage() {
         amountKeyToCurrency(field),
         parsed,
         pricingRates.usdToRub,
-        pricingRates.eurToRub
+        pricingRates.eurToRub,
+        pricingRates.gbpToRub
       );
-    });
-  };
-
-  const setSourceSdcField = (sourceKey: string, field: TriCurrencyAmountKey, raw: string) => {
-    setSourcePricingDrafts((prev) => {
-      const current = prev[sourceKey];
-      if (!current) {
-        return prev;
-      }
-      const nextSdc = { ...current.sdc, [field]: raw };
-      const parsed = parseNonNegativeNumber(raw);
-      if (parsed !== null) {
-        const rebuilt = buildTriCurrencyDraft(
-          amountKeyToCurrency(field),
-          parsed,
-          pricingRates.usdToRub,
-          pricingRates.eurToRub
-        );
-        nextSdc.currency = rebuilt.currency;
-        nextSdc.rub = rebuilt.rub;
-        nextSdc.usd = rebuilt.usd;
-        nextSdc.eur = rebuilt.eur;
-      }
-      return { ...prev, [sourceKey]: { ...current, sdc: nextSdc } };
     });
   };
 
@@ -834,12 +842,14 @@ export function AdminPage() {
           amountKeyToCurrency(field),
           parsed,
           pricingRates.usdToRub,
-          pricingRates.eurToRub
+          pricingRates.eurToRub,
+          pricingRates.gbpToRub
         );
         nextBuyout.currency = rebuilt.currency;
         nextBuyout.rub = rebuilt.rub;
         nextBuyout.usd = rebuilt.usd;
         nextBuyout.eur = rebuilt.eur;
+        nextBuyout.gbp = rebuilt.gbp;
       }
       return { ...prev, [sourceKey]: { ...current, buyout: nextBuyout } };
     });
@@ -859,8 +869,9 @@ export function AdminPage() {
       rub: formatCompactNumber(thresholdRub, 4),
       usd: formatCompactNumber(thresholdUsd, 4),
       eur: formatCompactNumber(thresholdEur, 4),
+      gbp: formatCompactNumber(fromRubByRates(thresholdRub, "GBP", usdToRub, eurToRub, pricingRates.gbpToRub), 4),
     });
-  }, [pricingSettings?.customs_threshold_eur, pricingSettings?.customs_threshold_currency, pricingRates.usdToRub, pricingRates.eurToRub]);
+  }, [pricingSettings?.customs_threshold_eur, pricingSettings?.customs_threshold_currency, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!pricingSettings || !thresholdDraft) {
@@ -869,13 +880,13 @@ export function AdminPage() {
     const usdToRub = pricingRates.usdToRub;
     const eurToRub = pricingRates.eurToRub;
     const activeCurrency = thresholdDraft.currency;
-    const activeRaw = thresholdDraft[activeCurrency.toLowerCase() as "rub" | "usd" | "eur"];
+    const activeRaw = thresholdDraft[activeCurrency.toLowerCase() as TriCurrencyAmountKey];
     const activeValue = Number((activeRaw || "").trim());
     if (!Number.isFinite(activeValue) || activeValue < 0) {
       return;
     }
-    const thresholdRub = toRubByRates(activeValue, activeCurrency, usdToRub, eurToRub);
-    const nextThresholdEur = fromRubByRates(thresholdRub, "EUR", usdToRub, eurToRub);
+    const thresholdRub = toRubByRates(activeValue, activeCurrency, usdToRub, eurToRub, pricingRates.gbpToRub);
+    const nextThresholdEur = fromRubByRates(thresholdRub, "EUR", usdToRub, eurToRub, pricingRates.gbpToRub);
     const currentThresholdEur = Number(pricingSettings.customs_threshold_eur);
     const currentCurrency = normalizeCurrencyCode(pricingSettings.customs_threshold_currency, "EUR");
     if (Math.abs(nextThresholdEur - currentThresholdEur) <= 0.0001 && activeCurrency === currentCurrency) {
@@ -892,7 +903,7 @@ export function AdminPage() {
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [pricingSettings, thresholdDraft, updatePricingSettings, pricingRates.usdToRub, pricingRates.eurToRub]);
+  }, [pricingSettings, thresholdDraft, updatePricingSettings, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!pricingSettings) {
@@ -904,18 +915,19 @@ export function AdminPage() {
       const next = { ...prev };
       for (const supplier of pricingSettings.suppliers || []) {
         const rub = Number(supplier.rate_per_500g_rub);
-        const usd = fromRubByRates(rub, "USD", usdToRub, eurToRub);
-        const eur = fromRubByRates(rub, "EUR", usdToRub, eurToRub);
+        const usd = fromRubByRates(rub, "USD", usdToRub, eurToRub, pricingRates.gbpToRub);
+        const eur = fromRubByRates(rub, "EUR", usdToRub, eurToRub, pricingRates.gbpToRub);
         next[supplier.id] = {
           currency: normalizeCurrencyCode(supplier.rate_currency, "RUB"),
           rub: formatCompactNumber(rub, 4),
           usd: formatCompactNumber(usd, 4),
           eur: formatCompactNumber(eur, 4),
+          gbp: "0",
         };
       }
       return next;
     });
-  }, [pricingSettings?.suppliers, pricingRates.usdToRub, pricingRates.eurToRub]);
+  }, [pricingSettings?.suppliers, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!pricingSettings) {
@@ -935,7 +947,7 @@ export function AdminPage() {
       if (!Number.isFinite(activeValue) || activeValue < 0) {
         continue;
       }
-      const targetRub = toRubByRates(activeValue, activeCurrency, usdToRub, eurToRub);
+      const targetRub = toRubByRates(activeValue, activeCurrency, usdToRub, eurToRub, pricingRates.gbpToRub);
       const currentRub = Number(supplier.rate_per_500g_rub);
       const currentCurrency = normalizeCurrencyCode(supplier.rate_currency, "RUB");
       if (Math.abs(currentRub - targetRub) <= 0.0001 && currentCurrency === activeCurrency) {
@@ -959,7 +971,7 @@ export function AdminPage() {
         window.clearTimeout(timer);
       }
     };
-  }, [pricingSettings, supplierRateDrafts, updatePricingSupplier, pricingRates.usdToRub, pricingRates.eurToRub]);
+  }, [pricingSettings, supplierRateDrafts, updatePricingSupplier, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!sources || sources.length === 0) {
@@ -968,37 +980,37 @@ export function AdminPage() {
     setSourcePricingDrafts((prev) => {
       const next = { ...prev };
       for (const source of sources) {
-        const sdcRub = Number(source.seller_delivery_rub || 0);
-        const sdcUsd = fromRubByRates(sdcRub, "USD", pricingRates.usdToRub, pricingRates.eurToRub);
-        const sdcEur = fromRubByRates(sdcRub, "EUR", pricingRates.usdToRub, pricingRates.eurToRub);
-        const buyoutCurrency = normalizeCurrencyCode(source.buyout_surcharge_currency || "RUB", "RUB");
+        const rawBuyoutCurrency = normalizeCurrencyCode(source.buyout_surcharge_currency || "USD", "USD");
+        const buyoutCurrency: CurrencyCode = rawBuyoutCurrency === "RUB" ? "USD" : rawBuyoutCurrency;
         const buyoutValue = Number(source.buyout_surcharge_value || 0);
-        const buyoutRub = toRubByRates(buyoutValue, buyoutCurrency, pricingRates.usdToRub, pricingRates.eurToRub);
-        const buyoutUsd = fromRubByRates(buyoutRub, "USD", pricingRates.usdToRub, pricingRates.eurToRub);
-        const buyoutEur = fromRubByRates(buyoutRub, "EUR", pricingRates.usdToRub, pricingRates.eurToRub);
+        const buyoutRub = toRubByRates(
+          buyoutValue,
+          normalizeCurrencyCode(source.buyout_surcharge_currency || "RUB", "RUB"),
+          pricingRates.usdToRub,
+          pricingRates.eurToRub,
+          pricingRates.gbpToRub
+        );
+        const buyoutUsd = fromRubByRates(buyoutRub, "USD", pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
+        const buyoutEur = fromRubByRates(buyoutRub, "EUR", pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
+        const buyoutGbp = fromRubByRates(buyoutRub, "GBP", pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
         const promoFactor = Number(source.promo_factor ?? 1);
         const promoPercent = Math.max(0, Math.min(100, (1 - promoFactor) * 100));
         next[source.key] = {
           supplierId: String(source.supplier_id ?? ""),
           promoPercent: formatCompactNumber(promoPercent, 4),
           promoOnlyNoDiscount: Boolean(source.promo_only_no_discount),
-          sdc: {
-            currency: "RUB",
-            rub: formatCompactNumber(sdcRub, 4),
-            usd: formatCompactNumber(sdcUsd, 4),
-            eur: formatCompactNumber(sdcEur, 4),
-          },
           buyout: {
             currency: buyoutCurrency,
-            rub: formatCompactNumber(buyoutRub, 4),
             usd: formatCompactNumber(buyoutUsd, 4),
             eur: formatCompactNumber(buyoutEur, 4),
+            gbp: formatCompactNumber(buyoutGbp, 4),
+            rub: formatCompactNumber(buyoutRub, 4),
           },
         };
       }
       return next;
     });
-  }, [sources, pricingRates.usdToRub, pricingRates.eurToRub]);
+  }, [sources, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!sources || sources.length === 0) {
@@ -1012,8 +1024,8 @@ export function AdminPage() {
       }
       const supplierParsed = Number((draft.supplierId || "").trim());
       const promoPercentParsed = Number((draft.promoPercent || "").trim());
-      const sdcRubParsed = Number((draft.sdc.rub || "").trim());
-      const targetBuyoutCurrency = normalizeCurrencyCode(draft.buyout.currency, "RUB");
+      const normalizedTargetCurrency = normalizeCurrencyCode(draft.buyout.currency, "USD");
+      const targetBuyoutCurrency: CurrencyCode = normalizedTargetCurrency === "RUB" ? "USD" : normalizedTargetCurrency;
       const targetBuyoutField = currencyToAmountKey(targetBuyoutCurrency);
       const targetBuyoutRaw = String(draft.buyout[targetBuyoutField] || "").trim();
       const targetBuyoutParsed = Number(targetBuyoutRaw);
@@ -1023,26 +1035,22 @@ export function AdminPage() {
       if (!Number.isFinite(promoPercentParsed) || promoPercentParsed < 0 || promoPercentParsed > 100) {
         continue;
       }
-      if (!Number.isFinite(sdcRubParsed) || sdcRubParsed < 0) {
-        continue;
-      }
       if (!Number.isFinite(targetBuyoutParsed) || targetBuyoutParsed < 0) {
         continue;
       }
       const targetSupplierId = Math.round(supplierParsed);
       const targetPromoFactor = Number((1 - (promoPercentParsed / 100)).toFixed(6));
-      const targetSdcRub = Number(sdcRubParsed.toFixed(6));
       const targetBuyoutValue = Number(targetBuyoutParsed.toFixed(6));
       const targetBuyoutRub = toRubByRates(
         targetBuyoutValue,
         targetBuyoutCurrency,
         pricingRates.usdToRub,
-        pricingRates.eurToRub
+        pricingRates.eurToRub,
+        pricingRates.gbpToRub
       );
       const targetPromoOnlyNoDiscount = Boolean(draft.promoOnlyNoDiscount);
       const sourceSupplierId = Number(source.supplier_id ?? 0);
       const sourcePromoFactor = Number(source.promo_factor ?? 1);
-      const sourceSdcRub = Number(source.seller_delivery_rub ?? 0);
       const sourcePromoMode = Boolean(source.promo_only_no_discount);
       const sourceBuyoutCurrency = normalizeCurrencyCode(source.buyout_surcharge_currency || "RUB", "RUB");
       const sourceBuyoutValue = Number(source.buyout_surcharge_value || 0);
@@ -1050,12 +1058,12 @@ export function AdminPage() {
         sourceBuyoutValue,
         sourceBuyoutCurrency,
         pricingRates.usdToRub,
-        pricingRates.eurToRub
+        pricingRates.eurToRub,
+        pricingRates.gbpToRub
       );
       if (
         sourceSupplierId === targetSupplierId
         && Math.abs(sourcePromoFactor - targetPromoFactor) <= 0.000001
-        && Math.abs(sourceSdcRub - targetSdcRub) <= 0.000001
         && sourcePromoMode === targetPromoOnlyNoDiscount
         && Math.abs(sourceBuyoutRub - targetBuyoutRub) <= 0.000001
         && sourceBuyoutCurrency === targetBuyoutCurrency
@@ -1066,7 +1074,6 @@ export function AdminPage() {
         const result = await assignSourceSupplier(source.key, {
           supplier_id: targetSupplierId,
           promo_factor: targetPromoFactor,
-          seller_delivery_rub: targetSdcRub,
           promo_only_no_discount: targetPromoOnlyNoDiscount,
           buyout_surcharge_value: targetBuyoutValue,
           buyout_surcharge_currency: targetBuyoutCurrency,
@@ -1082,7 +1089,7 @@ export function AdminPage() {
         window.clearTimeout(timer);
       }
     };
-  }, [sources, sourcePricingDrafts, assignSourceSupplier, pricingRates.usdToRub, pricingRates.eurToRub]);
+  }, [sources, sourcePricingDrafts, assignSourceSupplier, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   const newCategoryParentName = useMemo(() => {
     if (newCategoryParentId === null) {
@@ -1130,7 +1137,6 @@ export function AdminPage() {
       const customsFixedRub = toFiniteNumber(components.customs_fixed_rub);
       const eurToUsdRate = toFiniteNumber(components.eur_to_usd_rate);
       const gbpToUsdRate = toFiniteNumber(components.gbp_to_usd_rate);
-      const sellerDeliveryRub = toFiniteNumber(components.seller_delivery_rub);
       const supplierTransportRub = toFiniteNumber(components.supplier_transport_rub);
       const serviceFeeRub = toFiniteNumber(components.service_fee_rub);
       const subtotalRub = toFiniteNumber(components.subtotal_rub);
@@ -1164,7 +1170,6 @@ export function AdminPage() {
         || customsFixedRub === null
         || eurToUsdRate === null
         || gbpToUsdRate === null
-        || sellerDeliveryRub === null
         || supplierTransportRub === null
         || serviceFeeRub === null
         || subtotalRub === null
@@ -1208,7 +1213,6 @@ export function AdminPage() {
         `)` +
         `+\\underbrace{${formatCompactNumber(customsFixedRub)}}_{${labelVar("CFX")}}` +
         `)}_{${labelGroup("CDR", customsRub)}}` +
-        `+\\underbrace{${formatCompactNumber(sellerDeliveryRub)}}_{${labelVar("SDC")}}` +
         `+\\underbrace{${formatCompactNumber(supplierTransportRub)}}_{SSR[\\text{${escapeLatexText(supplierName)}}][\\underbrace{${formatCompactNumber(shippingSteps)}}_{${labelVar("STP")}}]}` +
         `+\\underbrace{${formatCompactNumber(serviceFeeRub)}}_{${labelVar("SVC")}}` +
         `}_{${labelGroup("SUB", subtotalBeforeMarkup)}}` +
@@ -1246,7 +1250,6 @@ export function AdminPage() {
         "CPR",
         "CFX",
         "CDR",
-        "SDC",
         "SSR",
         "SUP",
         "STP",
@@ -1278,7 +1281,6 @@ export function AdminPage() {
         CPR: customsProcessingRate,
         CFX: customsFixedRub,
         CDR: customsRub,
-        SDC: sellerDeliveryRub,
         SSR: supplierTransportRub,
         SUP: supplierName,
         STP: shippingSteps,
@@ -1860,21 +1862,12 @@ export function AdminPage() {
 
   const onCreatePricingSupplier = async () => {
     const name = newSupplierName.trim();
-    const countryCode = newSupplierCountryCode.trim().toUpperCase();
-    const countryName = countryCode;
+    const category = normalizeSupplierCategory(newSupplierCategory, "main");
     const activeCurrency = normalizeCurrencyCode(newSupplierRateDraft.currency, "RUB");
     const activeField = currencyToAmountKey(activeCurrency);
     const parsedRate = Number((newSupplierRateDraft[activeField] || "").trim());
     if (!name) {
       pushToast("Название поставщика обязательно");
-      return;
-    }
-    if (!countryCode || countryCode.length < 2) {
-      pushToast("Код страны должен быть минимум из 2 символов");
-      return;
-    }
-    if (!countryName) {
-      pushToast("Название страны обязательно");
       return;
     }
     if (!Number.isFinite(parsedRate) || parsedRate < 0) {
@@ -1883,8 +1876,7 @@ export function AdminPage() {
     }
     const result = await createPricingSupplier({
       name,
-      country_code: countryCode,
-      country_name: countryName,
+      category,
       rate_currency: activeCurrency,
       rate_per_500g_value: Number(parsedRate.toFixed(4)),
       max_step_500g: 120,
@@ -1892,7 +1884,15 @@ export function AdminPage() {
     pushToast(result.message);
     if (result.ok) {
       setNewSupplierName("");
-      setNewSupplierRateDraft({ currency: "RUB", rub: "0", usd: "0", eur: "0" });
+      setNewSupplierCategory("main");
+      setNewSupplierRateDraft({ currency: "RUB", rub: "0", usd: "0", eur: "0", gbp: "0" });
+    }
+  };
+
+  const onUpdatePricingSupplierCategory = async (supplierId: number, category: SupplierCategory) => {
+    const result = await updatePricingSupplier(supplierId, { category });
+    if (!result.ok) {
+      pushToast(result.message);
     }
   };
 
@@ -2476,7 +2476,7 @@ export function AdminPage() {
 
               <h3 className="with-help">
                 Порог пошлины THR
-                <HelpHint text="Укажи порог и валюту. Можно менять сумму в RUB, USD или EUR: остальные поля пересчитаются автоматически." />
+                <HelpHint text="Укажи порог и валюту. Можно менять сумму в RUB, USD, EUR или GBP: остальные поля пересчитаются автоматически." />
               </h3>
               <div className="pricing-threshold-grid">
                 <label className="pricing-settings-field">
@@ -2506,6 +2506,15 @@ export function AdminPage() {
                     onChange={(event) => setThresholdField("eur", event.target.value)}
                   />
                 </label>
+                <label className="pricing-settings-field">
+                  <span className="muted">THR (GBP)</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={thresholdDraft?.gbp || "0"}
+                    onChange={(event) => setThresholdField("gbp", event.target.value)}
+                  />
+                </label>
               </div>
 
               <h3 className="with-help">
@@ -2515,18 +2524,29 @@ export function AdminPage() {
               <div className="pricing-supplier-list">
                 <div className="pricing-supplier-list-head">
                   <span>Название</span>
-                  <span>Код</span>
+                  <span>Категория</span>
                   <span>Цена 500г (RUB)</span>
                   <span>Цена 500г (USD)</span>
                   <span>Цена 500г (EUR)</span>
                   <span></span>
                 </div>
-                {pricingSuppliers.map((supplier) => {
-                  const draft = supplierRateDrafts[supplier.id] || buildTriCurrencyDraft("RUB", Number(supplier.rate_per_500g_rub), pricingRates.usdToRub, pricingRates.eurToRub);
+                {pricingSuppliers.filter((supplier) => supplier.key !== "default").map((supplier) => {
+                  const draft = supplierRateDrafts[supplier.id] || buildTriCurrencyDraft("RUB", Number(supplier.rate_per_500g_rub), pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
                   return (
                     <div key={supplier.id} className="pricing-supplier-list-row">
                       <span>{supplier.name}</span>
-                      <span>{supplier.country_code}</span>
+                      <select
+                        value={normalizeSupplierCategory(supplier.category)}
+                        onChange={(event) => {
+                          void onUpdatePricingSupplierCategory(
+                            supplier.id,
+                            normalizeSupplierCategory(event.target.value, "main")
+                          );
+                        }}
+                      >
+                        <option value="main">Main</option>
+                        <option value="alt">Alt</option>
+                      </select>
                       <input
                         type="number"
                         step="0.01"
@@ -2548,7 +2568,6 @@ export function AdminPage() {
                       <button
                         type="button"
                         onClick={() => void onDeletePricingSupplier(supplier.id, supplier.key)}
-                        disabled={supplier.key === "default"}
                       >
                         Удалить
                       </button>
@@ -2557,13 +2576,13 @@ export function AdminPage() {
                 })}
                 <div className="pricing-supplier-list-row pricing-supplier-list-row--new">
                   <input value={newSupplierName} onChange={(event) => setNewSupplierName(event.target.value)} />
-                  <input
-                    value={newSupplierCountryCode}
-                    onChange={(event) => {
-                      const nextCode = event.target.value.toUpperCase();
-                      setNewSupplierCountryCode(nextCode);
-                    }}
-                  />
+                  <select
+                    value={newSupplierCategory}
+                    onChange={(event) => setNewSupplierCategory(normalizeSupplierCategory(event.target.value, "main"))}
+                  >
+                    <option value="main">Main</option>
+                    <option value="alt">Alt</option>
+                  </select>
                   <input
                     type="number"
                     step="0.01"
@@ -2590,20 +2609,17 @@ export function AdminPage() {
 
               <h3 className="with-help">
                 Настройки по источникам
-                <HelpHint text="Для каждого магазина отдельно задаются поставщик, SDC, доплата к выкупу и параметры промокода." />
+                <HelpHint text="Для каждого магазина отдельно задаются поставщик, доплата к выкупу и параметры промокода." />
               </h3>
               <div className="pricing-source-map-list">
                 <div className="pricing-source-map-head">
                   <span>Источник</span>
                   <span>Поставщик</span>
-                  <span>SDC (RUB)</span>
-                  <span>SDC (USD)</span>
-                  <span>SDC (EUR)</span>
-                  <span>Выкуп + (RUB)</span>
                   <span>Выкуп + (USD)</span>
                   <span>Выкуп + (EUR)</span>
+                  <span>Выкуп + (GBP)</span>
                   <span>PROMO (%)</span>
-                  <span>Режим промокода</span>
+                  <span>Промокод</span>
                 </div>
                 {sources.map((source) => {
                   const draft = sourcePricingDrafts[source.key];
@@ -2621,8 +2637,7 @@ export function AdminPage() {
                                 supplierId: "",
                                 promoPercent: "0",
                                 promoOnlyNoDiscount: false,
-                                sdc: { currency: "RUB", rub: "0", usd: "0", eur: "0" },
-                                buyout: { currency: "RUB", rub: "0", usd: "0", eur: "0" },
+                                buyout: { currency: "USD", rub: "0", usd: "0", eur: "0", gbp: "0" },
                               }),
                               supplierId: nextValue,
                             },
@@ -2631,34 +2646,10 @@ export function AdminPage() {
                       >
                         {pricingSuppliers.map((supplier) => (
                           <option key={`source-${source.key}-supplier-${supplier.id}`} value={supplier.id}>
-                            {supplier.name} ({supplier.country_name})
+                            {supplier.name} ({formatSupplierCategory(supplier.category)})
                           </option>
                         ))}
                       </select>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={draft?.sdc.rub ?? "0"}
-                        onChange={(event) => setSourceSdcField(source.key, "rub", event.target.value)}
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={draft?.sdc.usd ?? "0"}
-                        onChange={(event) => setSourceSdcField(source.key, "usd", event.target.value)}
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={draft?.sdc.eur ?? "0"}
-                        onChange={(event) => setSourceSdcField(source.key, "eur", event.target.value)}
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={draft?.buyout.rub ?? "0"}
-                        onChange={(event) => setSourceBuyoutField(source.key, "rub", event.target.value)}
-                      />
                       <input
                         type="number"
                         step="0.01"
@@ -2670,6 +2661,12 @@ export function AdminPage() {
                         step="0.01"
                         value={draft?.buyout.eur ?? "0"}
                         onChange={(event) => setSourceBuyoutField(source.key, "eur", event.target.value)}
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={draft?.buyout.gbp ?? "0"}
+                        onChange={(event) => setSourceBuyoutField(source.key, "gbp", event.target.value)}
                       />
                       <div className="percent-input-wrap">
                         <input
@@ -2687,8 +2684,7 @@ export function AdminPage() {
                                   supplierId: String(source.supplier_id ?? ""),
                                   promoPercent: "0",
                                   promoOnlyNoDiscount: false,
-                                  sdc: { currency: "RUB", rub: "0", usd: "0", eur: "0" },
-                                  buyout: { currency: "RUB", rub: "0", usd: "0", eur: "0" },
+                                  buyout: { currency: "USD", rub: "0", usd: "0", eur: "0", gbp: "0" },
                                 }),
                                 promoPercent: nextValue,
                               },
@@ -2710,8 +2706,7 @@ export function AdminPage() {
                                   supplierId: String(source.supplier_id ?? ""),
                                   promoPercent: "0",
                                   promoOnlyNoDiscount: false,
-                                  sdc: { currency: "RUB", rub: "0", usd: "0", eur: "0" },
-                                  buyout: { currency: "RUB", rub: "0", usd: "0", eur: "0" },
+                                  buyout: { currency: "USD", rub: "0", usd: "0", eur: "0", gbp: "0" },
                                 }),
                                 promoOnlyNoDiscount: nextValue,
                               },
