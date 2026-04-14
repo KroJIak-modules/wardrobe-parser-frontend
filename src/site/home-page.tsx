@@ -28,9 +28,6 @@ export function HomePage() {
         if (!entries.some((entry) => entry.isIntersecting)) {
           return;
         }
-        if (window.scrollY < 120) {
-          return;
-        }
         if (productsHasMore && !loadingMoreProducts) {
           void loadMoreProducts();
         }

@@ -502,7 +502,6 @@ type AdminListProduct = {
   image_count: number;
   image_urls: string[];
   image_ids: number[];
-  is_favorite?: boolean;
   internal_category_id?: number | null;
   internal_category_name?: string | null;
   internal_category_slug?: string | null;
@@ -563,7 +562,6 @@ export function AdminPage() {
     createPricingSupplier,
     deletePricingSupplier,
     assignSourceSupplier,
-    toggleProductFavorite,
   } = useLiveData();
 
   const [tab, setTab] = useState<AdminTab>("products");
@@ -748,6 +746,13 @@ export function AdminPage() {
     return found;
   }, [adminCategories, selectedCategoryId]);
 
+  const selectedCategoryIsLeaf = useMemo(() => {
+    if (!selectedCategory) {
+      return false;
+    }
+    return !selectedCategory.has_children && selectedCategory.children.length === 0;
+  }, [selectedCategory]);
+
   const flattenedAdminCategories = useMemo(() => {
     const list: { id: number; name: string; keywords: string[]; title_keywords: string[] }[] = [];
     const walk = (nodes: typeof adminCategories) => {
@@ -815,7 +820,7 @@ export function AdminPage() {
   }, [selectedCategory?.id, selectedCategory?.name]);
 
   useEffect(() => {
-    if (!selectedCategoryId || !selectedCategory || !selectedCategory.keywords_editable) {
+    if (!selectedCategoryId || !selectedCategory || !selectedCategory.keywords_editable || !selectedCategoryIsLeaf) {
       setManualAssignedProducts([]);
       setManualAssignedLoading(false);
       setManualSearchInput("");
@@ -832,11 +837,11 @@ export function AdminPage() {
       }
       setManualAssignedLoading(false);
     })();
-  }, [selectedCategoryId, selectedCategory?.id, selectedCategory?.keywords_editable, getCategoryManualProducts]);
+  }, [selectedCategoryId, selectedCategory?.id, selectedCategory?.keywords_editable, selectedCategoryIsLeaf, getCategoryManualProducts]);
 
   useEffect(() => {
     const rawQuery = manualSearchInput.trim();
-    if (!selectedCategoryId || !selectedCategory?.keywords_editable || rawQuery.length === 0) {
+    if (!selectedCategoryId || !selectedCategory?.keywords_editable || !selectedCategoryIsLeaf || rawQuery.length === 0) {
       setManualSearchResults([]);
       setManualSearchLoading(false);
       return;
@@ -860,7 +865,7 @@ export function AdminPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [manualSearchInput, selectedCategoryId, selectedCategory?.keywords_editable, searchCategoryManualProducts]);
+  }, [manualSearchInput, selectedCategoryId, selectedCategory?.keywords_editable, selectedCategoryIsLeaf, searchCategoryManualProducts]);
 
   useEffect(() => {
     if (!selectedCategoryId) {
@@ -2386,7 +2391,7 @@ export function AdminPage() {
   };
 
   const onAddManualProduct = async (productId: number) => {
-    if (!selectedCategoryId) {
+    if (!selectedCategoryId || !selectedCategoryIsLeaf) {
       return;
     }
     const result = await addCategoryManualProduct(selectedCategoryId, productId);
@@ -2409,7 +2414,7 @@ export function AdminPage() {
   };
 
   const onRemoveManualProduct = async (productId: number) => {
-    if (!selectedCategoryId) {
+    if (!selectedCategoryId || !selectedCategoryIsLeaf) {
       return;
     }
     const result = await removeCategoryManualProduct(selectedCategoryId, productId);
@@ -2467,17 +2472,12 @@ export function AdminPage() {
     pushToast(result.message);
   };
 
-  const onToggleProductFavorite = async (productId: number, nextFavorite: boolean) => {
-    const result = await toggleProductFavorite(productId, nextFavorite);
-    pushToast(result.message);
-  };
-
   const renderTree = (nodes: typeof adminCategories, depth = 0) => {
     return (
       <div className="cat-tree-column">
         {nodes.map((node) => {
           const hideChildrenInTree = !!node.is_designers_root;
-          const canCreateChild = !node.is_designers_root && !node.is_in_designers_branch && !node.is_fallback && !node.is_favorite;
+          const canCreateChild = !node.is_designers_root && !node.is_in_designers_branch && !node.is_fallback;
           return (
             <div key={node.id} className="cat-tree-node" style={{ marginLeft: `${depth * 12}px` }}>
               <div className="cat-tree-item">
@@ -2642,7 +2642,6 @@ export function AdminPage() {
               <table className="products-table">
                 <thead>
                   <tr>
-                    <th>★</th>
                     <th>Фото</th>
                     <th>Название</th>
                     <th>Сайт</th>
@@ -2663,16 +2662,6 @@ export function AdminPage() {
                     const source = sourceById.get(product.source_id);
                     return (
                       <tr key={product.id}>
-                        <td>
-                          <button
-                            type="button"
-                            className={product.is_favorite ? "favorite-btn favorite-btn--active" : "favorite-btn"}
-                            onClick={() => void onToggleProductFavorite(product.id, !product.is_favorite)}
-                            title={product.is_favorite ? "Убрать из избранного" : "Добавить в избранное"}
-                          >
-                            ★
-                          </button>
-                        </td>
                         <td>
                           <ImageWithFallback
                             src={getProductPrimaryImageUrl(product)}
@@ -2932,71 +2921,77 @@ export function AdminPage() {
                           Добавить ключ
                         </button>
                       </div>
-                      <p className="muted">Ручное добавление товаров в категорию</p>
-                      <div className="form">
-                        <input
-                          value={manualSearchInput}
-                          onChange={(event) => setManualSearchInput(event.target.value)}
-                          placeholder="Поиск"
-                          disabled={!selectedCategory.keywords_editable}
-                        />
-                      </div>
-                      {manualSearchLoading ? <p className="muted">Ищем товары...</p> : null}
-                      {!manualSearchLoading && manualSearchInput.trim() && manualSearchResults.length === 0 ? (
-                        <p className="muted">Ничего не найдено</p>
-                      ) : null}
-                      {manualSearchResults.map((item) => {
-                        const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
-                        return (
-                          <div key={`manual-search-${item.product_id}`} className="manual-product-row">
-                            <div className="manual-product-media">
-                              {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" /> : <span className="muted">Нет фото</span>}
-                            </div>
-                            <div className="manual-product-main">
-                              <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
-                                {item.title}
-                              </a>
-                              <p className="muted">
-                                <a href={item.url} target="_blank" rel="noreferrer">
-                                  {item.source_name || `Source #${item.source_id}`}
-                                </a>
-                              </p>
-                              <p className="muted">{categoryLabel}</p>
-                            </div>
-                            <button type="button" onClick={() => void onAddManualProduct(item.product_id)}>
-                              +
-                            </button>
+                      {selectedCategoryIsLeaf ? (
+                        <>
+                          <p className="muted">Ручное добавление товаров в категорию</p>
+                          <div className="form">
+                            <input
+                              value={manualSearchInput}
+                              onChange={(event) => setManualSearchInput(event.target.value)}
+                              placeholder="Поиск"
+                              disabled={!selectedCategory.keywords_editable}
+                            />
                           </div>
-                        );
-                      })}
+                          {manualSearchLoading ? <p className="muted">Ищем товары...</p> : null}
+                          {!manualSearchLoading && manualSearchInput.trim() && manualSearchResults.length === 0 ? (
+                            <p className="muted">Ничего не найдено</p>
+                          ) : null}
+                          {manualSearchResults.map((item) => {
+                            const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
+                            return (
+                              <div key={`manual-search-${item.product_id}`} className="manual-product-row">
+                                <div className="manual-product-media">
+                                  {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" /> : <span className="muted">Нет фото</span>}
+                                </div>
+                                <div className="manual-product-main">
+                                  <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
+                                    {item.title}
+                                  </a>
+                                  <p className="muted">
+                                    <a href={item.url} target="_blank" rel="noreferrer">
+                                      {item.source_name || `Source #${item.source_id}`}
+                                    </a>
+                                  </p>
+                                  <p className="muted">{categoryLabel}</p>
+                                </div>
+                                <button type="button" onClick={() => void onAddManualProduct(item.product_id)}>
+                                  +
+                                </button>
+                              </div>
+                            );
+                          })}
 
-                      <p className="muted">Добавленные товары</p>
-                      {manualAssignedLoading ? <p className="muted">Загружаем добавленные товары...</p> : null}
-                      {!manualAssignedLoading && manualAssignedProducts.length === 0 ? <p className="muted">Пока пусто</p> : null}
-                      {manualAssignedProducts.map((item) => {
-                        const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
-                        return (
-                          <div key={`manual-added-${item.product_id}`} className="manual-product-row">
-                            <div className="manual-product-media">
-                              {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" /> : <span className="muted">Нет фото</span>}
-                            </div>
-                            <div className="manual-product-main">
-                              <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
-                                {item.title}
-                              </a>
-                              <p className="muted">
-                                <a href={item.url} target="_blank" rel="noreferrer">
-                                  {item.source_name || `Source #${item.source_id}`}
-                                </a>
-                              </p>
-                              <p className="muted">{categoryLabel}</p>
-                            </div>
-                            <button type="button" onClick={() => void onRemoveManualProduct(item.product_id)}>
-                              Удалить
-                            </button>
-                          </div>
-                        );
-                      })}
+                          <p className="muted">Добавленные товары</p>
+                          {manualAssignedLoading ? <p className="muted">Загружаем добавленные товары...</p> : null}
+                          {!manualAssignedLoading && manualAssignedProducts.length === 0 ? <p className="muted">Пока пусто</p> : null}
+                          {manualAssignedProducts.map((item) => {
+                            const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
+                            return (
+                              <div key={`manual-added-${item.product_id}`} className="manual-product-row">
+                                <div className="manual-product-media">
+                                  {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" /> : <span className="muted">Нет фото</span>}
+                                </div>
+                                <div className="manual-product-main">
+                                  <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
+                                    {item.title}
+                                  </a>
+                                  <p className="muted">
+                                    <a href={item.url} target="_blank" rel="noreferrer">
+                                      {item.source_name || `Source #${item.source_id}`}
+                                    </a>
+                                  </p>
+                                  <p className="muted">{categoryLabel}</p>
+                                </div>
+                                <button type="button" onClick={() => void onRemoveManualProduct(item.product_id)}>
+                                  Удалить
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        <p className="muted">Ручное добавление доступно только для конечных категорий.</p>
+                      )}
                       {!selectedCategory.keywords_editable && selectedCategory.keywords_locked_reason ? (
                         <p className="muted">{selectedCategory.keywords_locked_reason}</p>
                       ) : null}
@@ -3018,7 +3013,10 @@ export function AdminPage() {
             {sources.map((source) => (
               <div key={source.key} className="list-row">
                 <div>
-                  <strong>{source.name}</strong>
+                  <strong>
+                    {source.name}
+                    {source.status_label ? ` · ${source.status_label}` : ""}
+                  </strong>
                   <p className="muted">{source.base_url}</p>
                   <p className="muted">
                     Товаров: {source.products_count} • Категорий: {source.categories_count}
@@ -3267,7 +3265,7 @@ export function AdminPage() {
                 <div className="pricing-svc-head">
                   <span>Тариф</span>
                   <span>От, кг</span>
-                  <span>До, кг (пусто = +)</span>
+                  <span>До, кг</span>
                   <span>Цена, RUB</span>
                   <span></span>
                 </div>

@@ -8,6 +8,7 @@ type Source = {
   parser_type: string;
   enabled: boolean;
   notes: string | null;
+  status_label: string | null;
   products_count: number;
   categories_count: number;
   supplier_id: number | null;
@@ -383,7 +384,6 @@ type LiveDataContextValue = {
         buyout_surcharge_currency?: string;
       }
   ) => Promise<{ ok: boolean; message: string }>;
-  toggleProductFavorite: (productId: number, favorite: boolean) => Promise<{ ok: boolean; message: string }>;
 };
 
 const API_BASE = "/api/v1";
@@ -1086,26 +1086,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const toggleProductFavorite = useCallback(async (productId: number, favorite: boolean) => {
-    try {
-      const res = await fetch(`${API_BASE}/products/${productId}/favorite`, {
-        method: favorite ? "POST" : "DELETE",
-      });
-      if (!res.ok) {
-        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
-        return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
-      }
-
-      setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, is_favorite: favorite } : item)));
-
-      await refreshCategoriesOnly();
-
-      return { ok: true, message: favorite ? "Добавлено в избранное" : "Убрано из избранного" };
-    } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
-    }
-  }, [refreshCategoriesOnly]);
-
   const createWeightRule = useCallback(
     async (weightGrams: number) => {
       try {
@@ -1397,7 +1377,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       rejectDedupPair,
       toggleSourceEnabled,
       assignSourceSupplier,
-      toggleProductFavorite,
       createWeightRule,
       updateWeightRule,
       deleteWeightRule,
@@ -1451,7 +1430,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       rejectDedupPair,
       toggleSourceEnabled,
       assignSourceSupplier,
-      toggleProductFavorite,
       createWeightRule,
       updateWeightRule,
       deleteWeightRule,

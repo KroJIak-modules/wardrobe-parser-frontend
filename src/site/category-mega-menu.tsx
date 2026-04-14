@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { CategoryView } from "../shared/live-data-context";
 import { findRootForCategory, sortStorefrontRoots } from "./category-logic";
@@ -19,23 +19,12 @@ export function CategoryMegaMenu({ categories, activeCategorySlug }: CategoryMeg
     () => findRootForCategory(roots, activeCategorySlug),
     [roots, activeCategorySlug]
   );
-  const [openedRootSlug, setOpenedRootSlug] = useState<string | null>(activeRoot?.slug || roots[0]?.slug || null);
-
-  useEffect(() => {
-    if (!openedRootSlug || !roots.some((node) => node.slug === openedRootSlug)) {
-      setOpenedRootSlug(activeRoot?.slug || roots[0]?.slug || null);
-      return;
-    }
-    if (activeRoot && openedRootSlug !== activeRoot.slug && !activeCategorySlug) {
-      setOpenedRootSlug(activeRoot.slug);
-    }
-  }, [roots, activeRoot, openedRootSlug, activeCategorySlug]);
 
   if (roots.length === 0) {
     return null;
   }
 
-  const openedRoot = roots.find((node) => node.slug === openedRootSlug) || activeRoot || roots[0];
+  const openedRoot = activeRoot || roots[0];
   const isDesigners = Boolean(openedRoot?.is_designers_root);
   const designers = isDesigners
     ? [...openedRoot.children].sort((left, right) => left.name.localeCompare(right.name, "ru"))
@@ -43,23 +32,17 @@ export function CategoryMegaMenu({ categories, activeCategorySlug }: CategoryMeg
   const [designersLeft, designersRight] = splitIntoColumns(designers);
 
   return (
-    <section
-      className="catalog-menu"
-      onMouseLeave={() => setOpenedRootSlug(activeRoot?.slug || roots[0]?.slug || null)}
-    >
+    <section className="catalog-menu">
       <div className="catalog-tabs" role="tablist" aria-label="Категории витрины">
         {roots.map((root) => {
           const isActiveRoot = activeRoot?.slug === root.slug;
-          const isOpened = openedRoot?.slug === root.slug;
           return (
             <Link
               key={root.slug}
               to={`/category/${root.slug}`}
               role="tab"
               aria-selected={isActiveRoot}
-              className={isActiveRoot || isOpened ? "catalog-tab catalog-tab--active" : "catalog-tab"}
-              onMouseEnter={() => setOpenedRootSlug(root.slug)}
-              onFocus={() => setOpenedRootSlug(root.slug)}
+              className={isActiveRoot ? "catalog-tab catalog-tab--active" : "catalog-tab"}
             >
               <span>{root.name}</span>
             </Link>

@@ -41,7 +41,7 @@ export function ImageWithFallback({
   }
 
   return (
-    <>
+    <div style={{ position: "relative" }}>
       {!loaded ? <div className={`${placeholderClassName} image-loading-placeholder`}>{loadingLabel}</div> : null}
       <img
         className={className}
@@ -53,8 +53,15 @@ export function ImageWithFallback({
           setLoaded(true);
           setFailed(true);
         }}
-        style={loaded ? undefined : { display: "none" }}
+        style={{
+          position: loaded ? "static" : "absolute",
+          inset: loaded ? undefined : 0,
+          width: loaded ? undefined : "100%",
+          height: loaded ? undefined : "100%",
+          opacity: loaded ? 1 : 0,
+          pointerEvents: loaded ? undefined : "none",
+        }}
       />
-    </>
+    </div>
   );
 }
