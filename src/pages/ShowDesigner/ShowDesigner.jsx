@@ -13,6 +13,7 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
     const [isOpinionExpanded, setIsOpinionExpanded] = useState(false);
     const [isOpinionOverflowing, setIsOpinionOverflowing] = useState(false);
     const [showModalSources, setShowModalSources] = useState(false);
+    const [activeItem, setActiveItem] = useState(null);
     const [filter, setfilter] = useState([])
     const toggleCheckbox = (option) => {
     if (selected.includes(option)) {
@@ -22,6 +23,12 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
     }
   };
 
+    const handleMouseEnter = (id) => {
+    setActiveItem(id)
+    };
+    const handleMouseLeave = () => {
+      setActiveItem(null)
+    };
     const location = useLocation()
     const opinionRef = useRef(null);
     const description = "Paradoxe Paris — артизанальный французский бренд, основанный в 2017 году. Внимание к деталям, отказ от декоративности, ремесленная строгость - основные принципы создателей бренда. Эли Саад и Жереми Себаун движимы не желанием понравится потребителю, а общей одержимостью процессом создания своих вещей. Работы они начинают не с рисунка, а с lorem ipsum"
@@ -62,19 +69,39 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
   const filters = [
     {
       title : "фильтр1",
-      variants : ["опция1", "опция2", "опция3", "опция4", "опция5", "опция6",]
+      variants : [
+        { id: 1, label: "Option 1" },
+        { id: 2, label: "Option 2" },
+        { id: 3, label: "Option 1" },
+        { id: 4, label: "Option 2" }
+      ]
     },
     {
       title : "фильтр2",
-      variants : ["опция1", "опция2", "опция3", "опция4", "опция5", "опция6",]
+      variants : [
+        { id: 1, label: "Option 1" },
+        { id: 2, label: "Option 2" },
+        { id: 3, label: "Option 1" },
+        { id: 4, label: "Option 2" }
+      ]
     },
     {
       title : "фильтр3",
-      variants : ["опция1", "опция2", "опция3", "опция4", "опция5", "опция6",]
+      variants : [
+        { id: 1, label: "Option 1" },
+        { id: 2, label: "Option 2" },
+        { id: 3, label: "Option 1" },
+        { id: 4, label: "Option 2" }
+      ]
     },
     {
       title : "фильтр4",
-      variants : ["опция1", "опция2", "опция3", "опция4", "опция5", "опция6",]
+      variants : [
+        { id: 1, label: "Option 1" },
+        { id: 2, label: "Option 2" },
+        { id: 3, label: "Option 1" },
+        { id: 4, label: "Option 2" }
+      ]
     },
   ];
 
@@ -119,18 +146,34 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
                      {isOpinionExpanded ? 'Скрыть' : '...Читать дальше'}
                  </button>
              )}
-         </div>
-
-
-        <div className={styles.options}>
-            {options.map((option,index) =>
-            <div style={{margin: "auto"}}>
-                {option}
-            </div>
-            )}
         </div>
+        <div className={styles.options}>
+          {filters.map((filter) => (
+            <div
+              className={styles.optionItem}
+              key={filter.id}
+            >
+              <div className={styles.optionTitle}>
+                {filter.title}
+              </div>
+          
+              <div className={styles.dropdown}>
+                {filter.variants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    className={styles.dropdownItem}
+                    type="button"
+                  >
+                    {variant.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div className={styles.mobileOptions}>
-          <div onClick={() => {setShowModalSources(true)}}>фильтры</div>
+          <div onClick={() => {setShowModalSources(true)}} style={{cursor: "pointer"}}>фильтры</div>
           <div style={{display: "flex", flexDirection: "row", gap: "5px"}}>
             <img src={arrowopen}/>
           сортировка</div>

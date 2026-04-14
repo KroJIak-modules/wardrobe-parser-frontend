@@ -26,7 +26,7 @@ const Filter = ({Optfilter}) => {
               {isOpen && (
                     <div className={styles.options}>
                         {Optfilter.variants.map((option, index) => (
-                           <div>{option}</div> 
+                           <div>{option.label}</div> 
                         ))}
                     </div>
                 )}
