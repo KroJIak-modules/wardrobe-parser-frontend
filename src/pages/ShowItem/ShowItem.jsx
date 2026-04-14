@@ -190,7 +190,7 @@ const ShowItem = () => {
                     </div>
                     <button className={styles.addToCart}>Добавить в корзину</button>
                     <div className={styles.itemOpinionContainer}
-                         style={isOpinionExpanded ? { overflowY: "scroll" } : {overflowY: "hidden"}}>
+                         style={isOpinionExpanded ? { height: "auto" } : {overflowY: "hidden"}}>
                         <span
                             ref={opinionRef}
                             className={`${styles.itemOpinion} ${!isOpinionExpanded ? styles.itemOpinionCollapsed : ''}`}

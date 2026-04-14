@@ -1,12 +1,11 @@
-import { React,  useState } from 'react'
+import { React,  useEffect,  useState } from 'react'
 import styles from './Header.module.css'
 import logo from '../../images/logo.svg'
 import burger from '../../images/burger.svg'
 import cart from '../../images/cart.svg'
 import arrow from '../../images/arrow.svg'
 import { cn } from '@/lib/utils'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
-
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 const Header = ({ style, numberOfitems }) => {
 
@@ -20,6 +19,10 @@ const Header = ({ style, numberOfitems }) => {
     const [showModalSources, setShowModalSources] = useState(false);
     const [searchItem, setSearchItem] = useState("");
     const [openedCategory, setOpenedCategory] = useState("");
+    const location = useLocation();
+    useEffect(() => {
+        setShowModalSources(false);
+    }, [location.pathname]);
     const [links, setLinks] = useState([
         {
             name: "Мужское",
@@ -38,6 +41,7 @@ const Header = ({ style, numberOfitems }) => {
     const categories = [
             {
                 title: "Новинки1",
+                link: "/",
                 elements: [
                     {
                         title: "Коллекции",
@@ -46,7 +50,8 @@ const Header = ({ style, numberOfitems }) => {
                 ]
             },
             {
-                title: "Новинки2",
+                title: "Дизайнеры",
+                link: "/designers",
                 elements: [
                     {
                         title: "Коллекции",
@@ -55,7 +60,8 @@ const Header = ({ style, numberOfitems }) => {
                 ]
             },
             {
-                title: "Новинки3",
+                title: "Одежда и обувь",
+                link: "/",
                 elements: [
                     {
                         title: "Коллекции",
@@ -64,7 +70,8 @@ const Header = ({ style, numberOfitems }) => {
                 ]
             },
             {
-                title: "Новинки4",
+                title: "Аксессуары",
+                link: "/",
                 elements: [
                     {
                         title: "Коллекции",
@@ -135,13 +142,15 @@ const Header = ({ style, numberOfitems }) => {
                             <div key={index}>
                                 <div 
                                     className={openedCategory === category.title ? styles.burgerCat2 : styles.burgerCat} 
-                                    onClick={() => setOpenedCategory(openedCategory === category.title ? "" : category.title)}
+                                    
                                 >
                                     {openedCategory === category.title && (
-                                    <img style={{height: 11, transform: 'rotate(180deg)', marginRight: 8}} src={arrow} />
+                                    <img style={{height: 11, transform: 'rotate(180deg)', marginRight: 8}} src={arrow}
+                                    onClick={() => setOpenedCategory(openedCategory === category.title ? "" : category.title)} />
                                     )}
-                                    {category.title}
-                                    {!openedCategory && <img style={{height: 11}} src={arrow} />}
+                                    <Link to={category.link}>{category.title}</Link>
+                                    {!openedCategory && <img style={{height: 11}} src={arrow}
+                                    onClick={() => setOpenedCategory(openedCategory === category.title ? "" : category.title)} />}
                                 </div>
 
                                 {openedCategory === category.title && (

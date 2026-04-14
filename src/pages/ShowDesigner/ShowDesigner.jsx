@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './ShowDesigner.module.css'
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils'
@@ -7,32 +7,13 @@ import arrowopen from '@/images/arrowopen.svg'
 import cross from '@/images/close.svg'
 import FilterOpt from '@/components/filter/filter'
 
+
 const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true}) => {
-
-    const options = ["сортировка", "наличие", "раздел", "дизайнеры", "пол"]
-    const [isOpinionExpanded, setIsOpinionExpanded] = useState(false);
-    const [isOpinionOverflowing, setIsOpinionOverflowing] = useState(false);
-    const [showModalSources, setShowModalSources] = useState(false);
-    const [activeItem, setActiveItem] = useState(null);
-    const [filter, setfilter] = useState([])
-    const toggleCheckbox = (option) => {
-    if (selected.includes(option)) {
-      setfilter(selected.filter(item => item !== option));
-    } else {
-      setfilter([...selected, option]);
-    }
-  };
-
-    const handleMouseEnter = (id) => {
-    setActiveItem(id)
-    };
-    const handleMouseLeave = () => {
-      setActiveItem(null)
-    };
     const location = useLocation()
     const opinionRef = useRef(null);
     const description = "Paradoxe Paris — артизанальный французский бренд, основанный в 2017 году. Внимание к деталям, отказ от декоративности, ремесленная строгость - основные принципы создателей бренда. Эли Саад и Жереми Себаун движимы не желанием понравится потребителю, а общей одержимостью процессом создания своих вещей. Работы они начинают не с рисунка, а с lorem ipsum"
     const title = location.state?.brandName
+    const OPINION_COLLAPSED_HEIGHT = 120;
     const products = [
     {
       brand: 'Nofaithstudios',
@@ -104,6 +85,60 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
       ]
     },
   ];
+    const options = ["сортировка", "наличие", "раздел", "дизайнеры", "пол"]
+    const [isOpinionExpanded, setIsOpinionExpanded] = useState(false);
+    const [isOpinionOverflowing, setIsOpinionOverflowing] = useState(false);
+    const [showModalSources, setShowModalSources] = useState(false);
+    const [activeItem, setActiveItem] = useState(null);
+    const [filter, setfilter] = useState([])
+    const toggleCheckbox = (option) => {
+    if (selected.includes(option)) {
+      setfilter(selected.filter(item => item !== option));
+    } else {
+      setfilter([...selected, option]);
+    }
+  };
+
+    const handleMouseEnter = (id) => {
+    setActiveItem(id)
+    };
+    const handleMouseLeave = () => {
+      setActiveItem(null)
+    };
+    useEffect(() => {
+            const measureOpinionHeight = () => {
+                const opinionElement = opinionRef.current;
+    
+                if (!opinionElement) {
+                    return;
+                }
+    
+                const previousMaxHeight = opinionElement.style.maxHeight;
+                const previousOverflow = opinionElement.style.overflow;
+    
+                opinionElement.style.maxHeight = 'none';
+                opinionElement.style.overflow = 'visible';
+    
+                const fullHeight = opinionElement.scrollHeight;
+    
+                opinionElement.style.maxHeight = previousMaxHeight;
+                opinionElement.style.overflow = previousOverflow;
+    
+                setIsOpinionOverflowing(fullHeight > OPINION_COLLAPSED_HEIGHT);
+            };
+    
+            measureOpinionHeight();
+            window.addEventListener('resize', measureOpinionHeight);
+    
+            return () => {
+                window.removeEventListener('resize', measureOpinionHeight);
+            };
+        }, [description]);
+    
+        useEffect(() => {
+            setIsOpinionExpanded(false);
+        }, [description]);
+    
 
     return (
         <>
@@ -130,23 +165,23 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
         <div className={styles.mainContainer}>
 {/* ниработайт свертка бренд описание нащальника */}
           <div className={styles.itemOpinionContainer}
-              style={isOpinionExpanded ? { overflowY: "scroll" } : {overflowY: "hidden"}}>
-             <span
-                 ref={opinionRef}
-                 className={`${styles.itemOpinion} ${!isOpinionExpanded ? styles.itemOpinionCollapsed : ''}`}
-             >
-                 {description}
-             </span>
-             {isOpinionOverflowing && (
-                 <button
-                     type='button'
-                     className={isOpinionExpanded ? styles.toggleOpinionButton : styles.toggleOpinionButtonShow}
-                     onClick={() => setIsOpinionExpanded(prev => !prev)}
-                 >
-                     {isOpinionExpanded ? 'Скрыть' : '...Читать дальше'}
-                 </button>
-             )}
-        </div>
+               style={isOpinionExpanded ? { height: "auto" } : {overflowY: "hidden"}}>
+              <span
+                  ref={opinionRef}
+                  className={`${styles.itemOpinion} ${!isOpinionExpanded ? styles.itemOpinionCollapsed : ''}`}
+              >
+                  {description}
+              </span>
+              {isOpinionOverflowing && (
+                  <button
+                      type='button'
+                      className={isOpinionExpanded ? styles.toggleOpinionButton : styles.toggleOpinionButtonShow}
+                      onClick={() => setIsOpinionExpanded(prev => !prev)}
+                  >
+                      {isOpinionExpanded ? 'Скрыть' : '...Читать дальше'}
+                  </button>
+              )}
+          </div>
         <div className={styles.options}>
           {filters.map((filter) => (
             <div

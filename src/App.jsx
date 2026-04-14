@@ -1,5 +1,6 @@
 import React, { use, useEffect, useRef, useState } from 'react';
 import { Button } from '@gravity-ui/uikit';
+import TopScroll from './components/topScroll/topScroll';
 import Header from './components/header/Header';
 import { Outlet, Route, useLocation } from 'react-router-dom';
 import { BrowserRouter, Routes } from 'react-router-dom';
@@ -19,6 +20,7 @@ import QnA from './pages/QnA/QnA';
 export default function App() {
   return (
     <BrowserRouter>
+      <TopScroll/>
       <AppContent />
     </BrowserRouter>
   );
