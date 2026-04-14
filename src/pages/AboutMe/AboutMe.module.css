@@ -1,10 +1,9 @@
-.mainShow {
+.mainContainer {
     position: relative;
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 100vh;
 }
 
 .title {
@@ -33,10 +32,40 @@ background: #F0F0F0;
 border-radius: 3px;
 }
 
+.textfield2 {
+width: 394px;
+height: 525px;
+
+display: flex;
+justify-content: center;
+align-items: center;
+background: #F0F0F0;
+border-radius: 3px;
+}
+
 .image {
     height: 100%;
     width: 100%;
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
+}
+
+.mobile {
+    display: none;
+}
+
+@media screen and (max-width: 768px) {
+
+  .mainContainer{
+    display: flex;
+    flex-direction: column;
+    row-gap: 30px;
+  }
+
+  .textfield2 {
+display: none;
+}
+
+
 }
