@@ -1,0 +1,21 @@
+.optionContainer {
+    display: flex;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mainContainer {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    height: 100%;
+}
+
+.options {
+    display: flex;
+    flex-direction: column;
+    row-gap: 16px;
+    font-size: 13px;
+}

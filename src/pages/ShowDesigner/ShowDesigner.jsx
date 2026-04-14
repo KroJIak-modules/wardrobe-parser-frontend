@@ -4,6 +4,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils'
 import image from '@/images/product.png'
 import arrowopen from '@/images/arrowopen.svg'
+import cross from '@/images/close.svg'
+import FilterOpt from '@/components/filter/filter'
 
 const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true}) => {
 
@@ -11,6 +13,15 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
     const [isOpinionExpanded, setIsOpinionExpanded] = useState(false);
     const [isOpinionOverflowing, setIsOpinionOverflowing] = useState(false);
     const [showModalSources, setShowModalSources] = useState(false);
+    const [filter, setfilter] = useState([])
+    const toggleCheckbox = (option) => {
+    if (selected.includes(option)) {
+      setfilter(selected.filter(item => item !== option));
+    } else {
+      setfilter([...selected, option]);
+    }
+  };
+
     const location = useLocation()
     const opinionRef = useRef(null);
     const description = "Paradoxe Paris — артизанальный французский бренд, основанный в 2017 году. Внимание к деталям, отказ от декоративности, ремесленная строгость - основные принципы создателей бренда. Эли Саад и Жереми Себаун движимы не желанием понравится потребителю, а общей одержимостью процессом создания своих вещей. Работы они начинают не с рисунка, а с lorem ipsum"
@@ -48,12 +59,45 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
     },
   ];
 
+  const filters = [
+    {
+      title : "фильтр1",
+      variants : ["опция1", "опция2", "опция3", "опция4", "опция5", "опция6",]
+    },
+    {
+      title : "фильтр2",
+      variants : ["опция1", "опция2", "опция3", "опция4", "опция5", "опция6",]
+    },
+    {
+      title : "фильтр3",
+      variants : ["опция1", "опция2", "опция3", "опция4", "опция5", "опция6",]
+    },
+    {
+      title : "фильтр4",
+      variants : ["опция1", "опция2", "опция3", "опция4", "опция5", "опция6",]
+    },
+  ];
+
     return (
         <>
         {showTitle ? <h1 className={styles.title}>{title}</h1> : ""}
-
         <div className={styles.burger}  style={{ left: showModalSources ? '0' : '-77%' }}>
+          <div className={styles.burgerContainer}>
 
+            <div className={styles.optionContainer}>
+              <div>фильтры</div>
+              <img style={{height: "17px", cursor: "pointer"}} onClick={() => {setShowModalSources(false)}} src={cross}/>
+            </div>
+            <div className={styles.optionsContainer}>
+              {filters.map((filter, index) => (
+                <FilterOpt Optfilter={filter}/>
+              ))}
+            </div>
+          </div>
+          <div className={styles.buttonContainer}>
+              <div className={styles.button}>применить</div>
+              <div className={styles.button}>очистить</div>
+          </div>
         </div>
         
         <div className={styles.mainContainer}>

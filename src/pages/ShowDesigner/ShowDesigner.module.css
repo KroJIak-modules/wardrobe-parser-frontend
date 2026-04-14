@@ -227,7 +227,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 17px;
+    padding-top: 20px;
     gap: 30px;
     top: 0;
     left: -77%;
@@ -238,8 +238,59 @@
     border-top-right-radius: 15px;
     border-bottom-right-radius: 15px;
     transition: left 0.3s ease-out;
-    overflow-y: auto;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE */
+    }
+
+    .burgerContainer {
+    display: flex;           /* Добавлено */
+    flex-direction: column;  /* Добавлено */
+    width: 77%;
+    flex: 1;                 /* Занимает всё место до кнопок */
+    min-height: 0;           /* Позволяет внутреннему контенту скроллиться */
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+    .optionsContainer {
+        margin-top: 60px;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        height: auto;
+        overflow-y: auto;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE */
+    }
+
+    .optionContainer {
+        display: flex;
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        
+    }
+
+    .buttonContainer {
+        position: sticky;
+        bottom: 0;
+        align-items: center;
+        justify-content: start;
+        height: 110px;
+        width: 77%;
+    }
+    
+    .button {
+        justify-content: center;
+        text-align: center;
+        align-items: center;
+        margin-bottom: 15px;
+        width: 100%;
+        height: 31px;
+        background: rgba(205, 205, 205, 0.3);
+        border-radius: 11px;
+        font-size: 17px;
+        cursor: pointer;
     }
 }
+
