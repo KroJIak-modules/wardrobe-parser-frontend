@@ -38,7 +38,7 @@ const imageCarousel = ({images}) => {
                     <CarouselItem key={index}>
                         <div className="overflow-hidden">
                             <div style={{backgroundImage: `url(${image})`, backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: "center"}}
-                                className="h-[70vh] w-full object-cover center"
+                                className="h-[100vh] w-full object-cover center"
                                 alt="">
                             </div>
                         </div>

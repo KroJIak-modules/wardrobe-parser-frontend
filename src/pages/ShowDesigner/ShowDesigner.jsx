@@ -163,7 +163,6 @@ const ShowDesigner = ({ numberOfItems = 48, numberOfPage = 1, showTitle = true})
         </div>
         
         <div className={styles.mainContainer}>
-{/* ниработайт свертка бренд описание нащальника */}
           <div className={styles.itemOpinionContainer}
                style={isOpinionExpanded ? { height: "auto" } : {overflowY: "hidden"}}>
               <span

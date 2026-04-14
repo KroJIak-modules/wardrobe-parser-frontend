@@ -37,6 +37,7 @@ const HeroCarousel = () => {
             opts={{
                 align: "center",
                 loop: true,
+                containScroll: false,
             }}
             className="w-full z-10 mt-7"
         >
@@ -47,10 +48,9 @@ const HeroCarousel = () => {
                         className={styles.CarouselItem}
                     >
                         <div className="overflow-hidden">
-                            <div
-                                style={{backgroundImage: `url(${image})`, backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: "center"}}
-                                className="h-[60vh] w-full object-cover center"
-                                alt=""
+                            <img
+                            src={image}
+                            className="w-full h-[60vh] object-contain"
                             />
                         </div>
                     </CarouselItem>

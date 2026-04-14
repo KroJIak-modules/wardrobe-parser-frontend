@@ -5,7 +5,7 @@ import image1 from '@/images/aboutme.png'
 import image2 from '@/images/product.png'
 import Carousel from '@/components/imageCarousel/imageCarousel'
 
-const AboutMe = (showTitle = true) => {
+const AboutMe = ({ showTitle = true }) => {
 
     const [item, setItem] = useState({
         description: "Anton Shell — молодой байер из Москвы, превращающий продажи в искусство. Начиная свой путь с китайских платформ в 15 лет, он быстро понял разницу между массовым рынком и настоящим стилем. Теперь доставляет вещи из Европы, США и Великобритании, собирая гардеробы, которые говорят громче слов. Визуал — его оружие. Продуманная стилизация, сильные промо-съемки, точный вкус. За два года работы Антон успел посотрудничать с многими брендами: Jaded London, Racer Worldwide, Alice Hollywood, Nofaithstudios, Project gr, Yori Sport и другие. Антон не просто продает одежду — он продает образ жизни.sdakffadawpfdwfkwfwofkwf", 
@@ -15,19 +15,13 @@ const AboutMe = (showTitle = true) => {
         <>
         {showTitle ? <h1 className={styles.title}>Обо мне</h1> : ""}
         <div className={styles.mainContainer}>
-        <div className={styles.textfield}>
-            <div className={styles.textfieldinner}>
-                <span>{item.description}</span>
+            <div className={`${styles.block} ${styles.o2}`}>{item.description}</div>
+
+            <div className={`${styles.block} ${styles.o1}`} style={{border: "0"}}>
+                <Carousel images={[image1, image2]} />
             </div>
-        </div>
-            <div className={styles.textfieldinner}>
-                <Carousel images={[image1,image2]}/>
-            </div>
-        <div className={styles.textfield2}>
-            <div className={styles.textfieldinner}>
-                <span>{item.description}</span>
-            </div>
-        </div>
+
+            <div className={`${styles.block} ${styles.third}`}>{item.description}</div>
         </div>
         </>
     )

@@ -214,7 +214,7 @@ const ShowItem = () => {
             </div>
 
             <div className='container'>
-                <div className={styles.recommendations}>Рекомендую</div>
+                <div className={styles.title}>Рекомендую</div>
                 <NewItems numberOfItems={8} numberOfPage={1} showTitle={false} />
             </div>
         </>
