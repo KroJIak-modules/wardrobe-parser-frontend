@@ -140,7 +140,6 @@ const ShowItem = () => {
 
 
             <div className={styles.mainShow}>
-                
                     <div className={styles.images}>
                         {item.images.slice(0, Math.min(item.images.length, 4)).map((img, ind) =>
                             <button
@@ -159,6 +158,7 @@ const ShowItem = () => {
                         >
                         </div>
                     </div>
+            
 
                 <div className={styles.opinion}>
                     <span className={styles.itemBrand}>{item.brand}</span>
