@@ -3,39 +3,16 @@ import { Link, useParams } from "react-router-dom";
 import { useLiveData } from "../shared/live-data-context";
 import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
-import { toSlug } from "../shared/utils";
+import { CategoryMegaMenu } from "./category-mega-menu";
+import { filterProductsForCategory, findCategoryBySlug, sortStorefrontRoots } from "./category-logic";
 
 export function CategoryPage() {
   const { slug } = useParams();
   const { categories, products, productsHasMore, loadMoreProducts, loadingMoreProducts, loading } = useLiveData();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const availableProducts = useMemo(() => products.filter((product) => product.status === "available"), [products]);
-
-  const flatten = (items: typeof categories): typeof categories => {
-    const list: typeof categories = [];
-    for (const item of items) {
-      list.push(item);
-      list.push(...flatten(item.children));
-    }
-    return list;
-  };
-
-  const flatCategories = flatten(categories);
-  const category = flatCategories.find((item) => item.slug === slug);
-  const selectedCategorySlugs = useMemo(() => {
-    if (!category) {
-      return new Set<string>();
-    }
-    const set = new Set<string>();
-    const walk = (node: typeof category) => {
-      set.add(node.slug);
-      for (const child of node.children) {
-        walk(child);
-      }
-    };
-    walk(category);
-    return set;
-  }, [category]);
+  const roots = useMemo(() => sortStorefrontRoots(categories), [categories]);
+  const category = useMemo(() => findCategoryBySlug(roots, slug), [roots, slug]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -62,23 +39,7 @@ export function CategoryPage() {
     return () => observer.disconnect();
   }, [productsHasMore, loadingMoreProducts, loadMoreProducts, category]);
 
-  const filtered = category
-    ? availableProducts.filter((product) => {
-      const productSlug = (product.internal_category_slug || "").trim() || toSlug(product.product_type || "Прочее");
-      return selectedCategorySlugs.has(productSlug);
-    })
-    : [];
-
-  const renderColumnChildren = (items: typeof categories) => {
-    return items.map((node) => (
-      <div key={node.slug} className="category-column-item">
-        <Link to={`/category/${node.slug}`} className={node.slug === slug ? "tag tag--active" : "tag"}>
-          {node.name} ({node.count || 0})
-        </Link>
-        {node.children.length > 0 ? <div className="category-column-children">{renderColumnChildren(node.children)}</div> : null}
-      </div>
-    ));
-  };
+  const filtered = useMemo(() => filterProductsForCategory(availableProducts, category), [availableProducts, category]);
 
   if (loading && availableProducts.length === 0) {
     return (
@@ -91,23 +52,14 @@ export function CategoryPage() {
   }
 
   if (!category) {
-    return <p>Category not found.</p>;
+    return <p>Категория не найдена.</p>;
   }
 
   return (
     <section className="section">
       <h1>{category.name}</h1>
       <p className="muted">Товаров в категории: {filtered.length}</p>
-      <div className="category-columns">
-        {categories.map((node) => (
-          <div key={node.slug} className="category-column">
-            <Link to={`/category/${node.slug}`} className={node.slug === slug ? "tag tag--active category-column-root" : "tag category-column-root"}>
-              {node.name} ({node.count || 0})
-            </Link>
-            {node.children.length > 0 ? <div className="category-column-children">{renderColumnChildren(node.children)}</div> : null}
-          </div>
-        ))}
-      </div>
+      <CategoryMegaMenu categories={roots} activeCategorySlug={slug} />
 
       <div className="product-grid">
         {filtered.map((product) => (

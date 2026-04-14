@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent 
 import { Link } from "react-router-dom";
 import { renderToString } from "katex";
 import "katex/dist/katex.min.css";
-import { useLiveData, type PricingSettings } from "../shared/live-data-context";
+import { useLiveData, type CategoryManualProduct, type PricingSettings } from "../shared/live-data-context";
 import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 
@@ -42,7 +42,6 @@ const API_BASE = "/api/v1";
 const PAGE_SIZE = 100;
 const NO_BRAND_VALUE = "__NO_BRAND__";
 const pricingNumericKeys = [
-  "markup_multiplier",
   "weight_tolerance",
   "customs_duty_rate",
   "customs_processing_rate",
@@ -55,6 +54,15 @@ const pricingNumericKeys = [
   "gbp_to_usd_rate",
 ] as const;
 type PricingFieldKey = (typeof pricingNumericKeys)[number];
+type FinalRoundingMode = "none" | "unit" | "ten" | "hundred" | "thousand";
+
+const finalRoundingOptions: Array<{ value: FinalRoundingMode; label: string }> = [
+  { value: "none", label: "Не округлять" },
+  { value: "unit", label: "До единицы" },
+  { value: "ten", label: "До десяток" },
+  { value: "hundred", label: "До сотен" },
+  { value: "thousand", label: "До тысячи" },
+];
 
 const legendKeyToLatex: Record<string, string> = {
   SP: "SP",
@@ -78,13 +86,16 @@ const legendKeyToLatex: Record<string, string> = {
   CDR: "CDR",
   SSR: "SSR",
   SUP: "SUP",
-  STP: "STP",
+  RNG: "RNG",
   INS: "INS",
   SVC: "SVC",
   SUB: "SUB",
+  SUBM: "SUBM",
   TXR: "TXR",
   TAX: "TAX",
   MP: "MP",
+  MUP: "MUP",
+  RND: "RND",
   FPR: "FPR",
   // Backward compatibility for older payload keys:
   SP_USD: "SPU",
@@ -106,9 +117,9 @@ const legendKeyToLatex: Record<string, string> = {
   PAYMENT_FEE_RUB: "PFR",
   PAYMENT_FEE_RATE: "PFRP",
   STC_RUB: "SSR",
-  "SSR[SUPPLIER][STEP]": "SSR[SUP,STP]",
+  "SSR[SUPPLIER][STEP]": "SSR[SUP,RNG]",
   SUPPLIER: "SUP",
-  STEP: "STP",
+  STEP: "RNG",
   INSURANCE_RUB: "INS",
   SERVICE_FEE_RUB: "SVC",
   TAX_RATE: "TXR",
@@ -117,13 +128,6 @@ const legendKeyToLatex: Record<string, string> = {
 };
 
 const pricingFieldMeta: Array<{ key: PricingFieldKey; symbolLatex: string; label: string; hint: string; step?: string }> = [
-  {
-    key: "markup_multiplier",
-    symbolLatex: "MP",
-    label: "Наценка",
-    hint: "Показывает, насколько увеличиваем итоговую сумму после всех расходов. Пример: 1.25 означает +25% к финалу.",
-    step: "0.01",
-  },
   {
     key: "weight_tolerance",
     symbolLatex: "WT",
@@ -279,6 +283,14 @@ const normalizeSupplierCategory = (value: string | null | undefined, fallback: S
   return fallback;
 };
 
+const normalizeFinalRoundingMode = (value: string | null | undefined, fallback: FinalRoundingMode = "unit"): FinalRoundingMode => {
+  const raw = (value || "").trim().toLowerCase();
+  if (raw === "none" || raw === "unit" || raw === "ten" || raw === "hundred" || raw === "thousand") {
+    return raw;
+  }
+  return fallback;
+};
+
 const formatSupplierCategory = (value: string | null | undefined): string =>
   normalizeSupplierCategory(value) === "alt" ? "Alt" : "Main";
 
@@ -288,6 +300,51 @@ type TriCurrencyDraft = {
   usd: string;
   eur: string;
   gbp: string;
+};
+
+type SvcRuleDraft = {
+  id: string;
+  min_rub: string;
+  max_rub: string;
+  mode: "fixed_rub" | "percent";
+  value: string;
+};
+
+type SvcRulePayload = {
+  min_rub: number;
+  max_rub: number | null;
+  mode: "fixed_rub" | "percent";
+  value: number;
+};
+
+type SvcRuleFieldError = {
+  min: boolean;
+  max: boolean;
+  value: boolean;
+};
+
+type ShippingRegion = "US" | "EU" | "UK";
+type ShippingMode = "normal" | "alt";
+
+type ShippingRuleDraft = {
+  id: string;
+  region: ShippingRegion;
+  mode: ShippingMode;
+  min_kg: string;
+  max_kg: string;
+  rub: string;
+};
+
+type ShippingRulePayload = {
+  min_kg: number;
+  max_kg: number | null;
+  rub: number;
+};
+
+type ShippingRuleFieldError = {
+  min: boolean;
+  max: boolean;
+  rub: boolean;
 };
 
 type TriCurrencyAmountKey = "rub" | "usd" | "eur" | "gbp";
@@ -326,6 +383,56 @@ const parseNonNegativeNumber = (raw: string): number | null => {
   return parsed;
 };
 
+const parseSvcRuleDraft = (rule: SvcRuleDraft): SvcRulePayload | null => {
+  const minRub = Number((rule.min_rub || "").trim());
+  const maxRaw = (rule.max_rub || "").trim();
+  const maxRub = maxRaw ? Number(maxRaw) : null;
+  const value = Number((rule.value || "").trim());
+  if (!Number.isFinite(minRub) || !Number.isFinite(value)) {
+    return null;
+  }
+  if (maxRub !== null && !Number.isFinite(maxRub)) {
+    return null;
+  }
+  if (minRub < 0 || (maxRub !== null && maxRub <= minRub) || value < 0) {
+    return null;
+  }
+  return {
+    min_rub: Number(minRub.toFixed(6)),
+    max_rub: maxRub === null ? null : Number(maxRub.toFixed(6)),
+    mode: rule.mode === "percent" ? "percent" : "fixed_rub",
+    value: Number(value.toFixed(6)),
+  };
+};
+
+const shippingGroupOrder: Array<{ region: ShippingRegion; mode: ShippingMode; label: string }> = [
+  { region: "US", mode: "normal", label: "Тариф США" },
+  { region: "US", mode: "alt", label: "Альтернативный тариф США" },
+  { region: "EU", mode: "normal", label: "Тариф ЕС" },
+  { region: "EU", mode: "alt", label: "Альтернативный тариф ЕС" },
+  { region: "UK", mode: "normal", label: "Великобритания" },
+];
+
+const parseShippingRuleDraft = (rule: ShippingRuleDraft): ShippingRulePayload | null => {
+  const minKg = Number((rule.min_kg || "").trim());
+  const rub = Number((rule.rub || "").trim());
+  const maxRaw = (rule.max_kg || "").trim();
+  const maxKg = maxRaw ? Number(maxRaw) : null;
+  if (!Number.isFinite(minKg) || minKg < 0 || !Number.isFinite(rub) || rub < 0) {
+    return null;
+  }
+  if (maxKg !== null) {
+    if (!Number.isFinite(maxKg) || maxKg <= minKg) {
+      return null;
+    }
+  }
+  return {
+    min_kg: Number(minKg.toFixed(6)),
+    max_kg: maxKg === null ? null : Number(maxKg.toFixed(6)),
+    rub: Number(rub.toFixed(6)),
+  };
+};
+
 const buildTriCurrencyDraft = (
   activeCurrency: CurrencyCode,
   activeValue: number,
@@ -350,6 +457,13 @@ const renderLatexInline = (latex: string): string =>
   renderToString(latex, {
     throwOnError: false,
     displayMode: false,
+    strict: "ignore",
+  });
+
+const renderLatexBlock = (latex: string): string =>
+  renderToString(latex, {
+    throwOnError: false,
+    displayMode: true,
     strict: "ignore",
   });
 
@@ -392,6 +506,9 @@ type AdminListProduct = {
   internal_category_id?: number | null;
   internal_category_name?: string | null;
   internal_category_slug?: string | null;
+  internal_category_ids?: number[];
+  internal_category_names?: string[];
+  internal_category_slugs?: string[];
   created_at: string;
   updated_at: string;
 };
@@ -404,8 +521,12 @@ export function AdminPage() {
     sources,
     latestJob,
     loadingMoreProducts,
+    loadingCategoriesTree,
+    loadingCategoryCounts,
     error,
-    refresh,
+    ensurePricingLoaded,
+    ensureWeightLoaded,
+    ensureDedupLoaded,
     loadMoreProducts,
     runSync,
     cancelSync,
@@ -419,6 +540,10 @@ export function AdminPage() {
     deleteCategory,
     addCategoryKeyword,
     removeCategoryKeyword,
+    getCategoryManualProducts,
+    searchCategoryManualProducts,
+    addCategoryManualProduct,
+    removeCategoryManualProduct,
     dedupCandidates,
     loadingDedupCandidates,
     mergeDedupPair,
@@ -459,6 +584,12 @@ export function AdminPage() {
   const [renameCategoryName, setRenameCategoryName] = useState<string>("");
   const [lastSavedCategoryName, setLastSavedCategoryName] = useState<string>("");
   const [keywordInput, setKeywordInput] = useState<string>("");
+  const [titleKeywordInput, setTitleKeywordInput] = useState<string>("");
+  const [manualSearchInput, setManualSearchInput] = useState<string>("");
+  const [manualSearchLoading, setManualSearchLoading] = useState<boolean>(false);
+  const [manualSearchResults, setManualSearchResults] = useState<CategoryManualProduct[]>([]);
+  const [manualAssignedProducts, setManualAssignedProducts] = useState<CategoryManualProduct[]>([]);
+  const [manualAssignedLoading, setManualAssignedLoading] = useState<boolean>(false);
   const [createFormOpen, setCreateFormOpen] = useState<boolean>(false);
   const [newCategoryName, setNewCategoryName] = useState<string>("");
   const [newCategoryParentId, setNewCategoryParentId] = useState<number | null>(null);
@@ -474,23 +605,20 @@ export function AdminPage() {
   const [weightRuleDrafts, setWeightRuleDrafts] = useState<Record<number, string>>({});
   const [weightKeywordInputs, setWeightKeywordInputs] = useState<Record<number, string>>({});
   const [pricingDrafts, setPricingDrafts] = useState<Record<PricingFieldKey, string>>({} as Record<PricingFieldKey, string>);
+  const [markupRateDraft, setMarkupRateDraft] = useState<string>("0");
   const [thresholdDraft, setThresholdDraft] = useState<TriCurrencyDraft | null>(null);
-  const [supplierRateDrafts, setSupplierRateDrafts] = useState<Record<number, TriCurrencyDraft>>({});
+  const [svcRuleDrafts, setSvcRuleDrafts] = useState<SvcRuleDraft[]>([]);
+  const [shippingRuleDrafts, setShippingRuleDrafts] = useState<ShippingRuleDraft[]>([]);
+  const [finalRoundingModeDraft, setFinalRoundingModeDraft] = useState<FinalRoundingMode>("unit");
+  const [showBybitErrorPopup, setShowBybitErrorPopup] = useState<boolean>(false);
+  const [nowTickMs, setNowTickMs] = useState<number>(() => Date.now());
+  const [pricingExampleStartSeed] = useState<number>(() => Math.random());
   const [sourcePricingDrafts, setSourcePricingDrafts] = useState<Record<string, {
     supplierId: string;
     promoPercent: string;
     promoOnlyNoDiscount: boolean;
     buyout: TriCurrencyDraft;
   }>>({});
-  const [newSupplierName, setNewSupplierName] = useState<string>("");
-  const [newSupplierCategory, setNewSupplierCategory] = useState<SupplierCategory>("main");
-  const [newSupplierRateDraft, setNewSupplierRateDraft] = useState<TriCurrencyDraft>({
-    currency: "RUB",
-    rub: "0",
-    usd: "0",
-    eur: "0",
-    gbp: "0",
-  });
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
   const bybitWarnToastShownRef = useRef<string | null>(null);
 
@@ -560,6 +688,36 @@ export function AdminPage() {
     pushToast(warning);
   }, [pricingSettings?.bybit_rate_warning]);
 
+  useEffect(() => {
+    if (!pricingSettings?.bybit_last_error) {
+      setShowBybitErrorPopup(false);
+    }
+  }, [pricingSettings?.bybit_last_error]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (tab === "pricing") {
+        await ensurePricingLoaded();
+        return;
+      }
+      if (tab === "weight") {
+        await ensureWeightLoaded();
+        return;
+      }
+      if (tab === "dedup") {
+        await ensureDedupLoaded();
+      }
+    };
+    void run();
+  }, [tab, ensurePricingLoaded, ensureWeightLoaded, ensureDedupLoaded]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowTickMs(Date.now());
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const categoryOptions = useMemo(() => {
     const rows: { id: number; name: string }[] = [];
     const walk = (nodes: typeof adminCategories, prefix: string) => {
@@ -591,10 +749,17 @@ export function AdminPage() {
   }, [adminCategories, selectedCategoryId]);
 
   const flattenedAdminCategories = useMemo(() => {
-    const list: { id: number; name: string; effective_keywords: string[] }[] = [];
+    const list: { id: number; name: string; keywords: string[]; title_keywords: string[] }[] = [];
     const walk = (nodes: typeof adminCategories) => {
       for (const node of nodes) {
-        list.push({ id: node.id, name: node.name, effective_keywords: node.effective_keywords || [] });
+        if (node.is_enabled) {
+          list.push({
+            id: node.id,
+            name: node.name,
+            keywords: node.keywords || [],
+            title_keywords: node.title_keywords || [],
+          });
+        }
         walk(node.children);
       }
     };
@@ -603,20 +768,33 @@ export function AdminPage() {
   }, [adminCategories]);
 
   const inferInternalCategoryName = (product: (typeof products)[number]) => {
+    if ((product.internal_category_names || []).length > 0) {
+      return product.internal_category_names!.join(", ");
+    }
     if (product.internal_category_name && product.internal_category_name.trim()) {
       return product.internal_category_name.trim();
     }
     const haystack = `${product.title} ${product.vendor || ""} ${product.product_type || ""}`.toLowerCase();
+    const titleHaystack = `${product.title || ""}`.toLowerCase();
     let best: { name: string; score: number } | null = null;
 
     for (const category of flattenedAdminCategories) {
       let score = 0;
-      for (const keyword of category.effective_keywords) {
+      for (const keyword of category.keywords) {
         const normalized = keyword.trim().toLowerCase();
         if (!normalized) {
           continue;
         }
         if (haystack.includes(normalized)) {
+          score += normalized.length;
+        }
+      }
+      for (const keyword of category.title_keywords) {
+        const normalized = keyword.trim().toLowerCase();
+        if (!normalized) {
+          continue;
+        }
+        if (titleHaystack.includes(normalized)) {
           score += normalized.length;
         }
       }
@@ -635,6 +813,54 @@ export function AdminPage() {
     setRenameCategoryName(selectedCategory.name);
     setLastSavedCategoryName(selectedCategory.name);
   }, [selectedCategory?.id, selectedCategory?.name]);
+
+  useEffect(() => {
+    if (!selectedCategoryId || !selectedCategory || !selectedCategory.keywords_editable) {
+      setManualAssignedProducts([]);
+      setManualAssignedLoading(false);
+      setManualSearchInput("");
+      setManualSearchResults([]);
+      return;
+    }
+    void (async () => {
+      setManualAssignedLoading(true);
+      const result = await getCategoryManualProducts(selectedCategoryId);
+      if (result.ok) {
+        setManualAssignedProducts(result.items);
+      } else {
+        pushToast(result.message);
+      }
+      setManualAssignedLoading(false);
+    })();
+  }, [selectedCategoryId, selectedCategory?.id, selectedCategory?.keywords_editable, getCategoryManualProducts]);
+
+  useEffect(() => {
+    const rawQuery = manualSearchInput.trim();
+    if (!selectedCategoryId || !selectedCategory?.keywords_editable || rawQuery.length === 0) {
+      setManualSearchResults([]);
+      setManualSearchLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setManualSearchLoading(true);
+      const result = await searchCategoryManualProducts(selectedCategoryId, rawQuery, 3);
+      if (cancelled) {
+        return;
+      }
+      if (result.ok) {
+        setManualSearchResults(result.items);
+      } else {
+        setManualSearchResults([]);
+        pushToast(result.message);
+      }
+      setManualSearchLoading(false);
+    }, 220);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [manualSearchInput, selectedCategoryId, selectedCategory?.keywords_editable, searchCategoryManualProducts]);
 
   useEffect(() => {
     if (!selectedCategoryId) {
@@ -706,6 +932,8 @@ export function AdminPage() {
     if (!pricingSettings) {
       return;
     }
+    const markupRate = Math.max(0, Number(pricingSettings.markup_multiplier) - 1);
+    setMarkupRateDraft(formatCompactNumber(markupRate, 6));
     setPricingDrafts((prev) => {
       const next = { ...prev };
       for (const key of pricingNumericKeys) {
@@ -714,6 +942,13 @@ export function AdminPage() {
       return next;
     });
   }, [pricingSettings]);
+
+  useEffect(() => {
+    if (!pricingSettings) {
+      return;
+    }
+    setFinalRoundingModeDraft(normalizeFinalRoundingMode(pricingSettings.final_rounding_mode, "unit"));
+  }, [pricingSettings?.final_rounding_mode]);
 
   useEffect(() => {
     if (!pricingSettings) {
@@ -751,6 +986,357 @@ export function AdminPage() {
     return () => window.clearTimeout(timer);
   }, [pricingDrafts, pricingSettings, updatePricingSettings]);
 
+  useEffect(() => {
+    if (!pricingSettings) {
+      return;
+    }
+    const parsed = Number((markupRateDraft || "").trim());
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return;
+    }
+    const nextMultiplier = Number((1 + parsed).toFixed(6));
+    const currentMultiplier = Number(pricingSettings.markup_multiplier);
+    if (Number.isFinite(currentMultiplier) && Math.abs(currentMultiplier - nextMultiplier) <= 0.000001) {
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      const result = await updatePricingSettings({ markup_multiplier: nextMultiplier });
+      if (!result.ok) {
+        pushToast(result.message);
+      }
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [markupRateDraft, pricingSettings, updatePricingSettings]);
+
+  useEffect(() => {
+    if (!pricingSettings) {
+      return;
+    }
+    const currentMode = normalizeFinalRoundingMode(pricingSettings.final_rounding_mode, "unit");
+    if (currentMode === finalRoundingModeDraft) {
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      const result = await updatePricingSettings({ final_rounding_mode: finalRoundingModeDraft });
+      if (!result.ok) {
+        pushToast(result.message);
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [finalRoundingModeDraft, pricingSettings, updatePricingSettings]);
+
+  useEffect(() => {
+    if (!pricingSettings) {
+      return;
+    }
+    const sourceRules = Array.isArray(pricingSettings.svc_rules) ? pricingSettings.svc_rules : [];
+    const next = sourceRules
+      .map((row, index) => {
+        const raw = row as Record<string, unknown>;
+        const minRub = Number(raw.min_rub);
+        const maxRaw = raw.max_rub;
+        const maxRub = maxRaw === null || maxRaw === undefined || String(maxRaw).trim() === "" ? null : Number(maxRaw);
+        const value = Number(raw.value);
+        if (!Number.isFinite(minRub) || !Number.isFinite(value)) {
+          return null;
+        }
+        if (maxRub !== null && !Number.isFinite(maxRub)) {
+          return null;
+        }
+        if (minRub < 0 || (maxRub !== null && maxRub <= minRub) || value < 0) {
+          return null;
+        }
+        const mode = String(raw.mode || "fixed_rub").toLowerCase() === "percent" ? "percent" : "fixed_rub";
+        return {
+          id: `svc-${index}-${minRub}-${maxRub ?? "inf"}`,
+          min_rub: formatCompactNumber(minRub, 6),
+          max_rub: maxRub === null ? "" : formatCompactNumber(maxRub, 6),
+          mode,
+          value: formatCompactNumber(value, 6),
+        } as SvcRuleDraft;
+      })
+      .filter(Boolean) as SvcRuleDraft[];
+    setSvcRuleDrafts(next);
+  }, [pricingSettings?.svc_rules]);
+
+  useEffect(() => {
+    if (!pricingSettings) {
+      return;
+    }
+    const parsed = svcRuleDrafts.map(parseSvcRuleDraft).filter(Boolean) as SvcRulePayload[];
+    if (parsed.length !== svcRuleDrafts.length) {
+      return;
+    }
+    parsed.sort((a, b) => (a.min_rub - b.min_rub) || ((a.max_rub ?? Number.POSITIVE_INFINITY) - (b.max_rub ?? Number.POSITIVE_INFINITY)));
+    for (let i = 1; i < parsed.length; i += 1) {
+      const prevMax = parsed[i - 1].max_rub ?? Number.POSITIVE_INFINITY;
+      if (parsed[i].min_rub < prevMax) {
+        return;
+      }
+    }
+    const currentRaw = Array.isArray(pricingSettings.svc_rules) ? pricingSettings.svc_rules : [];
+    const current = currentRaw
+      .map((row) => {
+        const raw = row as Record<string, unknown>;
+        const minRub = Number(raw.min_rub);
+        const maxRaw = raw.max_rub;
+        const maxRub = maxRaw === null || maxRaw === undefined || String(maxRaw).trim() === "" ? null : Number(maxRaw);
+        const value = Number(raw.value);
+        if (!Number.isFinite(minRub) || !Number.isFinite(value)) {
+          return null;
+        }
+        if (maxRub !== null && !Number.isFinite(maxRub)) {
+          return null;
+        }
+        if (minRub < 0 || (maxRub !== null && maxRub <= minRub) || value < 0) {
+          return null;
+        }
+        return {
+          min_rub: Number(minRub.toFixed(6)),
+          max_rub: maxRub === null ? null : Number(maxRub.toFixed(6)),
+          mode: String(raw.mode || "fixed_rub").toLowerCase() === "percent" ? "percent" : "fixed_rub",
+          value: Number(value.toFixed(6)),
+        };
+      })
+      .filter(Boolean) as SvcRulePayload[];
+    current.sort((a, b) => (a.min_rub - b.min_rub) || ((a.max_rub ?? Number.POSITIVE_INFINITY) - (b.max_rub ?? Number.POSITIVE_INFINITY)));
+    if (JSON.stringify(current) === JSON.stringify(parsed)) {
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      const result = await updatePricingSettings({
+        svc_rules: parsed as unknown as Array<Record<string, unknown>>,
+      });
+      if (!result.ok) {
+        pushToast(result.message);
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [svcRuleDrafts, pricingSettings, updatePricingSettings]);
+
+  const svcRulesValidationError = useMemo(() => {
+    const parsed = svcRuleDrafts.map(parseSvcRuleDraft).filter(Boolean) as SvcRulePayload[];
+    if (parsed.length !== svcRuleDrafts.length) {
+      return "SVC: заполни начало, конец и значение корректными числами";
+    }
+    for (const row of parsed) {
+      if (row.max_rub !== null && row.max_rub <= row.min_rub) {
+        return "SVC: конец диапазона должен быть больше начала";
+      }
+    }
+    parsed.sort((a, b) => (a.min_rub - b.min_rub) || ((a.max_rub ?? Number.POSITIVE_INFINITY) - (b.max_rub ?? Number.POSITIVE_INFINITY)));
+    for (let i = 1; i < parsed.length; i += 1) {
+      const prevMax = parsed[i - 1].max_rub ?? Number.POSITIVE_INFINITY;
+      if (parsed[i].min_rub < prevMax) {
+        return "SVC: диапазоны пересекаются";
+      }
+    }
+    return null;
+  }, [svcRuleDrafts]);
+
+  const svcRuleFieldErrors = useMemo(() => {
+    const errors: Record<string, SvcRuleFieldError> = {};
+    const sortableRows: Array<{ id: string; min_rub: number; max_rub: number | null }> = [];
+    for (const rule of svcRuleDrafts) {
+      const minRub = Number((rule.min_rub || "").trim());
+      const maxRaw = (rule.max_rub || "").trim();
+      const maxRub = maxRaw ? Number(maxRaw) : null;
+      const value = Number((rule.value || "").trim());
+      const rowError: SvcRuleFieldError = {
+        min: !Number.isFinite(minRub) || minRub < 0,
+        max: maxRub !== null && !Number.isFinite(maxRub),
+        value: !Number.isFinite(value) || value < 0,
+      };
+      if (!rowError.min && !rowError.max && maxRub !== null && maxRub <= minRub) {
+        rowError.max = true;
+      }
+      errors[rule.id] = rowError;
+      if (Number.isFinite(minRub) && (maxRub === null || Number.isFinite(maxRub)) && minRub >= 0) {
+        sortableRows.push({ id: rule.id, min_rub: minRub, max_rub: maxRub });
+      }
+    }
+    sortableRows.sort((a, b) => (a.min_rub - b.min_rub) || ((a.max_rub ?? Number.POSITIVE_INFINITY) - (b.max_rub ?? Number.POSITIVE_INFINITY)));
+    for (let i = 1; i < sortableRows.length; i += 1) {
+      const prevMax = sortableRows[i - 1].max_rub ?? Number.POSITIVE_INFINITY;
+      if (sortableRows[i].min_rub < prevMax) {
+        errors[sortableRows[i - 1].id].max = true;
+        errors[sortableRows[i].id].min = true;
+      }
+    }
+    return errors;
+  }, [svcRuleDrafts]);
+
+  const onAddSvcRule = () => {
+    setSvcRuleDrafts((prev) => {
+      const normalized = prev.map(parseSvcRuleDraft).filter(Boolean) as SvcRulePayload[];
+      normalized.sort((a, b) => (a.min_rub - b.min_rub) || ((a.max_rub ?? Number.POSITIVE_INFINITY) - (b.max_rub ?? Number.POSITIVE_INFINITY)));
+      const last = normalized.length > 0 ? normalized[normalized.length - 1] : null;
+      const nextMin = last ? Number(((last.max_rub ?? last.min_rub)).toFixed(2)) : 0;
+      const nextMax = Number((nextMin + 10000).toFixed(2));
+      return [
+        ...prev,
+        {
+          id: `svc-new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          min_rub: formatCompactNumber(nextMin, 6),
+          max_rub: formatCompactNumber(nextMax, 6),
+          mode: "fixed_rub",
+          value: "0",
+        },
+      ];
+    });
+  };
+
+  useEffect(() => {
+    if (!pricingSettings) {
+      setShippingRuleDrafts([]);
+      return;
+    }
+    const next: ShippingRuleDraft[] = [];
+    for (const group of shippingGroupOrder) {
+      const rows = ((pricingSettings.shipping_rules || {})[group.region] || {})[group.mode] || [];
+      for (const row of rows) {
+        const raw = row as Record<string, unknown>;
+        const minKgRaw = Number(raw.min_kg);
+        const maxRaw = raw.max_kg;
+        const maxKgRaw = maxRaw === null || maxRaw === undefined || String(maxRaw).trim() === "" ? null : Number(maxRaw);
+        const rubRaw = Number(raw.rub);
+        if (!Number.isFinite(minKgRaw) || minKgRaw < 0 || !Number.isFinite(rubRaw) || rubRaw < 0) {
+          continue;
+        }
+        if (maxKgRaw !== null && (!Number.isFinite(maxKgRaw) || maxKgRaw <= minKgRaw)) {
+          continue;
+        }
+        next.push({
+          id: `${group.region}-${group.mode}-${next.length}`,
+          region: group.region,
+          mode: group.mode,
+          min_kg: formatCompactNumber(minKgRaw, 6),
+          max_kg: maxKgRaw === null ? "" : formatCompactNumber(maxKgRaw, 6),
+          rub: formatCompactNumber(rubRaw, 6),
+        });
+      }
+    }
+    setShippingRuleDrafts(next);
+  }, [pricingSettings?.shipping_rules]);
+
+  const shippingRulesValidationError = useMemo(() => {
+    for (const group of shippingGroupOrder) {
+      const parsed = shippingRuleDrafts
+        .filter((item) => item.region === group.region && item.mode === group.mode)
+        .map(parseShippingRuleDraft);
+      if (parsed.some((item) => !item)) {
+        return `SSR: заполни корректно диапазоны в "${group.label}"`;
+      }
+      const normalized = parsed.filter(Boolean) as ShippingRulePayload[];
+      normalized.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
+      for (let i = 1; i < normalized.length; i += 1) {
+        const prevMax = normalized[i - 1].max_kg ?? Number.POSITIVE_INFINITY;
+        if (normalized[i].min_kg < prevMax - 1e-9) {
+          return `SSR: диапазоны пересекаются в "${group.label}"`;
+        }
+      }
+    }
+    return null;
+  }, [shippingRuleDrafts]);
+
+  const shippingRuleFieldErrors = useMemo(() => {
+    const errors: Record<string, ShippingRuleFieldError> = {};
+    for (const row of shippingRuleDrafts) {
+      const minKg = Number((row.min_kg || "").trim());
+      const rub = Number((row.rub || "").trim());
+      const maxRaw = (row.max_kg || "").trim();
+      const maxKg = maxRaw ? Number(maxRaw) : null;
+      const rowError: ShippingRuleFieldError = {
+        min: !Number.isFinite(minKg) || minKg < 0,
+        max: false,
+        rub: !Number.isFinite(rub) || rub < 0,
+      };
+      if (maxKg !== null && (!Number.isFinite(maxKg) || maxKg <= minKg)) {
+        rowError.max = true;
+      }
+      errors[row.id] = rowError;
+    }
+    for (const group of shippingGroupOrder) {
+      const rows = shippingRuleDrafts
+        .filter((item) => item.region === group.region && item.mode === group.mode)
+        .map((item) => {
+          const parsed = parseShippingRuleDraft(item);
+          return parsed ? { id: item.id, ...parsed } : null;
+        })
+        .filter(Boolean) as Array<{ id: string; min_kg: number; max_kg: number | null; rub: number }>;
+      rows.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
+      for (let i = 1; i < rows.length; i += 1) {
+        const prevMax = rows[i - 1].max_kg ?? Number.POSITIVE_INFINITY;
+        if (rows[i].min_kg < prevMax - 1e-9) {
+          errors[rows[i - 1].id].max = true;
+          errors[rows[i].id].min = true;
+        }
+      }
+    }
+    return errors;
+  }, [shippingRuleDrafts]);
+
+  useEffect(() => {
+    if (!pricingSettings || shippingRulesValidationError) {
+      return;
+    }
+    const payload: Record<string, Record<string, Array<Record<string, unknown>>>> = {
+      US: { normal: [], alt: [] },
+      EU: { normal: [], alt: [] },
+      UK: { normal: [], alt: [] },
+    };
+    for (const group of shippingGroupOrder) {
+      const rows = shippingRuleDrafts
+        .filter((item) => item.region === group.region && item.mode === group.mode)
+        .map(parseShippingRuleDraft)
+        .filter(Boolean) as ShippingRulePayload[];
+      rows.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
+      payload[group.region][group.mode] = rows.map((row) => ({
+        min_kg: row.min_kg,
+        max_kg: row.max_kg,
+        rub: row.rub,
+      }));
+    }
+    const current = JSON.stringify(pricingSettings.shipping_rules || {});
+    const next = JSON.stringify(payload);
+    if (current === next) {
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      const result = await updatePricingSettings({
+        shipping_rules: payload as unknown as Record<string, Record<string, Array<Record<string, unknown>>>>,
+      });
+      if (!result.ok) {
+        pushToast(result.message);
+      }
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [shippingRuleDrafts, pricingSettings, shippingRulesValidationError, updatePricingSettings]);
+
+  const onAddShippingRule = (region: ShippingRegion, mode: ShippingMode) => {
+    setShippingRuleDrafts((prev) => {
+      const groupRows = prev
+        .filter((item) => item.region === region && item.mode === mode)
+        .map(parseShippingRuleDraft)
+        .filter(Boolean) as ShippingRulePayload[];
+      groupRows.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
+      const last = groupRows.length > 0 ? groupRows[groupRows.length - 1] : null;
+      const nextMin = last ? Number((last.max_kg ?? last.min_kg).toFixed(3)) : 0;
+      const nextMax = Number((nextMin + 0.5).toFixed(3));
+      return [
+        ...prev,
+        {
+          id: `ship-new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          region,
+          mode,
+          min_kg: formatCompactNumber(nextMin, 6),
+          max_kg: formatCompactNumber(nextMax, 6),
+          rub: "0",
+        },
+      ];
+    });
+  };
+
   const pricingRates = useMemo(() => {
     if (!pricingSettings) {
       return { usdToRub: 95, eurToRub: 105, gbpToRub: 133 };
@@ -773,47 +1359,6 @@ export function AdminPage() {
       if (!prev) {
         return prev;
       }
-      const next = { ...prev, [field]: raw };
-      const parsed = parseNonNegativeNumber(raw);
-      if (parsed === null) {
-        return next;
-      }
-      return buildTriCurrencyDraft(
-        amountKeyToCurrency(field),
-        parsed,
-        pricingRates.usdToRub,
-        pricingRates.eurToRub,
-        pricingRates.gbpToRub
-      );
-    });
-  };
-
-  const setSupplierRateField = (supplierId: number, field: TriCurrencyAmountKey, raw: string) => {
-    setSupplierRateDrafts((prev) => {
-      const current = prev[supplierId];
-      if (!current) {
-        return prev;
-      }
-      const nextCurrent = { ...current, [field]: raw };
-      const parsed = parseNonNegativeNumber(raw);
-      if (parsed === null) {
-        return { ...prev, [supplierId]: nextCurrent };
-      }
-      return {
-        ...prev,
-        [supplierId]: buildTriCurrencyDraft(
-          amountKeyToCurrency(field),
-          parsed,
-          pricingRates.usdToRub,
-          pricingRates.eurToRub,
-          pricingRates.gbpToRub
-        ),
-      };
-    });
-  };
-
-  const setNewSupplierRateField = (field: TriCurrencyAmountKey, raw: string) => {
-    setNewSupplierRateDraft((prev) => {
       const next = { ...prev, [field]: raw };
       const parsed = parseNonNegativeNumber(raw);
       if (parsed === null) {
@@ -904,74 +1449,6 @@ export function AdminPage() {
 
     return () => window.clearTimeout(timer);
   }, [pricingSettings, thresholdDraft, updatePricingSettings, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
-
-  useEffect(() => {
-    if (!pricingSettings) {
-      return;
-    }
-    const usdToRub = pricingRates.usdToRub;
-    const eurToRub = pricingRates.eurToRub;
-    setSupplierRateDrafts((prev) => {
-      const next = { ...prev };
-      for (const supplier of pricingSettings.suppliers || []) {
-        const rub = Number(supplier.rate_per_500g_rub);
-        const usd = fromRubByRates(rub, "USD", usdToRub, eurToRub, pricingRates.gbpToRub);
-        const eur = fromRubByRates(rub, "EUR", usdToRub, eurToRub, pricingRates.gbpToRub);
-        next[supplier.id] = {
-          currency: normalizeCurrencyCode(supplier.rate_currency, "RUB"),
-          rub: formatCompactNumber(rub, 4),
-          usd: formatCompactNumber(usd, 4),
-          eur: formatCompactNumber(eur, 4),
-          gbp: "0",
-        };
-      }
-      return next;
-    });
-  }, [pricingSettings?.suppliers, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
-
-  useEffect(() => {
-    if (!pricingSettings) {
-      return;
-    }
-    const usdToRub = pricingRates.usdToRub;
-    const eurToRub = pricingRates.eurToRub;
-    const timers: number[] = [];
-    for (const supplier of pricingSettings.suppliers || []) {
-      const draft = supplierRateDrafts[supplier.id];
-      if (!draft) {
-        continue;
-      }
-      const activeCurrency = normalizeCurrencyCode(draft.currency, "RUB");
-      const activeRaw = draft[activeCurrency.toLowerCase() as "rub" | "usd" | "eur"];
-      const activeValue = Number((activeRaw || "").trim());
-      if (!Number.isFinite(activeValue) || activeValue < 0) {
-        continue;
-      }
-      const targetRub = toRubByRates(activeValue, activeCurrency, usdToRub, eurToRub, pricingRates.gbpToRub);
-      const currentRub = Number(supplier.rate_per_500g_rub);
-      const currentCurrency = normalizeCurrencyCode(supplier.rate_currency, "RUB");
-      if (Math.abs(currentRub - targetRub) <= 0.0001 && currentCurrency === activeCurrency) {
-        continue;
-      }
-      const timer = window.setTimeout(async () => {
-        const result = await updatePricingSupplier(supplier.id, {
-          rate_currency: activeCurrency,
-          rate_per_500g_value: Number(activeValue.toFixed(6)),
-          max_step_500g: Math.max(1, Number(supplier.max_step_500g) || 120),
-        });
-        if (!result.ok) {
-          pushToast(result.message);
-        }
-      }, 700);
-      timers.push(timer);
-    }
-
-    return () => {
-      for (const timer of timers) {
-        window.clearTimeout(timer);
-      }
-    };
-  }, [pricingSettings, supplierRateDrafts, updatePricingSupplier, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!sources || sources.length === 0) {
@@ -1106,11 +1583,19 @@ export function AdminPage() {
     if (!pricingSettings?.formula_latex) {
       return "";
     }
-    return renderLatexInline(pricingSettings.formula_latex);
+    return renderLatexBlock(pricingSettings.formula_latex);
   }, [pricingSettings?.formula_latex]);
 
   const pricingExample = useMemo(() => {
-    for (const product of products) {
+    if (products.length === 0) {
+      return null;
+    }
+    const startIndex = Math.floor(pricingExampleStartSeed * products.length) % products.length;
+    for (let offset = 0; offset < products.length; offset += 1) {
+      const product = products[(startIndex + offset) % products.length];
+      if (String(product.status || "").toLowerCase() !== "available") {
+        continue;
+      }
       const components = (product.pricing_components || {}) as Record<string, unknown>;
       const finalPrice = toFiniteNumber(product.final_price);
       const sourcePriceRub = toFiniteNumber(components.source_price_rub);
@@ -1144,9 +1629,10 @@ export function AdminPage() {
       const passThroughCostsRub = toFiniteNumber(components.pass_through_costs_rub);
       const taxRate = toFiniteNumber(components.tax_rate);
       const taxRub = toFiniteNumber(components.tax_rub);
-      const shippingSteps = toFiniteNumber(components.shipping_steps_500g);
+      const shippingRuleLabel = String(components.shipping_rule_label || "");
       const promoFactor = toFiniteNumber(components.promo_factor);
-      const markup = toFiniteNumber(components.markup_multiplier);
+      const markupMultiplier = toFiniteNumber(components.markup_multiplier);
+      const markupRate = toFiniteNumber(components.markup_rate) ?? ((markupMultiplier ?? 1) - 1);
       const supplierName = String(components.supplier_name || "Default Supplier");
       if (
         finalPrice === null
@@ -1176,9 +1662,8 @@ export function AdminPage() {
         || subtotalAfterMarkupRub === null
         || taxRate === null
         || taxRub === null
-        || shippingSteps === null
         || promoFactor === null
-        || markup === null
+        || markupMultiplier === null
       ) {
         continue;
       }
@@ -1187,8 +1672,22 @@ export function AdminPage() {
       const subtotalAfterMarkup = subtotalAfterMarkupRub;
       const labelVar = (symbol: string) => symbol;
       const labelGroup = (symbol: string, value: number, digits = 4) => `${symbol}=${formatCompactNumber(value, digits)}`;
+      const finalRoundingMode = normalizeFinalRoundingMode(
+        String(components.final_rounding_mode || pricingSettings.final_rounding_mode || "unit"),
+        "unit"
+      );
+      const roundingPrefix = finalRoundingMode === "none"
+        ? ""
+        : finalRoundingMode === "unit"
+          ? "\\lceil"
+          : `\\operatorname{ceil}_{${finalRoundingMode === "ten" ? "10" : finalRoundingMode === "hundred" ? "100" : "1000"}}(`;
+      const roundingSuffix = finalRoundingMode === "none"
+        ? ""
+        : finalRoundingMode === "unit"
+          ? "\\rceil"
+          : ")";
       const exampleLatex =
-        `\\lceil` +
+        `${roundingPrefix}` +
         `\\underbrace{` +
         `\\underbrace{(` +
         `\\underbrace{${formatCompactNumber(sourcePriceUsd)}}_{${labelVar("SPU")}}` +
@@ -1213,15 +1712,19 @@ export function AdminPage() {
         `)` +
         `+\\underbrace{${formatCompactNumber(customsFixedRub)}}_{${labelVar("CFX")}}` +
         `)}_{${labelGroup("CDR", customsRub)}}` +
-        `+\\underbrace{${formatCompactNumber(supplierTransportRub)}}_{SSR[\\text{${escapeLatexText(supplierName)}}][\\underbrace{${formatCompactNumber(shippingSteps)}}_{${labelVar("STP")}}]}` +
-        `+\\underbrace{${formatCompactNumber(serviceFeeRub)}}_{${labelVar("SVC")}}` +
+        `+\\underbrace{${formatCompactNumber(supplierTransportRub)}}_{SSR[\\text{${escapeLatexText(supplierName)}}][\\text{${escapeLatexText(shippingRuleLabel || "-")}}]}` +
         `}_{${labelGroup("SUB", subtotalBeforeMarkup)}}` +
-        `\\cdot\\underbrace{${formatCompactNumber(markup, 4)}}_{${labelVar("MP")}}` +
+        `\\quad\\Rightarrow\\quad` +
+        `\\underbrace{(` +
+        `\\underbrace{${formatCompactNumber(subtotalBeforeMarkup)}}_{${labelVar("SUB")}}` +
+        `\\cdot(1+\\underbrace{${formatCompactNumber(markupRate, 4)}}_{${labelVar("MUP")}})` +
+        `+\\underbrace{${formatCompactNumber(serviceFeeRub)}}_{${labelVar("SVC")}}` +
+        `)}_{${labelGroup("SUBM", subtotalAfterMarkup)}}` +
         `+\\underbrace{(` +
-        `\\underbrace{${formatCompactNumber(subtotalAfterMarkup)}}_{SUB\\cdot MP}` +
+        `\\underbrace{${formatCompactNumber(subtotalAfterMarkup)}}_{${labelVar("SUBM")}}` +
         `\\cdot\\underbrace{${formatCompactNumber(taxRate, 4)}}_{${labelVar("TXR")}}` +
         `)}_{${labelGroup("TAX", taxRub)}}` +
-        `\\rceil`;
+        `${roundingSuffix}`;
       const summarySpLatex = renderLatexInline("SP");
       const summaryFpLatex = renderLatexInline("FPR");
       const summaryRubLatex = renderLatexInline("SPR");
@@ -1252,13 +1755,15 @@ export function AdminPage() {
         "CDR",
         "SSR",
         "SUP",
-        "STP",
+        "RNG",
         "INS",
         "SVC",
         "SUB",
+        "SUBM",
         "TXR",
         "TAX",
-        "MP",
+        "MUP",
+        "RND",
         "FPR",
       ]);
       const keyValues: Record<string, unknown> = {
@@ -1283,13 +1788,15 @@ export function AdminPage() {
         CDR: customsRub,
         SSR: supplierTransportRub,
         SUP: supplierName,
-        STP: shippingSteps,
+        RNG: shippingRuleLabel || "-",
         INS: insuranceRub,
         SVC: serviceFeeRub,
         SUB: subtotalRub,
+        SUBM: subtotalAfterMarkupRub,
         TXR: toFiniteNumber(components.tax_rate),
         TAX: taxRub,
-        MP: markup,
+        MUP: markupRate,
+        RND: finalRoundingMode,
         FPR: finalPrice,
       };
       const legendDim: Record<string, boolean> = {};
@@ -1333,11 +1840,11 @@ export function AdminPage() {
         summaryRubLatex,
         marginRub,
         legendDim,
-        formulaHtml: renderLatexInline(exampleLatex),
+        formulaHtml: renderLatexBlock(exampleLatex),
       };
     }
     return null;
-  }, [products, pricingSettings]);
+  }, [products, pricingSettings, pricingExampleStartSeed]);
 
   const productVendors = useMemo(() => {
     const set = new Set<string>();
@@ -1431,12 +1938,13 @@ export function AdminPage() {
     }
 
     let cancelled = false;
+    const controller = new AbortController();
     const run = async () => {
       try {
         setLoadingFilteredServer(true);
         const params = buildFilterQuery();
         params.set("offset", "0");
-        const res = await fetch(`${API_BASE}/products?${params.toString()}`);
+        const res = await fetch(`${API_BASE}/products?${params.toString()}`, { signal: controller.signal });
         if (!res.ok) {
           throw new Error(`Products API error: ${res.status}`);
         }
@@ -1449,6 +1957,9 @@ export function AdminPage() {
         setFilteredServerTotal(payload.total || 0);
         setFilteredServerHasMore(items.length + (payload.offset || 0) < (payload.total || 0));
       } catch (e) {
+        if ((e as Error).name === "AbortError") {
+          return;
+        }
         if (!cancelled) {
           pushToast(e instanceof Error ? e.message : "Ошибка фильтрации");
         }
@@ -1459,9 +1970,13 @@ export function AdminPage() {
       }
     };
 
-    void run();
+    const timer = window.setTimeout(() => {
+      void run();
+    }, 280);
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
     };
   }, [hasActiveFilters, productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
 
@@ -1497,6 +2012,13 @@ export function AdminPage() {
   const displayedTotal = hasActiveFilters ? filteredServerTotal : productsTotal;
   const displayedHasMore = hasActiveFilters ? filteredServerHasMore : productsHasMore;
   const displayedLoadingMore = hasActiveFilters ? loadingFilteredServer : loadingMoreProducts;
+  const displayedProductInternalCategoryNames = useMemo(() => {
+    const out = new Map<number, string>();
+    for (const product of displayedProducts) {
+      out.set(product.id, inferInternalCategoryName(product));
+    }
+    return out;
+  }, [displayedProducts, flattenedAdminCategories]);
 
   useEffect(() => {
     if (tab !== "products") {
@@ -1567,25 +2089,27 @@ export function AdminPage() {
       return {
         stateLabel: "Нет данных",
         stateClass: "status-pill status-pill--muted",
-        autoEnabled: false,
         intervalSec: 0,
+        intervalLabel: "-",
         ageLabel: "-",
+        errorMessage: null as string | null,
       };
     }
-    const autoEnabled = pricingSettings.bybit_worker_auto_enabled !== false;
     const intervalSec = Math.max(30, Number(pricingSettings.bybit_worker_interval_sec || 1800));
+    const intervalHours = intervalSec / 3600;
+    const intervalLabel = Number.isInteger(intervalHours) && intervalHours >= 1
+      ? `${intervalHours} ${intervalHours === 1 ? "час" : intervalHours < 5 ? "часа" : "часов"}`
+      : `${Math.max(1, Math.round(intervalSec / 60))} мин`;
     const lastUpdatedRaw = pricingSettings.bybit_last_updated_at || null;
     const lastUpdatedDate = lastUpdatedRaw ? new Date(lastUpdatedRaw) : null;
     const staleAfterMs = intervalSec * 2 * 1000;
 
     let stateLabel = "Нет обновлений";
     let stateClass = "status-pill status-pill--muted";
-    if (!autoEnabled) {
-      stateLabel = "Выключен";
-    } else if (pricingSettings.bybit_last_error) {
+    if (pricingSettings.bybit_last_error) {
       stateLabel = "Ошибка";
       stateClass = "status-pill status-pill--bad";
-    } else if (lastUpdatedDate && !Number.isNaN(lastUpdatedDate.getTime()) && (Date.now() - lastUpdatedDate.getTime()) <= staleAfterMs) {
+    } else if (lastUpdatedDate && !Number.isNaN(lastUpdatedDate.getTime()) && (nowTickMs - lastUpdatedDate.getTime()) <= staleAfterMs) {
       stateLabel = "Работает";
       stateClass = "status-pill status-pill--ok";
     } else {
@@ -1594,16 +2118,27 @@ export function AdminPage() {
     }
 
     const ageLabel = lastUpdatedDate && !Number.isNaN(lastUpdatedDate.getTime())
-      ? `${Math.max(0, Math.floor((Date.now() - lastUpdatedDate.getTime()) / 60000))} мин назад`
+      ? `${Math.max(0, Math.floor((nowTickMs - lastUpdatedDate.getTime()) / 60000))} мин назад`
       : "-";
 
     return {
       stateLabel,
       stateClass,
-      autoEnabled,
       intervalSec,
+      intervalLabel,
       ageLabel,
+      errorMessage: pricingSettings.bybit_last_error || null,
     };
+  }, [pricingSettings, nowTickMs]);
+
+  const pricingBlockedByInitialBybit = useMemo(() => {
+    if (!pricingSettings) {
+      return false;
+    }
+    const hasSuccessfulRefresh = Boolean(pricingSettings.bybit_last_updated_at);
+    const status = String(pricingSettings.bybit_rate_status || "").toLowerCase();
+    const failedNow = status === "fallback_stored" || status === "unknown";
+    return !hasSuccessfulRefresh && failedNow;
   }, [pricingSettings]);
 
   const statusBadge = (status: string) => {
@@ -1742,7 +2277,6 @@ export function AdminPage() {
     if (!result.ok) {
       pushToast(result.message);
     }
-    await refresh();
   };
 
   const onCancelSync = async () => {
@@ -1751,7 +2285,6 @@ export function AdminPage() {
     }
     const result = await cancelSync(latestJob.job_id);
     pushToast(result.message);
-    await refresh();
   };
 
   const onStartCategoryCreate = (parentId: number | null) => {
@@ -1789,7 +2322,6 @@ export function AdminPage() {
       setNewCategoryParentId(null);
       setNewCategoryName("");
       setNewCategoryKeywords("");
-      await refresh();
     }
   };
 
@@ -1803,29 +2335,94 @@ export function AdminPage() {
       setSelectedCategoryId(null);
       setRenameCategoryName("");
       setKeywordInput("");
+      setTitleKeywordInput("");
     }
   };
 
-  const onAddKeyword = async () => {
-    if (!selectedCategoryId || !keywordInput.trim()) {
+  const onAddKeyword = async (scope: "local" | "title") => {
+    if (!selectedCategoryId) {
       return;
     }
-    const result = await addCategoryKeyword(selectedCategoryId, keywordInput.trim());
+    const raw = scope === "title" ? titleKeywordInput.trim() : keywordInput.trim();
+    if (!raw) {
+      return;
+    }
+    if (!selectedCategory?.keywords_editable) {
+      pushToast(selectedCategory?.keywords_locked_reason || "Для этой категории ключевые слова недоступны");
+      return;
+    }
+    const result = await addCategoryKeyword(selectedCategoryId, raw, scope);
     if (result.ok) {
-      setKeywordInput("");
+      if (scope === "title") {
+        setTitleKeywordInput("");
+      } else {
+        setKeywordInput("");
+      }
     } else {
       pushToast(result.message);
     }
   };
 
-  const onRemoveKeyword = async (keyword: string) => {
+  const onRemoveKeyword = async (keyword: string, scope: "local" | "title") => {
     if (!selectedCategoryId) {
       return;
     }
-    const result = await removeCategoryKeyword(selectedCategoryId, keyword);
+    if (!selectedCategory?.keywords_editable) {
+      pushToast(selectedCategory?.keywords_locked_reason || "Для этой категории ключевые слова недоступны");
+      return;
+    }
+    const result = await removeCategoryKeyword(selectedCategoryId, keyword, scope);
     if (!result.ok) {
       pushToast(result.message);
     }
+  };
+
+  const onToggleCategoryEnabled = async (enabled: boolean) => {
+    if (!selectedCategoryId) {
+      return;
+    }
+    const result = await updateCategory(selectedCategoryId, { is_enabled: enabled });
+    pushToast(result.ok ? (enabled ? "Категория включена" : "Категория выключена") : result.message);
+  };
+
+  const onAddManualProduct = async (productId: number) => {
+    if (!selectedCategoryId) {
+      return;
+    }
+    const result = await addCategoryManualProduct(selectedCategoryId, productId);
+    pushToast(result.message);
+    if (!result.ok) {
+      return;
+    }
+    setManualAssignedLoading(true);
+    const [assigned, search] = await Promise.all([
+      getCategoryManualProducts(selectedCategoryId),
+      manualSearchInput.trim() ? searchCategoryManualProducts(selectedCategoryId, manualSearchInput.trim(), 3) : Promise.resolve({ ok: true, message: "OK", items: [] }),
+    ]);
+    if (assigned.ok) {
+      setManualAssignedProducts(assigned.items);
+    }
+    if (search.ok) {
+      setManualSearchResults(search.items);
+    }
+    setManualAssignedLoading(false);
+  };
+
+  const onRemoveManualProduct = async (productId: number) => {
+    if (!selectedCategoryId) {
+      return;
+    }
+    const result = await removeCategoryManualProduct(selectedCategoryId, productId);
+    pushToast(result.message);
+    if (!result.ok) {
+      return;
+    }
+    setManualAssignedLoading(true);
+    const assigned = await getCategoryManualProducts(selectedCategoryId);
+    if (assigned.ok) {
+      setManualAssignedProducts(assigned.items);
+    }
+    setManualAssignedLoading(false);
   };
 
   const onCreateWeightRule = async () => {
@@ -1860,50 +2457,6 @@ export function AdminPage() {
     pushToast(result.message);
   };
 
-  const onCreatePricingSupplier = async () => {
-    const name = newSupplierName.trim();
-    const category = normalizeSupplierCategory(newSupplierCategory, "main");
-    const activeCurrency = normalizeCurrencyCode(newSupplierRateDraft.currency, "RUB");
-    const activeField = currencyToAmountKey(activeCurrency);
-    const parsedRate = Number((newSupplierRateDraft[activeField] || "").trim());
-    if (!name) {
-      pushToast("Название поставщика обязательно");
-      return;
-    }
-    if (!Number.isFinite(parsedRate) || parsedRate < 0) {
-      pushToast("Тариф должен быть числом >= 0");
-      return;
-    }
-    const result = await createPricingSupplier({
-      name,
-      category,
-      rate_currency: activeCurrency,
-      rate_per_500g_value: Number(parsedRate.toFixed(4)),
-      max_step_500g: 120,
-    });
-    pushToast(result.message);
-    if (result.ok) {
-      setNewSupplierName("");
-      setNewSupplierCategory("main");
-      setNewSupplierRateDraft({ currency: "RUB", rub: "0", usd: "0", eur: "0", gbp: "0" });
-    }
-  };
-
-  const onUpdatePricingSupplierCategory = async (supplierId: number, category: SupplierCategory) => {
-    const result = await updatePricingSupplier(supplierId, { category });
-    if (!result.ok) {
-      pushToast(result.message);
-    }
-  };
-
-  const onDeletePricingSupplier = async (supplierId: number, supplierKey: string) => {
-    if (supplierKey === "default") {
-      return;
-    }
-    const result = await deletePricingSupplier(supplierId);
-    pushToast(result.message);
-  };
-
   const onMergePair = async (primaryId: number, duplicateId: number) => {
     const result = await mergeDedupPair(primaryId, duplicateId);
     pushToast(result.message);
@@ -1923,6 +2476,8 @@ export function AdminPage() {
     return (
       <div className="cat-tree-column">
         {nodes.map((node) => {
+          const hideChildrenInTree = !!node.is_designers_root;
+          const canCreateChild = !node.is_designers_root && !node.is_in_designers_branch && !node.is_fallback && !node.is_favorite;
           return (
             <div key={node.id} className="cat-tree-node" style={{ marginLeft: `${depth * 12}px` }}>
               <div className="cat-tree-item">
@@ -1936,19 +2491,23 @@ export function AdminPage() {
                 >
                   <span>{node.name}</span>
                 </button>
-                <button
-                  type="button"
-                  className="tree-plus"
-                  title="Добавить дочернюю категорию"
-                  onClick={() => onStartCategoryCreate(node.id)}
-                >
-                  +
-                </button>
+                {canCreateChild ? (
+                  <button
+                    type="button"
+                    className="tree-plus"
+                    title="Добавить дочернюю категорию"
+                    onClick={() => onStartCategoryCreate(node.id)}
+                  >
+                    +
+                  </button>
+                ) : null}
                 <span className="muted">
-                  {node.is_fallback ? "системная" : node.is_favorite ? "избранное" : `${node.keywords.length} ключей`}
+                  {!node.is_enabled ? "выключена" : node.is_system ? "системная" : node.keywords_editable ? `${node.keywords.length} ключей` : "ветка"} • {node.product_count} товаров
                 </span>
               </div>
-              {node.children.length > 0 ? <div className="cat-tree-children">{renderTree(node.children, depth + 1)}</div> : null}
+              {node.children.length > 0 && !hideChildrenInTree ? (
+                <div className="cat-tree-children">{renderTree(node.children, depth + 1)}</div>
+              ) : null}
             </div>
           );
         })}
@@ -2139,7 +2698,7 @@ export function AdminPage() {
                           )}
                         </td>
                         <td>{product.product_type || "-"}</td>
-                        <td>{inferInternalCategoryName(product)}</td>
+                        <td>{displayedProductInternalCategoryNames.get(product.id) || "Прочее"}</td>
                         <td>
                           <span className={status.cls}>{status.label}</span>
                         </td>
@@ -2219,6 +2778,8 @@ export function AdminPage() {
       {tab === "categories" ? (
         <div className="card">
           <h2>Категории</h2>
+          {loadingCategoriesTree ? <p className="muted">Загружаем дерево категорий...</p> : null}
+          {!loadingCategoriesTree && loadingCategoryCounts ? <p className="muted">Пересчитываем количество товаров по категориям...</p> : null}
           <div className="categories-layout">
             <div>
               <div className="actions" style={{ marginBottom: "0.5rem" }}>
@@ -2263,55 +2824,184 @@ export function AdminPage() {
                       value={renameCategoryName}
                       onChange={(event) => setRenameCategoryName(event.target.value)}
                       placeholder="Название категории"
+                      disabled={selectedCategory.is_system}
                     />
-                    <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_fallback || selectedCategory.is_favorite}>
+                    <label className="ui-switch">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategory.is_enabled}
+                        onChange={(event) => void onToggleCategoryEnabled(event.target.checked)}
+                      />
+                      <span className="ui-switch-track">
+                        <span className="ui-switch-thumb" />
+                      </span>
+                      <span className="ui-switch-text">{selectedCategory.is_enabled ? "Вкл" : "Выкл"}</span>
+                    </label>
+                    <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_system}>
                       Удалить
                     </button>
-                    {selectedCategory.is_fallback || selectedCategory.is_favorite ? (
+                    {selectedCategory.is_system ? (
                       <p className="muted">Данная категория системная, ее нельзя удалить.</p>
                     ) : null}
                   </div>
 
-                  <p className="muted">Ключевые слова (локальные):</p>
-                  <div className="chip-list">
-                    {selectedCategory.keywords.map((keyword) => (
-                      <span key={keyword} className="tag tag--with-action">
-                        <span>{keyword}</span>
-                        <button type="button" className="tag-x" onClick={() => void onRemoveKeyword(keyword)}>
-                          x
+                  {selectedCategory.is_designers_root ? (
+                    <>
+                      <p className="muted">Список дизайнеров синхронизируется автоматически из брендов товаров.</p>
+                      <div className="chip-list">
+                        {[...selectedCategory.children]
+                          .sort((left, right) => left.name.localeCompare(right.name, "ru"))
+                          .map((child) => (
+                          <span key={child.id} className="tag tag--muted">
+                            {child.name}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  ) : !selectedCategory.is_system ? (
+                    <>
+                      <p className="muted">
+                        Ключевые слова по локальным категориям{" "}
+                        <HelpHint text="Срабатывают по бренду и типу товара. Товар может попасть сразу в несколько категорий." />
+                      </p>
+                      <div className="chip-list">
+                        {selectedCategory.keywords.map((keyword) => (
+                          <span
+                            key={keyword}
+                            className={selectedCategory.keywords_editable ? "tag tag--with-action" : "tag tag--muted"}
+                          >
+                            <span>{keyword}</span>
+                            {selectedCategory.keywords_editable ? (
+                              <button type="button" className="tag-x" onClick={() => void onRemoveKeyword(keyword, "local")}>
+                                x
+                              </button>
+                            ) : null}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="form">
+                        <input
+                          value={keywordInput}
+                          onChange={(event) => setKeywordInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void onAddKeyword("local");
+                            }
+                          }}
+                          placeholder="Введите ключ и нажмите Enter"
+                          disabled={!selectedCategory.keywords_editable}
+                        />
+                        <button type="button" onClick={() => void onAddKeyword("local")} disabled={!selectedCategory.keywords_editable}>
+                          Добавить ключ
                         </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="form">
-                    <input
-                      value={keywordInput}
-                      onChange={(event) => setKeywordInput(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          void onAddKeyword();
-                        }
-                      }}
-                      placeholder="Введите ключ и нажмите Enter"
-                      disabled={selectedCategory.is_fallback || selectedCategory.is_favorite}
-                    />
-                    <button type="button" onClick={onAddKeyword} disabled={selectedCategory.is_fallback || selectedCategory.is_favorite}>
-                      Добавить ключ
-                    </button>
-                  </div>
-                  {selectedCategory.is_fallback || selectedCategory.is_favorite ? <p className="muted">У системной категории ключей быть не должно.</p> : null}
+                      </div>
+                      <p className="muted">
+                        Ключевые слова по названию товара{" "}
+                        <HelpHint text="Срабатывают только по title товара. Удобно для точных слов, которые не должны матчиться по бренду или URL." />
+                      </p>
+                      <div className="chip-list">
+                        {selectedCategory.title_keywords.map((keyword) => (
+                          <span
+                            key={keyword}
+                            className={selectedCategory.keywords_editable ? "tag tag--with-action" : "tag tag--muted"}
+                          >
+                            <span>{keyword}</span>
+                            {selectedCategory.keywords_editable ? (
+                              <button type="button" className="tag-x" onClick={() => void onRemoveKeyword(keyword, "title")}>
+                                x
+                              </button>
+                            ) : null}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="form">
+                        <input
+                          value={titleKeywordInput}
+                          onChange={(event) => setTitleKeywordInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void onAddKeyword("title");
+                            }
+                          }}
+                          placeholder="Введите ключ из названия товара и нажмите Enter"
+                          disabled={!selectedCategory.keywords_editable}
+                        />
+                        <button type="button" onClick={() => void onAddKeyword("title")} disabled={!selectedCategory.keywords_editable}>
+                          Добавить ключ
+                        </button>
+                      </div>
+                      <p className="muted">Ручное добавление товаров в категорию</p>
+                      <div className="form">
+                        <input
+                          value={manualSearchInput}
+                          onChange={(event) => setManualSearchInput(event.target.value)}
+                          placeholder="Поиск"
+                          disabled={!selectedCategory.keywords_editable}
+                        />
+                      </div>
+                      {manualSearchLoading ? <p className="muted">Ищем товары...</p> : null}
+                      {!manualSearchLoading && manualSearchInput.trim() && manualSearchResults.length === 0 ? (
+                        <p className="muted">Ничего не найдено</p>
+                      ) : null}
+                      {manualSearchResults.map((item) => {
+                        const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
+                        return (
+                          <div key={`manual-search-${item.product_id}`} className="manual-product-row">
+                            <div className="manual-product-media">
+                              {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" /> : <span className="muted">Нет фото</span>}
+                            </div>
+                            <div className="manual-product-main">
+                              <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
+                                {item.title}
+                              </a>
+                              <p className="muted">
+                                <a href={item.url} target="_blank" rel="noreferrer">
+                                  {item.source_name || `Source #${item.source_id}`}
+                                </a>
+                              </p>
+                              <p className="muted">{categoryLabel}</p>
+                            </div>
+                            <button type="button" onClick={() => void onAddManualProduct(item.product_id)}>
+                              +
+                            </button>
+                          </div>
+                        );
+                      })}
 
-                  <p className="muted">Ключевые слова (наследованные):</p>
-                  <div className="chip-list">
-                    {selectedCategory.effective_keywords
-                      .filter((keyword) => !selectedCategory.keywords.includes(keyword))
-                      .map((keyword) => (
-                        <span key={keyword} className="tag">
-                          {keyword}
-                        </span>
-                      ))}
-                  </div>
+                      <p className="muted">Добавленные товары</p>
+                      {manualAssignedLoading ? <p className="muted">Загружаем добавленные товары...</p> : null}
+                      {!manualAssignedLoading && manualAssignedProducts.length === 0 ? <p className="muted">Пока пусто</p> : null}
+                      {manualAssignedProducts.map((item) => {
+                        const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
+                        return (
+                          <div key={`manual-added-${item.product_id}`} className="manual-product-row">
+                            <div className="manual-product-media">
+                              {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" /> : <span className="muted">Нет фото</span>}
+                            </div>
+                            <div className="manual-product-main">
+                              <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
+                                {item.title}
+                              </a>
+                              <p className="muted">
+                                <a href={item.url} target="_blank" rel="noreferrer">
+                                  {item.source_name || `Source #${item.source_id}`}
+                                </a>
+                              </p>
+                              <p className="muted">{categoryLabel}</p>
+                            </div>
+                            <button type="button" onClick={() => void onRemoveManualProduct(item.product_id)}>
+                              Удалить
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {!selectedCategory.keywords_editable && selectedCategory.keywords_locked_reason ? (
+                        <p className="muted">{selectedCategory.keywords_locked_reason}</p>
+                      ) : null}
+                    </>
+                  ) : null}
                 </>
               ) : (
                 <p className="muted">Выбери категорию в дереве слева, чтобы редактировать название и ключи.</p>
@@ -2356,7 +3046,11 @@ export function AdminPage() {
       {tab === "pricing" ? (
         <div className="card">
           <h2>Настройки ценообразования</h2>
-          {pricingSettings ? (
+          {!pricingSettings ? (
+            <p className="muted">Загружаем настройки ценообразования...</p>
+          ) : pricingBlockedByInitialBybit ? (
+            <p className="muted">Ценообразование временно недоступно: ждем первый успешный курс Bybit после запуска системы.</p>
+          ) : (
             <>
               <div className="pricing-worker-box">
                 <h3 className="with-help">
@@ -2366,15 +3060,29 @@ export function AdminPage() {
                 <div className="pricing-worker-grid">
                   <div className="pricing-worker-item">
                     <span className="muted">Состояние</span>
-                    <span className={bybitWorkerInfo.stateClass}>{bybitWorkerInfo.stateLabel}</span>
-                  </div>
-                  <div className="pricing-worker-item">
-                    <span className="muted">Режим</span>
-                    <strong>{bybitWorkerInfo.autoEnabled ? "Автообновление включено" : "Автообновление выключено"}</strong>
+                    {bybitWorkerInfo.errorMessage ? (
+                      <div className="pricing-worker-error-wrap">
+                        <button
+                          type="button"
+                          className={bybitWorkerInfo.stateClass}
+                          onClick={() => setShowBybitErrorPopup((prev) => !prev)}
+                        >
+                          {bybitWorkerInfo.stateLabel}
+                        </button>
+                        {showBybitErrorPopup ? (
+                          <div className="pricing-worker-error-popup">
+                            <strong>Лог ошибки</strong>
+                            <pre>{bybitWorkerInfo.errorMessage}</pre>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className={bybitWorkerInfo.stateClass}>{bybitWorkerInfo.stateLabel}</span>
+                    )}
                   </div>
                   <div className="pricing-worker-item">
                     <span className="muted">Интервал</span>
-                    <strong>{Math.max(1, Math.round(bybitWorkerInfo.intervalSec / 60))} мин</strong>
+                    <strong>{bybitWorkerInfo.intervalLabel}</strong>
                   </div>
                   <div className="pricing-worker-item">
                     <span className="muted">Последнее обновление</span>
@@ -2382,12 +3090,11 @@ export function AdminPage() {
                     <span className="muted">{bybitWorkerInfo.ageLabel}</span>
                   </div>
                   <div className="pricing-worker-item">
-                    <span className="muted">Статус ответа</span>
-                    <strong>{pricingSettings.bybit_rate_status || "-"}</strong>
-                  </div>
-                  <div className="pricing-worker-item">
-                    <span className="muted">Ошибка</span>
-                    <strong>{pricingSettings.bybit_last_error || "-"}</strong>
+                    <span className="muted">Выбранный курс</span>
+                    <strong>{formatCompactNumber(pricingSettings.bybit_usdt_to_rub, 4)} RUB/USDT</strong>
+                    <span className="muted">
+                      BFX: {formatCompactNumber(pricingSettings.bybit_usdt_to_rub + pricingSettings.bybit_extra_rub, 4)} RUB/USDT
+                    </span>
                   </div>
                 </div>
 
@@ -2452,6 +3159,22 @@ export function AdminPage() {
               </div>
 
               <div className="pricing-settings-grid">
+                <label className="pricing-settings-field">
+                  <span className="muted with-help">
+                    <span className="pricing-field-label">
+                      <span dangerouslySetInnerHTML={{ __html: renderLatexInline("MUP") }} />
+                      <span>Наценка</span>
+                    </span>
+                    <HelpHint text="Отдельная наценка к SUB. Пример: 0.25 означает +25%, применяется как (1 + MUP)." />
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={markupRateDraft}
+                    onChange={(event) => setMarkupRateDraft(event.target.value)}
+                  />
+                </label>
                 {pricingFieldMeta.map((field) => (
                   <label key={field.key} className="pricing-settings-field">
                     <span className="muted with-help">
@@ -2472,6 +3195,25 @@ export function AdminPage() {
                     />
                   </label>
                 ))}
+                <label className="pricing-settings-field">
+                  <span className="muted with-help">
+                    <span className="pricing-field-label">
+                      <span dangerouslySetInnerHTML={{ __html: renderLatexInline("RND") }} />
+                      <span>Округление FPR</span>
+                    </span>
+                    <HelpHint text="Управляет финальным округлением цены. Применяется вместо старого жесткого ceil в формуле." />
+                  </span>
+                  <select
+                    value={finalRoundingModeDraft}
+                    onChange={(event) => setFinalRoundingModeDraft(normalizeFinalRoundingMode(event.target.value, "unit"))}
+                  >
+                    {finalRoundingOptions.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
 
               <h3 className="with-help">
@@ -2518,93 +3260,163 @@ export function AdminPage() {
               </div>
 
               <h3 className="with-help">
-                SSR по поставщикам (за 500г)
-                <HelpHint text="Это базовый тариф логистики поставщика за каждые 500 грамм. Для большего веса цена растет по шагам." />
+                SSR по диапазонам веса
+                <HelpHint text="Тарифы доставки задаются диапазонами веса (кг). Для каждого диапазона укажи сумму в RUB. Диапазоны внутри одного тарифа не должны пересекаться." />
               </h3>
-              <div className="pricing-supplier-list">
-                <div className="pricing-supplier-list-head">
-                  <span>Название</span>
-                  <span>Категория</span>
-                  <span>Цена 500г (RUB)</span>
-                  <span>Цена 500г (USD)</span>
-                  <span>Цена 500г (EUR)</span>
+              <div className="pricing-svc-list">
+                <div className="pricing-svc-head">
+                  <span>Тариф</span>
+                  <span>От, кг</span>
+                  <span>До, кг (пусто = +)</span>
+                  <span>Цена, RUB</span>
                   <span></span>
                 </div>
-                {pricingSuppliers.filter((supplier) => supplier.key !== "default").map((supplier) => {
-                  const draft = supplierRateDrafts[supplier.id] || buildTriCurrencyDraft("RUB", Number(supplier.rate_per_500g_rub), pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
+                {shippingGroupOrder.map((group) => {
+                  const rows = shippingRuleDrafts.filter((item) => item.region === group.region && item.mode === group.mode);
                   return (
-                    <div key={supplier.id} className="pricing-supplier-list-row">
-                      <span>{supplier.name}</span>
-                      <select
-                        value={normalizeSupplierCategory(supplier.category)}
+                    <div key={`ship-group-${group.region}-${group.mode}`}>
+                      {rows.map((rule) => {
+                        const rowError = shippingRuleFieldErrors[rule.id] ?? { min: false, max: false, rub: false };
+                        return (
+                          <div key={rule.id} className="pricing-svc-row">
+                            <span className="muted">{group.label}</span>
+                            <input
+                              className={rowError.min ? "input-error" : undefined}
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={rule.min_kg}
+                              onChange={(event) => {
+                                const nextValue = event.target.value;
+                                setShippingRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, min_kg: nextValue } : item)));
+                              }}
+                            />
+                            <input
+                              className={rowError.max ? "input-error" : undefined}
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              placeholder=""
+                              value={rule.max_kg}
+                              onChange={(event) => {
+                                const nextValue = event.target.value;
+                                setShippingRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, max_kg: nextValue } : item)));
+                              }}
+                            />
+                            <input
+                              className={rowError.rub ? "input-error" : undefined}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={rule.rub}
+                              onChange={(event) => {
+                                const nextValue = event.target.value;
+                                setShippingRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, rub: nextValue } : item)));
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShippingRuleDrafts((prev) => prev.filter((item) => item.id !== rule.id));
+                              }}
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        );
+                      })}
+                      <div className="pricing-svc-actions">
+                        <button type="button" onClick={() => onAddShippingRule(group.region, group.mode)}>
+                          Добавить диапазон: {group.label}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {shippingRulesValidationError ? (
+                  <p className="muted pricing-svc-error">{shippingRulesValidationError}</p>
+                ) : null}
+              </div>
+
+              <h3 className="with-help">
+                Надбавка SVC
+                <HelpHint text="SVC — это ваша надбавка по диапазонам BUY. Диапазоны не должны пересекаться и касаться границ друг друга." />
+              </h3>
+              <div className="pricing-svc-list">
+                <div className="pricing-svc-head">
+                  <span>Начало BUY (RUB)</span>
+                  <span>Конец BUY (RUB)</span>
+                  <span>Режим</span>
+                  <span>Значение</span>
+                  <span></span>
+                </div>
+                {svcRuleDrafts.map((rule) => {
+                  const rowError = svcRuleFieldErrors[rule.id] ?? { min: false, max: false, value: false };
+                  return (
+                    <div key={rule.id} className="pricing-svc-row">
+                      <input
+                        className={rowError.min ? "input-error" : undefined}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={rule.min_rub}
                         onChange={(event) => {
-                          void onUpdatePricingSupplierCategory(
-                            supplier.id,
-                            normalizeSupplierCategory(event.target.value, "main")
-                          );
+                          const nextValue = event.target.value;
+                          setSvcRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, min_rub: nextValue } : item)));
+                        }}
+                      />
+                      <input
+                        className={rowError.max ? "input-error" : undefined}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder=""
+                        value={rule.max_rub}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          setSvcRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, max_rub: nextValue } : item)));
+                        }}
+                      />
+                      <select
+                        value={rule.mode}
+                        onChange={(event) => {
+                          const nextMode = event.target.value === "percent" ? "percent" : "fixed_rub";
+                          setSvcRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, mode: nextMode } : item)));
                         }}
                       >
-                        <option value="main">Main</option>
-                        <option value="alt">Alt</option>
+                        <option value="fixed_rub">Ручная сумма (RUB)</option>
+                        <option value="percent">Процент от BUY</option>
                       </select>
                       <input
+                        className={rowError.value ? "input-error" : undefined}
                         type="number"
-                        step="0.01"
-                        value={draft.rub}
-                        onChange={(event) => setSupplierRateField(supplier.id, "rub", event.target.value)}
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={draft.usd}
-                        onChange={(event) => setSupplierRateField(supplier.id, "usd", event.target.value)}
-                      />
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={draft.eur}
-                        onChange={(event) => setSupplierRateField(supplier.id, "eur", event.target.value)}
+                        min="0"
+                        step={rule.mode === "percent" ? "0.0001" : "0.01"}
+                        value={rule.value}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          setSvcRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, value: nextValue } : item)));
+                        }}
                       />
                       <button
                         type="button"
-                        onClick={() => void onDeletePricingSupplier(supplier.id, supplier.key)}
+                        onClick={() => {
+                          setSvcRuleDrafts((prev) => prev.filter((item) => item.id !== rule.id));
+                        }}
                       >
                         Удалить
                       </button>
                     </div>
                   );
                 })}
-                <div className="pricing-supplier-list-row pricing-supplier-list-row--new">
-                  <input value={newSupplierName} onChange={(event) => setNewSupplierName(event.target.value)} />
-                  <select
-                    value={newSupplierCategory}
-                    onChange={(event) => setNewSupplierCategory(normalizeSupplierCategory(event.target.value, "main"))}
-                  >
-                    <option value="main">Main</option>
-                    <option value="alt">Alt</option>
-                  </select>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newSupplierRateDraft.rub}
-                    onChange={(event) => setNewSupplierRateField("rub", event.target.value)}
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newSupplierRateDraft.usd}
-                    onChange={(event) => setNewSupplierRateField("usd", event.target.value)}
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newSupplierRateDraft.eur}
-                    onChange={(event) => setNewSupplierRateField("eur", event.target.value)}
-                  />
-                  <button type="button" onClick={() => void onCreatePricingSupplier()}>
-                    Добавить
+                <div className="pricing-svc-actions">
+                  <button type="button" onClick={onAddSvcRule}>
+                    Добавить надбавку
                   </button>
                 </div>
+                {svcRulesValidationError ? (
+                  <p className="muted pricing-svc-error">{svcRulesValidationError}</p>
+                ) : null}
               </div>
 
               <h3 className="with-help">
@@ -2720,8 +3532,6 @@ export function AdminPage() {
                 })}
               </div>
             </>
-          ) : (
-            <p className="muted">Идет проверка актуального курса на Bybit...</p>
           )}
         </div>
       ) : null}

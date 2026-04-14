@@ -85,7 +85,9 @@ export function ProductPage() {
     return list;
   };
 
-  const resolvedCategorySlug = (resolvedProduct.internal_category_slug || "").trim() || toSlug(resolvedProduct.product_type || "Прочее");
+  const resolvedCategorySlug = ((resolvedProduct.internal_category_slugs || [])[0] || "").trim()
+    || (resolvedProduct.internal_category_slug || "").trim()
+    || toSlug(resolvedProduct.product_type || "Прочее");
   const category = flatCategories(categories).find((item) => item.slug === resolvedCategorySlug);
 
   const showPrev = () => {

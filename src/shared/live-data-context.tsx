@@ -30,7 +30,7 @@ type ProductVariant = {
   sku: string | null;
 };
 
-type ServiceProduct = {
+export type ServiceProduct = {
   id: number;
   handle: string;
   title: string;
@@ -55,6 +55,9 @@ type ServiceProduct = {
   internal_category_id?: number | null;
   internal_category_name?: string | null;
   internal_category_slug?: string | null;
+  internal_category_ids?: number[];
+  internal_category_names?: string[];
+  internal_category_slugs?: string[];
   created_at: string;
   updated_at: string;
 };
@@ -153,12 +156,18 @@ export type SyncJobDetails = SyncJobHistoryItem & {
   source_runs: SourceRunItem[];
 };
 
-type CategoryView = {
+export type CategoryView = {
   id: number;
   slug: string;
   name: string;
   parent_id: number | null;
   count: number;
+  is_enabled: boolean;
+  is_system: boolean;
+  is_designers_root: boolean;
+  is_in_designers_branch: boolean;
+  is_fallback: boolean;
+  is_favorite: boolean;
   children: CategoryView[];
 };
 
@@ -169,10 +178,29 @@ export type AdminCategoryNode = {
   parent_id: number | null;
   is_fallback: boolean;
   is_favorite: boolean;
+  is_enabled: boolean;
+  is_system: boolean;
+  has_children: boolean;
+  keywords_editable: boolean;
+  keywords_locked_reason?: string | null;
+  is_designers_root: boolean;
+  is_in_designers_branch: boolean;
   product_count: number;
   keywords: string[];
+  title_keywords: string[];
   effective_keywords: string[];
   children: AdminCategoryNode[];
+};
+
+export type CategoryManualProduct = {
+  product_id: number;
+  source_id: number;
+  source_name?: string | null;
+  title: string;
+  url: string;
+  status: string;
+  image_url?: string | null;
+  category_names: string[];
 };
 
 export type DedupCandidate = {
@@ -219,11 +247,13 @@ export type PricingSettings = {
   bybit_extra_rub: number;
   eur_to_usd_rate: number;
   gbp_to_usd_rate: number;
+  final_rounding_mode: string;
   payment_fee_rate: number;
   customs_processing_rate: number;
   customs_fixed_rub: number;
   shipping_alt_threshold_eur: number;
   tax_rate: number;
+  svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
   shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
@@ -273,9 +303,14 @@ type LiveDataContextValue = {
   sources: Source[];
   latestJob: JobsLatest;
   loading: boolean;
+  loadingCategoriesTree: boolean;
+  loadingCategoryCounts: boolean;
   loadingMoreProducts: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  ensurePricingLoaded: (force?: boolean) => Promise<void>;
+  ensureWeightLoaded: (force?: boolean) => Promise<void>;
+  ensureDedupLoaded: (force?: boolean) => Promise<void>;
   loadMoreProducts: () => Promise<void>;
   getProductById: (id: number) => Promise<ServiceProduct | null>;
   runSync: () => Promise<{ ok: boolean; message: string }>;
@@ -301,10 +336,14 @@ type LiveDataContextValue = {
   }) => Promise<{ ok: boolean; message: string }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string }>;
   createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string; categoryId?: number }>;
-  updateCategory: (id: number, payload: { name?: string; parent_id?: number | null }) => Promise<{ ok: boolean; message: string }>;
+  updateCategory: (id: number, payload: { name?: string; parent_id?: number | null; is_enabled?: boolean }) => Promise<{ ok: boolean; message: string }>;
   deleteCategory: (id: number) => Promise<{ ok: boolean; message: string }>;
-  addCategoryKeyword: (id: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
-  removeCategoryKeyword: (id: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
+  addCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title") => Promise<{ ok: boolean; message: string }>;
+  removeCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title") => Promise<{ ok: boolean; message: string }>;
+  getCategoryManualProducts: (categoryId: number) => Promise<{ ok: boolean; message: string; items: CategoryManualProduct[] }>;
+  searchCategoryManualProducts: (categoryId: number, query: string, limit?: number) => Promise<{ ok: boolean; message: string; items: CategoryManualProduct[] }>;
+  addCategoryManualProduct: (categoryId: number, productId: number) => Promise<{ ok: boolean; message: string }>;
+  removeCategoryManualProduct: (categoryId: number, productId: number) => Promise<{ ok: boolean; message: string }>;
   mergeDedupPair: (primaryProductId: number, duplicateProductId: number) => Promise<{ ok: boolean; message: string }>;
   rejectDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
@@ -349,6 +388,33 @@ type LiveDataContextValue = {
 
 const API_BASE = "/api/v1";
 const PRODUCTS_PAGE_SIZE = 100;
+const PRICING_SETTINGS_CACHE_KEY = "admin.pricingSettings.cache.v1";
+
+const readCachedPricingSettings = (): PricingSettings | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(PRICING_SETTINGS_CACHE_KEY);
+    if (!raw) {
+      return null;
+    }
+    return JSON.parse(raw) as PricingSettings;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedPricingSettings = (value: PricingSettings) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(PRICING_SETTINGS_CACHE_KEY, JSON.stringify(value));
+  } catch {
+    // Ignore storage write issues and continue with in-memory state.
+  }
+};
 
 const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefined);
 
@@ -359,12 +425,17 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [sources, setSources] = useState<Source[]>([]);
   const [adminCategories, setAdminCategories] = useState<AdminCategoryNode[]>([]);
   const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
-  const [loadingDedupCandidates, setLoadingDedupCandidates] = useState<boolean>(true);
+  const [loadingDedupCandidates, setLoadingDedupCandidates] = useState<boolean>(false);
   const [weightRules, setWeightRules] = useState<WeightRule[]>([]);
   const [weightMissingProducts, setWeightMissingProducts] = useState<WeightMissingProduct[]>([]);
-  const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(null);
+  const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(() => readCachedPricingSettings());
+  const [pricingLoaded, setPricingLoaded] = useState<boolean>(() => readCachedPricingSettings() !== null);
+  const [weightLoaded, setWeightLoaded] = useState<boolean>(false);
+  const [dedupLoaded, setDedupLoaded] = useState<boolean>(false);
   const [latestJob, setLatestJob] = useState<JobsLatest>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingCategoriesTree, setLoadingCategoriesTree] = useState<boolean>(false);
+  const [loadingCategoryCounts, setLoadingCategoryCounts] = useState<boolean>(false);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const loadingMoreLockRef = useRef<boolean>(false);
@@ -377,10 +448,17 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         name: node.name,
         parent_id: node.parent_id,
         count: Number(node.product_count || 0),
-        children: build(node.children || []),
+        is_enabled: Boolean(node.is_enabled),
+        is_system: Boolean(node.is_system),
+        is_designers_root: Boolean(node.is_designers_root),
+        is_in_designers_branch: Boolean(node.is_in_designers_branch),
+        is_fallback: Boolean(node.is_fallback),
+        is_favorite: Boolean(node.is_favorite),
+        children: build((node.children || []).filter((child) => child.is_enabled)),
       }));
     };
-    return build(adminCategories);
+    const publicRoots = adminCategories.filter((node) => node.is_enabled);
+    return build(publicRoots);
   }, [adminCategories]);
 
   const fetchDedupCandidates = useCallback(async () => {
@@ -392,6 +470,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       }
       const dedupPayload = (await dedupRes.json()) as { items: DedupCandidate[] };
       setDedupCandidates(dedupPayload.items || []);
+      setDedupLoaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -399,26 +478,95 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshPricingOnly = useCallback(async () => {
+    const res = await fetch(`${API_BASE}/settings/pricing`);
+    if (!res.ok) {
+      throw new Error(`Pricing settings API error: ${res.status}`);
+    }
+    const payload = (await res.json()) as PricingSettings;
+    setPricingSettings(payload || null);
+    setPricingLoaded(true);
+    if (payload) {
+      writeCachedPricingSettings(payload);
+    }
+  }, []);
+
+  const refreshCategoriesOnly = useCallback(async (options?: { includeCounts?: boolean; silent?: boolean }) => {
+    const includeCounts = options?.includeCounts ?? true;
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      if (includeCounts) {
+        setLoadingCategoryCounts(true);
+      } else {
+        setLoadingCategoriesTree(true);
+      }
+    }
+    try {
+      const params = new URLSearchParams();
+      params.set("include_counts", includeCounts ? "1" : "0");
+      const res = await fetch(`${API_BASE}/categories/tree?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error(`Categories API error: ${res.status}`);
+      }
+      const payload = (await res.json()) as AdminCategoryNode[];
+      setAdminCategories(payload || []);
+    } finally {
+      if (!silent) {
+        if (includeCounts) {
+          setLoadingCategoryCounts(false);
+        } else {
+          setLoadingCategoriesTree(false);
+        }
+      }
+    }
+  }, []);
+
+  const refreshSourcesOnly = useCallback(async () => {
+    const res = await fetch(`${API_BASE}/shopify/sources-admin`);
+    if (!res.ok) {
+      throw new Error(`Sources API error: ${res.status}`);
+    }
+    const payload = (await res.json()) as Source[];
+    setSources(payload || []);
+  }, []);
+
+  const refreshWeightOnly = useCallback(async () => {
+    const [rulesRes, missingRes] = await Promise.all([
+      fetch(`${API_BASE}/settings/weight-rules`),
+      fetch(`${API_BASE}/settings/weight-rules/missing-products?limit=100`),
+    ]);
+    if (!rulesRes.ok) {
+      throw new Error(`Weight rules API error: ${rulesRes.status}`);
+    }
+    if (!missingRes.ok) {
+      throw new Error(`Missing weight API error: ${missingRes.status}`);
+    }
+    const rulesPayload = (await rulesRes.json()) as WeightRule[];
+    const missingPayload = (await missingRes.json()) as WeightMissingProduct[];
+    setWeightRules(rulesPayload || []);
+    setWeightMissingProducts(missingPayload || []);
+    setWeightLoaded(true);
+  }, []);
+
+  const refreshProductsOnly = useCallback(async () => {
+    const res = await fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`);
+    if (!res.ok) {
+      throw new Error(`Products API error: ${res.status}`);
+    }
+    const payload = (await res.json()) as { items: ServiceProduct[]; total: number; limit: number; offset: number };
+    setProducts(payload.items || []);
+    setProductsTotal(payload.total || 0);
+    setProductsHasMore((payload.items || []).length + (payload.offset || 0) < (payload.total || 0));
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [
-        productsRes,
-        sourcesRes,
-        latestJobRes,
-        categoriesRes,
-        weightRulesRes,
-        missingWeightRes,
-        pricingSettingsRes,
-      ] = await Promise.all([
+      const [productsRes, sourcesRes, latestJobRes] = await Promise.all([
         fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`),
         fetch(`${API_BASE}/shopify/sources-admin`),
         fetch(`${API_BASE}/jobs/latest`),
-        fetch(`${API_BASE}/categories/tree`),
-        fetch(`${API_BASE}/settings/weight-rules`),
-        fetch(`${API_BASE}/settings/weight-rules/missing-products?limit=100`),
-        fetch(`${API_BASE}/settings/pricing`),
       ]);
 
       if (!productsRes.ok) {
@@ -430,43 +578,42 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       if (!latestJobRes.ok) {
         throw new Error(`Jobs API error: ${latestJobRes.status}`);
       }
-      if (!categoriesRes.ok) {
-        throw new Error(`Categories API error: ${categoriesRes.status}`);
-      }
-      if (!weightRulesRes.ok) {
-        throw new Error(`Weight rules API error: ${weightRulesRes.status}`);
-      }
-      if (!missingWeightRes.ok) {
-        throw new Error(`Missing weight API error: ${missingWeightRes.status}`);
-      }
-      if (!pricingSettingsRes.ok) {
-        throw new Error(`Pricing settings API error: ${pricingSettingsRes.status}`);
-      }
-
       const productsPayload = (await productsRes.json()) as { items: ServiceProduct[]; total: number; limit: number; offset: number };
       const sourcesPayload = (await sourcesRes.json()) as Source[];
       const latestPayload = (await latestJobRes.json()) as JobsLatest;
-      const categoriesPayload = (await categoriesRes.json()) as AdminCategoryNode[];
-      const weightRulesPayload = (await weightRulesRes.json()) as WeightRule[];
-      const missingWeightPayload = (await missingWeightRes.json()) as WeightMissingProduct[];
-      const pricingSettingsPayload = (await pricingSettingsRes.json()) as PricingSettings;
 
       setProducts(productsPayload.items || []);
       setProductsTotal(productsPayload.total || 0);
       setProductsHasMore((productsPayload.items || []).length + (productsPayload.offset || 0) < (productsPayload.total || 0));
       setSources(sourcesPayload || []);
       setLatestJob(latestPayload);
-      setAdminCategories(categoriesPayload || []);
-      setWeightRules(weightRulesPayload || []);
-      setWeightMissingProducts(missingWeightPayload || []);
-      setPricingSettings(pricingSettingsPayload || null);
-      void fetchDedupCandidates();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
     }
-  }, [fetchDedupCandidates]);
+  }, []);
+
+  const ensurePricingLoaded = useCallback(async (force = false) => {
+    if (!force && pricingLoaded) {
+      return;
+    }
+    await refreshPricingOnly();
+  }, [pricingLoaded, refreshPricingOnly]);
+
+  const ensureWeightLoaded = useCallback(async (force = false) => {
+    if (!force && weightLoaded) {
+      return;
+    }
+    await refreshWeightOnly();
+  }, [refreshWeightOnly, weightLoaded]);
+
+  const ensureDedupLoaded = useCallback(async (force = false) => {
+    if (!force && dedupLoaded) {
+      return;
+    }
+    await fetchDedupCandidates();
+  }, [dedupLoaded, fetchDedupCandidates]);
 
   const loadMoreProducts = useCallback(async () => {
     if (!productsHasMore || loadingMoreProducts || loadingMoreLockRef.current) {
@@ -682,17 +829,17 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
         const created = (await res.json()) as { id: number };
-        await refresh();
+        await refreshCategoriesOnly();
         return { ok: true, message: "Категория создана", categoryId: created.id };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshCategoriesOnly]
   );
 
   const updateCategory = useCallback(
-    async (id: number, payload: { name?: string; parent_id?: number | null }) => {
+    async (id: number, payload: { name?: string; parent_id?: number | null; is_enabled?: boolean }) => {
       try {
         const res = await fetch(`${API_BASE}/categories/${id}`, {
           method: "PATCH",
@@ -703,13 +850,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshCategoriesOnly();
         return { ok: true, message: "Категория обновлена" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshCategoriesOnly]
   );
 
   const deleteCategory = useCallback(
@@ -722,54 +869,126 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshCategoriesOnly();
         return { ok: true, message: "Категория удалена" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshCategoriesOnly]
   );
 
   const addCategoryKeyword = useCallback(
-    async (id: number, keyword: string) => {
+    async (id: number, keyword: string, scope: "local" | "title" = "local") => {
       try {
         const res = await fetch(`${API_BASE}/categories/${id}/keywords`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ keyword }),
+          body: JSON.stringify({ keyword, scope }),
         });
         if (!res.ok) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshCategoriesOnly();
         return { ok: true, message: "OK" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshCategoriesOnly]
   );
 
   const removeCategoryKeyword = useCallback(
-    async (id: number, keyword: string) => {
+    async (id: number, keyword: string, scope: "local" | "title" = "local") => {
       try {
         const encodedKeyword = encodeURIComponent(keyword);
-        const res = await fetch(`${API_BASE}/categories/${id}/keywords/${encodedKeyword}`, {
+        const res = await fetch(`${API_BASE}/categories/${id}/keywords/${encodedKeyword}?scope=${scope}`, {
           method: "DELETE",
         });
         if (!res.ok) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshCategoriesOnly();
         return { ok: true, message: "OK" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshCategoriesOnly]
+  );
+
+  const getCategoryManualProducts = useCallback(async (categoryId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/categories/${categoryId}/manual-products`);
+      if (!res.ok) {
+        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+        return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, items: [] };
+      }
+      const payload = (await res.json()) as CategoryManualProduct[];
+      return { ok: true, message: "OK", items: payload || [] };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", items: [] };
+    }
+  }, []);
+
+  const searchCategoryManualProducts = useCallback(async (categoryId: number, query: string, limit: number = 3) => {
+    try {
+      const params = new URLSearchParams({
+        query,
+        limit: String(limit),
+      });
+      const res = await fetch(`${API_BASE}/categories/${categoryId}/manual-products/search?${params.toString()}`);
+      if (!res.ok) {
+        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+        return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, items: [] };
+      }
+      const payload = (await res.json()) as CategoryManualProduct[];
+      return { ok: true, message: "OK", items: payload || [] };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", items: [] };
+    }
+  }, []);
+
+  const addCategoryManualProduct = useCallback(
+    async (categoryId: number, productId: number) => {
+      try {
+        const res = await fetch(`${API_BASE}/categories/${categoryId}/manual-products`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product_id: productId }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await Promise.all([refreshProductsOnly(), refreshCategoriesOnly()]);
+        return { ok: true, message: "Товар добавлен в категорию" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refreshCategoriesOnly, refreshProductsOnly]
+  );
+
+  const removeCategoryManualProduct = useCallback(
+    async (categoryId: number, productId: number) => {
+      try {
+        const res = await fetch(`${API_BASE}/categories/${categoryId}/manual-products/${productId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        await Promise.all([refreshProductsOnly(), refreshCategoriesOnly()]);
+        return { ok: true, message: "Товар убран из категории" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refreshCategoriesOnly, refreshProductsOnly]
   );
 
   const mergeDedupPair = useCallback(
@@ -784,13 +1003,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await Promise.all([refreshProductsOnly(), refreshCategoriesOnly(), fetchDedupCandidates()]);
         return { ok: true, message: "Дубликаты объединены" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [fetchDedupCandidates, refreshCategoriesOnly, refreshProductsOnly]
   );
 
   const rejectDedupPair = useCallback(
@@ -805,13 +1024,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await fetchDedupCandidates();
         return { ok: true, message: "Пара помечена как не дубль" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [fetchDedupCandidates]
   );
 
   const toggleSourceEnabled = useCallback(
@@ -826,13 +1045,14 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        const updated = (await res.json()) as Source;
+        setSources((prev) => prev.map((item) => (item.key === sourceKey ? updated : item)));
         return { ok: true, message: enabled ? "Источник включен" : "Источник выключен" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    []
   );
 
   const assignSourceSupplier = useCallback(
@@ -856,13 +1076,14 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        const updated = (await res.json()) as Source;
+        setSources((prev) => prev.map((item) => (item.key === sourceKey ? updated : item)));
         return { ok: true, message: "Настройки источника обновлены" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    []
   );
 
   const toggleProductFavorite = useCallback(async (productId: number, favorite: boolean) => {
@@ -877,17 +1098,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
       setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, is_favorite: favorite } : item)));
 
-      const categoriesRes = await fetch(`${API_BASE}/categories/tree`);
-      if (categoriesRes.ok) {
-        const categoriesPayload = (await categoriesRes.json()) as AdminCategoryNode[];
-        setAdminCategories(categoriesPayload || []);
-      }
+      await refreshCategoriesOnly();
 
       return { ok: true, message: favorite ? "Добавлено в избранное" : "Убрано из избранного" };
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
     }
-  }, []);
+  }, [refreshCategoriesOnly]);
 
   const createWeightRule = useCallback(
     async (weightGrams: number) => {
@@ -901,13 +1118,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshWeightOnly();
         return { ok: true, message: "Правило веса добавлено" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshWeightOnly]
   );
 
   const updateWeightRule = useCallback(
@@ -922,13 +1139,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshWeightOnly();
         return { ok: true, message: "Вес правила обновлен" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshWeightOnly]
   );
 
   const deleteWeightRule = useCallback(
@@ -941,13 +1158,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshWeightOnly();
         return { ok: true, message: "Правило веса удалено" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshWeightOnly]
   );
 
   const addWeightKeyword = useCallback(
@@ -962,13 +1179,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshWeightOnly();
         return { ok: true, message: "Ключевое слово добавлено" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshWeightOnly]
   );
 
   const removeWeightKeyword = useCallback(
@@ -982,13 +1199,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await refreshWeightOnly();
         return { ok: true, message: "Ключевое слово удалено" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshWeightOnly]
   );
 
   const updatePricingSettings = useCallback(
@@ -1003,13 +1220,17 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        const updated = (await res.json()) as PricingSettings;
+        setPricingSettings(updated || null);
+        if (updated) {
+          writeCachedPricingSettings(updated);
+        }
         return { ok: true, message: "Параметры формулы сохранены" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    []
   );
 
   const updatePricingSupplier = useCallback(
@@ -1034,13 +1255,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await Promise.all([refreshPricingOnly(), refreshSourcesOnly()]);
         return { ok: true, message: "Тариф поставщика обновлен" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshPricingOnly, refreshSourcesOnly]
   );
 
   const createPricingSupplier = useCallback(
@@ -1062,13 +1283,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await Promise.all([refreshPricingOnly(), refreshSourcesOnly()]);
         return { ok: true, message: "Поставщик добавлен" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshPricingOnly, refreshSourcesOnly]
   );
 
   const deletePricingSupplier = useCallback(
@@ -1081,19 +1302,32 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refresh();
+        await Promise.all([refreshPricingOnly(), refreshSourcesOnly()]);
         return { ok: true, message: "Поставщик удален" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [refresh]
+    [refreshPricingOnly, refreshSourcesOnly]
   );
 
   useEffect(() => {
-    void refresh();
+    const run = async () => {
+      try {
+        await Promise.all([
+          refresh(),
+          refreshCategoriesOnly({ includeCounts: false }),
+        ]);
+        void refreshCategoriesOnly({ includeCounts: true }).catch((e: unknown) => {
+          setError(e instanceof Error ? e.message : "Unknown error");
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Unknown error");
+      }
+    };
+    void run();
     return undefined;
-  }, [refresh]);
+  }, [refresh, refreshCategoriesOnly]);
 
   useEffect(() => {
     if (!latestJob || !["pending", "in_progress"].includes(latestJob.status)) {
@@ -1134,9 +1368,14 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       sources,
       latestJob,
       loading,
+      loadingCategoriesTree,
+      loadingCategoryCounts,
       loadingMoreProducts,
       error,
       refresh,
+      ensurePricingLoaded,
+      ensureWeightLoaded,
+      ensureDedupLoaded,
       loadMoreProducts,
       getProductById,
       runSync,
@@ -1150,6 +1389,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       deleteCategory,
       addCategoryKeyword,
       removeCategoryKeyword,
+      getCategoryManualProducts,
+      searchCategoryManualProducts,
+      addCategoryManualProduct,
+      removeCategoryManualProduct,
       mergeDedupPair,
       rejectDedupPair,
       toggleSourceEnabled,
@@ -1179,9 +1422,14 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       sources,
       latestJob,
       loading,
+      loadingCategoriesTree,
+      loadingCategoryCounts,
       loadingMoreProducts,
       error,
       refresh,
+      ensurePricingLoaded,
+      ensureWeightLoaded,
+      ensureDedupLoaded,
       loadMoreProducts,
       getProductById,
       runSync,
@@ -1195,6 +1443,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       deleteCategory,
       addCategoryKeyword,
       removeCategoryKeyword,
+      getCategoryManualProducts,
+      searchCategoryManualProducts,
+      addCategoryManualProduct,
+      removeCategoryManualProduct,
       mergeDedupPair,
       rejectDedupPair,
       toggleSourceEnabled,

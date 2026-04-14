@@ -3,11 +3,19 @@ import { useEffect, useMemo, useRef } from "react";
 import { useLiveData } from "../shared/live-data-context";
 import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
+import { CategoryMegaMenu } from "./category-mega-menu";
+import { findRootForCategory, filterProductsForCategory, sortStorefrontRoots } from "./category-logic";
 
 export function HomePage() {
   const { categories, products, error, productsHasMore, loadMoreProducts, loadingMoreProducts, loading } = useLiveData();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const availableProducts = useMemo(() => products.filter((product) => product.status === "available"), [products]);
+  const roots = useMemo(() => sortStorefrontRoots(categories), [categories]);
+  const defaultRoot = useMemo(() => findRootForCategory(roots, null), [roots]);
+  const visibleProducts = useMemo(
+    () => (defaultRoot ? filterProductsForCategory(availableProducts, defaultRoot) : availableProducts),
+    [availableProducts, defaultRoot]
+  );
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -34,17 +42,6 @@ export function HomePage() {
     return () => observer.disconnect();
   }, [productsHasMore, loadingMoreProducts, loadMoreProducts]);
 
-  const renderColumnChildren = (items: typeof categories) => {
-    return items.map((category) => (
-      <div key={category.slug} className="category-column-item">
-        <Link to={`/category/${category.slug}`} className="tag">
-          {category.name} ({category.count || 0})
-        </Link>
-        {category.children.length > 0 ? <div className="category-column-children">{renderColumnChildren(category.children)}</div> : null}
-      </div>
-    ));
-  };
-
   if (loading && availableProducts.length === 0) {
     return (
       <section className="section">
@@ -57,23 +54,14 @@ export function HomePage() {
 
   return (
     <section className="section">
-      <h1>Products</h1>
+      <h1>Витрина</h1>
 
       {error ? <p className="muted">Error: {error}</p> : null}
 
-      <div className="category-columns">
-        {categories.map((category) => (
-          <div key={category.slug} className="category-column">
-            <Link to={`/category/${category.slug}`} className="tag category-column-root">
-              {category.name} ({category.count || 0})
-            </Link>
-            {category.children.length > 0 ? <div className="category-column-children">{renderColumnChildren(category.children)}</div> : null}
-          </div>
-        ))}
-      </div>
+      <CategoryMegaMenu categories={roots} />
 
       <div className="product-grid">
-        {availableProducts.map((product) => (
+        {visibleProducts.map((product) => (
           <article key={product.id} className="card">
             <ImageWithFallback
               src={getProductPrimaryImageUrl(product)}
