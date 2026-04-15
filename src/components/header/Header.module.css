@@ -118,6 +118,7 @@
 
 .navItem {
     padding: 10px 8px;
+    font-weight: 500;
     border-radius: 14px;
     transition: all ease 0.3s;
     cursor: pointer;
