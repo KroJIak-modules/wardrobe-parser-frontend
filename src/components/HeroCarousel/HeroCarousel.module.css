@@ -16,19 +16,22 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.СarouselItem {
-    padding: 0;
-    width: 50%;
+.carousel-item {
+    display: flex;
+  flex: 0 0 60% !important;
+  flex-basis: 60% !important;
+  padding-left: 0;
 }
 
-@media screen and (max-width: 1024px) {
+
+@media screen and (max-width: 724px) {
     
     .carouselButton {
     display: none;
 }
 
-    .carouselItem {
-        width: 100%;
-    }
+    .carousel-item {
+    flex: 0 0 100%;
+  }
 
 }

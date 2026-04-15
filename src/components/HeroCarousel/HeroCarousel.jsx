@@ -33,24 +33,21 @@ const HeroCarousel = () => {
 
     return (
         <Carousel
-            setApi={setApi}
-            opts={{
-                align: "center",
-                loop: true,
-                containScroll: false,
-            }}
-            className="w-full z-10 mt-7"
-        >
-            <CarouselContent className="-ml-4">
+  opts={{
+    align: "center",
+    loop: true,
+  }}
+>
+            <CarouselContent className="basis-[70%] shrink-0 mt-4 px-0">
                 {images.map((image, index) => (
                     <CarouselItem
                         key={index}
-                        className={styles.CarouselItem}
+                        className="carousel-item basis-[60%] shrink-0 pl-0"
                     >
                         <div className="overflow-hidden">
                             <img
                             src={image}
-                            className="w-full h-[60vh] object-contain"
+                            className="w-full h-[70vh] object-cover object-center"
                             />
                         </div>
                     </CarouselItem>

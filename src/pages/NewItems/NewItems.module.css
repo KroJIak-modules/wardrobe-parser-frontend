@@ -81,4 +81,43 @@
     padding: 0px 0px;
     width: 100%;
 }
+
+    .productName {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.8);
+}
+
+    .product {
+        aspect-ratio: 172 / 317;
+    }
+
+    .productOpinion {
+    font-size: 10px;
+    font-weight: 300;
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.productType {
+    font-size: 7px;
+    font-weight: 400;
+    color: #9a9a9a;
+}
+
+.productPrice {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.productDescription {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    background: #FFF;
+    padding: 12.5px 7px;
+    align-self: flex-start;
+    min-height: 0;
+    gap: 7px;
+}
 }

@@ -12,7 +12,9 @@ const OPINION_COLLAPSED_HEIGHT = 120;
 const ShowItem = () => {
     const [activeImage, setActiveImage] = useState(0);
     const opinionRef = useRef(null);
-
+    const ref = useRef(null);
+    const [open, setOpen] = useState(false);
+    const [openSource, setOpenSource] = useState(false);
     const navigte = useNavigate();
 
     const sources = [
@@ -49,7 +51,17 @@ const ShowItem = () => {
     const [isOpinionOverflowing, setIsOpinionOverflowing] = useState(false);
     const [showModalSources, setShowModalSources] = useState(false);
 
-    useEffect(() => setSelectedSize(item?.activeSizes[0]), [item]);
+    // useEffect(() => setSelectedSize(item?.activeSizes[0]), [item]);
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (!ref.current.contains(e.target)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
 
     useEffect(() => {
         const measureOpinionHeight = () => {
@@ -99,25 +111,36 @@ const ShowItem = () => {
                     </div>
                     <div className={styles.modalSourcesBlock}>
                         <div className={styles.modalSourcesContainer}>
-                            <div className={styles.itemSizesBlock}>
-                            <select className={styles.itemSizes}>
-                                <option value="" selected disabled hidden>Размер</option>
-                                {item.activeSizes.map((size, inds) =>
-                                    <option
-                                        key={`${inds}-size-button`}
-                                        className={`
-                                    ${styles.itemSize} 
-                                    ${item.activeSizes.includes(size) ? styles.itemActiveSize : ''} 
-                                    ${selectedSize === size ? styles.itemSelectedSize : ''}
-                                `}
-                                        onClick={() => setSelectedSize(size)}
-                                        disabled={!item.activeSizes.includes(size)}
+                            <div className={`${styles.itemSizesBlock} ${open ? styles.wrapperopen : ""}`}>
+                            <div ref={ref} className={styles.selectWrapper} style={{textAlign: "center"}}>
+                            <div
+                                className={styles.selectHeader}
+                                onClick={() => setOpenSource(prev => !prev)}
+                                style={!openSource ? {} : {borderBottom: "none", borderBottomLeftRadius: "0px", borderBottomRightRadius: "0px"}}
+                            >
+                                {selectedSize || "Размер"}
+                            </div>
 
-                                    >
-                                        {size}
-                                    </option>
-                                )}
-                            </select>
+                            {openSource && (
+                                <div className={styles.dropdown}>
+                                    {item.activeSizes.map((size, i) => (
+                                        <div
+                                            key={i}
+                                            className={`
+                                                ${styles.option}
+                                                ${selectedSize === size ? styles.selected : ""}
+                                            `}
+                                            onClick={() => {
+                                                setSelectedSize(size);
+                                                setOpenSource(false);
+                                            }}
+                                        >
+                                            {size}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         </div>
                         <div className={styles.designerSourceContainer}>
                             {sources.map((source, index) => 
@@ -168,25 +191,37 @@ const ShowItem = () => {
                         <span className={styles.itemType}>-</span>
                         <span className={styles.itemType}>В наличии</span>
                     </div>
-                    <div className={styles.itemSizesBlock}>
-                        <select className={styles.itemSizes}>
-                            <option value="" selected disabled hidden>Размер</option>
-                            {item.activeSizes.map((size, inds) =>
-                                <option
-                                    key={`${inds}-size-button`}
-                                    className={`
-                                ${styles.itemSize} 
-                                ${item.activeSizes.includes(size) ? styles.itemActiveSize : ''} 
-                                ${selectedSize === size ? styles.itemSelectedSize : ''}
-                            `}
-                                    onClick={() => setSelectedSize(size)}
-                                    disabled={!item.activeSizes.includes(size)}
+                    <div className={`${styles.itemSizesBlock} ${open ? styles.wrapperopen : ""}`}>
+                        <div ref={ref} className={styles.selectWrapper}> 
+                            <div
+                                className={styles.selectHeader}
+                                style={!open ? {} : {borderBottom: "none", borderBottomLeftRadius: "0px", borderBottomRightRadius: "0px"}}
+                                onClick={() => setOpen(prev => !prev)}
+                                
+                            >
+                                {selectedSize || "Размер"}
+                            </div>
 
-                                >
-                                    {size}
-                                </option>
+                            {open && (
+                                <div className={styles.dropdown}>
+                                    {item.activeSizes.map((size, i) => (
+                                        <div
+                                            key={i}
+                                            className={`
+                                                ${styles.option}
+                                                ${selectedSize === size ? styles.selected : ""}
+                                            `}
+                                            onClick={() => {
+                                                setSelectedSize(size);
+                                                setOpen(false);
+                                            }}
+                                        >
+                                            {size}
+                                        </div>
+                                    ))}
+                                </div>
                             )}
-                        </select>
+                        </div>
                     </div>
                     <button className={styles.addToCart}>Добавить в корзину</button>
                     <div className={styles.itemOpinionContainer}
