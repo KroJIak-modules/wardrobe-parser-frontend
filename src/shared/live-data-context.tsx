@@ -33,6 +33,7 @@ type ProductVariant = {
 
 export type ServiceProduct = {
   id: number;
+  source_id: number;
   handle: string;
   title: string;
   vendor: string | null;
@@ -53,6 +54,7 @@ export type ServiceProduct = {
   image_ids: number[];
   variants: ProductVariant[];
   is_favorite?: boolean;
+  starred_category_ids?: number[];
   internal_category_id?: number | null;
   internal_category_name?: string | null;
   internal_category_slug?: string | null;
@@ -204,6 +206,13 @@ export type CategoryManualProduct = {
   category_names: string[];
 };
 
+export type ProductStarredCategoryOption = {
+  id: number;
+  name: string;
+  slug: string;
+  parent_id: number | null;
+};
+
 export type DedupCandidate = {
   pair_key: string;
   score: number;
@@ -290,6 +299,85 @@ export type PricingSupplier = {
   rates: PricingSupplierRate[];
 };
 
+export type SettingsTransferSupplierRateEntry = {
+  step_500g: number;
+  rate_rub: number;
+};
+
+export type SettingsTransferSupplierEntry = {
+  key: string;
+  name: string;
+  category: string;
+  rate_currency: string;
+  rates: SettingsTransferSupplierRateEntry[];
+};
+
+export type SettingsTransferSourceEntry = {
+  name: string;
+  url: string;
+  enabled: boolean;
+  supplier_key: string | null;
+  promo_factor: number;
+  promo_only_no_discount: boolean;
+  buyout_surcharge_value: number;
+  buyout_surcharge_currency: string;
+};
+
+export type SettingsTransferWeightRuleEntry = {
+  weight_grams: number;
+  sort_order: number;
+  keywords: string[];
+};
+
+export type SettingsTransferCategoryEntry = {
+  slug: string;
+  name: string;
+  parent_slug: string | null;
+  is_fallback: boolean;
+  is_favorite: boolean;
+  is_enabled: boolean;
+};
+
+export type SettingsTransferCategoryKeywordEntry = {
+  category_slug: string;
+  keyword: string;
+  scope: "local" | "title";
+};
+
+export type SettingsTransferPricingSettings = {
+  markup_multiplier: number;
+  weight_tolerance: number;
+  promo_factor: number;
+  customs_threshold_eur: number;
+  customs_threshold_currency: string;
+  customs_duty_rate: number;
+  bybit_extra_rub: number;
+  eur_to_usd_rate: number;
+  gbp_to_usd_rate: number;
+  final_rounding_mode: string;
+  payment_fee_rate: number;
+  customs_processing_rate: number;
+  customs_fixed_rub: number;
+  shipping_alt_threshold_eur: number;
+  tax_rate: number;
+  svc_rules: Array<Record<string, unknown>>;
+  insurance_rules: Array<Record<string, unknown>>;
+  service_fee_rules: Array<Record<string, unknown>>;
+  shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
+};
+
+export type SettingsTransferPayload = {
+  schema_version: number;
+  exported_at: string | null;
+  project: string | null;
+  pricing_settings: SettingsTransferPricingSettings;
+  suppliers: SettingsTransferSupplierEntry[];
+  sources: SettingsTransferSourceEntry[];
+  weight_rules: SettingsTransferWeightRuleEntry[];
+  categories: SettingsTransferCategoryEntry[];
+  category_keywords: SettingsTransferCategoryKeywordEntry[];
+};
+
 type LiveDataContextValue = {
   products: ServiceProduct[];
   productsTotal: number;
@@ -337,7 +425,10 @@ type LiveDataContextValue = {
   }) => Promise<{ ok: boolean; message: string }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string }>;
   createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string; categoryId?: number }>;
-  updateCategory: (id: number, payload: { name?: string; parent_id?: number | null; is_enabled?: boolean }) => Promise<{ ok: boolean; message: string }>;
+  updateCategory: (
+    id: number,
+    payload: { name?: string; parent_id?: number | null; is_enabled?: boolean; is_favorite?: boolean }
+  ) => Promise<{ ok: boolean; message: string }>;
   deleteCategory: (id: number) => Promise<{ ok: boolean; message: string }>;
   addCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title") => Promise<{ ok: boolean; message: string }>;
   removeCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title") => Promise<{ ok: boolean; message: string }>;
@@ -347,6 +438,15 @@ type LiveDataContextValue = {
   removeCategoryManualProduct: (categoryId: number, productId: number) => Promise<{ ok: boolean; message: string }>;
   mergeDedupPair: (primaryProductId: number, duplicateProductId: number) => Promise<{ ok: boolean; message: string }>;
   rejectDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
+  setProductStatus: (productId: number, status: "available" | "out_of_stock" | "hidden") => Promise<{ ok: boolean; message: string }>;
+  getProductStarredCategories: (
+    productId: number
+  ) => Promise<{ ok: boolean; message: string; assignedCategoryIds: number[]; availableCategories: ProductStarredCategoryOption[] }>;
+  setProductStarredCategories: (
+    productId: number,
+    categoryIds: number[]
+  ) => Promise<{ ok: boolean; message: string; assignedCategoryIds: number[] }>;
+  ensureAllProductsLoaded: () => Promise<void>;
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   createWeightRule: (weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   updateWeightRule: (id: number, weightGrams: number) => Promise<{ ok: boolean; message: string }>;
@@ -374,6 +474,8 @@ type LiveDataContextValue = {
     max_step_500g?: number;
   }) => Promise<{ ok: boolean; message: string }>;
   deletePricingSupplier: (supplierId: number) => Promise<{ ok: boolean; message: string }>;
+  exportSettings: () => Promise<{ ok: boolean; message: string; payload: SettingsTransferPayload | null }>;
+  importSettings: (payload: SettingsTransferPayload) => Promise<{ ok: boolean; message: string }>;
   assignSourceSupplier: (
     sourceKey: string,
       payload: {
@@ -839,7 +941,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   );
 
   const updateCategory = useCallback(
-    async (id: number, payload: { name?: string; parent_id?: number | null; is_enabled?: boolean }) => {
+    async (id: number, payload: { name?: string; parent_id?: number | null; is_enabled?: boolean; is_favorite?: boolean }) => {
       try {
         const res = await fetch(`${API_BASE}/categories/${id}`, {
           method: "PATCH",
@@ -1032,6 +1134,129 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     },
     [fetchDedupCandidates]
   );
+
+  const setProductStatus = useCallback(
+    async (productId: number, status: "available" | "out_of_stock" | "hidden") => {
+      try {
+        const res = await fetch(`${API_BASE}/products/${productId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        const payload = (await res.json().catch(() => null)) as ServiceProduct | null;
+        if (payload && typeof payload.id === "number") {
+          setProducts((prev) => prev.map((item) => (item.id === payload.id ? { ...item, ...payload } : item)));
+        } else {
+          setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, status } : item)));
+        }
+        return { ok: true, message: "Статус товара обновлен" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    []
+  );
+
+  const getProductStarredCategories = useCallback(async (productId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/products/${productId}/starred-categories`);
+      if (!res.ok) {
+        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+        return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, assignedCategoryIds: [], availableCategories: [] };
+      }
+      const payload = (await res.json()) as {
+        assigned_category_ids?: number[];
+        available_categories?: ProductStarredCategoryOption[];
+      };
+      return {
+        ok: true,
+        message: "OK",
+        assignedCategoryIds: Array.isArray(payload.assigned_category_ids) ? payload.assigned_category_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item)) : [],
+        availableCategories: Array.isArray(payload.available_categories) ? payload.available_categories : [],
+      };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCategoryIds: [], availableCategories: [] };
+    }
+  }, []);
+
+  const setProductStarredCategories = useCallback(
+    async (productId: number, categoryIds: number[]) => {
+      try {
+        const normalizedCategoryIds = [...new Set(categoryIds.filter((item) => Number.isFinite(item)).map((item) => Number(item)))];
+        const res = await fetch(`${API_BASE}/products/${productId}/starred-categories`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category_ids: normalizedCategoryIds }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, assignedCategoryIds: [] };
+        }
+        const payload = (await res.json().catch(() => null)) as { assigned_category_ids?: number[] } | null;
+        const assigned = Array.isArray(payload?.assigned_category_ids)
+          ? payload!.assigned_category_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item))
+          : normalizedCategoryIds;
+        setProducts((prev) =>
+          prev.map((item) =>
+            item.id === productId
+              ? {
+                  ...item,
+                  starred_category_ids: assigned,
+                  is_favorite: assigned.length > 0,
+                }
+              : item
+          )
+        );
+        return { ok: true, message: "Звездные категории сохранены", assignedCategoryIds: assigned };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCategoryIds: [] };
+      }
+    },
+    []
+  );
+
+  const ensureAllProductsLoaded = useCallback(async () => {
+    try {
+      let offset = 0;
+      let total = 0;
+      const loaded: ServiceProduct[] = [];
+      const seen = new Set<number>();
+      let guard = 0;
+
+      while (guard < 1000) {
+        guard += 1;
+        const res = await fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
+        if (!res.ok) {
+          throw new Error(`Products API error: ${res.status}`);
+        }
+        const payload = (await res.json()) as { items: ServiceProduct[]; total: number };
+        const items = payload.items || [];
+        total = Number(payload.total || 0);
+
+        for (const item of items) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id);
+            loaded.push(item);
+          }
+        }
+
+        offset = loaded.length;
+        if (offset >= total || items.length === 0) {
+          break;
+        }
+      }
+
+      setProducts(loaded);
+      setProductsTotal(total || loaded.length);
+      setProductsHasMore((total || loaded.length) > loaded.length);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, []);
 
   const toggleSourceEnabled = useCallback(
     async (sourceKey: string, enabled: boolean) => {
@@ -1291,6 +1516,47 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     [refreshPricingOnly, refreshSourcesOnly]
   );
 
+  const exportSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/settings/export`);
+      if (!res.ok) {
+        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+        return { ok: false, message: errorPayload?.detail || `Ошибка экспорта: ${res.status}`, payload: null };
+      }
+      const payload = (await res.json()) as SettingsTransferPayload;
+      return { ok: true, message: "Настройки экспортированы", payload };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", payload: null };
+    }
+  }, []);
+
+  const importSettings = useCallback(
+    async (payload: SettingsTransferPayload) => {
+      try {
+        const res = await fetch(`${API_BASE}/settings/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка импорта: ${res.status}` };
+        }
+        await Promise.all([
+          refresh(),
+          refreshPricingOnly(),
+          refreshWeightOnly(),
+          refreshCategoriesOnly({ includeCounts: true, silent: true }),
+          refreshSourcesOnly(),
+        ]);
+        return { ok: true, message: "Настройки импортированы" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refresh, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]
+  );
+
   useEffect(() => {
     const run = async () => {
       try {
@@ -1375,6 +1641,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       removeCategoryManualProduct,
       mergeDedupPair,
       rejectDedupPair,
+      setProductStatus,
+      getProductStarredCategories,
+      setProductStarredCategories,
+      ensureAllProductsLoaded,
       toggleSourceEnabled,
       assignSourceSupplier,
       createWeightRule,
@@ -1386,6 +1656,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       updatePricingSupplier,
       createPricingSupplier,
       deletePricingSupplier,
+      exportSettings,
+      importSettings,
     }),
     [
       products,
@@ -1428,6 +1700,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       removeCategoryManualProduct,
       mergeDedupPair,
       rejectDedupPair,
+      setProductStatus,
+      getProductStarredCategories,
+      setProductStarredCategories,
+      ensureAllProductsLoaded,
       toggleSourceEnabled,
       assignSourceSupplier,
       createWeightRule,
@@ -1439,6 +1715,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       updatePricingSupplier,
       createPricingSupplier,
       deletePricingSupplier,
+      exportSettings,
+      importSettings,
     ]
   );
 

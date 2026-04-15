@@ -42,7 +42,12 @@ export function ImageWithFallback({
 
   return (
     <div style={{ position: "relative" }}>
-      {!loaded ? <div className={`${placeholderClassName} image-loading-placeholder`}>{loadingLabel}</div> : null}
+      {!loaded ? (
+        <div
+          className={`${placeholderClassName} image-loading-placeholder image-loading-skeleton`}
+          aria-label={loadingLabel}
+        />
+      ) : null}
       <img
         className={className}
         src={normalizedSrc}

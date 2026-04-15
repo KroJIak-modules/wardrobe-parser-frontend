@@ -1,18 +1,50 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useLiveData } from "../shared/live-data-context";
-import { toImageGatewayUrl } from "../shared/live-data-context";
-import { toSlug } from "../shared/utils";
+import { ImageWithFallback } from "../shared/image-with-fallback";
+import { SkeletonBlock } from "../shared/skeleton";
+import { getProductPrimaryImageUrl, useLiveData } from "../shared/live-data-context";
+import { getSourceNameById, getStatusClass, getStatusLabel } from "./catalog-helpers";
+
+type VariantInfo = {
+  title: string;
+  available: boolean;
+  inventory_quantity: number;
+};
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return date.toLocaleString("ru-RU");
+}
+
+function buildVariantLabel(variant: {
+  title?: string;
+  option1?: string | null;
+  option2?: string | null;
+  option3?: string | null;
+}): string {
+  const options = [variant.option1, variant.option2, variant.option3].filter(Boolean).map((item) => String(item));
+  if (options.length > 0) {
+    return options.join(" / ");
+  }
+  return variant.title || "Вариант";
+}
 
 export function ProductPage() {
   const { id } = useParams();
-  const { categories, products, getProductById } = useLiveData();
+  const { products, sources, getProductById } = useLiveData();
 
   const productId = Number(id);
-  const product = products.find((item) => item.id === productId);
-  const [resolvedProduct, setResolvedProduct] = useState<typeof product | null>(product || null);
-  const [loadingProduct, setLoadingProduct] = useState<boolean>(false);
-  const [errorProduct, setErrorProduct] = useState<string | null>(null);
+  const inlineProduct = Number.isFinite(productId) ? products.find((item) => item.id === productId) || null : null;
+
+  const [product, setProduct] = useState<typeof inlineProduct>(inlineProduct);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
 
@@ -21,26 +53,27 @@ export function ProductPage() {
 
     const run = async () => {
       if (!Number.isFinite(productId) || productId <= 0) {
-        setResolvedProduct(null);
-        setErrorProduct("Invalid product ID");
+        setProduct(null);
+        setError("Некорректный ID товара");
         return;
       }
 
-      if (product) {
-        setResolvedProduct(product);
-        setErrorProduct(null);
+      if (inlineProduct) {
+        setProduct(inlineProduct);
+        setError(null);
         return;
       }
 
-      setLoadingProduct(true);
-      setErrorProduct(null);
+      setLoading(true);
+      setError(null);
       const fetched = await getProductById(productId);
-      if (!cancelled) {
-        setResolvedProduct(fetched);
-        if (!fetched) {
-          setErrorProduct(`Product #${productId} not found`);
-        }
-        setLoadingProduct(false);
+      if (cancelled) {
+        return;
+      }
+      setProduct(fetched);
+      setLoading(false);
+      if (!fetched) {
+        setError(`Товар #${productId} не найден`);
       }
     };
 
@@ -48,154 +81,177 @@ export function ProductPage() {
     return () => {
       cancelled = true;
     };
-  }, [productId, product, getProductById]);
+  }, [productId, inlineProduct, getProductById]);
 
-  // Keep hook order stable across renders to avoid runtime hook errors on refresh.
   const images = useMemo(() => {
-    if (!resolvedProduct) {
+    if (!product) {
       return [] as string[];
     }
-    const byIds = (resolvedProduct.image_ids || [])
-      .map((imageId) => toImageGatewayUrl(imageId))
-      .filter((item): item is string => Boolean(item));
-    if (byIds.length > 0) {
-      return byIds;
+    const fromIds = (product.image_ids || []).map((imageId) => (imageId ? `/api/v1/images/${imageId}` : null)).filter(Boolean) as string[];
+    if (fromIds.length > 0) {
+      return fromIds;
     }
-    return (resolvedProduct.image_urls || []).filter(Boolean);
-  }, [resolvedProduct]);
+    const fallback = getProductPrimaryImageUrl(product);
+    return fallback ? [fallback] : [];
+  }, [product]);
 
-  if (loadingProduct) {
-    return <div className="section detail" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "200px" }}>
-      <p>Loading product...</p>
-    </div>;
-  }
-
-  if (errorProduct || !resolvedProduct) {
-    return <div className="section detail">
-      <p style={{ color: "red" }}>{errorProduct || "Product not found"}</p>
-    </div>;
-  }
-
-  const flatCategories = (items: typeof categories): typeof categories => {
-    const list: typeof categories = [];
-    for (const item of items) {
-      list.push(item);
-      list.push(...flatCategories(item.children));
-    }
-    return list;
-  };
-
-  const resolvedCategorySlug = ((resolvedProduct.internal_category_slugs || [])[0] || "").trim()
-    || (resolvedProduct.internal_category_slug || "").trim()
-    || toSlug(resolvedProduct.product_type || "Прочее");
-  const category = flatCategories(categories).find((item) => item.slug === resolvedCategorySlug);
-
-  const showPrev = () => {
-    if (images.length === 0) {
+  useEffect(() => {
+    if (activeImageIndex <= Math.max(0, images.length - 1)) {
       return;
     }
-    setActiveImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  };
+    setActiveImageIndex(0);
+  }, [images.length, activeImageIndex]);
 
-  const showNext = () => {
-    if (images.length === 0) {
-      return;
+  const sourceNameById = useMemo(() => getSourceNameById(sources), [sources]);
+
+  const categoryNames = useMemo(() => {
+    if (!product) {
+      return [] as string[];
     }
-    setActiveImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  };
+    const names = (product.internal_category_names || []).filter(Boolean);
+    if (names.length > 0) {
+      return names;
+    }
+    if (product.internal_category_name) {
+      return [product.internal_category_name];
+    }
+    return [];
+  }, [product]);
+
+  const statusClass = getStatusClass(product?.status || "unknown");
+
+  if (loading) {
+    return (
+      <section className="section">
+        <div className="card admin-skeleton-stack">
+          <SkeletonBlock className="admin-skeleton-row" />
+          <SkeletonBlock className="admin-skeleton-row" />
+          <SkeletonBlock className="admin-skeleton-row" />
+        </div>
+      </section>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <section className="section">
+        <div className="catalog-empty card">
+          <p>{error || "Товар не найден"}</p>
+          <Link className="btn-link" to="/">
+            Вернуться к каталогу
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   const activeImage = images[activeImageIndex] || null;
+  const sourceName = sourceNameById.get(product.source_id) || `Источник #${product.source_id}`;
+  const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
 
   return (
-    <article className="section detail">
-      <div>
-        {activeImage ? (
-          <div className="product-slider">
-            <img className="detail-image" src={activeImage} alt={`${resolvedProduct.title} ${activeImageIndex + 1}`} />
-            {images.length > 1 ? (
-              <>
-                <button type="button" className="slider-arrow slider-arrow--left" onClick={showPrev}>
-                  ‹
-                </button>
-                <button type="button" className="slider-arrow slider-arrow--right" onClick={showNext}>
-                  ›
-                </button>
-              </>
-            ) : null}
-          </div>
-        ) : (
-          <div className="detail-image detail-image--placeholder">No image</div>
-        )}
-
-        {images.length > 1 ? (
-          <div className="slider-thumbs">
-            {images.map((imageUrl, idx) => (
-              <button
-                key={`${imageUrl}-${idx}`}
-                type="button"
-                className={idx === activeImageIndex ? "slider-thumb slider-thumb--active" : "slider-thumb"}
-                onClick={() => setActiveImageIndex(idx)}
-              >
-                <img src={imageUrl} alt={`thumb-${idx + 1}`} />
-              </button>
-            ))}
-          </div>
-        ) : null}
+    <article className="section product-view">
+      <div className="product-view-back">
+        <Link className="btn-link" to="/">
+          ← Назад к каталогу
+        </Link>
       </div>
-      <div>
-        <h1>{resolvedProduct.title}</h1>
-        <p className="muted">Handle: {resolvedProduct.handle}</p>
-        <p className="muted">Brand: {resolvedProduct.vendor || "-"}</p>
-        <p className="muted">Status: {resolvedProduct.status}</p>
-        <p className="muted">Images: {resolvedProduct.image_count}</p>
-        <p className="muted">Category: {category?.name ?? "Unknown"}</p>
-        <p className="price">
-          {resolvedProduct.price} {resolvedProduct.currency}
-        </p>
-        <p className="muted">Updated: {new Date(resolvedProduct.updated_at).toLocaleString()}</p>
-        
-        {resolvedProduct.variants && resolvedProduct.variants.length > 0 && (
-          <div className="variants-section">
-            <h3>Available Options:</h3>
-            <div className="variants-grid">
-              {resolvedProduct.variants.map((variant, idx) => {
-                const variantLabel = [variant.option1, variant.option2, variant.option3]
-                  .filter(Boolean)
-                  .join(" / ") || variant.title;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    className={`variant-btn ${!variant.available ? "variant-btn--disabled" : ""} ${
-                        selectedVariantIndex === idx ? "variant-btn--selected" : ""
-                    }`}
-                      onClick={() => variant.available && setSelectedVariantIndex(idx)}
-                    disabled={!variant.available}
-                    title={!variant.available ? "Out of stock" : ""}
-                  >
-                    {variantLabel}
-                  </button>
-                );
-              })}
+
+      <div className="product-view-grid">
+        <section className="card product-gallery-card">
+          {activeImage ? (
+            <img className="detail-image" src={activeImage} alt={product.title} />
+          ) : (
+            <ImageWithFallback
+              src={null}
+              alt={product.title}
+              className="detail-image"
+              placeholderClassName="detail-image detail-image--placeholder"
+              placeholderText="No image"
+            />
+          )}
+
+          {images.length > 1 ? (
+            <div className="slider-thumbs">
+              {images.map((imageUrl, index) => (
+                <button
+                  key={`${imageUrl}-${index}`}
+                  type="button"
+                  className={index === activeImageIndex ? "slider-thumb slider-thumb--active" : "slider-thumb"}
+                  onClick={() => setActiveImageIndex(index)}
+                >
+                  <img src={imageUrl} alt={`${product.title}-${index + 1}`} />
+                </button>
+              ))}
             </div>
-              {selectedVariantIndex !== null && resolvedProduct.variants[selectedVariantIndex] && (
-              <p className="muted">
-                  Selected: {resolvedProduct.variants[selectedVariantIndex].title}
-                  {resolvedProduct.variants[selectedVariantIndex].inventory_quantity > 0 &&
-                    ` (${resolvedProduct.variants[selectedVariantIndex].inventory_quantity} in stock)`}
-              </p>
-            )}
+          ) : null}
+        </section>
+
+        <section className="card product-main-card">
+          <div className="product-main-head">
+            <h1>{product.title}</h1>
+            <span className={statusClass}>{getStatusLabel(product.status)}</span>
           </div>
-        )}
-        
-        <a className="btn-link" href={resolvedProduct.url} target="_blank" rel="noreferrer">
-          Open source page
-        </a>
-        {category ? (
-          <Link className="btn-link" to={`/category/${category.slug}`}>
-            More from this category
-          </Link>
-        ) : null}
+
+          <div className="product-main-price">{product.price ?? "-"} {product.currency}</div>
+
+          <div className="product-main-meta">
+            <p><strong>Источник:</strong> {sourceName}</p>
+            <p><strong>Бренд:</strong> {product.vendor || "-"}</p>
+            <p><strong>Handle:</strong> {product.handle || "-"}</p>
+            <p><strong>Категории:</strong> {categoryNames.length > 0 ? categoryNames.join(", ") : "-"}</p>
+            <p><strong>Обновлено:</strong> {formatDateTime(product.updated_at)}</p>
+          </div>
+
+          {hasVariants ? (
+            <div className="variants-section">
+              <h3>Варианты</h3>
+              <div className="variants-grid">
+                {product.variants.map((variant, index) => {
+                  const info = variant as VariantInfo & {
+                    option1?: string | null;
+                    option2?: string | null;
+                    option3?: string | null;
+                  };
+                  const label = buildVariantLabel(info);
+                  const available = Boolean(info.available);
+                  return (
+                    <button
+                      key={`${product.id}-variant-${index}`}
+                      type="button"
+                      className={`variant-btn ${!available ? "variant-btn--disabled" : ""} ${selectedVariantIndex === index ? "variant-btn--selected" : ""}`}
+                      onClick={() => {
+                        if (available) {
+                          setSelectedVariantIndex(index);
+                        }
+                      }}
+                      disabled={!available}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedVariantIndex !== null && product.variants[selectedVariantIndex] ? (
+                <p className="muted">
+                  Выбран вариант: {buildVariantLabel(product.variants[selectedVariantIndex] as {
+                    title?: string;
+                    option1?: string | null;
+                    option2?: string | null;
+                    option3?: string | null;
+                  })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="product-main-actions">
+            <a className="btn-link" href={product.url} target="_blank" rel="noreferrer">
+              Открыть товар у источника
+            </a>
+          </div>
+        </section>
       </div>
     </article>
   );

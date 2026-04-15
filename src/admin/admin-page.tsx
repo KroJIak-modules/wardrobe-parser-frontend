@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent 
 import { Link } from "react-router-dom";
 import { renderToString } from "katex";
 import "katex/dist/katex.min.css";
-import { useLiveData, type CategoryManualProduct, type PricingSettings } from "../shared/live-data-context";
+import { useLiveData, type CategoryManualProduct, type PricingSettings, type SettingsTransferPayload } from "../shared/live-data-context";
 import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
+import { IconChevronDown, IconClose, IconInfo, IconPlus } from "../shared/mono-icons";
+import { AdminSectionSkeleton, AdminTableSkeleton } from "../shared/skeleton";
 
-type AdminTab = "products" | "dedup" | "categories" | "sources" | "pricing" | "weight";
+type AdminTab = "products" | "dedup" | "categories" | "sources" | "pricing" | "weight" | "settings";
 
 type UploadPreview = {
   file: File;
@@ -25,6 +27,7 @@ const tabs: { key: AdminTab; label: string }[] = [
   { key: "sources", label: "Источники" },
   { key: "pricing", label: "Ценообразование" },
   { key: "weight", label: "Вес" },
+  { key: "settings", label: "Настройки" },
 ];
 
 const whitelist = [
@@ -478,7 +481,7 @@ const renderLegendSymbol = (key: string): string => {
 function HelpHint({ text }: { text: string }) {
   return (
     <span className="help-hint" tabIndex={0} aria-label={text}>
-      ?
+      <IconInfo className="icon-svg icon-svg--sm" />
       <span className="help-hint-popup">{text}</span>
     </span>
   );
@@ -561,6 +564,8 @@ export function AdminPage() {
     updatePricingSupplier,
     createPricingSupplier,
     deletePricingSupplier,
+    exportSettings,
+    importSettings,
     assignSourceSupplier,
   } = useLiveData();
 
@@ -609,6 +614,10 @@ export function AdminPage() {
   const [shippingRuleDrafts, setShippingRuleDrafts] = useState<ShippingRuleDraft[]>([]);
   const [finalRoundingModeDraft, setFinalRoundingModeDraft] = useState<FinalRoundingMode>("unit");
   const [showBybitErrorPopup, setShowBybitErrorPopup] = useState<boolean>(false);
+  const [settingsExportInProgress, setSettingsExportInProgress] = useState<boolean>(false);
+  const [settingsImportInProgress, setSettingsImportInProgress] = useState<boolean>(false);
+  const [pricingTabLoading, setPricingTabLoading] = useState<boolean>(false);
+  const [weightTabLoading, setWeightTabLoading] = useState<boolean>(false);
   const [nowTickMs, setNowTickMs] = useState<number>(() => Date.now());
   const [pricingExampleStartSeed] = useState<number>(() => Math.random());
   const [sourcePricingDrafts, setSourcePricingDrafts] = useState<Record<string, {
@@ -618,11 +627,13 @@ export function AdminPage() {
     buyout: TriCurrencyDraft;
   }>>({});
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
+  const settingsImportInputRef = useRef<HTMLInputElement | null>(null);
   const bybitWarnToastShownRef = useRef<string | null>(null);
 
   const [filteredServerProducts, setFilteredServerProducts] = useState<AdminListProduct[]>([]);
   const [filteredServerTotal, setFilteredServerTotal] = useState<number>(0);
   const [filteredServerHasMore, setFilteredServerHasMore] = useState<boolean>(false);
+  const [filteredServerCursor, setFilteredServerCursor] = useState<string | null>(null);
   const [loadingFilteredServer, setLoadingFilteredServer] = useState<boolean>(false);
 
   const isSyncInProgress = Boolean(latestJob && ["in_progress", "pending"].includes(latestJob.status));
@@ -695,11 +706,21 @@ export function AdminPage() {
   useEffect(() => {
     const run = async () => {
       if (tab === "pricing") {
-        await ensurePricingLoaded();
+        setPricingTabLoading(true);
+        try {
+          await ensurePricingLoaded();
+        } finally {
+          setPricingTabLoading(false);
+        }
         return;
       }
       if (tab === "weight") {
-        await ensureWeightLoaded();
+        setWeightTabLoading(true);
+        try {
+          await ensureWeightLoaded();
+        } finally {
+          setWeightTabLoading(false);
+        }
         return;
       }
       if (tab === "dedup") {
@@ -1939,6 +1960,7 @@ export function AdminPage() {
       setFilteredServerProducts([]);
       setFilteredServerTotal(0);
       setFilteredServerHasMore(false);
+      setFilteredServerCursor(null);
       return;
     }
 
@@ -1948,19 +1970,19 @@ export function AdminPage() {
       try {
         setLoadingFilteredServer(true);
         const params = buildFilterQuery();
-        params.set("offset", "0");
-        const res = await fetch(`${API_BASE}/products?${params.toString()}`, { signal: controller.signal });
+        const res = await fetch(`${API_BASE}/admin/products?${params.toString()}`, { signal: controller.signal });
         if (!res.ok) {
           throw new Error(`Products API error: ${res.status}`);
         }
-        const payload = (await res.json()) as { items: AdminListProduct[]; total: number; offset: number };
+        const payload = (await res.json()) as { items: AdminListProduct[]; total: number; next_cursor?: string | null; has_more?: boolean };
         if (cancelled) {
           return;
         }
         const items = payload.items || [];
         setFilteredServerProducts(items);
         setFilteredServerTotal(payload.total || 0);
-        setFilteredServerHasMore(items.length + (payload.offset || 0) < (payload.total || 0));
+        setFilteredServerCursor(payload.next_cursor || null);
+        setFilteredServerHasMore(Boolean(payload.has_more && payload.next_cursor));
       } catch (e) {
         if ((e as Error).name === "AbortError") {
           return;
@@ -1986,18 +2008,18 @@ export function AdminPage() {
   }, [hasActiveFilters, productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
 
   const loadMoreFilteredProducts = async () => {
-    if (!filteredServerHasMore || loadingFilteredServer) {
+    if (!filteredServerHasMore || loadingFilteredServer || !filteredServerCursor) {
       return;
     }
     try {
       setLoadingFilteredServer(true);
       const params = buildFilterQuery();
-      params.set("offset", String(filteredServerProducts.length));
-      const res = await fetch(`${API_BASE}/products?${params.toString()}`);
+      params.set("cursor", filteredServerCursor);
+      const res = await fetch(`${API_BASE}/admin/products?${params.toString()}`);
       if (!res.ok) {
         throw new Error(`Products API error: ${res.status}`);
       }
-      const payload = (await res.json()) as { items: AdminListProduct[]; total: number; offset: number };
+      const payload = (await res.json()) as { items: AdminListProduct[]; total: number; next_cursor?: string | null; has_more?: boolean };
       const nextItems = payload.items || [];
       setFilteredServerProducts((prev) => {
         const known = new Set(prev.map((item) => item.id));
@@ -2005,7 +2027,8 @@ export function AdminPage() {
         return [...prev, ...toAdd];
       });
       setFilteredServerTotal(payload.total || 0);
-      setFilteredServerHasMore(nextItems.length + (payload.offset || 0) < (payload.total || 0));
+      setFilteredServerCursor(payload.next_cursor || null);
+      setFilteredServerHasMore(Boolean(payload.has_more && payload.next_cursor));
     } catch (e) {
       pushToast(e instanceof Error ? e.message : "Ошибка догрузки");
     } finally {
@@ -2058,7 +2081,7 @@ export function AdminPage() {
     displayedLoadingMore,
     hasActiveFilters,
     loadMoreProducts,
-    filteredServerProducts.length,
+    loadMoreFilteredProducts,
   ]);
 
   const sourceById = useMemo(() => {
@@ -2153,7 +2176,7 @@ export function AdminPage() {
     if (status === "out_of_stock") {
       return { label: "Нет в наличии", cls: "status-pill status-pill--bad" };
     }
-    return { label: "Comming soon", cls: "status-pill status-pill--muted" };
+    return { label: "Скрыт", cls: "status-pill status-pill--muted" };
   };
 
   const resetProductForm = () => {
@@ -2390,6 +2413,14 @@ export function AdminPage() {
     pushToast(result.ok ? (enabled ? "Категория включена" : "Категория выключена") : result.message);
   };
 
+  const onToggleCategoryFavorite = async (isFavorite: boolean) => {
+    if (!selectedCategoryId) {
+      return;
+    }
+    const result = await updateCategory(selectedCategoryId, { is_favorite: isFavorite });
+    pushToast(result.ok ? (isFavorite ? "Категория отмечена звездой" : "Звезда снята") : result.message);
+  };
+
   const onAddManualProduct = async (productId: number) => {
     if (!selectedCategoryId || !selectedCategoryIsLeaf) {
       return;
@@ -2472,6 +2503,70 @@ export function AdminPage() {
     pushToast(result.message);
   };
 
+  const onExportSettings = async () => {
+    if (settingsExportInProgress) {
+      return;
+    }
+    setSettingsExportInProgress(true);
+    try {
+      const result = await exportSettings();
+      if (!result.ok || !result.payload) {
+        pushToast(result.message);
+        return;
+      }
+      const now = new Date();
+      const stamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+      ].join("-");
+      const fileName = `settings-export-${stamp}.json`;
+      const json = JSON.stringify(result.payload, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      pushToast("Файл настроек выгружен");
+    } finally {
+      setSettingsExportInProgress(false);
+    }
+  };
+
+  const onOpenImportDialog = () => {
+    if (settingsImportInProgress) {
+      return;
+    }
+    settingsImportInputRef.current?.click();
+  };
+
+  const onImportSettingsFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    setSettingsImportInProgress(true);
+    try {
+      const text = await file.text();
+      let payload: SettingsTransferPayload;
+      try {
+        payload = JSON.parse(text) as SettingsTransferPayload;
+      } catch {
+        pushToast("Файл не похож на валидный JSON");
+        return;
+      }
+      const result = await importSettings(payload);
+      pushToast(result.message);
+    } finally {
+      setSettingsImportInProgress(false);
+    }
+  };
+
   const renderTree = (nodes: typeof adminCategories, depth = 0) => {
     return (
       <div className="cat-tree-column">
@@ -2498,7 +2593,7 @@ export function AdminPage() {
                     title="Добавить дочернюю категорию"
                     onClick={() => onStartCategoryCreate(node.id)}
                   >
-                    +
+                    <IconPlus className="icon-svg icon-svg--sm" />
                   </button>
                 ) : null}
                 <span className="muted">
@@ -2580,7 +2675,7 @@ export function AdminPage() {
         <div className="card">
           <h2>
             {loading && displayedProducts.length === 0
-              ? "Все товары (загрузка...)"
+              ? "Все товары"
               : hasActiveFilters && !productSourceFilter
               ? `Все товары (${displayedProducts.length}/${displayedTotal})`
               : `Все товары (${hasActiveFilters ? displayedTotal : productsTotal})`}
@@ -2622,7 +2717,7 @@ export function AdminPage() {
                 <option value="">Все статусы</option>
                 <option value="available">Доступен</option>
                 <option value="out_of_stock">Нет в наличии</option>
-                <option value="discontinued">Comming soon</option>
+                <option value="hidden">Скрыт</option>
               </select>
               <button
                 type="button"
@@ -2700,9 +2795,9 @@ export function AdminPage() {
                   })}
                 </tbody>
               </table>
-              {loading && displayedProducts.length === 0 ? <p className="muted">Идет загрузка списка товаров...</p> : null}
+              {loading && displayedProducts.length === 0 ? <AdminTableSkeleton rows={8} cols={8} /> : null}
               {!loading && displayedProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
-              {displayedLoadingMore ? <p className="muted">Подгружаем еще товары...</p> : null}
+              {displayedLoadingMore ? <AdminTableSkeleton rows={3} cols={8} /> : null}
               <div ref={productsSentinelRef} style={{ height: "1px" }} />
             </div>
           </div>
@@ -2712,7 +2807,7 @@ export function AdminPage() {
       {tab === "dedup" ? (
         <div className="card">
           <h2>Дедубликация</h2>
-          <p className="muted">{loadingDedupCandidates ? "Кандидатов: загрузка..." : `Кандидатов: ${dedupCandidates.length}`}</p>
+          <p className="muted">{loadingDedupCandidates ? "Кандидатов: ..." : `Кандидатов: ${dedupCandidates.length}`}</p>
           <div className="dedup-list">
             {dedupCandidates.map((candidate) => (
               <div key={candidate.pair_key} className="dedup-item">
@@ -2758,7 +2853,7 @@ export function AdminPage() {
                 </div>
               </div>
             ))}
-            {loadingDedupCandidates ? <p className="muted">Идет загрузка кандидатов дедубликации...</p> : null}
+            {loadingDedupCandidates ? <AdminSectionSkeleton rows={4} /> : null}
             {!loadingDedupCandidates && dedupCandidates.length === 0 ? <p className="muted">Кандидатов нет</p> : null}
           </div>
         </div>
@@ -2767,13 +2862,13 @@ export function AdminPage() {
       {tab === "categories" ? (
         <div className="card">
           <h2>Категории</h2>
-          {loadingCategoriesTree ? <p className="muted">Загружаем дерево категорий...</p> : null}
-          {!loadingCategoriesTree && loadingCategoryCounts ? <p className="muted">Пересчитываем количество товаров по категориям...</p> : null}
+          {loadingCategoriesTree ? <AdminSectionSkeleton rows={6} /> : null}
+          {!loadingCategoriesTree && loadingCategoryCounts ? <AdminSectionSkeleton rows={3} /> : null}
           <div className="categories-layout">
             <div>
               <div className="actions" style={{ marginBottom: "0.5rem" }}>
                 <button type="button" className="tree-plus" onClick={() => onStartCategoryCreate(null)}>
-                  + root
+                  <IconPlus className="icon-svg icon-svg--sm" /> root
                 </button>
               </div>
               <div className="cat-tree-wrap">{renderTree(adminCategories)}</div>
@@ -2826,6 +2921,19 @@ export function AdminPage() {
                       </span>
                       <span className="ui-switch-text">{selectedCategory.is_enabled ? "Вкл" : "Выкл"}</span>
                     </label>
+                    {!selectedCategory.is_system ? (
+                      <label className="ui-switch">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategory.is_favorite}
+                          onChange={(event) => void onToggleCategoryFavorite(event.target.checked)}
+                        />
+                        <span className="ui-switch-track">
+                          <span className="ui-switch-thumb" />
+                        </span>
+                        <span className="ui-switch-text">{selectedCategory.is_favorite ? "Звездная" : "Обычная"}</span>
+                      </label>
+                    ) : null}
                     <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_system}>
                       Удалить
                     </button>
@@ -2862,7 +2970,7 @@ export function AdminPage() {
                             <span>{keyword}</span>
                             {selectedCategory.keywords_editable ? (
                               <button type="button" className="tag-x" onClick={() => void onRemoveKeyword(keyword, "local")}>
-                                x
+                                <IconClose className="icon-svg icon-svg--sm" />
                               </button>
                             ) : null}
                           </span>
@@ -2898,7 +3006,7 @@ export function AdminPage() {
                             <span>{keyword}</span>
                             {selectedCategory.keywords_editable ? (
                               <button type="button" className="tag-x" onClick={() => void onRemoveKeyword(keyword, "title")}>
-                                x
+                                <IconClose className="icon-svg icon-svg--sm" />
                               </button>
                             ) : null}
                           </span>
@@ -2932,7 +3040,7 @@ export function AdminPage() {
                               disabled={!selectedCategory.keywords_editable}
                             />
                           </div>
-                          {manualSearchLoading ? <p className="muted">Ищем товары...</p> : null}
+                          {manualSearchLoading ? <AdminSectionSkeleton rows={2} /> : null}
                           {!manualSearchLoading && manualSearchInput.trim() && manualSearchResults.length === 0 ? (
                             <p className="muted">Ничего не найдено</p>
                           ) : null}
@@ -2955,14 +3063,14 @@ export function AdminPage() {
                                   <p className="muted">{categoryLabel}</p>
                                 </div>
                                 <button type="button" onClick={() => void onAddManualProduct(item.product_id)}>
-                                  +
+                                  <IconPlus className="icon-svg icon-svg--sm" />
                                 </button>
                               </div>
                             );
                           })}
 
                           <p className="muted">Добавленные товары</p>
-                          {manualAssignedLoading ? <p className="muted">Загружаем добавленные товары...</p> : null}
+                          {manualAssignedLoading ? <AdminSectionSkeleton rows={2} /> : null}
                           {!manualAssignedLoading && manualAssignedProducts.length === 0 ? <p className="muted">Пока пусто</p> : null}
                           {manualAssignedProducts.map((item) => {
                             const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
@@ -3009,6 +3117,7 @@ export function AdminPage() {
       {tab === "sources" ? (
         <div className="card">
           <h2>Источники ({sources.length})</h2>
+          {loading ? <AdminSectionSkeleton rows={5} /> : null}
           <div className="list">
             {sources.map((source) => (
               <div key={source.key} className="list-row">
@@ -3044,8 +3153,10 @@ export function AdminPage() {
       {tab === "pricing" ? (
         <div className="card">
           <h2>Настройки ценообразования</h2>
-          {!pricingSettings ? (
-            <p className="muted">Загружаем настройки ценообразования...</p>
+          {(pricingTabLoading && !pricingSettings) ? (
+            <AdminSectionSkeleton rows={8} />
+          ) : !pricingSettings ? (
+            <AdminSectionSkeleton rows={8} />
           ) : pricingBlockedByInitialBybit ? (
             <p className="muted">Ценообразование временно недоступно: ждем первый успешный курс Bybit после запуска системы.</p>
           ) : (
@@ -3537,22 +3648,24 @@ export function AdminPage() {
       {tab === "weight" ? (
         <div className="card">
           <h2>Настройки веса</h2>
-          <p className="muted">Вес в граммах задается слева. Справа добавляй англ-ключевые слова.</p>
+          {weightTabLoading ? <AdminSectionSkeleton rows={6} /> : (
+            <>
+              <p className="muted">Вес в граммах задается слева. Справа добавляй англ-ключевые слова.</p>
 
-          <div className="weight-rule-create-row">
-            <input
-              type="number"
-              min={1}
-              value={newWeightRuleGrams}
-              onChange={(event) => setNewWeightRuleGrams(event.target.value)}
-              placeholder="Вес, г"
-            />
-            <button type="button" onClick={() => void onCreateWeightRule()}>
-              Добавить правило
-            </button>
-          </div>
+              <div className="weight-rule-create-row">
+                <input
+                  type="number"
+                  min={1}
+                  value={newWeightRuleGrams}
+                  onChange={(event) => setNewWeightRuleGrams(event.target.value)}
+                  placeholder="Вес, г"
+                />
+                <button type="button" onClick={() => void onCreateWeightRule()}>
+                  Добавить правило
+                </button>
+              </div>
 
-          <div className="weight-rules-list">
+              <div className="weight-rules-list">
             {weightRules.map((rule) => (
               <div key={rule.id} className="weight-rule-row">
                 <div className="weight-rule-left">
@@ -3579,7 +3692,7 @@ export function AdminPage() {
                       <span key={`${rule.id}-${keyword}`} className="tag tag--with-action">
                         <span>{keyword}</span>
                         <button type="button" className="tag-x" onClick={() => void onRemoveWeightKeyword(rule.id, keyword)}>
-                          ✕
+                          <IconClose className="icon-svg icon-svg--sm" />
                         </button>
                       </span>
                     ))}
@@ -3602,41 +3715,72 @@ export function AdminPage() {
                 </div>
               </div>
             ))}
-          </div>
+              </div>
 
-          <h3 style={{ marginTop: "1rem" }}>Товары без определенного веса</h3>
-          {weightMissingProducts.length === 0 ? (
-            <p className="muted">Все товары имеют вес (из источника или по ключевым словам).</p>
-          ) : (
-            <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
-              <table className="products-table">
-                <thead>
-                  <tr>
-                    <th>Товар</th>
-                    <th>Сайт</th>
-                    <th>Источник</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {weightMissingProducts.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <Link className="btn-link" to={`/product/${item.id}`}>
-                          {item.title}
-                        </Link>
-                      </td>
-                      <td>{item.source_name}</td>
-                      <td>
-                        <a className="btn-link" href={item.url} target="_blank" rel="noreferrer">
-                          Открыть товар
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <h3 style={{ marginTop: "1rem" }}>Товары без определенного веса</h3>
+              {weightMissingProducts.length === 0 ? (
+                <p className="muted">Все товары имеют вес (из источника или по ключевым словам).</p>
+              ) : (
+                <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
+                  <table className="products-table">
+                    <thead>
+                      <tr>
+                        <th>Товар</th>
+                        <th>Сайт</th>
+                        <th>Источник</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {weightMissingProducts.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <Link className="btn-link" to={`/product/${item.id}`}>
+                              {item.title}
+                            </Link>
+                          </td>
+                          <td>{item.source_name}</td>
+                          <td>
+                            <a className="btn-link" href={item.url} target="_blank" rel="noreferrer">
+                              Открыть товар
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
+        </div>
+      ) : null}
+
+      {tab === "settings" ? (
+        <div className="card">
+          <h2>Экспорт и импорт настроек</h2>
+          {(settingsExportInProgress || settingsImportInProgress) ? <AdminSectionSkeleton rows={2} /> : null}
+          <p className="muted">
+            Экспортируется конфигурация админки: ценообразование, поставщики, источники, правила веса и категории.
+            Товары в файл не попадают.
+          </p>
+          <div className="settings-transfer-actions">
+            <button type="button" onClick={() => void onExportSettings()} disabled={settingsExportInProgress}>
+              {settingsExportInProgress ? "Экспорт..." : "Экспорт"}
+            </button>
+            <button type="button" onClick={onOpenImportDialog} disabled={settingsImportInProgress}>
+              {settingsImportInProgress ? "Импорт..." : "Импорт"}
+            </button>
+            <input
+              ref={settingsImportInputRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: "none" }}
+              onChange={(event) => void onImportSettingsFile(event)}
+            />
+          </div>
+          <p className="muted">
+            Рекомендуется сначала сделать экспорт текущих настроек как резервную копию, затем выполнять импорт.
+          </p>
         </div>
       ) : null}
 
@@ -3658,7 +3802,7 @@ export function AdminPage() {
                   placeholder="Ссылка (опционально): https://shop.example.com/products/..."
                 />
                 <button type="button" className="mini-btn" onClick={onFetchPreview} title="Подтянуть поля из URL">
-                  ⇣
+                  <IconChevronDown className="icon-svg" />
                 </button>
               </div>
 
@@ -3688,7 +3832,7 @@ export function AdminPage() {
                 Drag-and-drop изображений сюда
               </div>
               <label className="btn-link" htmlFor="image-file">
-                + добавить фото
+                <IconPlus className="icon-svg icon-svg--sm" /> добавить фото
               </label>
               <input
                 id="image-file"
@@ -3732,7 +3876,7 @@ export function AdminPage() {
           <div key={toast.id} className="toast-item">
             <span>{toast.message}</span>
             <button type="button" className="toast-close" onClick={() => closeToast(toast.id)}>
-              ✕
+              <IconClose className="icon-svg icon-svg--sm" />
             </button>
           </div>
         ))}
