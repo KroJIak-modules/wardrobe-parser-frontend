@@ -62,6 +62,7 @@ export type ServiceProduct = {
   internal_category_ids?: number[];
   internal_category_names?: string[];
   internal_category_slugs?: string[];
+  description?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -451,7 +452,7 @@ type LiveDataContextValue = {
   ensureWeightLoaded: (force?: boolean) => Promise<void>;
   ensureDedupLoaded: (force?: boolean) => Promise<void>;
   loadMoreProducts: () => Promise<void>;
-  getProductById: (id: number) => Promise<ServiceProduct | null>;
+  getProductById: (id: number, opts?: { forceFetch?: boolean }) => Promise<ServiceProduct | null>;
   runSync: () => Promise<{ ok: boolean; message: string }>;
   cancelSync: (jobId: string) => Promise<{ ok: boolean; message: string }>;
   previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
@@ -862,10 +863,10 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     }
   }, [productsHasMore, products, loadingMoreProducts]);
 
-  const getProductById = useCallback(async (id: number) => {
+  const getProductById = useCallback(async (id: number, opts?: { forceFetch?: boolean }) => {
     try {
       const existing = products.find((item) => item.id === id);
-      if (existing) {
+      if (existing && !opts?.forceFetch) {
         if (isUnavailableStatus(existing.status)) {
           return null;
         }
@@ -881,8 +882,11 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         return null;
       }
       setProducts((prev) => {
-        if (prev.some((item) => item.id === payload.id)) {
-          return prev;
+        const idx = prev.findIndex((item) => item.id === payload.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...payload };
+          return next;
         }
         return [...prev, payload];
       });

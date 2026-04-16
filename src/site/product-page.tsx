@@ -79,6 +79,7 @@ export function ProductPage() {
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
   const [statusPending, setStatusPending] = useState<boolean>(false);
+  const description = String(product?.description || "").trim();
 
   useEffect(() => {
     let cancelled = false;
@@ -93,18 +94,19 @@ export function ProductPage() {
       if (inlineProduct) {
         setProduct(inlineProduct);
         setError(null);
-        return;
       }
 
-      setLoading(true);
+      setLoading(!inlineProduct);
       setError(null);
-      const fetched = await getProductById(productId);
+      const fetched = await getProductById(productId, { forceFetch: true });
       if (cancelled) {
         return;
       }
-      setProduct(fetched);
+      if (fetched) {
+        setProduct(fetched);
+      }
       setLoading(false);
-      if (!fetched) {
+      if (!fetched && !inlineProduct) {
         setError(`Товар #${productId} не найден`);
       }
     };
@@ -303,11 +305,18 @@ export function ProductPage() {
           <div className="product-main-head">
             <h1>{product.title}</h1>
           </div>
-          <div className="product-main-status">
-            <span className={statusClass}>{getStatusLabel(product.status)}</span>
-          </div>
+            <div className="product-main-status">
+              <span className={statusClass}>{getStatusLabel(product.status)}</span>
+            </div>
 
-          <div className="product-main-meta">
+            {description ? (
+              <div className="product-main-description">
+                <h3>Описание</h3>
+                <p>{description}</p>
+              </div>
+            ) : null}
+
+            <div className="product-main-meta">
             {hasBrand ? (
               <div className="product-meta-line">
                 <span className="product-meta-label">Бренд:</span>
