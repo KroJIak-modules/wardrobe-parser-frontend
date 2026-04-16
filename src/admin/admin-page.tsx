@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { renderToString } from "katex";
 import "katex/dist/katex.min.css";
-import { useLiveData, type CategoryManualProduct, type PricingExampleProduct, type PricingSettings, type SettingsTransferPayload } from "../shared/live-data-context";
-import { getProductPrimaryImageUrl } from "../shared/live-data-context";
+import { useLiveData, type CategoryManualProduct, type PricingExampleProduct, type PricingSettings, type SettingsTransferPayload, getProductPrimaryImageUrl, toImageGatewayUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
-import { IconChevronDown, IconClose, IconInfo, IconPlus, IconStar } from "../shared/mono-icons";
+import { IconChevronDown, IconClose, IconExternalLink, IconInfo, IconPlus, IconStar } from "../shared/mono-icons";
 import {
   AdminCategoriesSkeleton,
   AdminDedupSkeleton,
@@ -27,6 +26,10 @@ type UploadPreview = {
   url: string;
 };
 
+type ShowcaseImageItem = {
+  id: number;
+};
+
 const tabs: { key: AdminTab; label: string }[] = [
   { key: "products", label: "Все товары" },
   { key: "dedup", label: "Дедубликация" },
@@ -38,19 +41,46 @@ const tabs: { key: AdminTab; label: string }[] = [
 ];
 const tabKeys = new Set<AdminTab>(tabs.map((item) => item.key));
 
-const whitelist = [
-  "jadedldn.com",
-  "nofaithstudios.com",
-  "professor-e.com",
-  "essxnyc.com",
-  "paradoxeparis.com",
-  "driewgarments.com",
-  "archived.co",
-];
-
 const currencyOptions = ["RUB", "EUR", "USD"];
 const API_BASE = "/api/v1";
 const PAGE_SIZE = 100;
+const ADMIN_ACCESS_TOKEN_KEY = "admin_access_token";
+const ADMIN_REFRESH_TOKEN_KEY = "admin_refresh_token";
+
+async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  const accessToken = window.localStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
+  const headers = new Headers(init?.headers ?? undefined);
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  const response = await globalThis.fetch(input, { ...init, headers });
+  if (response.status !== 401 || requestUrl.startsWith(`${API_BASE}/auth/`)) {
+    return response;
+  }
+
+  const refreshToken = window.localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
+  if (!refreshToken) {
+    return response;
+  }
+
+  const refreshResponse = await globalThis.fetch(`${API_BASE}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!refreshResponse.ok) {
+    window.localStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
+    window.localStorage.removeItem(ADMIN_REFRESH_TOKEN_KEY);
+    return response;
+  }
+  const refreshed = (await refreshResponse.json()) as { access_token: string; refresh_token: string };
+  window.localStorage.setItem(ADMIN_ACCESS_TOKEN_KEY, refreshed.access_token || "");
+  window.localStorage.setItem(ADMIN_REFRESH_TOKEN_KEY, refreshed.refresh_token || "");
+  const retryHeaders = new Headers(init?.headers ?? undefined);
+  retryHeaders.set("Authorization", `Bearer ${refreshed.access_token}`);
+  return globalThis.fetch(input, { ...init, headers: retryHeaders });
+}
 const pricingNumericKeys = [
   "weight_tolerance",
   "customs_duty_rate",
@@ -251,9 +281,29 @@ const formatDurationHoursMinutesAgo = (totalMinutes: number): string => {
   const safeMinutes = Math.max(0, Math.floor(totalMinutes));
   const hours = Math.floor(safeMinutes / 60);
   const minutes = safeMinutes % 60;
-  const hoursPart = `${hours} ${selectRuPluralForm(hours, "час", "часа", "часов")}`;
   const minutesPart = `${minutes} ${selectRuPluralForm(minutes, "минута", "минуты", "минут")}`;
+  if (hours <= 0) {
+    return `${minutesPart} назад`;
+  }
+  const hoursPart = `${hours} ${selectRuPluralForm(hours, "час", "часа", "часов")}`;
   return `${hoursPart} ${minutesPart} назад`;
+};
+
+const parseApiDate = (value: string | null | undefined): Date | null => {
+  if (!value) {
+    return null;
+  }
+  const raw = String(value).trim();
+  if (!raw) {
+    return null;
+  }
+  const normalized = raw.includes(" ") ? raw.replace(" ", "T") : raw;
+  const hasTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(normalized);
+  const date = new Date(hasTimezone ? normalized : `${normalized}Z`);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
 };
 
 const formatDisplayMoney = (value: number | null, currency?: string): string => {
@@ -267,10 +317,75 @@ const formatDisplayMoney = (value: number | null, currency?: string): string => 
   return `${amount} ${currency || ""}`.trim();
 };
 
+const toCompressedThumbUrl = (url: string | null | undefined, width = 240, height = 240, quality = 55): string | null => {
+  const raw = String(url || "").trim();
+  if (!raw) {
+    return null;
+  }
+  if (!raw.startsWith("/api/v1/images/")) {
+    return raw;
+  }
+  const sep = raw.includes("?") ? "&" : "?";
+  return `${raw}${sep}w=${Math.max(16, Math.round(width))}&h=${Math.max(16, Math.round(height))}&q=${Math.max(25, Math.min(95, Math.round(quality)))}`;
+};
+
+const dedupReasonLabelMap: Record<string, string> = {
+  title_match: "Название",
+  title_similar: "Похожее название",
+  vendor_match: "Бренд",
+  price_close: "Цена",
+  handle_match: "Handle",
+  handle_similar: "Похожий handle",
+  image_overlap: "Фото",
+  variant_overlap: "Варианты",
+  auto_match: "Автосопоставление",
+};
+
+const toTitleCaseRu = (value: string): string => {
+  if (!value) {
+    return "";
+  }
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
+const formatDedupReason = (rawReason: string): string => {
+  const key = String(rawReason || "").trim().toLowerCase();
+  if (!key) {
+    return "";
+  }
+  const mapped = dedupReasonLabelMap[key];
+  if (mapped) {
+    return mapped;
+  }
+  return toTitleCaseRu(key.replaceAll("_", " "));
+};
+
+const dedupActionLabelMap: Record<string, string> = {
+  merge: "Оставлен один",
+  combine: "Соединены",
+  reject: "Не дубль",
+};
+
+const formatDedupAction = (action: string): string => {
+  const key = String(action || "").trim().toLowerCase();
+  if (!key) {
+    return "Решение";
+  }
+  return dedupActionLabelMap[key] || toTitleCaseRu(key.replaceAll("_", " "));
+};
+
 const escapeLatexText = (value: string): string =>
   value
     .replace(/\\/g, "\\textbackslash{}")
     .replace(/([{}$&#_^%~])/g, "\\$1");
+
+const escapeHtml = (value: unknown): string =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 
 type CurrencyCode = "RUB" | "USD" | "EUR" | "GBP";
 type SupplierCategory = "main" | "alt";
@@ -357,30 +472,6 @@ type SvcRuleFieldError = {
   value: boolean;
 };
 
-type ShippingRegion = "US" | "EU" | "UK";
-type ShippingMode = "normal" | "alt";
-
-type ShippingRuleDraft = {
-  id: string;
-  region: ShippingRegion;
-  mode: ShippingMode;
-  min_kg: string;
-  max_kg: string;
-  rub: string;
-};
-
-type ShippingRulePayload = {
-  min_kg: number;
-  max_kg: number | null;
-  rub: number;
-};
-
-type ShippingRuleFieldError = {
-  min: boolean;
-  max: boolean;
-  rub: boolean;
-};
-
 type TriCurrencyAmountKey = "rub" | "usd" | "eur" | "gbp";
 
 const currencyToAmountKey = (currency: CurrencyCode): TriCurrencyAmountKey => {
@@ -439,34 +530,6 @@ const parseSvcRuleDraft = (rule: SvcRuleDraft): SvcRulePayload | null => {
   };
 };
 
-const shippingGroupOrder: Array<{ region: ShippingRegion; mode: ShippingMode; label: string }> = [
-  { region: "US", mode: "normal", label: "Тариф США" },
-  { region: "US", mode: "alt", label: "Альтернативный тариф США" },
-  { region: "EU", mode: "normal", label: "Тариф ЕС" },
-  { region: "EU", mode: "alt", label: "Альтернативный тариф ЕС" },
-  { region: "UK", mode: "normal", label: "Великобритания" },
-];
-
-const parseShippingRuleDraft = (rule: ShippingRuleDraft): ShippingRulePayload | null => {
-  const minKg = Number((rule.min_kg || "").trim());
-  const rub = Number((rule.rub || "").trim());
-  const maxRaw = (rule.max_kg || "").trim();
-  const maxKg = maxRaw ? Number(maxRaw) : null;
-  if (!Number.isFinite(minKg) || minKg < 0 || !Number.isFinite(rub) || rub < 0) {
-    return null;
-  }
-  if (maxKg !== null) {
-    if (!Number.isFinite(maxKg) || maxKg <= minKg) {
-      return null;
-    }
-  }
-  return {
-    min_kg: Number(minKg.toFixed(6)),
-    max_kg: maxKg === null ? null : Number(maxKg.toFixed(6)),
-    rub: Number(rub.toFixed(6)),
-  };
-};
-
 const buildTriCurrencyDraft = (
   activeCurrency: CurrencyCode,
   activeValue: number,
@@ -488,18 +551,32 @@ const buildTriCurrencyDraft = (
 };
 
 const renderLatexInline = (latex: string): string =>
-  renderToString(latex, {
-    throwOnError: false,
-    displayMode: false,
-    strict: "ignore",
-  });
+  (() => {
+    const safeLatex = String(latex ?? "");
+    try {
+      return renderToString(safeLatex, {
+        throwOnError: false,
+        displayMode: false,
+        strict: "ignore",
+      });
+    } catch {
+      return escapeHtml(safeLatex);
+    }
+  })();
 
 const renderLatexBlock = (latex: string): string =>
-  renderToString(latex, {
-    throwOnError: false,
-    displayMode: true,
-    strict: "ignore",
-  });
+  (() => {
+    const safeLatex = String(latex ?? "");
+    try {
+      return renderToString(safeLatex, {
+        throwOnError: false,
+        displayMode: true,
+        strict: "ignore",
+      });
+    } catch {
+      return escapeHtml(safeLatex);
+    }
+  })();
 
 const renderLegendSymbol = (key: string): string => {
   const fromMap = legendKeyToLatex[key];
@@ -552,6 +629,11 @@ export function AdminPage() {
   const navigate = useNavigate();
   const { tab: tabParam } = useParams<{ tab?: string }>();
   const tab = normalizeAdminTab(tabParam);
+  const onLogout = () => {
+    window.localStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
+    window.localStorage.removeItem(ADMIN_REFRESH_TOKEN_KEY);
+    navigate("/control/login", { replace: true });
+  };
 
   useEffect(() => {
     if (!tabParam || tabParam !== tab) {
@@ -583,6 +665,7 @@ export function AdminPage() {
     addProductByUrl,
     createManualProduct,
     uploadProductImage,
+    uploadShowcaseImage,
     adminCategories,
     createCategory,
     updateCategory,
@@ -595,8 +678,12 @@ export function AdminPage() {
     removeCategoryManualProduct,
     dedupCandidates,
     loadingDedupCandidates,
+    dedupDecisions,
+    loadingDedupDecisions,
     mergeDedupPair,
     rejectDedupPair,
+    combineDedupPair,
+    undoDedupDecision,
     loading,
     toggleSourceEnabled,
     weightRules,
@@ -639,6 +726,9 @@ export function AdminPage() {
   const [manualSearchResults, setManualSearchResults] = useState<CategoryManualProduct[]>([]);
   const [manualAssignedProducts, setManualAssignedProducts] = useState<CategoryManualProduct[]>([]);
   const [manualAssignedLoading, setManualAssignedLoading] = useState<boolean>(false);
+  const [dedupChoosingPairKey, setDedupChoosingPairKey] = useState<string | null>(null);
+  const [dedupBusyPairKeys, setDedupBusyPairKeys] = useState<Set<string>>(new Set());
+  const [dedupView, setDedupView] = useState<"candidates" | "decisions">("candidates");
   const [createFormOpen, setCreateFormOpen] = useState<boolean>(false);
   const [newCategoryName, setNewCategoryName] = useState<string>("");
   const [newCategoryParentId, setNewCategoryParentId] = useState<number | null>(null);
@@ -657,7 +747,6 @@ export function AdminPage() {
   const [markupRateDraft, setMarkupRateDraft] = useState<string>("0");
   const [thresholdDraft, setThresholdDraft] = useState<TriCurrencyDraft | null>(null);
   const [svcRuleDrafts, setSvcRuleDrafts] = useState<SvcRuleDraft[]>([]);
-  const [shippingRuleDrafts, setShippingRuleDrafts] = useState<ShippingRuleDraft[]>([]);
   const [finalRoundingModeDraft, setFinalRoundingModeDraft] = useState<FinalRoundingMode>("unit");
   const [designersMinProductsDraft, setDesignersMinProductsDraft] = useState<string>("1");
   const [showBybitErrorPopup, setShowBybitErrorPopup] = useState<boolean>(false);
@@ -668,6 +757,10 @@ export function AdminPage() {
   const [nowTickMs, setNowTickMs] = useState<number>(() => Date.now());
   const [pricingExampleProduct, setPricingExampleProduct] = useState<PricingExampleProduct | null>(null);
   const [pricingExampleLoading, setPricingExampleLoading] = useState<boolean>(false);
+  const [newSupplierName, setNewSupplierName] = useState<string>("");
+  const [newAltByMainId, setNewAltByMainId] = useState<Record<number, { name: string }>>({});
+  const [tariffRangesDrafts, setTariffRangesDrafts] = useState<Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>>>({});
+  const [tariffNameDrafts, setTariffNameDrafts] = useState<Record<number, string>>({});
   const [sourcePricingDrafts, setSourcePricingDrafts] = useState<Record<string, {
     supplierId: string;
     promoPercent: string;
@@ -675,11 +768,16 @@ export function AdminPage() {
     buyout: TriCurrencyDraft;
   }>>({});
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
+  const heroInputRef = useRef<HTMLInputElement | null>(null);
+  const carouselInputRef = useRef<HTMLInputElement | null>(null);
   const settingsImportInputRef = useRef<HTMLInputElement | null>(null);
   const bybitWarnToastShownRef = useRef<string | null>(null);
   const pricingBlockedToastShownRef = useRef<boolean>(false);
-  const shippingValidationToastRef = useRef<string | null>(null);
   const svcValidationToastRef = useRef<string | null>(null);
+  const [showcaseHeroImageId, setShowcaseHeroImageId] = useState<number | null>(null);
+  const [showcaseCarousel, setShowcaseCarousel] = useState<ShowcaseImageItem[]>([]);
+  const [showcaseSaving, setShowcaseSaving] = useState<boolean>(false);
+  const [draggingCarouselId, setDraggingCarouselId] = useState<number | null>(null);
 
   const [tableProducts, setTableProducts] = useState<AdminProductsTableItem[]>([]);
   const [tableTotal, setTableTotal] = useState<number>(0);
@@ -734,7 +832,7 @@ export function AdminPage() {
       if (tab === "pricing" || tab === "settings") {
         setPricingTabLoading(true);
         try {
-          await ensurePricingLoaded();
+          await ensurePricingLoaded(true);
         } finally {
           setPricingTabLoading(false);
         }
@@ -951,6 +1049,23 @@ export function AdminPage() {
     const nextValue = Math.max(1, Math.trunc(Number(pricingSettings.designers_min_products || 1)));
     setDesignersMinProductsDraft(String(nextValue));
   }, [pricingSettings?.designers_min_products]);
+
+  useEffect(() => {
+    if (!pricingSettings) {
+      return;
+    }
+    const heroRaw = Number(pricingSettings.showcase_hero_image_asset_id);
+    setShowcaseHeroImageId(Number.isFinite(heroRaw) && heroRaw > 0 ? heroRaw : null);
+    const ids = Array.isArray(pricingSettings.showcase_carousel_image_asset_ids)
+      ? pricingSettings.showcase_carousel_image_asset_ids
+      : [];
+    const normalized = ids
+      .map((item) => Number(item))
+      .filter((item, index, arr) => Number.isFinite(item) && item > 0 && arr.indexOf(item) === index)
+      .slice(0, 20)
+      .map((id) => ({ id }));
+    setShowcaseCarousel(normalized);
+  }, [pricingSettings?.showcase_hero_image_asset_id, pricingSettings?.showcase_carousel_image_asset_ids]);
 
   useEffect(() => {
     if (!pricingSettings) {
@@ -1210,160 +1325,9 @@ export function AdminPage() {
     });
   };
 
-  useEffect(() => {
-    if (!pricingSettings) {
-      setShippingRuleDrafts([]);
-      return;
-    }
-    const next: ShippingRuleDraft[] = [];
-    for (const group of shippingGroupOrder) {
-      const rows = ((pricingSettings.shipping_rules || {})[group.region] || {})[group.mode] || [];
-      for (const row of rows) {
-        const raw = row as Record<string, unknown>;
-        const minKgRaw = Number(raw.min_kg);
-        const maxRaw = raw.max_kg;
-        const maxKgRaw = maxRaw === null || maxRaw === undefined || String(maxRaw).trim() === "" ? null : Number(maxRaw);
-        const rubRaw = Number(raw.rub);
-        if (!Number.isFinite(minKgRaw) || minKgRaw < 0 || !Number.isFinite(rubRaw) || rubRaw < 0) {
-          continue;
-        }
-        if (maxKgRaw !== null && (!Number.isFinite(maxKgRaw) || maxKgRaw <= minKgRaw)) {
-          continue;
-        }
-        next.push({
-          id: `${group.region}-${group.mode}-${next.length}`,
-          region: group.region,
-          mode: group.mode,
-          min_kg: formatCompactNumber(minKgRaw, 6),
-          max_kg: maxKgRaw === null ? "" : formatCompactNumber(maxKgRaw, 6),
-          rub: formatCompactNumber(rubRaw, 6),
-        });
-      }
-    }
-    setShippingRuleDrafts(next);
-  }, [pricingSettings?.shipping_rules]);
-
-  const shippingRulesValidationError = useMemo(() => {
-    for (const group of shippingGroupOrder) {
-      const parsed = shippingRuleDrafts
-        .filter((item) => item.region === group.region && item.mode === group.mode)
-        .map(parseShippingRuleDraft);
-      if (parsed.some((item) => !item)) {
-        return `SSR: заполни корректно диапазоны в "${group.label}"`;
-      }
-      const normalized = parsed.filter(Boolean) as ShippingRulePayload[];
-      normalized.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
-      for (let i = 1; i < normalized.length; i += 1) {
-        const prevMax = normalized[i - 1].max_kg ?? Number.POSITIVE_INFINITY;
-        if (normalized[i].min_kg < prevMax - 1e-9) {
-          return `SSR: диапазоны пересекаются в "${group.label}"`;
-        }
-      }
-    }
-    return null;
-  }, [shippingRuleDrafts]);
-
-  const shippingRuleFieldErrors = useMemo(() => {
-    const errors: Record<string, ShippingRuleFieldError> = {};
-    for (const row of shippingRuleDrafts) {
-      const minKg = Number((row.min_kg || "").trim());
-      const rub = Number((row.rub || "").trim());
-      const maxRaw = (row.max_kg || "").trim();
-      const maxKg = maxRaw ? Number(maxRaw) : null;
-      const rowError: ShippingRuleFieldError = {
-        min: !Number.isFinite(minKg) || minKg < 0,
-        max: false,
-        rub: !Number.isFinite(rub) || rub < 0,
-      };
-      if (maxKg !== null && (!Number.isFinite(maxKg) || maxKg <= minKg)) {
-        rowError.max = true;
-      }
-      errors[row.id] = rowError;
-    }
-    for (const group of shippingGroupOrder) {
-      const rows = shippingRuleDrafts
-        .filter((item) => item.region === group.region && item.mode === group.mode)
-        .map((item) => {
-          const parsed = parseShippingRuleDraft(item);
-          return parsed ? { id: item.id, ...parsed } : null;
-        })
-        .filter(Boolean) as Array<{ id: string; min_kg: number; max_kg: number | null; rub: number }>;
-      rows.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
-      for (let i = 1; i < rows.length; i += 1) {
-        const prevMax = rows[i - 1].max_kg ?? Number.POSITIVE_INFINITY;
-        if (rows[i].min_kg < prevMax - 1e-9) {
-          errors[rows[i - 1].id].max = true;
-          errors[rows[i].id].min = true;
-        }
-      }
-    }
-    return errors;
-  }, [shippingRuleDrafts]);
-
-  useEffect(() => {
-    if (!pricingSettings || shippingRulesValidationError) {
-      return;
-    }
-    const payload: Record<string, Record<string, Array<Record<string, unknown>>>> = {
-      US: { normal: [], alt: [] },
-      EU: { normal: [], alt: [] },
-      UK: { normal: [], alt: [] },
-    };
-    for (const group of shippingGroupOrder) {
-      const rows = shippingRuleDrafts
-        .filter((item) => item.region === group.region && item.mode === group.mode)
-        .map(parseShippingRuleDraft)
-        .filter(Boolean) as ShippingRulePayload[];
-      rows.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
-      payload[group.region][group.mode] = rows.map((row) => ({
-        min_kg: row.min_kg,
-        max_kg: row.max_kg,
-        rub: row.rub,
-      }));
-    }
-    const current = JSON.stringify(pricingSettings.shipping_rules || {});
-    const next = JSON.stringify(payload);
-    if (current === next) {
-      return;
-    }
-    const timer = window.setTimeout(async () => {
-      const result = await updatePricingSettings({
-        shipping_rules: payload as unknown as Record<string, Record<string, Array<Record<string, unknown>>>>,
-      });
-      if (!result.ok) {
-        pushToast(result.message);
-      }
-    }, 700);
-    return () => window.clearTimeout(timer);
-  }, [shippingRuleDrafts, pricingSettings, shippingRulesValidationError, updatePricingSettings]);
-
-  const onAddShippingRule = (region: ShippingRegion, mode: ShippingMode) => {
-    setShippingRuleDrafts((prev) => {
-      const groupRows = prev
-        .filter((item) => item.region === region && item.mode === mode)
-        .map(parseShippingRuleDraft)
-        .filter(Boolean) as ShippingRulePayload[];
-      groupRows.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
-      const last = groupRows.length > 0 ? groupRows[groupRows.length - 1] : null;
-      const nextMin = last ? Number((last.max_kg ?? last.min_kg).toFixed(3)) : 0;
-      const nextMax = Number((nextMin + 0.5).toFixed(3));
-      return [
-        ...prev,
-        {
-          id: `ship-new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          region,
-          mode,
-          min_kg: formatCompactNumber(nextMin, 6),
-          max_kg: formatCompactNumber(nextMax, 6),
-          rub: "0",
-        },
-      ];
-    });
-  };
-
   const pricingRates = useMemo(() => {
     if (!pricingSettings) {
-      return { usdToRub: 95, eurToRub: 105, gbpToRub: 133 };
+      return { usdToRub: 0, eurToRub: 0, gbpToRub: 0 };
     }
     const bybitBase = Number(pricingSettings.bybit_usdt_to_rub);
     const draftExtra = Number((pricingDrafts.bybit_extra_rub ?? String(pricingSettings.bybit_extra_rub)).trim());
@@ -1372,11 +1336,156 @@ export function AdminPage() {
     const bybitExtra = Number.isFinite(draftExtra) ? draftExtra : Number(pricingSettings.bybit_extra_rub);
     const eurToUsd = Number.isFinite(draftEurToUsd) && draftEurToUsd > 0 ? draftEurToUsd : Number(pricingSettings.eur_to_usd_rate);
     const gbpToUsd = Number.isFinite(draftGbpToUsd) && draftGbpToUsd > 0 ? draftGbpToUsd : Number(pricingSettings.gbp_to_usd_rate);
-    const usdToRub = (Number.isFinite(bybitBase) && bybitBase > 0 ? bybitBase : 95) + Math.max(0, bybitExtra);
+    const usdToRub = (Number.isFinite(bybitBase) && bybitBase > 0 ? bybitBase : 0) + Math.max(0, bybitExtra);
     const eurToRub = usdToRub * eurToUsd;
     const gbpToRub = usdToRub * gbpToUsd;
     return { usdToRub, eurToRub, gbpToRub };
   }, [pricingSettings, pricingDrafts.bybit_extra_rub, pricingDrafts.eur_to_usd_rate, pricingDrafts.gbp_to_usd_rate]);
+
+  const pricingSuppliers = useMemo(() => {
+    return (pricingSettings?.suppliers || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+  }, [pricingSettings]);
+
+  const mainPricingSuppliers = useMemo(() => {
+    return pricingSuppliers
+      .filter((item) => item.parent_supplier_id === null || item.parent_supplier_id === undefined)
+      .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  }, [pricingSuppliers]);
+
+  useEffect(() => {
+    const next: Record<number, string> = {};
+    for (const supplier of pricingSuppliers) {
+      next[supplier.id] = supplier.name;
+    }
+    setTariffNameDrafts(next);
+  }, [pricingSuppliers]);
+
+  useEffect(() => {
+    const timers: number[] = [];
+    for (const supplier of pricingSuppliers) {
+      const draft = (tariffNameDrafts[supplier.id] || "").trim();
+      if (!draft || draft === supplier.name) {
+        continue;
+      }
+      const timer = window.setTimeout(async () => {
+        const result = await updatePricingSupplier(supplier.id, { name: draft });
+        if (!result.ok) {
+          pushToast(result.message);
+        }
+      }, 550);
+      timers.push(timer);
+    }
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [pricingSuppliers, tariffNameDrafts, updatePricingSupplier]);
+
+  useEffect(() => {
+    const timers: number[] = [];
+    for (const supplier of pricingSuppliers) {
+      const rows = tariffRangesDrafts[supplier.id] || [];
+      if (rows.length === 0) {
+        continue;
+      }
+      const normalized = rows
+        .map((row) => {
+          const min = Number((row.min_kg || "").trim());
+          const maxRaw = (row.max_kg || "").trim();
+          const max = maxRaw.length > 0 ? Number(maxRaw) : null;
+          const rub = Number((row.rub || "").trim());
+          if (!Number.isFinite(min) || min < 0 || !Number.isFinite(rub) || rub < 0) {
+            return null;
+          }
+          if (max !== null && (!Number.isFinite(max) || max <= min)) {
+            return null;
+          }
+          return { min_kg: Number(min.toFixed(4)), max_kg: max === null ? null : Number(max.toFixed(4)), rub: Number(rub.toFixed(2)) };
+        })
+        .filter(Boolean) as Array<{ min_kg: number; max_kg: number | null; rub: number }>;
+      if (normalized.length !== rows.length) {
+        continue;
+      }
+      normalized.sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
+      let hasOverlap = false;
+      for (let idx = 1; idx < normalized.length; idx += 1) {
+        const prev = normalized[idx - 1];
+        const curr = normalized[idx];
+        const prevMax = prev.max_kg ?? Number.POSITIVE_INFINITY;
+        if (curr.min_kg < prevMax) {
+          hasOverlap = true;
+          break;
+        }
+      }
+      if (hasOverlap) {
+        continue;
+      }
+      const current = (supplier.rates || [])
+        .map((row) => ({
+          min_kg: Number(Number(row.min_kg).toFixed(4)),
+          max_kg: row.max_kg === null ? null : Number(Number(row.max_kg).toFixed(4)),
+          rub: Number(Number(row.rub).toFixed(2)),
+        }))
+        .sort((a, b) => (a.min_kg - b.min_kg) || ((a.max_kg ?? Number.POSITIVE_INFINITY) - (b.max_kg ?? Number.POSITIVE_INFINITY)));
+      if (JSON.stringify(current) === JSON.stringify(normalized)) {
+        continue;
+      }
+      const timer = window.setTimeout(async () => {
+        const result = await updatePricingSupplier(supplier.id, { rates: normalized });
+        if (!result.ok) {
+          pushToast(result.message);
+        }
+      }, 700);
+      timers.push(timer);
+    }
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [pricingSuppliers, tariffRangesDrafts, updatePricingSupplier]);
+
+  const altSuppliersByMainId = useMemo(() => {
+    const grouped = new Map<number, typeof pricingSuppliers>();
+    for (const supplier of pricingSuppliers) {
+      const parentId = supplier.parent_supplier_id;
+      if (!parentId) {
+        continue;
+      }
+      const list = grouped.get(parentId) || [];
+      list.push(supplier);
+      grouped.set(parentId, list);
+    }
+    for (const [mainId, list] of grouped.entries()) {
+      list.sort((a, b) => (Number(a.alt_position || 0) - Number(b.alt_position || 0)) || a.name.localeCompare(b.name, "ru"));
+      grouped.set(mainId, list);
+    }
+    return grouped;
+  }, [pricingSuppliers]);
+
+  const mainSupplierIdByAnySupplierId = useMemo(() => {
+    const result = new Map<number, number>();
+    for (const supplier of pricingSuppliers) {
+      const id = Number(supplier.id);
+      const parentId = Number(supplier.parent_supplier_id || 0);
+      result.set(id, parentId > 0 ? parentId : id);
+    }
+    return result;
+  }, [pricingSuppliers]);
+
+  useEffect(() => {
+    const next: Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>> = {};
+    for (const supplier of pricingSuppliers) {
+      next[supplier.id] = (supplier.rates || []).map((row, idx) => ({
+        id: `r-${supplier.id}-${idx}-${row.min_kg}-${row.max_kg ?? "inf"}`,
+        min_kg: String(row.min_kg),
+        max_kg: row.max_kg === null ? "" : String(row.max_kg),
+        rub: String(row.rub),
+      }));
+    }
+    setTariffRangesDrafts(next);
+  }, [pricingSuppliers]);
 
   const setThresholdField = (field: TriCurrencyAmountKey, raw: string) => {
     setThresholdDraft((prev) => {
@@ -1481,6 +1590,10 @@ export function AdminPage() {
     setSourcePricingDrafts((prev) => {
       const next = { ...prev };
       for (const source of sources) {
+        const sourceSupplierRaw = Number(source.supplier_id ?? 0);
+        const resolvedMainSupplierId = sourceSupplierRaw > 0
+          ? (mainSupplierIdByAnySupplierId.get(sourceSupplierRaw) || sourceSupplierRaw)
+          : 0;
         const rawBuyoutCurrency = normalizeCurrencyCode(source.buyout_surcharge_currency || "USD", "USD");
         const buyoutCurrency: CurrencyCode = rawBuyoutCurrency === "RUB" ? "USD" : rawBuyoutCurrency;
         const buyoutValue = Number(source.buyout_surcharge_value || 0);
@@ -1497,7 +1610,7 @@ export function AdminPage() {
         const promoFactor = Number(source.promo_factor ?? 1);
         const promoPercent = Math.max(0, Math.min(100, (1 - promoFactor) * 100));
         next[source.key] = {
-          supplierId: String(source.supplier_id ?? ""),
+          supplierId: String(resolvedMainSupplierId || ""),
           promoPercent: formatCompactNumber(promoPercent, 4),
           promoOnlyNoDiscount: Boolean(source.promo_only_no_discount),
           buyout: {
@@ -1511,7 +1624,7 @@ export function AdminPage() {
       }
       return next;
     });
-  }, [sources, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
+  }, [sources, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub, mainSupplierIdByAnySupplierId]);
 
   useEffect(() => {
     if (!sources || sources.length === 0) {
@@ -1598,10 +1711,6 @@ export function AdminPage() {
     }
     return categoryOptions.find((item) => item.id === newCategoryParentId)?.name || "unknown";
   }, [categoryOptions, newCategoryParentId]);
-
-  const pricingSuppliers = useMemo(() => {
-    return (pricingSettings?.suppliers || []).slice().sort((a, b) => a.name.localeCompare(b.name));
-  }, [pricingSettings]);
 
   const pricingFormulaHtml = useMemo(() => {
     if (!pricingSettings?.formula_latex) {
@@ -1833,7 +1942,7 @@ export function AdminPage() {
       title: product.title,
       url: product.url,
       sourceName: product.source_name || null,
-      imageUrl: product.image_url || "",
+      imageUrl: (product.image_url ? String(product.image_url) : ""),
       finalPrice: Math.round(finalPrice),
       sourcePrice: sourcePriceRaw,
       sourcePriceRub,
@@ -1886,8 +1995,8 @@ export function AdminPage() {
         const productsParams = buildFilterQuery({ includeLimit: true });
         const facetsParams = buildFilterQuery({ includeLimit: false });
         const [productsRes, facetsRes] = await Promise.all([
-          fetch(`${API_BASE}/admin/products/table?${productsParams.toString()}`, { signal: controller.signal }),
-          fetch(`${API_BASE}/admin/products/table/facets?${facetsParams.toString()}`, { signal: controller.signal }),
+          authFetch(`${API_BASE}/admin/products/table?${productsParams.toString()}`, { signal: controller.signal }),
+          authFetch(`${API_BASE}/admin/products/table/facets?${facetsParams.toString()}`, { signal: controller.signal }),
         ]);
 
         if (!productsRes.ok) {
@@ -1953,7 +2062,7 @@ export function AdminPage() {
     try {
       setTableLoadingMore(true);
       const params = buildFilterQuery({ includeLimit: true, cursor: tableCursor });
-      const res = await fetch(`${API_BASE}/admin/products/table?${params.toString()}`);
+      const res = await authFetch(`${API_BASE}/admin/products/table?${params.toString()}`);
       if (!res.ok) {
         throw new Error(`Products table API error: ${res.status}`);
       }
@@ -2025,8 +2134,8 @@ export function AdminPage() {
     if (!value) {
       return "--.--.----, --:--:--";
     }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
+    const date = parseApiDate(value);
+    if (!date) {
       return value;
     }
     return date.toLocaleString("ru-RU", {
@@ -2050,14 +2159,17 @@ export function AdminPage() {
         errorMessage: null as string | null,
       };
     }
-    const intervalSec = Math.max(30, Number(pricingSettings.bybit_worker_interval_sec || 1800));
+    const intervalSecRaw = Number(pricingSettings.bybit_worker_interval_sec);
+    const intervalSec = Number.isFinite(intervalSecRaw) && intervalSecRaw > 0 ? Math.floor(intervalSecRaw) : 0;
     const intervalHours = intervalSec / 3600;
-    const intervalLabel = Number.isInteger(intervalHours) && intervalHours >= 1
-      ? `${intervalHours} ${intervalHours === 1 ? "час" : intervalHours < 5 ? "часа" : "часов"}`
-      : `${Math.max(1, Math.round(intervalSec / 60))} мин`;
+    const intervalLabel = intervalSec <= 0
+      ? "-"
+      : Number.isInteger(intervalHours) && intervalHours >= 1
+        ? `${intervalHours} ${intervalHours === 1 ? "час" : intervalHours < 5 ? "часа" : "часов"}`
+        : `${Math.max(1, Math.round(intervalSec / 60))} мин`;
     const lastUpdatedRaw = pricingSettings.bybit_last_updated_at || null;
-    const lastUpdatedDate = lastUpdatedRaw ? new Date(lastUpdatedRaw) : null;
-    const staleAfterMs = intervalSec * 2 * 1000;
+    const lastUpdatedDate = parseApiDate(lastUpdatedRaw);
+    const staleAfterMs = intervalSec > 0 ? intervalSec * 1000 : Number.POSITIVE_INFINITY;
 
     let stateLabel = "Нет обновлений";
     let stateClass = "status-pill status-pill--muted";
@@ -2133,19 +2245,6 @@ export function AdminPage() {
   }, [tab, pricingSettings, pricingBlockedByInitialBybit, fetchPricingExampleProduct]);
 
   useEffect(() => {
-    const message = (shippingRulesValidationError || "").trim();
-    if (!message) {
-      shippingValidationToastRef.current = null;
-      return;
-    }
-    if (shippingValidationToastRef.current === message) {
-      return;
-    }
-    shippingValidationToastRef.current = message;
-    pushToast(message);
-  }, [shippingRulesValidationError, pushToast]);
-
-  useEffect(() => {
     const message = (svcRulesValidationError || "").trim();
     if (!message) {
       svcValidationToastRef.current = null;
@@ -2164,6 +2263,9 @@ export function AdminPage() {
     }
     if (status === "out_of_stock") {
       return { label: "Нет в наличии", cls: "status-pill status-pill--warn" };
+    }
+    if (status === "unavailable") {
+      return { label: "Недоступен", cls: "status-pill status-pill--bad" };
     }
     return { label: "Скрыт", cls: "status-pill status-pill--muted" };
   };
@@ -2465,6 +2567,99 @@ export function AdminPage() {
     pushToast(result.message);
   };
 
+  const saveShowcaseSettings = async (payload: Partial<PricingSettings>) => {
+    setShowcaseSaving(true);
+    try {
+      const result = await updatePricingSettings(payload);
+      if (!result.ok) {
+        pushToast(result.message);
+      }
+      return result.ok;
+    } finally {
+      setShowcaseSaving(false);
+    }
+  };
+
+  const onPickHeroImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    const uploaded = await uploadShowcaseImage(file);
+    if (!uploaded.ok || !uploaded.imageAssetId) {
+      pushToast(uploaded.message);
+      return;
+    }
+    if (await saveShowcaseSettings({ showcase_hero_image_asset_id: uploaded.imageAssetId })) {
+      setShowcaseHeroImageId(uploaded.imageAssetId);
+    }
+  };
+
+  const onRemoveHeroImage = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (await saveShowcaseSettings({ showcase_hero_image_asset_id: null })) {
+      setShowcaseHeroImageId(null);
+    }
+  };
+
+  const onPickCarouselImages = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    event.target.value = "";
+    if (files.length === 0) {
+      return;
+    }
+    if (showcaseCarousel.length >= 20) {
+      pushToast("Максимум 20 фотографий в карусели");
+      return;
+    }
+    const remaining = Math.max(0, 20 - showcaseCarousel.length);
+    const picked = files.slice(0, remaining);
+    const uploadedIds: number[] = [];
+    for (const file of picked) {
+      const uploaded = await uploadShowcaseImage(file);
+      if (!uploaded.ok || !uploaded.imageAssetId) {
+        pushToast(uploaded.message);
+        break;
+      }
+      uploadedIds.push(uploaded.imageAssetId);
+    }
+    if (uploadedIds.length === 0) {
+      return;
+    }
+    const next = [...showcaseCarousel.map((item) => item.id), ...uploadedIds].slice(0, 20);
+    if (await saveShowcaseSettings({ showcase_carousel_image_asset_ids: next })) {
+      setShowcaseCarousel(next.map((id) => ({ id })));
+    }
+  };
+
+  const onRemoveCarouselImage = async (id: number) => {
+    const next = showcaseCarousel.map((item) => item.id).filter((item) => item !== id);
+    if (await saveShowcaseSettings({ showcase_carousel_image_asset_ids: next })) {
+      setShowcaseCarousel(next.map((item) => ({ id: item })));
+    }
+  };
+
+  const onReorderCarouselImage = async (targetId: number) => {
+    if (!draggingCarouselId || draggingCarouselId === targetId) {
+      return;
+    }
+    const ids = showcaseCarousel.map((item) => item.id);
+    const fromIndex = ids.indexOf(draggingCarouselId);
+    const toIndex = ids.indexOf(targetId);
+    if (fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+    const next = [...ids];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    if (await saveShowcaseSettings({ showcase_carousel_image_asset_ids: next })) {
+      setShowcaseCarousel(next.map((item) => ({ id: item })));
+    }
+    setDraggingCarouselId(null);
+  };
+
   const onAddWeightKeyword = async (ruleId: number) => {
     const raw = (weightKeywordInputs[ruleId] || "").trim();
     if (!raw) {
@@ -2482,14 +2677,120 @@ export function AdminPage() {
     pushToast(result.message);
   };
 
-  const onMergePair = async (primaryId: number, duplicateId: number) => {
-    const result = await mergeDedupPair(primaryId, duplicateId);
+  const withDedupBusy = async (pairKey: string, task: () => Promise<{ ok: boolean; message: string }>) => {
+    setDedupBusyPairKeys((prev) => new Set(prev).add(pairKey));
+    try {
+      const result = await task();
+      if (result.ok) {
+        setDedupChoosingPairKey((prev) => (prev === pairKey ? null : prev));
+      }
+      pushToast(result.message);
+    } finally {
+      setDedupBusyPairKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(pairKey);
+        return next;
+      });
+    }
+  };
+
+  const onMergePair = async (pairKey: string, primaryId: number, duplicateId: number) => {
+    await withDedupBusy(pairKey, () => mergeDedupPair(primaryId, duplicateId));
+  };
+
+  const onRejectPair = async (pairKey: string, leftId: number, rightId: number) => {
+    await withDedupBusy(pairKey, () => rejectDedupPair(leftId, rightId));
+  };
+
+  const onCombinePair = async (pairKey: string, leftId: number, rightId: number) => {
+    await withDedupBusy(pairKey, () => combineDedupPair(leftId, rightId));
+  };
+
+  const onUndoDecision = async (pairKey: string) => {
+    await withDedupBusy(pairKey, () => undoDedupDecision(pairKey));
+  };
+
+  const onCreateMainSupplier = async () => {
+    const name = newSupplierName.trim();
+    if (!name) {
+      pushToast("Укажи название тарифа");
+      return;
+    }
+    const result = await createPricingSupplier({
+      name,
+      category: "main",
+      rate_currency: "RUB",
+    });
+    pushToast(result.message);
+    if (result.ok) {
+      setNewSupplierName("");
+    }
+  };
+
+  const onCreateAltSupplier = async (mainSupplierId: number) => {
+    const draft = newAltByMainId[mainSupplierId] || { name: "" };
+    const name = draft.name.trim();
+    if (!name) {
+      pushToast("Укажи название альтернативы");
+      return;
+    }
+    const result = await createPricingSupplier({
+      name,
+      parent_supplier_id: mainSupplierId,
+      category: "alt",
+      rate_currency: "RUB",
+      alt_position: (altSuppliersByMainId.get(mainSupplierId)?.length || 0) + 1,
+    });
+    pushToast(result.message);
+    if (result.ok) {
+      setNewAltByMainId((prev) => ({
+        ...prev,
+        [mainSupplierId]: { name: "" },
+      }));
+    }
+  };
+
+  const onDeleteSupplier = async (supplierId: number) => {
+    const result = await deletePricingSupplier(supplierId);
     pushToast(result.message);
   };
 
-  const onRejectPair = async (leftId: number, rightId: number) => {
-    const result = await rejectDedupPair(leftId, rightId);
-    pushToast(result.message);
+  const onAddTariffRange = (supplierId: number) => {
+    setTariffRangesDrafts((prev) => {
+      const current = prev[supplierId] || [];
+      const last = current[current.length - 1];
+      const nextMin = last ? Number((last.max_kg || last.min_kg || "0").trim() || "0") : 0;
+      const nextMax = Number.isFinite(nextMin) ? nextMin + 0.5 : 0.5;
+      return {
+        ...prev,
+        [supplierId]: [
+          ...current,
+          { id: `new-${Date.now()}-${Math.random()}`, min_kg: String(nextMin), max_kg: String(nextMax), rub: "0" },
+        ],
+      };
+    });
+  };
+
+  const onRemoveTariffRange = (supplierId: number, rowId: string) => {
+    setTariffRangesDrafts((prev) => ({
+      ...prev,
+      [supplierId]: (prev[supplierId] || []).filter((row) => row.id !== rowId),
+    }));
+  };
+
+  const openProductCard = (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => {
+    const href = `/product/${productId}?from=admin`;
+    if ("button" in event) {
+      if (event.button === 1 || event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        window.open(href, "_blank", "noreferrer");
+        return;
+      }
+      if (event.button !== 0) {
+        return;
+      }
+    }
+    navigate(href);
   };
 
   const onExportSettings = async () => {
@@ -2606,9 +2907,14 @@ export function AdminPage() {
           <Link to="/" className="brand" aria-label="Anton Shell">
             <img src="/logo_anton_shell.svg" alt="Anton Shell" className="brand-logo" />
           </Link>
-          <Link to="/" className="topbar-cta">
-            Каталог товаров
-          </Link>
+          <div className="topbar-actions">
+            <Link to="/" className="topbar-cta">
+              Каталог товаров
+            </Link>
+            <button type="button" className="topbar-cta" onClick={onLogout}>
+              Выход
+            </button>
+          </div>
         </div>
       </header>
       <main className="container container--admin">
@@ -2716,6 +3022,7 @@ export function AdminPage() {
                 <option value="available">В наличии</option>
                 <option value="out_of_stock">Нет в наличии</option>
                 <option value="hidden">Скрыт</option>
+                <option value="unavailable">Недоступен</option>
               </select>
               <button
                 type="button"
@@ -2759,7 +3066,7 @@ export function AdminPage() {
                         <td>
                           <Link className="thumb-mini-link" to={adminProductHref}>
                             <ImageWithFallback
-                              src={getProductPrimaryImageUrl(product)}
+                              src={getProductPrimaryImageUrl(product, { w: 180, h: 180, q: 55 })}
                               alt={product.title}
                               className="thumb-mini-image"
                               placeholderClassName="thumb-mini"
@@ -2809,54 +3116,168 @@ export function AdminPage() {
       {tab === "dedup" ? (
         <div className="card">
           <h2>Дедубликация</h2>
-          {(loadingDedupCandidates && dedupCandidates.length === 0) ? (
+          <div className="dedup-subtabs">
+            <button
+              type="button"
+              className={`tab ${dedupView === "candidates" ? "tab--active" : ""}`}
+              onClick={() => setDedupView("candidates")}
+            >
+              {`Дубликаты (${dedupCandidates.length})`}
+            </button>
+            <button
+              type="button"
+              className={`tab ${dedupView === "decisions" ? "tab--active" : ""}`}
+              onClick={() => setDedupView("decisions")}
+            >
+              {`Решения (${dedupDecisions.length})`}
+            </button>
+          </div>
+          {dedupView === "candidates" ? (
             <>
-              <p className="muted">Кандидатов: ...</p>
-              <AdminDedupSkeleton rows={3} />
-            </>
-          ) : (
-            <>
-              <p className="muted">{`Кандидатов: ${dedupCandidates.length}`}</p>
+              {(loadingDedupCandidates && dedupCandidates.length === 0) ? <AdminDedupSkeleton rows={3} /> : null}
               <div className="dedup-list">
             {dedupCandidates.map((candidate) => (
               <div key={candidate.pair_key} className="dedup-item">
-                <div className="dedup-head">
-                  <strong>score: {candidate.score.toFixed(2)}</strong>
-                  <span className="muted">{candidate.reasons.join(", ") || "heuristic_match"}</span>
-                </div>
-
                 <div className="dedup-grid">
-                  <div className="dedup-col">
-                    <strong>{candidate.left.title}</strong>
-                    <p className="muted">{candidate.left.vendor || "-"}</p>
-                    <p className="muted">
-                      {candidate.left.price ?? "-"} {candidate.left.currency}
-                    </p>
-                    <a className="btn-link" href={candidate.left.url} target="_blank" rel="noreferrer">
-                      Открыть источник
-                    </a>
-                    <button type="button" onClick={() => void onMergePair(candidate.left.id, candidate.right.id)}>
-                      Merge: оставить левый
-                    </button>
-                  </div>
+                  <article
+                    className="dedup-col dedup-card dedup-card--clickable"
+                    onClick={(event) => openProductCard(event, candidate.left.id)}
+                    onMouseDown={(event) => {
+                      if (event.button === 1) {
+                        openProductCard(event, candidate.left.id);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openProductCard(event, candidate.left.id);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <ImageWithFallback
+                      src={getProductPrimaryImageUrl(candidate.left, { w: 520, h: 360, q: 55 })}
+                      alt={candidate.left.title}
+                      className="dedup-card-media"
+                      placeholderClassName="dedup-card-media dedup-card-media--placeholder"
+                      placeholderText={candidate.left.image_count > 0 ? "Фото" : "Нет фото"}
+                    />
+                    <div className="dedup-card-body">
+                      <strong className="dedup-card-title">{candidate.left.title}</strong>
+                      <p className="muted dedup-card-meta">{candidate.left.vendor || "-"}</p>
+                      <p className="muted dedup-card-meta">
+                        {candidate.left.price ?? "-"} {candidate.left.currency}
+                      </p>
+                      <button
+                        type="button"
+                        className="icon-btn dedup-source-btn"
+                        title="Открыть источник"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          window.open(candidate.left.url, "_blank", "noreferrer");
+                        }}
+                      >
+                        <IconExternalLink className="icon-svg" />
+                      </button>
+                    </div>
+                  </article>
 
-                  <div className="dedup-col">
-                    <strong>{candidate.right.title}</strong>
-                    <p className="muted">{candidate.right.vendor || "-"}</p>
-                    <p className="muted">
-                      {candidate.right.price ?? "-"} {candidate.right.currency}
-                    </p>
-                    <a className="btn-link" href={candidate.right.url} target="_blank" rel="noreferrer">
-                      Открыть источник
-                    </a>
-                    <button type="button" onClick={() => void onMergePair(candidate.right.id, candidate.left.id)}>
-                      Merge: оставить правый
-                    </button>
-                  </div>
+                  <article
+                    className="dedup-col dedup-card dedup-card--clickable"
+                    onClick={(event) => openProductCard(event, candidate.right.id)}
+                    onMouseDown={(event) => {
+                      if (event.button === 1) {
+                        openProductCard(event, candidate.right.id);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openProductCard(event, candidate.right.id);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <ImageWithFallback
+                      src={getProductPrimaryImageUrl(candidate.right, { w: 520, h: 360, q: 55 })}
+                      alt={candidate.right.title}
+                      className="dedup-card-media"
+                      placeholderClassName="dedup-card-media dedup-card-media--placeholder"
+                      placeholderText={candidate.right.image_count > 0 ? "Фото" : "Нет фото"}
+                    />
+                    <div className="dedup-card-body">
+                      <strong className="dedup-card-title">{candidate.right.title}</strong>
+                      <p className="muted dedup-card-meta">{candidate.right.vendor || "-"}</p>
+                      <p className="muted dedup-card-meta">
+                        {candidate.right.price ?? "-"} {candidate.right.currency}
+                      </p>
+                      <button
+                        type="button"
+                        className="icon-btn dedup-source-btn"
+                        title="Открыть источник"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          window.open(candidate.right.url, "_blank", "noreferrer");
+                        }}
+                      >
+                        <IconExternalLink className="icon-svg" />
+                      </button>
+                    </div>
+                  </article>
                 </div>
 
-                <div className="actions">
-                  <button type="button" onClick={() => void onRejectPair(candidate.left.id, candidate.right.id)}>
+                <div className="dedup-reasons">
+                  <span className="muted dedup-reasons-label">Совпадение по:</span>
+                  {(candidate.reasons.length > 0 ? candidate.reasons : ["auto_match"]).map((reason) => (
+                    <span key={`${candidate.pair_key}-${reason}`} className="dedup-reason-pill">
+                      {formatDedupReason(reason)}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="actions dedup-actions dedup-actions--stack">
+                  <button
+                    type="button"
+                    disabled={dedupBusyPairKeys.has(candidate.pair_key)}
+                    onClick={() => void onCombinePair(candidate.pair_key, candidate.left.id, candidate.right.id)}
+                  >
+                    Соединить дубликаты
+                  </button>
+                  {dedupChoosingPairKey === candidate.pair_key ? (
+                    <div className="dedup-actions-row">
+                      <button
+                        type="button"
+                        disabled={dedupBusyPairKeys.has(candidate.pair_key)}
+                        onClick={() => void onMergePair(candidate.pair_key, candidate.left.id, candidate.right.id)}
+                      >
+                        Оставить левый
+                      </button>
+                      <button
+                        type="button"
+                        disabled={dedupBusyPairKeys.has(candidate.pair_key)}
+                        onClick={() => void onMergePair(candidate.pair_key, candidate.right.id, candidate.left.id)}
+                      >
+                        Оставить правый
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={dedupBusyPairKeys.has(candidate.pair_key)}
+                      onClick={() =>
+                        setDedupChoosingPairKey((prev) => (prev === candidate.pair_key ? null : candidate.pair_key))
+                      }
+                    >
+                      Оставить только один
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={dedupBusyPairKeys.has(candidate.pair_key)}
+                    onClick={() => void onRejectPair(candidate.pair_key, candidate.left.id, candidate.right.id)}
+                  >
                     Не дубль
                   </button>
                 </div>
@@ -2865,6 +3286,126 @@ export function AdminPage() {
             {loadingDedupCandidates ? <AdminDedupSkeleton rows={1} /> : null}
             {!loadingDedupCandidates && dedupCandidates.length === 0 ? <p className="muted">Кандидатов нет</p> : null}
           </div>
+            </>
+          ) : (
+            <>
+              {(loadingDedupDecisions && dedupDecisions.length === 0) ? <AdminDedupSkeleton rows={3} /> : null}
+              <div className="dedup-list">
+                {dedupDecisions.map((decision) => (
+                  <div key={decision.pair_key} className="dedup-item">
+                    <div className="dedup-grid">
+                      <article
+                        className="dedup-col dedup-card dedup-card--clickable"
+                        onClick={(event) => openProductCard(event, decision.left.id)}
+                        onMouseDown={(event) => {
+                          if (event.button === 1) {
+                            openProductCard(event, decision.left.id);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openProductCard(event, decision.left.id);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <ImageWithFallback
+                          src={getProductPrimaryImageUrl(decision.left, { w: 520, h: 360, q: 55 })}
+                          alt={decision.left.title}
+                          className="dedup-card-media"
+                          placeholderClassName="dedup-card-media dedup-card-media--placeholder"
+                          placeholderText={decision.left.image_count > 0 ? "Фото" : "Нет фото"}
+                        />
+                        <div className="dedup-card-body">
+                          <strong className="dedup-card-title">{decision.left.title}</strong>
+                          <p className="muted dedup-card-meta">{decision.left.vendor || "-"}</p>
+                          <p className="muted dedup-card-meta">
+                            {decision.left.price ?? "-"} {decision.left.currency}
+                          </p>
+                          <button
+                            type="button"
+                            className="icon-btn dedup-source-btn"
+                            title="Открыть источник"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              window.open(decision.left.url, "_blank", "noreferrer");
+                            }}
+                          >
+                            <IconExternalLink className="icon-svg" />
+                          </button>
+                        </div>
+                      </article>
+
+                      <article
+                        className="dedup-col dedup-card dedup-card--clickable"
+                        onClick={(event) => openProductCard(event, decision.right.id)}
+                        onMouseDown={(event) => {
+                          if (event.button === 1) {
+                            openProductCard(event, decision.right.id);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openProductCard(event, decision.right.id);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <ImageWithFallback
+                          src={getProductPrimaryImageUrl(decision.right, { w: 520, h: 360, q: 55 })}
+                          alt={decision.right.title}
+                          className="dedup-card-media"
+                          placeholderClassName="dedup-card-media dedup-card-media--placeholder"
+                          placeholderText={decision.right.image_count > 0 ? "Фото" : "Нет фото"}
+                        />
+                        <div className="dedup-card-body">
+                          <strong className="dedup-card-title">{decision.right.title}</strong>
+                          <p className="muted dedup-card-meta">{decision.right.vendor || "-"}</p>
+                          <p className="muted dedup-card-meta">
+                            {decision.right.price ?? "-"} {decision.right.currency}
+                          </p>
+                          <button
+                            type="button"
+                            className="icon-btn dedup-source-btn"
+                            title="Открыть источник"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              window.open(decision.right.url, "_blank", "noreferrer");
+                            }}
+                          >
+                            <IconExternalLink className="icon-svg" />
+                          </button>
+                        </div>
+                      </article>
+                    </div>
+                    <div className="dedup-reasons">
+                      <span className="muted dedup-reasons-label">Решение:</span>
+                      <span className="dedup-reason-pill">{formatDedupAction(decision.action)}</span>
+                      {decision.decided_at ? (
+                        <span className="muted dedup-reasons-label dedup-reasons-label--soft">
+                          {new Date(decision.decided_at).toLocaleString("ru-RU")}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="actions dedup-actions">
+                      <button
+                        type="button"
+                        disabled={!decision.can_undo || dedupBusyPairKeys.has(decision.pair_key)}
+                        title={decision.undo_block_reason || "Отменить решение"}
+                        onClick={() => void onUndoDecision(decision.pair_key)}
+                      >
+                        Отменить решение
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {loadingDedupDecisions ? <AdminDedupSkeleton rows={1} /> : null}
+                {!loadingDedupDecisions && dedupDecisions.length === 0 ? <p className="muted">Решений пока нет</p> : null}
+              </div>
             </>
           )}
         </div>
@@ -3065,7 +3606,7 @@ export function AdminPage() {
                             return (
                               <div key={`manual-search-${item.product_id}`} className="manual-product-row">
                                 <div className="manual-product-media">
-                                  {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" /> : <span className="muted">Нет фото</span>}
+                                  {item.image_url ? <img src={toCompressedThumbUrl(item.image_url, 120, 120, 55) || item.image_url} alt={item.title} loading="lazy" decoding="async" fetchPriority="low" /> : <span className="muted">Нет фото</span>}
                                 </div>
                                 <div className="manual-product-main">
                                   <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
@@ -3092,7 +3633,7 @@ export function AdminPage() {
                             return (
                               <div key={`manual-added-${item.product_id}`} className="manual-product-row">
                                 <div className="manual-product-media">
-                                  {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" /> : <span className="muted">Нет фото</span>}
+                                  {item.image_url ? <img src={toCompressedThumbUrl(item.image_url, 120, 120, 55) || item.image_url} alt={item.title} loading="lazy" decoding="async" fetchPriority="low" /> : <span className="muted">Нет фото</span>}
                                 </div>
                                 <div className="manual-product-main">
                                   <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
@@ -3253,7 +3794,7 @@ export function AdminPage() {
                     <div className="pricing-example-head">
                       <Link className="pricing-example-thumb-link" to={`/product/${pricingExample.productId}?from=admin`}>
                         <ImageWithFallback
-                          src={pricingExample.imageUrl}
+                          src={toCompressedThumbUrl(pricingExample.imageUrl, 240, 240, 55)}
                           alt={pricingExample.title}
                           className="pricing-example-thumb"
                           placeholderClassName="pricing-example-thumb-placeholder"
@@ -3421,82 +3962,6 @@ export function AdminPage() {
               </div>
 
               <h3 className="with-help">
-                SSR по диапазонам веса
-                <HelpHint text="Тарифы доставки задаются диапазонами веса (кг). Для каждого диапазона укажи сумму в RUB. Диапазоны внутри одного тарифа не должны пересекаться." />
-              </h3>
-              <div className="pricing-svc-list">
-                <div className="pricing-svc-head">
-                  <span>Тариф</span>
-                  <span>От, кг</span>
-                  <span>До, кг</span>
-                  <span>Цена, RUB</span>
-                  <span></span>
-                </div>
-                {shippingGroupOrder.map((group) => {
-                  const rows = shippingRuleDrafts.filter((item) => item.region === group.region && item.mode === group.mode);
-                  return (
-                    <div key={`ship-group-${group.region}-${group.mode}`}>
-                      {rows.map((rule) => {
-                        const rowError = shippingRuleFieldErrors[rule.id] ?? { min: false, max: false, rub: false };
-                        return (
-                          <div key={rule.id} className="pricing-svc-row">
-                            <span className="muted">{group.label}</span>
-                            <input
-                              className={rowError.min ? "input-error" : undefined}
-                              type="number"
-                              min="0"
-                              step="0.001"
-                              value={rule.min_kg}
-                              onChange={(event) => {
-                                const nextValue = event.target.value;
-                                setShippingRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, min_kg: nextValue } : item)));
-                              }}
-                            />
-                            <input
-                              className={rowError.max ? "input-error" : undefined}
-                              type="number"
-                              min="0"
-                              step="0.001"
-                              placeholder=""
-                              value={rule.max_kg}
-                              onChange={(event) => {
-                                const nextValue = event.target.value;
-                                setShippingRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, max_kg: nextValue } : item)));
-                              }}
-                            />
-                            <input
-                              className={rowError.rub ? "input-error" : undefined}
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={rule.rub}
-                              onChange={(event) => {
-                                const nextValue = event.target.value;
-                                setShippingRuleDrafts((prev) => prev.map((item) => (item.id === rule.id ? { ...item, rub: nextValue } : item)));
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShippingRuleDrafts((prev) => prev.filter((item) => item.id !== rule.id));
-                              }}
-                            >
-                              Удалить
-                            </button>
-                          </div>
-                        );
-                      })}
-                      <div className="pricing-svc-actions">
-                        <button type="button" onClick={() => onAddShippingRule(group.region, group.mode)}>
-                          Добавить диапазон: {group.label}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <h3 className="with-help">
                 Надбавка SVC
                 <HelpHint text="SVC — это ваша надбавка по диапазонам BUY. Диапазоны не должны пересекаться и касаться границ друг друга." />
               </h3>
@@ -3575,13 +4040,120 @@ export function AdminPage() {
               </div>
 
               <h3 className="with-help">
+                Тарифы SSR
+                <HelpHint text="Создавай базовые тарифы и до 3 ALT-тарифов для каждого. Внутри тарифа настраиваются диапазоны веса и цена за диапазон." />
+              </h3>
+              <div className="pricing-source-map-list">
+                {mainPricingSuppliers.map((supplier) => {
+                  const altItems = altSuppliersByMainId.get(supplier.id) || [];
+                  const altDraft = newAltByMainId[supplier.id] || { name: "" };
+                  const renderTariffCard = (item: typeof supplier, title: string) => {
+                    const rows = tariffRangesDrafts[item.id] || [];
+                    return (
+                      <div key={`tariff-card-${item.id}`} className="card" style={{ marginBottom: "0.75rem" }}>
+                        <div style={{ display: "flex", gap: "10px", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                          <input
+                            type="text"
+                            value={tariffNameDrafts[item.id] ?? title}
+                            onChange={(event) =>
+                              setTariffNameDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))
+                            }
+                            placeholder="Название тарифа"
+                          />
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <button type="button" onClick={() => void onDeleteSupplier(item.id)}>Удалить</button>
+                          </div>
+                        </div>
+                        <div className="pricing-source-map-head">
+                          <span>Мин. вес (кг)</span>
+                          <span>Макс. вес (кг)</span>
+                          <span>Цена (RUB)</span>
+                          <span></span>
+                        </div>
+                        {rows.map((row) => (
+                          <div key={row.id} className="pricing-source-map-row">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={row.min_kg}
+                              onChange={(event) => setTariffRangesDrafts((prev) => ({
+                                ...prev,
+                                [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, min_kg: event.target.value } : entry)),
+                              }))}
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="пусто = бесконечность"
+                              value={row.max_kg}
+                              onChange={(event) => setTariffRangesDrafts((prev) => ({
+                                ...prev,
+                                [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, max_kg: event.target.value } : entry)),
+                              }))}
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={row.rub}
+                              onChange={(event) => setTariffRangesDrafts((prev) => ({
+                                ...prev,
+                                [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, rub: event.target.value } : entry)),
+                              }))}
+                            />
+                            <button type="button" onClick={() => onRemoveTariffRange(item.id, row.id)}>Удалить</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => onAddTariffRange(item.id)}>Добавить диапазон</button>
+                      </div>
+                    );
+                  };
+                  return (
+                    <div key={`tariff-main-${supplier.id}`} style={{ marginBottom: "1rem" }}>
+                      {renderTariffCard(supplier, supplier.name)}
+                      {altItems.map((alt, idx) => renderTariffCard(alt, `ALT ${idx + 1} ${supplier.name}`))}
+                      <div className="pricing-source-map-row">
+                        <input
+                          type="text"
+                          placeholder={`ALT ${altItems.length + 1} ${supplier.name}`}
+                          value={altDraft.name}
+                          onChange={(event) =>
+                            setNewAltByMainId((prev) => ({
+                              ...prev,
+                              [supplier.id]: { ...altDraft, name: event.target.value },
+                            }))
+                          }
+                        />
+                        <button type="button" disabled={altItems.length >= 3} onClick={() => void onCreateAltSupplier(supplier.id)}>
+                          {altItems.length >= 3 ? "Лимит 3" : "Создать ALT"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="pricing-source-map-row">
+                  <input
+                    type="text"
+                    placeholder="Название нового тарифа"
+                    value={newSupplierName}
+                    onChange={(event) => setNewSupplierName(event.target.value)}
+                  />
+                  <button type="button" onClick={() => void onCreateMainSupplier()}>
+                    Создать тариф
+                  </button>
+                </div>
+              </div>
+
+              <h3 className="with-help">
                 Настройки по источникам
-                <HelpHint text="Для каждого магазина отдельно задаются поставщик, доплата к выкупу и параметры промокода." />
+                <HelpHint text="Для каждого магазина выбирается базовый тариф, доплата к выкупу и параметры промокода. ALT-тариф применяется автоматически при превышении ATH порога alt-доставки." />
               </h3>
               <div className="pricing-source-map-list">
                 <div className="pricing-source-map-head">
                   <span>Источник</span>
-                  <span>Поставщик</span>
+                  <span>Тариф</span>
                   <span>Выкуп + (USD)</span>
                   <span>Выкуп + (EUR)</span>
                   <span>Выкуп + (GBP)</span>
@@ -3590,11 +4162,15 @@ export function AdminPage() {
                 </div>
                 {sources.map((source) => {
                   const draft = sourcePricingDrafts[source.key];
+                  const sourceSupplierRaw = Number(source.supplier_id ?? 0);
+                  const resolvedMainSupplierId = sourceSupplierRaw > 0
+                    ? (mainSupplierIdByAnySupplierId.get(sourceSupplierRaw) || sourceSupplierRaw)
+                    : 0;
                   return (
                     <div key={source.key} className="pricing-source-map-row">
                       <span className="muted">{source.name}</span>
                       <select
-                        value={draft?.supplierId ?? String(source.supplier_id ?? "")}
+                        value={draft?.supplierId ?? String(resolvedMainSupplierId || "")}
                         onChange={(event) => {
                           const nextValue = event.target.value;
                           setSourcePricingDrafts((prev) => ({
@@ -3611,9 +4187,9 @@ export function AdminPage() {
                           }));
                         }}
                       >
-                        {pricingSuppliers.map((supplier) => (
+                        {mainPricingSuppliers.map((supplier) => (
                           <option key={`source-${source.key}-supplier-${supplier.id}`} value={supplier.id}>
-                            {supplier.name} ({formatSupplierCategory(supplier.category)})
+                            {supplier.name}
                           </option>
                         ))}
                       </select>
@@ -3647,11 +4223,11 @@ export function AdminPage() {
                             setSourcePricingDrafts((prev) => ({
                               ...prev,
                               [source.key]: {
-                                ...(prev[source.key] || {
-                                  supplierId: String(source.supplier_id ?? ""),
-                                  promoPercent: "0",
-                                  promoOnlyNoDiscount: false,
-                                  buyout: { currency: "USD", rub: "0", usd: "0", eur: "0", gbp: "0" },
+                              ...(prev[source.key] || {
+                                supplierId: String(resolvedMainSupplierId || ""),
+                                promoPercent: "0",
+                                promoOnlyNoDiscount: false,
+                                buyout: { currency: "USD", rub: "0", usd: "0", eur: "0", gbp: "0" },
                                 }),
                                 promoPercent: nextValue,
                               },
@@ -3669,8 +4245,8 @@ export function AdminPage() {
                             setSourcePricingDrafts((prev) => ({
                               ...prev,
                               [source.key]: {
-                                ...(prev[source.key] || {
-                                  supplierId: String(source.supplier_id ?? ""),
+                              ...(prev[source.key] || {
+                                  supplierId: String(resolvedMainSupplierId || ""),
                                   promoPercent: "0",
                                   promoOnlyNoDiscount: false,
                                   buyout: { currency: "USD", rub: "0", usd: "0", eur: "0", gbp: "0" },
@@ -3853,6 +4429,103 @@ export function AdminPage() {
                 <span className="ui-switch-text">{pricingSettings?.designers_exclude_store_vendors ? "Включено" : "Выключено"}</span>
               </label>
             </div>
+            <div className="pricing-settings-field">
+              <span className="muted with-help">
+                <span className="pricing-field-label">
+                  <span>Показывать только доступные товары в дедубликации</span>
+                </span>
+                <HelpHint text="Если включено, кандидаты в дедубликации формируются только из товаров со статусом «В наличии»." />
+              </span>
+              <label className="ui-switch ui-switch--compact">
+                <input
+                  type="checkbox"
+                  checked={Boolean(pricingSettings?.dedup_only_available_products)}
+                  disabled={!pricingSettings}
+                  onChange={async (event) => {
+                    if (!pricingSettings) {
+                      return;
+                    }
+                    const result = await updatePricingSettings({
+                      dedup_only_available_products: Boolean(event.target.checked),
+                    });
+                    if (!result.ok) {
+                      pushToast(result.message);
+                    }
+                  }}
+                />
+                <span className="ui-switch-track">
+                  <span className="ui-switch-thumb" />
+                </span>
+                <span className="ui-switch-text">{pricingSettings?.dedup_only_available_products ? "Включено" : "Выключено"}</span>
+              </label>
+            </div>
+          </div>
+
+          <h2>Медиа витрины</h2>
+          <div className="showcase-media-settings">
+            <div className="showcase-media-block">
+              {showcaseHeroImageId ? <p className="muted">Заставка</p> : null}
+              <div
+                className="showcase-hero-tile"
+                onClick={() => heroInputRef.current?.click()}
+                onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    heroInputRef.current?.click();
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-disabled={showcaseSaving}
+              >
+                {showcaseHeroImageId ? (
+                  <>
+                    <img src={toImageGatewayUrl(showcaseHeroImageId, { w: 960, h: 420, q: 75 }) || ""} alt="Заставка" loading="lazy" />
+                    <button type="button" className="showcase-remove-btn" onClick={(event) => void onRemoveHeroImage(event)}>
+                      <IconClose className="icon-svg icon-svg--sm" />
+                    </button>
+                  </>
+                ) : (
+                  <IconPlus className="icon-svg icon-svg--sm" />
+                )}
+              </div>
+              <input ref={heroInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(event) => void onPickHeroImage(event)} />
+            </div>
+
+            <div className="showcase-media-block">
+              <p className="muted">Карусель ({showcaseCarousel.length}/20)</p>
+              <div className="showcase-carousel-grid">
+                {showcaseCarousel.map((item) => (
+                  <div
+                    key={item.id}
+                    className="showcase-carousel-item"
+                    draggable
+                    onDragStart={() => setDraggingCarouselId(item.id)}
+                    onDragEnd={() => setDraggingCarouselId(null)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={() => void onReorderCarouselImage(item.id)}
+                  >
+                    <img src={toImageGatewayUrl(item.id, { w: 480, h: 300, q: 72 }) || ""} alt="Слайд карусели" loading="lazy" />
+                    <button type="button" className="showcase-remove-btn" onClick={() => void onRemoveCarouselImage(item.id)}>
+                      <IconClose className="icon-svg icon-svg--sm" />
+                    </button>
+                  </div>
+                ))}
+                {showcaseCarousel.length < 20 ? (
+                  <button type="button" className="showcase-carousel-add" onClick={() => carouselInputRef.current?.click()} disabled={showcaseSaving}>
+                    <IconPlus className="icon-svg icon-svg--sm" />
+                  </button>
+                ) : null}
+              </div>
+              <input
+                ref={carouselInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: "none" }}
+                onChange={(event) => void onPickCarouselImages(event)}
+              />
+            </div>
           </div>
 
           <h2>Экспорт и импорт настроек</h2>
@@ -3960,7 +4633,6 @@ export function AdminPage() {
               <button type="button" onClick={onSaveProduct}>
                 Сохранить товар
               </button>
-              <p className="muted">Whitelist: {whitelist.join(", ")}</p>
             </div>
           </div>
         </div>

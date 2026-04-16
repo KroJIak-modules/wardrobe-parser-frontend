@@ -156,13 +156,16 @@ export function ProductPageSkeleton() {
           <SkeletonBlock className="product-skeleton-status" />
 
           <div className="product-main-meta">
-            <div className="product-meta-chips">
+            <div className="product-meta-line">
               <SkeletonBlock className="product-skeleton-chip" />
             </div>
-            <div className="product-meta-categories">
-              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
-              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
-              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
+            <div className="product-meta-line">
+              <SkeletonBlock className="product-skeleton-meta-line product-skeleton-meta-line--label" />
+              <div className="product-meta-categories">
+                <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
+                <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
+                <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
+              </div>
             </div>
           </div>
 
@@ -201,13 +204,10 @@ export function AdminDedupSkeleton({ rows = 3 }: { rows?: number }) {
     <div className="dedup-list" aria-hidden="true">
       {Array.from({ length: rows }).map((_, idx) => (
         <div key={`dedup-skeleton-${idx}`} className="dedup-item admin-dedup-skeleton-item">
-          <div className="dedup-head">
-            <SkeletonBlock className="admin-dedup-skeleton-score" />
-            <SkeletonBlock className="admin-dedup-skeleton-reasons" />
-          </div>
           <div className="dedup-grid">
             {Array.from({ length: 2 }).map((__, cidx) => (
               <div key={`dedup-skeleton-col-${idx}-${cidx}`} className="dedup-col admin-dedup-skeleton-col">
+                <SkeletonBlock className="dedup-card-media" />
                 <SkeletonBlock className="admin-dedup-skeleton-title" />
                 <SkeletonBlock className="admin-dedup-skeleton-line admin-dedup-skeleton-line--short" />
                 <SkeletonBlock className="admin-dedup-skeleton-line" />
@@ -215,8 +215,11 @@ export function AdminDedupSkeleton({ rows = 3 }: { rows?: number }) {
               </div>
             ))}
           </div>
+          <SkeletonBlock className="admin-dedup-skeleton-reasons" />
           <div className="actions">
             <SkeletonBlock className="admin-dedup-skeleton-btn admin-dedup-skeleton-btn--wide" />
+            <SkeletonBlock className="admin-dedup-skeleton-btn" />
+            <SkeletonBlock className="admin-dedup-skeleton-btn" />
           </div>
         </div>
       ))}
@@ -328,31 +331,57 @@ export function AdminPricingSkeleton() {
 
 export function AdminWeightSkeleton() {
   return (
-    <div className="admin-weight-skeleton" aria-hidden="true">
-      <SkeletonBlock className="admin-weight-skeleton-hint" />
-      <div className="weight-rule-create-row">
-        <SkeletonBlock className="admin-weight-skeleton-input" />
-        <SkeletonBlock className="admin-weight-skeleton-btn" />
-      </div>
-      <div className="weight-rules-list">
-        {Array.from({ length: 4 }).map((_, idx) => (
-          <div key={`weight-rule-skeleton-${idx}`} className="weight-rule-row">
-            <div className="weight-rule-left">
-              <SkeletonBlock className="admin-weight-skeleton-line admin-weight-skeleton-line--label" />
-              <SkeletonBlock className="admin-weight-skeleton-input" />
-              <SkeletonBlock className="admin-weight-skeleton-btn" />
-            </div>
-            <div className="weight-rule-right">
-              <div className="chip-list">
-                <SkeletonBlock className="admin-weight-skeleton-chip" />
-                <SkeletonBlock className="admin-weight-skeleton-chip" />
-                <SkeletonBlock className="admin-weight-skeleton-chip" />
+    <div className="weight-layout admin-weight-skeleton" aria-hidden="true">
+      <section>
+        <SkeletonBlock className="admin-weight-skeleton-section-title" />
+        <div className="weight-rule-create-row">
+          <SkeletonBlock className="admin-weight-skeleton-input" />
+          <SkeletonBlock className="admin-weight-skeleton-btn" />
+        </div>
+        <div className="weight-rules-list">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={`weight-rule-skeleton-${idx}`} className="weight-rule-row">
+              <div className="weight-rule-left">
+                <SkeletonBlock className="admin-weight-skeleton-line admin-weight-skeleton-line--label" />
+                <SkeletonBlock className="admin-weight-skeleton-input" />
+                <SkeletonBlock className="admin-weight-skeleton-btn" />
               </div>
-              <SkeletonBlock className="admin-weight-skeleton-textarea" />
+              <div className="weight-rule-right">
+                <div className="chip-list">
+                  <SkeletonBlock className="admin-weight-skeleton-chip" />
+                  <SkeletonBlock className="admin-weight-skeleton-chip" />
+                  <SkeletonBlock className="admin-weight-skeleton-chip" />
+                </div>
+                <SkeletonBlock className="admin-weight-skeleton-textarea" />
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </section>
+      <section>
+        <SkeletonBlock className="admin-weight-skeleton-section-title" />
+        <SkeletonBlock className="admin-weight-skeleton-hint" />
+        <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
+          <table className="products-table">
+            <thead>
+              <tr>
+                <th><SkeletonBlock className="admin-weight-skeleton-table-head" /></th>
+                <th><SkeletonBlock className="admin-weight-skeleton-table-head" /></th>
+                <th><SkeletonBlock className="admin-weight-skeleton-table-head" /></th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <tr key={`weight-missing-skeleton-${idx}`}>
+                  <td><SkeletonBlock className="admin-weight-skeleton-table-cell admin-weight-skeleton-table-cell--wide" /></td>
+                  <td><SkeletonBlock className="admin-weight-skeleton-table-cell" /></td>
+                  <td><SkeletonBlock className="admin-weight-skeleton-table-cell" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
@@ -369,6 +398,14 @@ export function AdminSettingsSkeleton() {
         ))}
       </div>
       <SkeletonBlock className="admin-settings-skeleton-line" />
+      <div className="showcase-media-settings">
+        <SkeletonBlock className="admin-settings-skeleton-input" />
+        <div className="showcase-carousel-grid">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <SkeletonBlock key={`settings-showcase-skeleton-${idx}`} className="admin-settings-skeleton-input" />
+          ))}
+        </div>
+      </div>
       <div className="settings-transfer-actions">
         <SkeletonBlock className="admin-settings-skeleton-btn" />
         <SkeletonBlock className="admin-settings-skeleton-btn" />

@@ -12,11 +12,15 @@ function buildBrandLatex(value: string): string {
 export function renderBrandLatexHtml(value: string | null | undefined, fallback = "Без бренда"): string {
   const normalized = String(value || "").trim().replace(/\s+/g, " ");
   const text = normalized || fallback;
-  return renderToString(buildBrandLatex(text), {
-    throwOnError: false,
-    displayMode: false,
-    strict: "ignore",
-  });
+  try {
+    return renderToString(buildBrandLatex(text), {
+      throwOnError: false,
+      displayMode: false,
+      strict: "ignore",
+    });
+  } catch {
+    return text;
+  }
 }
 
 export function LatexBrand({

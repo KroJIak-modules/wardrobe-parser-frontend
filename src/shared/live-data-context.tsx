@@ -66,11 +66,25 @@ export type ServiceProduct = {
   updated_at: string;
 };
 
-export function toImageGatewayUrl(imageId: number | null | undefined) {
+export function toImageGatewayUrl(
+  imageId: number | null | undefined,
+  opts?: { w?: number; h?: number; q?: number }
+) {
   if (!imageId || imageId <= 0) {
     return null;
   }
-  return `/api/v1/images/${imageId}`;
+  const params = new URLSearchParams();
+  if (opts?.w && Number.isFinite(opts.w)) {
+    params.set("w", String(Math.max(16, Math.round(opts.w))));
+  }
+  if (opts?.h && Number.isFinite(opts.h)) {
+    params.set("h", String(Math.max(16, Math.round(opts.h))));
+  }
+  if (opts?.q && Number.isFinite(opts.q)) {
+    params.set("q", String(Math.max(25, Math.min(95, Math.round(opts.q)))));
+  }
+  const query = params.toString();
+  return query ? `/api/v1/images/${imageId}?${query}` : `/api/v1/images/${imageId}`;
 }
 
 export function normalizeImageSourceUrl(url: string | null | undefined): string | null {
@@ -90,8 +104,8 @@ export function normalizeImageSourceUrl(url: string | null | undefined): string 
 export function getProductPrimaryImageUrl(product: {
   image_ids?: number[] | null;
   image_urls?: string[] | null;
-}): string | null {
-  const byId = toImageGatewayUrl(product.image_ids?.[0]);
+}, opts?: { w?: number; h?: number; q?: number }): string | null {
+  const byId = toImageGatewayUrl(product.image_ids?.[0], opts);
   if (byId) {
     return byId;
   }
@@ -222,6 +236,16 @@ export type DedupCandidate = {
   right: ServiceProduct;
 };
 
+export type DedupDecision = {
+  pair_key: string;
+  action: string;
+  decided_at: string | null;
+  can_undo: boolean;
+  undo_block_reason: string | null;
+  left: ServiceProduct;
+  right: ServiceProduct;
+};
+
 export type ProductUrlPreview = {
   handle: string;
   title: string;
@@ -266,10 +290,13 @@ export type PricingSettings = {
   tax_rate: number;
   designers_min_products: number;
   designers_exclude_store_vendors: boolean;
+  dedup_only_available_products: boolean;
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
   shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
+  showcase_hero_image_asset_id?: number | null;
+  showcase_carousel_image_asset_ids?: number[];
   bybit_rate_status?: string;
   bybit_rate_warning?: string | null;
   bybit_bucket_step_usdt?: number;
@@ -298,8 +325,9 @@ export type PricingExampleProduct = {
 };
 
 export type PricingSupplierRate = {
-  step_500g: number;
-  rate_rub: number;
+  min_kg: number;
+  max_kg: number | null;
+  rub: number;
 };
 
 export type PricingSupplier = {
@@ -307,16 +335,16 @@ export type PricingSupplier = {
   key: string;
   name: string;
   category: string;
+  parent_supplier_id?: number | null;
+  alt_position?: number;
   rate_currency: string;
-  rate_per_500g_value: number;
-  rate_per_500g_rub: number;
-  max_step_500g: number;
   rates: PricingSupplierRate[];
 };
 
 export type SettingsTransferSupplierRateEntry = {
-  step_500g: number;
-  rate_rub: number;
+  min_kg: number;
+  max_kg: number | null;
+  rub: number;
 };
 
 export type SettingsTransferSupplierEntry = {
@@ -377,10 +405,13 @@ export type SettingsTransferPricingSettings = {
   tax_rate: number;
   designers_min_products: number;
   designers_exclude_store_vendors: boolean;
+  dedup_only_available_products: boolean;
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
   shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
+  showcase_hero_image_asset_id?: number | null;
+  showcase_carousel_image_asset_ids?: number[];
 };
 
 export type SettingsTransferPayload = {
@@ -403,6 +434,8 @@ type LiveDataContextValue = {
   adminCategories: AdminCategoryNode[];
   dedupCandidates: DedupCandidate[];
   loadingDedupCandidates: boolean;
+  dedupDecisions: DedupDecision[];
+  loadingDedupDecisions: boolean;
   weightRules: WeightRule[];
   weightMissingProducts: WeightMissingProduct[];
   pricingSettings: PricingSettings | null;
@@ -441,6 +474,7 @@ type LiveDataContextValue = {
     image_count: number;
   }) => Promise<{ ok: boolean; message: string }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string }>;
+  uploadShowcaseImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string; categoryId?: number }>;
   updateCategory: (
     id: number,
@@ -455,6 +489,8 @@ type LiveDataContextValue = {
   removeCategoryManualProduct: (categoryId: number, productId: number) => Promise<{ ok: boolean; message: string }>;
   mergeDedupPair: (primaryProductId: number, duplicateProductId: number) => Promise<{ ok: boolean; message: string }>;
   rejectDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
+  combineDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
+  undoDedupDecision: (pairKey: string) => Promise<{ ok: boolean; message: string }>;
   setProductStatus: (productId: number, status: "available" | "out_of_stock" | "hidden") => Promise<{ ok: boolean; message: string }>;
   getProductStarredCategories: (
     productId: number
@@ -478,18 +514,16 @@ type LiveDataContextValue = {
       name?: string;
       category?: string;
       rate_currency?: string;
-      rate_per_500g_value?: number;
-      rate_per_500g_rub?: number;
-      max_step_500g?: number;
+      rates?: Array<{ min_kg: number; max_kg: number | null; rub: number }>;
     }
   ) => Promise<{ ok: boolean; message: string }>;
   createPricingSupplier: (payload: {
     key?: string;
     name: string;
     category: string;
+    parent_supplier_id?: number | null;
+    alt_position?: number;
     rate_currency: string;
-    rate_per_500g_value: number;
-    max_step_500g?: number;
   }) => Promise<{ ok: boolean; message: string }>;
   deletePricingSupplier: (supplierId: number) => Promise<{ ok: boolean; message: string }>;
   exportSettings: () => Promise<{ ok: boolean; message: string; payload: SettingsTransferPayload | null }>;
@@ -508,33 +542,45 @@ type LiveDataContextValue = {
 
 const API_BASE = "/api/v1";
 const PRODUCTS_PAGE_SIZE = 100;
-const PRICING_SETTINGS_CACHE_KEY = "admin.pricingSettings.cache.v1";
+const isUnavailableStatus = (status: unknown): boolean => String(status || "").trim().toLowerCase() === "unavailable";
+const ADMIN_ACCESS_TOKEN_KEY = "admin_access_token";
+const ADMIN_REFRESH_TOKEN_KEY = "admin_refresh_token";
 
-const readCachedPricingSettings = (): PricingSettings | null => {
-  if (typeof window === "undefined") {
-    return null;
+async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  const isApiRequest = requestUrl.startsWith(API_BASE);
+  const isAuthEndpoint = requestUrl.startsWith(`${API_BASE}/auth/`);
+  const accessToken = window.localStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
+  const headers = new Headers(init?.headers ?? undefined);
+  if (isApiRequest && !isAuthEndpoint && accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
   }
-  try {
-    const raw = window.localStorage.getItem(PRICING_SETTINGS_CACHE_KEY);
-    if (!raw) {
-      return null;
-    }
-    return JSON.parse(raw) as PricingSettings;
-  } catch {
-    return null;
+  const response = await globalThis.fetch(input, { ...init, headers });
+  if (!isApiRequest || isAuthEndpoint || response.status !== 401) {
+    return response;
   }
-};
-
-const writeCachedPricingSettings = (value: PricingSettings) => {
-  if (typeof window === "undefined") {
-    return;
+  const refreshToken = window.localStorage.getItem(ADMIN_REFRESH_TOKEN_KEY);
+  if (!refreshToken) {
+    window.localStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
+    return response;
   }
-  try {
-    window.localStorage.setItem(PRICING_SETTINGS_CACHE_KEY, JSON.stringify(value));
-  } catch {
-    // Ignore storage write issues and continue with in-memory state.
+  const refreshResponse = await globalThis.fetch(`${API_BASE}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!refreshResponse.ok) {
+    window.localStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
+    window.localStorage.removeItem(ADMIN_REFRESH_TOKEN_KEY);
+    return response;
   }
-};
+  const refreshedPayload = (await refreshResponse.json()) as { access_token: string; refresh_token: string };
+  window.localStorage.setItem(ADMIN_ACCESS_TOKEN_KEY, refreshedPayload.access_token || "");
+  window.localStorage.setItem(ADMIN_REFRESH_TOKEN_KEY, refreshedPayload.refresh_token || "");
+  const retryHeaders = new Headers(init?.headers ?? undefined);
+  retryHeaders.set("Authorization", `Bearer ${refreshedPayload.access_token}`);
+  return globalThis.fetch(input, { ...init, headers: retryHeaders });
+}
 
 const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefined);
 
@@ -546,10 +592,12 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const [adminCategories, setAdminCategories] = useState<AdminCategoryNode[]>([]);
   const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
   const [loadingDedupCandidates, setLoadingDedupCandidates] = useState<boolean>(false);
+  const [dedupDecisions, setDedupDecisions] = useState<DedupDecision[]>([]);
+  const [loadingDedupDecisions, setLoadingDedupDecisions] = useState<boolean>(false);
   const [weightRules, setWeightRules] = useState<WeightRule[]>([]);
   const [weightMissingProducts, setWeightMissingProducts] = useState<WeightMissingProduct[]>([]);
-  const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(() => readCachedPricingSettings());
-  const [pricingLoaded, setPricingLoaded] = useState<boolean>(() => readCachedPricingSettings() !== null);
+  const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(null);
+  const [pricingLoaded, setPricingLoaded] = useState<boolean>(false);
   const [weightLoaded, setWeightLoaded] = useState<boolean>(false);
   const [dedupLoaded, setDedupLoaded] = useState<boolean>(false);
   const [latestJob, setLatestJob] = useState<JobsLatest>(null);
@@ -585,7 +633,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const fetchDedupCandidates = useCallback(async () => {
     setLoadingDedupCandidates(true);
     try {
-      const dedupRes = await fetch(`${API_BASE}/dedup/candidates?limit=80`);
+      const dedupRes = await authFetch(`${API_BASE}/dedup/candidates?limit=80`);
       if (!dedupRes.ok) {
         throw new Error(`Dedup API error: ${dedupRes.status}`);
       }
@@ -599,17 +647,35 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     }
   }, []);
 
+  const fetchDedupDecisions = useCallback(async () => {
+    setLoadingDedupDecisions(true);
+    try {
+      const res = await authFetch(`${API_BASE}/dedup/decisions?limit=200`);
+      if (!res.ok) {
+        throw new Error(`Dedup decisions API error: ${res.status}`);
+      }
+      const payload = (await res.json()) as { items: DedupDecision[] };
+      setDedupDecisions(payload.items || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setLoadingDedupDecisions(false);
+    }
+  }, []);
+
+  const refreshDedupOnly = useCallback(async () => {
+    await Promise.all([fetchDedupCandidates(), fetchDedupDecisions()]);
+    setDedupLoaded(true);
+  }, [fetchDedupCandidates, fetchDedupDecisions]);
+
   const refreshPricingOnly = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/settings/pricing`);
+    const res = await authFetch(`${API_BASE}/settings/pricing`);
     if (!res.ok) {
       throw new Error(`Pricing settings API error: ${res.status}`);
     }
     const payload = (await res.json()) as PricingSettings;
     setPricingSettings(payload || null);
     setPricingLoaded(true);
-    if (payload) {
-      writeCachedPricingSettings(payload);
-    }
   }, []);
 
   const refreshCategoriesOnly = useCallback(async (options?: { includeCounts?: boolean; silent?: boolean }) => {
@@ -625,7 +691,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     try {
       const params = new URLSearchParams();
       params.set("include_counts", includeCounts ? "1" : "0");
-      const res = await fetch(`${API_BASE}/categories/tree?${params.toString()}`);
+      const res = await authFetch(`${API_BASE}/categories/tree?${params.toString()}`);
       if (!res.ok) {
         throw new Error(`Categories API error: ${res.status}`);
       }
@@ -643,7 +709,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   }, []);
 
   const refreshSourcesOnly = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/shopify/sources-admin`);
+    const res = await authFetch(`${API_BASE}/shopify/sources-admin`);
     if (!res.ok) {
       throw new Error(`Sources API error: ${res.status}`);
     }
@@ -653,8 +719,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const refreshWeightOnly = useCallback(async () => {
     const [rulesRes, missingRes] = await Promise.all([
-      fetch(`${API_BASE}/settings/weight-rules`),
-      fetch(`${API_BASE}/settings/weight-rules/missing-products?limit=100`),
+      authFetch(`${API_BASE}/settings/weight-rules`),
+      authFetch(`${API_BASE}/settings/weight-rules/missing-products?limit=100`),
     ]);
     if (!rulesRes.ok) {
       throw new Error(`Weight rules API error: ${rulesRes.status}`);
@@ -670,20 +736,26 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   }, []);
 
   const refreshProductsOnly = useCallback(async () => {
-    const res = await fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`);
+    const res = await authFetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`);
     if (!res.ok) {
       throw new Error(`Products API error: ${res.status}`);
     }
     const payload = (await res.json()) as { items: ServiceProduct[]; total: number; limit: number; offset: number };
-    setProducts(payload.items || []);
+    setProducts((payload.items || []).filter((item) => !isUnavailableStatus(item.status)));
     setProductsTotal(payload.total || 0);
     setProductsHasMore((payload.items || []).length + (payload.offset || 0) < (payload.total || 0));
   }, []);
 
+  const refreshAfterDedupMutation = useCallback(() => {
+    void Promise.all([refreshProductsOnly(), refreshCategoriesOnly(), refreshDedupOnly()]).catch((e) => {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    });
+  }, [refreshProductsOnly, refreshCategoriesOnly, refreshDedupOnly]);
+
   const refreshAdminCoreOnly = useCallback(async () => {
     const [sourcesRes, latestJobRes] = await Promise.all([
-      fetch(`${API_BASE}/shopify/sources-admin`),
-      fetch(`${API_BASE}/jobs/latest`),
+      authFetch(`${API_BASE}/shopify/sources-admin`),
+      authFetch(`${API_BASE}/jobs/latest`),
     ]);
 
     if (!sourcesRes.ok) {
@@ -704,9 +776,9 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     setError(null);
     try {
       const [productsRes, sourcesRes, latestJobRes] = await Promise.all([
-        fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`),
-        fetch(`${API_BASE}/shopify/sources-admin`),
-        fetch(`${API_BASE}/jobs/latest`),
+        authFetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`),
+        authFetch(`${API_BASE}/shopify/sources-admin`),
+        authFetch(`${API_BASE}/jobs/latest`),
       ]);
 
       if (!productsRes.ok) {
@@ -722,7 +794,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       const sourcesPayload = (await sourcesRes.json()) as Source[];
       const latestPayload = (await latestJobRes.json()) as JobsLatest;
 
-      setProducts(productsPayload.items || []);
+      setProducts((productsPayload.items || []).filter((item) => !isUnavailableStatus(item.status)));
       setProductsTotal(productsPayload.total || 0);
       setProductsHasMore((productsPayload.items || []).length + (productsPayload.offset || 0) < (productsPayload.total || 0));
       setSources(sourcesPayload || []);
@@ -752,8 +824,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     if (!force && dedupLoaded) {
       return;
     }
-    await fetchDedupCandidates();
-  }, [dedupLoaded, fetchDedupCandidates]);
+    await refreshDedupOnly();
+  }, [dedupLoaded, refreshDedupOnly]);
 
   const loadMoreProducts = useCallback(async () => {
     if (!productsHasMore || loadingMoreProducts || loadingMoreLockRef.current) {
@@ -763,17 +835,17 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     try {
       setLoadingMoreProducts(true);
       const offset = products.length;
-      const res = await fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
+      const res = await authFetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
       if (!res.ok) {
         throw new Error(`Products API error: ${res.status}`);
       }
       const payload = (await res.json()) as { items: ServiceProduct[]; total: number; offset: number };
       const nextItems = payload.items || [];
       const known = new Set(products.map((item) => item.id));
-      const toAdd = nextItems.filter((item) => !known.has(item.id));
+      const toAdd = nextItems.filter((item) => !known.has(item.id) && !isUnavailableStatus(item.status));
       setProducts((prev) => {
         const known = new Set(prev.map((item) => item.id));
-        const toAdd = nextItems.filter((item) => !known.has(item.id));
+        const toAdd = nextItems.filter((item) => !known.has(item.id) && !isUnavailableStatus(item.status));
         return [...prev, ...toAdd];
       });
       setProductsTotal(payload.total || 0);
@@ -794,14 +866,20 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     try {
       const existing = products.find((item) => item.id === id);
       if (existing) {
+        if (isUnavailableStatus(existing.status)) {
+          return null;
+        }
         return existing;
       }
 
-      const res = await fetch(`${API_BASE}/products/${id}`);
+      const res = await authFetch(`${API_BASE}/products/${id}`);
       if (!res.ok) {
         return null;
       }
       const payload = (await res.json()) as ServiceProduct;
+      if (isUnavailableStatus(payload.status)) {
+        return null;
+      }
       setProducts((prev) => {
         if (prev.some((item) => item.id === payload.id)) {
           return prev;
@@ -816,7 +894,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const runSync = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/jobs`, {
+      const res = await authFetch(`${API_BASE}/jobs`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -840,7 +918,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const cancelSync = useCallback(async (jobId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/jobs/${jobId}/cancel`, {
+      const res = await authFetch(`${API_BASE}/jobs/${jobId}/cancel`, {
         method: "POST",
       });
 
@@ -857,7 +935,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const previewProductByUrl = useCallback(async (url: string) => {
     try {
-      const res = await fetch(`${API_BASE}/products/preview-by-url`, {
+      const res = await authFetch(`${API_BASE}/products/preview-by-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -888,7 +966,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       }
     ) => {
       try {
-        const res = await fetch(`${API_BASE}/products/add-by-url`, {
+        const res = await authFetch(`${API_BASE}/products/add-by-url`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url, ...(payload || {}) }),
@@ -917,7 +995,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       image_count: number;
     }) => {
       try {
-        const res = await fetch(`${API_BASE}/products/manual`, {
+        const res = await authFetch(`${API_BASE}/products/manual`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -942,7 +1020,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${API_BASE}/products/upload-image`, {
+      const res = await authFetch(`${API_BASE}/products/upload-image`, {
         method: "POST",
         body: formData,
       });
@@ -956,10 +1034,33 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     }
   }, []);
 
+  const uploadShowcaseImage = useCallback(async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await authFetch(`${API_BASE}/settings/showcase/upload-image`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+        return { ok: false, message: errorPayload?.detail || `Ошибка upload: ${res.status}`, imageAssetId: null };
+      }
+      const payload = (await res.json()) as { image_asset_id?: number };
+      const imageAssetId = Number(payload?.image_asset_id);
+      if (!Number.isFinite(imageAssetId) || imageAssetId <= 0) {
+        return { ok: false, message: "Сервер вернул некорректный id изображения", imageAssetId: null };
+      }
+      return { ok: true, message: "Изображение загружено", imageAssetId };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", imageAssetId: null };
+    }
+  }, []);
+
   const createCategory = useCallback(
     async (name: string, parentId: number | null) => {
       try {
-        const res = await fetch(`${API_BASE}/categories`, {
+        const res = await authFetch(`${API_BASE}/categories`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, parent_id: parentId }),
@@ -1005,7 +1106,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const updateCategory = useCallback(
     async (id: number, payload: { name?: string; parent_id?: number | null; is_enabled?: boolean; is_favorite?: boolean }) => {
       try {
-        const res = await fetch(`${API_BASE}/categories/${id}`, {
+        const res = await authFetch(`${API_BASE}/categories/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1060,7 +1161,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const deleteCategory = useCallback(
     async (id: number) => {
       try {
-        const res = await fetch(`${API_BASE}/categories/${id}`, {
+        const res = await authFetch(`${API_BASE}/categories/${id}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -1094,7 +1195,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const addCategoryKeyword = useCallback(
     async (id: number, keyword: string, scope: "local" | "title" = "local") => {
       try {
-        const res = await fetch(`${API_BASE}/categories/${id}/keywords`, {
+        const res = await authFetch(`${API_BASE}/categories/${id}/keywords`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ keyword, scope }),
@@ -1116,7 +1217,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     async (id: number, keyword: string, scope: "local" | "title" = "local") => {
       try {
         const encodedKeyword = encodeURIComponent(keyword);
-        const res = await fetch(`${API_BASE}/categories/${id}/keywords/${encodedKeyword}?scope=${scope}`, {
+        const res = await authFetch(`${API_BASE}/categories/${id}/keywords/${encodedKeyword}?scope=${scope}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -1134,7 +1235,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const getCategoryManualProducts = useCallback(async (categoryId: number) => {
     try {
-      const res = await fetch(`${API_BASE}/categories/${categoryId}/manual-products`);
+      const res = await authFetch(`${API_BASE}/categories/${categoryId}/manual-products`);
       if (!res.ok) {
         const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
         return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, items: [] };
@@ -1152,7 +1253,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         query,
         limit: String(limit),
       });
-      const res = await fetch(`${API_BASE}/categories/${categoryId}/manual-products/search?${params.toString()}`);
+      const res = await authFetch(`${API_BASE}/categories/${categoryId}/manual-products/search?${params.toString()}`);
       if (!res.ok) {
         const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
         return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, items: [] };
@@ -1167,7 +1268,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const addCategoryManualProduct = useCallback(
     async (categoryId: number, productId: number) => {
       try {
-        const res = await fetch(`${API_BASE}/categories/${categoryId}/manual-products`, {
+        const res = await authFetch(`${API_BASE}/categories/${categoryId}/manual-products`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ product_id: productId }),
@@ -1188,7 +1289,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const removeCategoryManualProduct = useCallback(
     async (categoryId: number, productId: number) => {
       try {
-        const res = await fetch(`${API_BASE}/categories/${categoryId}/manual-products/${productId}`, {
+        const res = await authFetch(`${API_BASE}/categories/${categoryId}/manual-products/${productId}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -1207,7 +1308,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const mergeDedupPair = useCallback(
     async (primaryProductId: number, duplicateProductId: number) => {
       try {
-        const res = await fetch(`${API_BASE}/dedup/merge`, {
+        const res = await authFetch(`${API_BASE}/dedup/merge`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ primary_product_id: primaryProductId, duplicate_product_id: duplicateProductId }),
@@ -1216,19 +1317,19 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await Promise.all([refreshProductsOnly(), refreshCategoriesOnly(), fetchDedupCandidates()]);
+        refreshAfterDedupMutation();
         return { ok: true, message: "Дубликаты объединены" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [fetchDedupCandidates, refreshCategoriesOnly, refreshProductsOnly]
+    [refreshAfterDedupMutation]
   );
 
   const rejectDedupPair = useCallback(
     async (productAId: number, productBId: number) => {
       try {
-        const res = await fetch(`${API_BASE}/dedup/reject`, {
+        const res = await authFetch(`${API_BASE}/dedup/reject`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ product_a_id: productAId, product_b_id: productBId }),
@@ -1237,19 +1338,61 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await fetchDedupCandidates();
+        refreshAfterDedupMutation();
         return { ok: true, message: "Пара помечена как не дубль" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    [fetchDedupCandidates]
+    [refreshAfterDedupMutation]
+  );
+
+  const combineDedupPair = useCallback(
+    async (productAId: number, productBId: number) => {
+      try {
+        const res = await authFetch(`${API_BASE}/dedup/combine`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product_a_id: productAId, product_b_id: productBId }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        refreshAfterDedupMutation();
+        return { ok: true, message: "Дубликаты соединены" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refreshAfterDedupMutation]
+  );
+
+  const undoDedupDecision = useCallback(
+    async (pairKey: string) => {
+      try {
+        const res = await authFetch(`${API_BASE}/dedup/undo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pair_key: pairKey }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        refreshAfterDedupMutation();
+        return { ok: true, message: "Решение отменено" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    [refreshAfterDedupMutation]
   );
 
   const setProductStatus = useCallback(
     async (productId: number, status: "available" | "out_of_stock" | "hidden") => {
       try {
-        const res = await fetch(`${API_BASE}/products/${productId}`, {
+        const res = await authFetch(`${API_BASE}/products/${productId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status }),
@@ -1279,7 +1422,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const getProductStarredCategories = useCallback(async (productId: number) => {
     try {
-      const res = await fetch(`${API_BASE}/products/${productId}/starred-categories`);
+      const res = await authFetch(`${API_BASE}/products/${productId}/starred-categories`);
       if (!res.ok) {
         const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
         return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, assignedCategoryIds: [], availableCategories: [] };
@@ -1303,7 +1446,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     async (productId: number, categoryIds: number[]) => {
       try {
         const normalizedCategoryIds = [...new Set(categoryIds.filter((item) => Number.isFinite(item)).map((item) => Number(item)))];
-        const res = await fetch(`${API_BASE}/products/${productId}/starred-categories`, {
+        const res = await authFetch(`${API_BASE}/products/${productId}/starred-categories`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ category_ids: normalizedCategoryIds }),
@@ -1345,7 +1488,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
       while (guard < 1000) {
         guard += 1;
-        const res = await fetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
+        const res = await authFetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
         if (!res.ok) {
           throw new Error(`Products API error: ${res.status}`);
         }
@@ -1377,7 +1520,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const toggleSourceEnabled = useCallback(
     async (sourceKey: string, enabled: boolean) => {
       try {
-        const res = await fetch(`${API_BASE}/shopify/sources/${sourceKey}/enabled`, {
+        const res = await authFetch(`${API_BASE}/shopify/sources/${sourceKey}/enabled`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ enabled }),
@@ -1408,7 +1551,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       }
     ) => {
       try {
-        const res = await fetch(`${API_BASE}/shopify/sources/${sourceKey}/supplier`, {
+        const res = await authFetch(`${API_BASE}/shopify/sources/${sourceKey}/supplier`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1430,7 +1573,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const createWeightRule = useCallback(
     async (weightGrams: number) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/weight-rules`, {
+        const res = await authFetch(`${API_BASE}/settings/weight-rules`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ weight_grams: weightGrams }),
@@ -1451,7 +1594,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const updateWeightRule = useCallback(
     async (id: number, weightGrams: number) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/weight-rules/${id}`, {
+        const res = await authFetch(`${API_BASE}/settings/weight-rules/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ weight_grams: weightGrams }),
@@ -1472,7 +1615,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const deleteWeightRule = useCallback(
     async (id: number) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/weight-rules/${id}`, {
+        const res = await authFetch(`${API_BASE}/settings/weight-rules/${id}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -1491,7 +1634,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const addWeightKeyword = useCallback(
     async (ruleId: number, keyword: string) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/weight-rules/${ruleId}/keywords`, {
+        const res = await authFetch(`${API_BASE}/settings/weight-rules/${ruleId}/keywords`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ keyword }),
@@ -1513,7 +1656,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     async (ruleId: number, keyword: string) => {
       try {
         const encodedKeyword = encodeURIComponent(keyword);
-        const res = await fetch(`${API_BASE}/settings/weight-rules/${ruleId}/keywords/${encodedKeyword}`, {
+        const res = await authFetch(`${API_BASE}/settings/weight-rules/${ruleId}/keywords/${encodedKeyword}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -1531,7 +1674,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const fetchPricingExampleProduct = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/products/pricing-example`);
+      const res = await authFetch(`${API_BASE}/products/pricing-example`);
       if (!res.ok) {
         return null;
       }
@@ -1545,7 +1688,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const updatePricingSettings = useCallback(
     async (payload: Partial<PricingSettings>) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/pricing`, {
+        const res = await authFetch(`${API_BASE}/settings/pricing`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1556,15 +1699,17 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         }
         const updated = (await res.json()) as PricingSettings;
         setPricingSettings(updated || null);
-        if (updated) {
-          writeCachedPricingSettings(updated);
+        if (Object.prototype.hasOwnProperty.call(payload, "dedup_only_available_products")) {
+          void refreshDedupOnly().catch((e) => {
+            setError(e instanceof Error ? e.message : "Unknown error");
+          });
         }
         return { ok: true, message: "Параметры формулы сохранены" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
     },
-    []
+    [refreshDedupOnly]
   );
 
   const updatePricingSupplier = useCallback(
@@ -1574,13 +1719,11 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         name?: string;
         category?: string;
         rate_currency?: string;
-        rate_per_500g_value?: number;
-        rate_per_500g_rub?: number;
-        max_step_500g?: number;
+        rates?: Array<{ min_kg: number; max_kg: number | null; rub: number }>;
       }
     ) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/pricing/suppliers/${supplierId}`, {
+        const res = await authFetch(`${API_BASE}/settings/pricing/suppliers/${supplierId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1590,7 +1733,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
         await Promise.all([refreshPricingOnly(), refreshSourcesOnly()]);
-        return { ok: true, message: "Тариф поставщика обновлен" };
+        return { ok: true, message: "Тариф обновлен" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
@@ -1603,12 +1746,12 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       key?: string;
       name: string;
       category: string;
+      parent_supplier_id?: number | null;
+      alt_position?: number;
       rate_currency: string;
-      rate_per_500g_value: number;
-      max_step_500g?: number;
     }) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/pricing/suppliers`, {
+        const res = await authFetch(`${API_BASE}/settings/pricing/suppliers`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1618,7 +1761,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
         await Promise.all([refreshPricingOnly(), refreshSourcesOnly()]);
-        return { ok: true, message: "Поставщик добавлен" };
+        return { ok: true, message: "Тариф добавлен" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
@@ -1629,7 +1772,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const deletePricingSupplier = useCallback(
     async (supplierId: number) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/pricing/suppliers/${supplierId}`, {
+        const res = await authFetch(`${API_BASE}/settings/pricing/suppliers/${supplierId}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -1637,7 +1780,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
         await Promise.all([refreshPricingOnly(), refreshSourcesOnly()]);
-        return { ok: true, message: "Поставщик удален" };
+        return { ok: true, message: "Тариф удален" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
@@ -1647,7 +1790,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const exportSettings = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/settings/export`);
+      const res = await authFetch(`${API_BASE}/settings/export`);
       if (!res.ok) {
         const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
         return { ok: false, message: errorPayload?.detail || `Ошибка экспорта: ${res.status}`, payload: null };
@@ -1662,7 +1805,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const importSettings = useCallback(
     async (payload: SettingsTransferPayload) => {
       try {
-        const res = await fetch(`${API_BASE}/settings/import`, {
+        const res = await authFetch(`${API_BASE}/settings/import`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1737,7 +1880,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
     const timer = window.setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/jobs/latest`);
+        const res = await authFetch(`${API_BASE}/jobs/latest`);
         if (!res.ok) {
           return;
         }
@@ -1763,6 +1906,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       adminCategories,
       dedupCandidates,
       loadingDedupCandidates,
+      dedupDecisions,
+      loadingDedupDecisions,
       weightRules,
       weightMissingProducts,
       pricingSettings,
@@ -1785,6 +1930,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       addProductByUrl,
       createManualProduct,
       uploadProductImage,
+      uploadShowcaseImage,
       createCategory,
       updateCategory,
       deleteCategory,
@@ -1796,6 +1942,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       removeCategoryManualProduct,
       mergeDedupPair,
       rejectDedupPair,
+      combineDedupPair,
+      undoDedupDecision,
       setProductStatus,
       getProductStarredCategories,
       setProductStarredCategories,
@@ -1823,6 +1971,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       adminCategories,
       dedupCandidates,
       loadingDedupCandidates,
+      dedupDecisions,
+      loadingDedupDecisions,
       weightRules,
       weightMissingProducts,
       pricingSettings,
@@ -1845,6 +1995,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       addProductByUrl,
       createManualProduct,
       uploadProductImage,
+      uploadShowcaseImage,
       createCategory,
       updateCategory,
       deleteCategory,
@@ -1856,6 +2007,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       removeCategoryManualProduct,
       mergeDedupPair,
       rejectDedupPair,
+      combineDedupPair,
+      undoDedupDecision,
       setProductStatus,
       getProductStarredCategories,
       setProductStarredCategories,

@@ -9,6 +9,7 @@ type ImageWithFallbackProps = {
   loadingText?: string;
   fallbackText?: string;
   loading?: "lazy" | "eager";
+  fetchPriority?: "high" | "low" | "auto";
 };
 
 function ImageWithFallbackBase({
@@ -20,6 +21,7 @@ function ImageWithFallbackBase({
   loadingText,
   fallbackText,
   loading = "lazy",
+  fetchPriority = "auto",
 }: ImageWithFallbackProps) {
   const normalizedSrc = useMemo(() => {
     const raw = (src || "").trim();
@@ -35,6 +37,7 @@ function ImageWithFallbackBase({
 
   const loadingLabel = loadingText ?? placeholderText;
   const fallbackLabel = fallbackText ?? placeholderText;
+  const resolvedFetchPriority = fetchPriority === "auto" && loading === "lazy" ? "low" : fetchPriority;
 
   if (!normalizedSrc || failed) {
     return <div className={placeholderClassName}>{fallbackLabel}</div>;
@@ -53,6 +56,8 @@ function ImageWithFallbackBase({
         src={normalizedSrc}
         alt={alt}
         loading={loading}
+        decoding="async"
+        fetchPriority={resolvedFetchPriority}
         onLoad={() => setLoaded(true)}
         onError={() => {
           setLoaded(true);

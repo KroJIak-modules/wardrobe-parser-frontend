@@ -632,7 +632,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                   tabIndex={0}
                 >
                   <ImageWithFallback
-                    src={getProductPrimaryImageUrl(product)}
+                    src={getProductPrimaryImageUrl(product, { w: 520, h: 520, q: 55 })}
                     alt={product.title}
                     className="thumb catalog-thumb"
                     placeholderClassName="thumb thumb--placeholder catalog-thumb"

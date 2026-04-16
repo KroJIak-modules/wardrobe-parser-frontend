@@ -13,7 +13,23 @@ type VariantInfo = {
   title: string;
   available: boolean;
   inventory_quantity: number;
+  price?: string | number | null;
 };
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().replace(",", ".");
+    if (!normalized) {
+      return null;
+    }
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
 
 function formatMoney(value: number | null | undefined, currency: string | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) {
@@ -37,6 +53,14 @@ function buildVariantLabel(variant: {
     return options.join(" / ");
   }
   return variant.title || "Вариант";
+}
+
+function toThumbUrl(url: string): string {
+  if (!url.startsWith("/api/v1/images/")) {
+    return url;
+  }
+  const delimiter = url.includes("?") ? "&" : "?";
+  return `${url}${delimiter}w=140&h=140&q=50`;
 }
 
 export function ProductPage() {
@@ -142,8 +166,33 @@ export function ProductPage() {
   const activeImage = images[activeImageIndex] || null;
   const sourceName = sourceNameById.get(product.source_id) || `Источник #${product.source_id}`;
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 1;
-  const originalPrice = formatMoney(product.source_price ?? product.price, product.source_currency ?? product.currency);
-  const finalPrice = formatMoney(product.final_price ?? product.price, product.final_currency ?? product.currency);
+  const selectedVariant = (
+    selectedVariantIndex !== null
+      && Array.isArray(product.variants)
+      && product.variants[selectedVariantIndex]
+  ) ? (product.variants[selectedVariantIndex] as VariantInfo) : null;
+  const selectedVariantPrice = toFiniteNumber(selectedVariant?.price);
+
+  const sourcePriceBase = toFiniteNumber(product.source_price ?? product.price);
+  const finalPriceBase = toFiniteNumber(product.final_price ?? product.price);
+  const sourceToFinalRate = (
+    sourcePriceBase !== null
+    && finalPriceBase !== null
+    && sourcePriceBase > 0
+  ) ? (finalPriceBase / sourcePriceBase) : null;
+
+  const effectiveSourcePrice = selectedVariantPrice ?? sourcePriceBase;
+  const effectiveFinalPrice = (() => {
+    if (selectedVariantPrice === null) {
+      return finalPriceBase;
+    }
+    if (sourceToFinalRate !== null) {
+      return Number((selectedVariantPrice * sourceToFinalRate).toFixed(2));
+    }
+    return selectedVariantPrice;
+  })();
+  const originalPrice = formatMoney(effectiveSourcePrice, product.source_currency ?? product.currency);
+  const finalPrice = formatMoney(effectiveFinalPrice, product.final_currency ?? product.currency);
   const normalizedStatus = normalizeProductStatus(product.status);
   const categoryNames = (() => {
     const names = (product.internal_category_names || []).filter(Boolean);
@@ -157,6 +206,7 @@ export function ProductPage() {
   })();
   const normalizedVendor = String(product.vendor || "").trim().toLowerCase();
   const categoryChips = categoryNames.filter((name) => String(name).trim().toLowerCase() !== normalizedVendor);
+  const hasBrand = Boolean(String(product.vendor || "").trim());
 
   const toggleHidden = async () => {
     if (statusPending) {
@@ -236,7 +286,13 @@ export function ProductPage() {
                   className={index === activeImageIndex ? "slider-thumb slider-thumb--active" : "slider-thumb"}
                   onClick={() => setActiveImageIndex(index)}
                 >
-                  <img src={imageUrl} alt={`${product.title}-${index + 1}`} />
+                  <ImageWithFallback
+                    src={toThumbUrl(imageUrl)}
+                    alt={`${product.title}-${index + 1}`}
+                    className="slider-thumb-image"
+                    placeholderClassName="slider-thumb-placeholder"
+                    placeholderText="Фото"
+                  />
                 </button>
               ))}
             </div>
@@ -252,18 +308,24 @@ export function ProductPage() {
           </div>
 
           <div className="product-main-meta">
-            <div className="product-meta-chips">
-              <span className="product-meta-chip product-meta-chip--muted">
-                Бренд: <LatexBrand value={product.vendor} fallback="Без бренда" />
-              </span>
-            </div>
+            {hasBrand ? (
+              <div className="product-meta-line">
+                <span className="product-meta-label">Бренд:</span>
+                <span className="product-meta-chip product-meta-chip--muted">
+                  <LatexBrand value={product.vendor} fallback="" />
+                </span>
+              </div>
+            ) : null}
             {categoryChips.length > 0 ? (
-              <div className="product-meta-categories">
-                {categoryChips.map((name) => (
-                  <span key={name} className="product-meta-chip">
-                    {name}
-                  </span>
-                ))}
+              <div className="product-meta-line">
+                <span className="product-meta-label">Находится в категориях:</span>
+                <div className="product-meta-categories">
+                  {categoryChips.map((name) => (
+                    <span key={name} className="product-meta-chip">
+                      {name}
+                    </span>
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>
@@ -298,9 +360,9 @@ export function ProductPage() {
                 })}
               </div>
 
-              {selectedVariantIndex !== null && product.variants[selectedVariantIndex] ? (
+              {selectedVariant ? (
                 <p className="muted">
-                  Выбран вариант: {buildVariantLabel(product.variants[selectedVariantIndex] as {
+                  Выбран вариант: {buildVariantLabel(selectedVariant as {
                     title?: string;
                     option1?: string | null;
                     option2?: string | null;
