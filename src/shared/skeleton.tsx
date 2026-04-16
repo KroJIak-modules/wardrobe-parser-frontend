@@ -152,14 +152,18 @@ export function ProductPageSkeleton() {
         <section className="card product-main-card">
           <div className="product-main-head">
             <SkeletonBlock className="product-skeleton-title" />
-            <SkeletonBlock className="product-skeleton-status" />
           </div>
-          <SkeletonBlock className="product-skeleton-price" />
+          <SkeletonBlock className="product-skeleton-status" />
 
           <div className="product-main-meta">
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <SkeletonBlock key={`product-skeleton-meta-${idx}`} className="product-skeleton-meta-line" />
-            ))}
+            <div className="product-meta-chips">
+              <SkeletonBlock className="product-skeleton-chip" />
+            </div>
+            <div className="product-meta-categories">
+              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
+              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
+              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
+            </div>
           </div>
 
           <div className="variants-section">
@@ -171,7 +175,19 @@ export function ProductPageSkeleton() {
             </div>
           </div>
 
+          <div className="product-pricing-card">
+            <div className="product-pricing-item">
+              <SkeletonBlock className="product-skeleton-meta-line product-skeleton-meta-line--label" />
+              <SkeletonBlock className="product-skeleton-price-value" />
+            </div>
+            <div className="product-pricing-item">
+              <SkeletonBlock className="product-skeleton-meta-line product-skeleton-meta-line--label" />
+              <SkeletonBlock className="product-skeleton-price-value" />
+            </div>
+          </div>
+
           <div className="product-main-actions">
+            <SkeletonBlock className="product-skeleton-action" />
             <SkeletonBlock className="product-skeleton-action" />
           </div>
         </section>

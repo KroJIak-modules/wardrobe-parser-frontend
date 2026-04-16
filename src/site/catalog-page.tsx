@@ -481,6 +481,9 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     });
 
     const result = await setProductStatus(productId, nextStatus);
+    if (result.ok) {
+      setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, status: nextStatus } : item)));
+    }
     pushToast(result.message);
     setPendingStatusIds((prev) => {
       const next = new Set(prev);
