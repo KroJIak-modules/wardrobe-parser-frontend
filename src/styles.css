@@ -1426,11 +1426,7 @@ button {
 }
 
 .product-main-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  display: block;
 }
 
 .product-main-head h1 {
@@ -1439,10 +1435,8 @@ button {
   line-height: 1.1;
 }
 
-.product-main-price {
+.product-main-status {
   margin-top: 10px;
-  font-size: 30px;
-  font-weight: 700;
 }
 
 .product-main-meta {
@@ -1451,13 +1445,71 @@ button {
   gap: 6px;
 }
 
-.product-main-meta p {
-  margin: 0;
+.product-meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.product-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #d5dceb;
+  background: #f7f9ff;
+  color: #243246;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.product-meta-chip--muted {
+  border-color: #e1e4ec;
+  background: #f8f9fb;
+  color: #455061;
+}
+
+.product-meta-categories {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.product-pricing-card {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f2;
+  border-radius: 10px;
+  background: #f7fbff;
+}
+
+.product-pricing-item {
+  display: grid;
+  gap: 4px;
+}
+
+.product-pricing-item strong {
+  font-size: 22px;
+  line-height: 1.1;
+  color: #111111;
 }
 
 .product-main-actions {
   margin-top: 12px;
-  display: inline-flex;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.product-action-btn {
+  min-height: 34px;
 }
 
 .detail-image {
@@ -1484,16 +1536,38 @@ button {
   top: 50%;
   transform: translateY(-50%);
   margin-top: 0;
-  border: 1px solid #d6d6d6;
-  background: rgba(255, 255, 255, 0.9);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #cfd7e6;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 20px rgba(17, 31, 56, 0.12);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #27406a;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slider-arrow:hover {
+  border-color: #9db0cf;
+  background: #ffffff;
+  box-shadow: 0 10px 26px rgba(17, 31, 56, 0.18);
+  transform: translateY(-50%) scale(1.03);
+}
+
+.slider-arrow .icon-svg {
+  width: 18px;
+  height: 18px;
 }
 
 .slider-arrow--left {
-  left: 8px;
+  left: 10px;
 }
 
 .slider-arrow--right {
-  right: 8px;
+  right: 10px;
 }
 
 .slider-thumbs {
@@ -1596,6 +1670,13 @@ button {
   gap: 10px;
 }
 
+.category-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .favorite-toggle-btn {
   width: 30px;
   height: 30px;
@@ -1616,6 +1697,11 @@ button {
   border-color: #d5ab2c;
   background: #fff5d6;
   color: #8b6400;
+}
+
+.favorite-toggle-btn--active .icon-svg path {
+  fill: currentColor;
+  stroke: #8b6400;
 }
 
 .favorite-toggle-text {
@@ -1863,6 +1949,11 @@ textarea {
   padding: 10px;
 }
 
+.pricing-example-box--empty {
+  background: #f6f9ff;
+  border-style: dashed;
+}
+
 .pricing-example-head {
   display: flex;
   align-items: center;
@@ -1873,16 +1964,39 @@ textarea {
 .pricing-example-thumb-link {
   display: inline-flex;
   border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #dbe1ee;
-  background: #ffffff;
+  flex: 0 0 auto;
 }
 
 .pricing-example-thumb {
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
   object-fit: cover;
   display: block;
+  background: #f9f9f9;
+}
+
+.pricing-example-thumb-placeholder {
+  width: 64px;
+  height: 64px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 11px;
+  color: #5f5f5f;
+  background: #f9f9f9;
+}
+
+.pricing-example-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .pricing-example-thumb--skeleton {
@@ -1892,6 +2006,13 @@ textarea {
 
 .pricing-example-title-link {
   font-weight: 600;
+  min-width: 0;
+  flex: 1;
+}
+
+.pricing-example-source-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .pricing-example-title-skeleton-wrap {
@@ -2199,6 +2320,13 @@ textarea {
   gap: 10px;
 }
 
+.weight-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
 .weight-rule-row {
   border: 1px solid #ececec;
   border-radius: 10px;
@@ -2313,6 +2441,8 @@ textarea {
 }
 
 .source-card {
+  display: flex;
+  flex-direction: column;
   background: #ffffff;
   border: 1px solid #e2e8f2;
   border-radius: 12px;
@@ -2337,8 +2467,42 @@ textarea {
   font-size: 15px;
 }
 
-.source-card-switch {
+.source-card-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2a3344;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.source-card-link:hover {
+  color: #2a3344;
+}
+
+.source-card-foot {
   margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.source-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #dbe5f5;
+  background: #f2f6ff;
+  color: #274b8f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.source-card-switch {
+  margin-top: 0;
 }
 
 .table-wrap {
@@ -2666,6 +2830,10 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .product-pricing-card {
+    grid-template-columns: 1fr;
+  }
+
   .catalog-tabs {
     gap: 8px;
     padding: 10px;
@@ -2730,6 +2898,10 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .weight-layout {
+    grid-template-columns: 1fr;
+  }
+
   .pricing-supplier-create-row {
     grid-template-columns: 1fr;
   }
@@ -2740,6 +2912,12 @@ button:disabled {
 
   .pricing-worker-calc-row {
     grid-template-columns: 1fr;
+  }
+
+  .pricing-example-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 
   .pricing-supplier-list-head {
@@ -2799,20 +2977,20 @@ button:disabled {
 
 /* Product variants selector */
 .variants-section {
-  margin: 20px 0;
+  margin: 14px 0 0;
   padding: 12px;
-  background: #ffffff;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
+  background: #fbfcff;
+  border-radius: 10px;
+  border: 1px solid #e1e7f2;
 }
 
 .variants-section h3 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
+  margin: 0 0 10px 0;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #666666;
+  color: #6a7380;
 }
 
 .variants-grid {
@@ -2824,10 +3002,10 @@ button:disabled {
 
 .variant-btn {
   padding: 8px 10px;
-  border: 1px solid #999999;
-  border-radius: 3px;
+  border: 1px solid #d3dae8;
+  border-radius: 8px;
   background: #ffffff;
-  color: #111111;
+  color: #18253a;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -2839,14 +3017,14 @@ button:disabled {
 }
 
 .variant-btn:hover:not(:disabled) {
-  border-color: #111111;
-  background: #f0f0f0;
+  border-color: #b7c4dd;
+  background: #f2f6ff;
 }
 
 .variant-btn--selected {
-  background: #111111;
+  background: #1f5ac7;
   color: #ffffff;
-  border-color: #111111;
+  border-color: #1f5ac7;
 }
 
 .variant-btn--disabled {
@@ -2896,25 +3074,27 @@ button:disabled {
   background: #ffffff;
 }
 
-.admin .tab {
-  border: 1px solid #d3dbe8;
-  background: #f7f9fd;
+.admin .tabs > .tab {
+  border: 1px solid #b8cff4;
+  background: #f3f7ff;
   border-radius: 10px;
   padding: 8px 13px;
   font-size: 13px;
   font-weight: 600;
-  color: #243046;
+  color: #1f4ea5;
 }
 
-.admin .tab:hover {
-  border-color: #bdc8dc;
-  background: #eef3fb;
+.admin .tabs > .tab:hover,
+.admin .tabs > .tab:active {
+  border-color: #7ea8ee;
+  background: #e5efff;
+  color: #1d4c9f;
 }
 
-.admin .tab--active {
-  border-color: #aebbd3;
-  background: #e7edf8;
-  color: #1f2a40;
+.admin .tabs > .tab.tab--active {
+  border-color: #2f7ae5;
+  background: #2f7ae5;
+  color: #ffffff;
 }
 
 .admin .actions {
@@ -3036,11 +3216,13 @@ button:disabled {
   }
 }
 
-.admin .status-pill--warn {
+@media (max-width: 760px) {
   .sources-grid {
     grid-template-columns: 1fr;
   }
+}
 
+.admin .status-pill--warn {
   background: #fff5e6;
   color: #9b5f00;
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent 
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { renderToString } from "katex";
 import "katex/dist/katex.min.css";
-import { useLiveData, type CategoryManualProduct, type PricingSettings, type SettingsTransferPayload } from "../shared/live-data-context";
+import { useLiveData, type CategoryManualProduct, type PricingExampleProduct, type PricingSettings, type SettingsTransferPayload } from "../shared/live-data-context";
 import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { IconChevronDown, IconClose, IconInfo, IconPlus, IconStar } from "../shared/mono-icons";
@@ -230,6 +230,30 @@ const formatCompactNumber = (value: number | null, maxFractionDigits = 4): strin
     return String(Math.trunc(rounded));
   }
   return String(rounded);
+};
+
+const selectRuPluralForm = (value: number, one: string, few: string, many: string): string => {
+  const absolute = Math.abs(value) % 100;
+  const tail = absolute % 10;
+  if (absolute > 10 && absolute < 20) {
+    return many;
+  }
+  if (tail === 1) {
+    return one;
+  }
+  if (tail >= 2 && tail <= 4) {
+    return few;
+  }
+  return many;
+};
+
+const formatDurationHoursMinutesAgo = (totalMinutes: number): string => {
+  const safeMinutes = Math.max(0, Math.floor(totalMinutes));
+  const hours = Math.floor(safeMinutes / 60);
+  const minutes = safeMinutes % 60;
+  const hoursPart = `${hours} ${selectRuPluralForm(hours, "час", "часа", "часов")}`;
+  const minutesPart = `${minutes} ${selectRuPluralForm(minutes, "минута", "минуты", "минут")}`;
+  return `${hoursPart} ${minutesPart} назад`;
 };
 
 const formatDisplayMoney = (value: number | null, currency?: string): string => {
@@ -590,6 +614,7 @@ export function AdminPage() {
     exportSettings,
     importSettings,
     assignSourceSupplier,
+    fetchPricingExampleProduct,
   } = useLiveData();
 
   const [openModal, setOpenModal] = useState<boolean>(false);
@@ -641,7 +666,8 @@ export function AdminPage() {
   const [pricingTabLoading, setPricingTabLoading] = useState<boolean>(false);
   const [weightTabLoading, setWeightTabLoading] = useState<boolean>(false);
   const [nowTickMs, setNowTickMs] = useState<number>(() => Date.now());
-  const [pricingExampleStartSeed] = useState<number>(() => Math.random());
+  const [pricingExampleProduct, setPricingExampleProduct] = useState<PricingExampleProduct | null>(null);
+  const [pricingExampleLoading, setPricingExampleLoading] = useState<boolean>(false);
   const [sourcePricingDrafts, setSourcePricingDrafts] = useState<Record<string, {
     supplierId: string;
     promoPercent: string;
@@ -1585,264 +1611,241 @@ export function AdminPage() {
   }, [pricingSettings?.formula_latex]);
 
   const pricingExample = useMemo(() => {
-    if (products.length === 0) {
+    if (!pricingExampleProduct || !pricingSettings) {
       return null;
     }
-    const startIndex = Math.floor(pricingExampleStartSeed * products.length) % products.length;
-    for (let offset = 0; offset < products.length; offset += 1) {
-      const product = products[(startIndex + offset) % products.length];
-      if (String(product.status || "").toLowerCase() !== "available") {
-        continue;
-      }
-      const components = (product.pricing_components || {}) as Record<string, unknown>;
-      const finalPrice = toFiniteNumber(product.final_price);
-      const sourcePriceRub = toFiniteNumber(components.source_price_rub);
-      const sourcePriceUsd = toFiniteNumber(components.source_price_usd);
-      const sourcePriceEur = toFiniteNumber(components.source_price_eur);
-      const sourcePriceRaw = toFiniteNumber(components.source_price) ?? toFiniteNumber(product.source_price) ?? toFiniteNumber(product.price);
-      const sourceCurrency = normalizeCurrencyCode(
-        String(components.source_currency || product.source_currency || product.currency || "USD"),
-        "USD"
-      );
-      const bybitBase = toFiniteNumber(components.bybit_bucket_rate_rub) ?? toFiniteNumber(components.bybit_usdt_to_rub);
-      const bybitExtra = toFiniteNumber(components.bybit_extra_rub);
-      const bybitFx = toFiniteNumber(components.effective_usdt_to_rub);
-      const buyoutSurchargeRub = toFiniteNumber(components.buyout_surcharge_rub);
-      const buyoutRub = toFiniteNumber(components.buyout_rub);
-      const paymentFeeRate = toFiniteNumber(components.payment_fee_rate);
-      const paymentFeeRub = toFiniteNumber(components.payment_fee_rub);
-      const insuranceRub = toFiniteNumber(components.insurance_rub);
-      const customsRub = toFiniteNumber(components.customs_duty_rub);
-      const spAfterPromoEur = toFiniteNumber(components.sp_after_promo_eur);
-      const customsThresholdEur = toFiniteNumber(components.customs_threshold_eur);
-      const customsDutyRate = toFiniteNumber(components.customs_duty_rate);
-      const customsProcessingRate = toFiniteNumber(components.customs_processing_rate);
-      const customsFixedRub = toFiniteNumber(components.customs_fixed_rub);
-      const eurToUsdRate = toFiniteNumber(components.eur_to_usd_rate);
-      const gbpToUsdRate = toFiniteNumber(components.gbp_to_usd_rate);
-      const supplierTransportRub = toFiniteNumber(components.supplier_transport_rub);
-      const serviceFeeRub = toFiniteNumber(components.service_fee_rub);
-      const subtotalRub = toFiniteNumber(components.subtotal_rub);
-      const subtotalAfterMarkupRub = toFiniteNumber(components.subtotal_after_markup_rub);
-      const passThroughCostsRub = toFiniteNumber(components.pass_through_costs_rub);
-      const taxRate = toFiniteNumber(components.tax_rate);
-      const taxRub = toFiniteNumber(components.tax_rub);
-      const shippingRuleLabel = String(components.shipping_rule_label || "");
-      const promoFactor = toFiniteNumber(components.promo_factor);
-      const markupMultiplier = toFiniteNumber(components.markup_multiplier);
-      const markupRate = toFiniteNumber(components.markup_rate) ?? ((markupMultiplier ?? 1) - 1);
-      const supplierName = String(components.supplier_name || "Default Supplier");
-      if (
-        finalPrice === null
-        || sourcePriceRub === null
-        || sourcePriceUsd === null
-        || sourcePriceEur === null
-        || sourcePriceRaw === null
-        || bybitBase === null
-        || bybitExtra === null
-        || bybitFx === null
-        || buyoutSurchargeRub === null
-        || buyoutRub === null
-        || paymentFeeRate === null
-        || paymentFeeRub === null
-        || insuranceRub === null
-        || customsRub === null
-        || spAfterPromoEur === null
-        || customsThresholdEur === null
-        || customsDutyRate === null
-        || customsProcessingRate === null
-        || customsFixedRub === null
-        || eurToUsdRate === null
-        || gbpToUsdRate === null
-        || supplierTransportRub === null
-        || serviceFeeRub === null
-        || subtotalRub === null
-        || subtotalAfterMarkupRub === null
-        || taxRate === null
-        || taxRub === null
-        || promoFactor === null
-        || markupMultiplier === null
-      ) {
-        continue;
-      }
+    const product = pricingExampleProduct;
+    const components = (product.components || {}) as Record<string, unknown>;
+    const sourcePriceRaw = toFiniteNumber(product.source_price) ?? toFiniteNumber(components.source_price);
+    const sourceCurrency = normalizeCurrencyCode(String(product.source_currency || components.source_currency || "USD"), "USD");
+    const sourcePriceRub = toFiniteNumber(components.source_price_rub);
+    const sourcePriceUsd = toFiniteNumber(components.source_price_usd);
+    const sourcePriceEur = toFiniteNumber(components.source_price_eur);
+    const bybitBase = toFiniteNumber(components.bybit_bucket_rate_rub) ?? toFiniteNumber(components.bybit_usdt_to_rub);
+    const bybitExtra = toFiniteNumber(components.bybit_extra_rub);
+    const bybitFx = toFiniteNumber(components.effective_usdt_to_rub);
+    const promoFactor = toFiniteNumber(components.promo_factor);
+    const buyoutSurchargeRub = toFiniteNumber(components.buyout_surcharge_rub);
+    const buyoutRub = toFiniteNumber(components.buyout_rub);
+    const paymentFeeRate = toFiniteNumber(components.payment_fee_rate);
+    const paymentFeeRub = toFiniteNumber(components.payment_fee_rub);
+    const insuranceRub = toFiniteNumber(components.insurance_rub);
+    const customsRub = toFiniteNumber(components.customs_duty_rub);
+    const spAfterPromoEur = toFiniteNumber(components.sp_after_promo_eur);
+    const customsThresholdEur = toFiniteNumber(components.customs_threshold_eur);
+    const customsDutyRate = toFiniteNumber(components.customs_duty_rate);
+    const customsProcessingRate = toFiniteNumber(components.customs_processing_rate);
+    const customsFixedRub = toFiniteNumber(components.customs_fixed_rub);
+    const eurToUsdRate = toFiniteNumber(components.eur_to_usd_rate);
+    const gbpToUsdRate = toFiniteNumber(components.gbp_to_usd_rate);
+    const supplierTransportRub = toFiniteNumber(components.supplier_transport_rub);
+    const serviceFeeRub = toFiniteNumber(components.service_fee_rub);
+    const subtotalRub = toFiniteNumber(components.subtotal_rub);
+    const subtotalAfterMarkupRub = toFiniteNumber(components.subtotal_after_markup_rub);
+    const taxRate = toFiniteNumber(components.tax_rate);
+    const taxRub = toFiniteNumber(components.tax_rub);
+    const markupRate = toFiniteNumber(components.markup_rate) ?? (Number(pricingSettings.markup_multiplier) - 1);
+    const finalPrice = toFiniteNumber(product.final_price) ?? toFiniteNumber(components.final_price_rub) ?? toFiniteNumber(components.final_price);
+    const finalRoundingMode = normalizeFinalRoundingMode(String(components.final_rounding_mode || pricingSettings.final_rounding_mode || "unit"), "unit");
+    const supplierName = String(components.supplier_name || "Поставщик");
+    const shippingRuleLabel = String(components.shipping_rule_label || "-");
+    if (
+      sourcePriceRaw === null
+      || sourcePriceRub === null
+      || sourcePriceUsd === null
+      || sourcePriceEur === null
+      || bybitBase === null
+      || bybitExtra === null
+      || bybitFx === null
+      || promoFactor === null
+      || buyoutSurchargeRub === null
+      || buyoutRub === null
+      || paymentFeeRate === null
+      || paymentFeeRub === null
+      || insuranceRub === null
+      || customsRub === null
+      || spAfterPromoEur === null
+      || customsThresholdEur === null
+      || customsDutyRate === null
+      || customsProcessingRate === null
+      || customsFixedRub === null
+      || eurToUsdRate === null
+      || gbpToUsdRate === null
+      || supplierTransportRub === null
+      || serviceFeeRub === null
+      || subtotalRub === null
+      || subtotalAfterMarkupRub === null
+      || taxRate === null
+      || taxRub === null
+      || finalPrice === null
+    ) {
+      return null;
+    }
 
-      const subtotalBeforeMarkup = subtotalRub;
-      const subtotalAfterMarkup = subtotalAfterMarkupRub;
-      const labelVar = (symbol: string) => symbol;
-      const labelGroup = (symbol: string, value: number, digits = 4) => `${symbol}=${formatCompactNumber(value, digits)}`;
-      const finalRoundingMode = normalizeFinalRoundingMode(
-        String(components.final_rounding_mode || pricingSettings.final_rounding_mode || "unit"),
-        "unit"
-      );
-      const roundingPrefix = finalRoundingMode === "none"
-        ? ""
-        : finalRoundingMode === "unit"
-          ? "\\lceil"
-          : `\\operatorname{ceil}_{${finalRoundingMode === "ten" ? "10" : finalRoundingMode === "hundred" ? "100" : "1000"}}(`;
-      const roundingSuffix = finalRoundingMode === "none"
-        ? ""
-        : finalRoundingMode === "unit"
-          ? "\\rceil"
-          : ")";
-      const exampleLatex =
-        `${roundingPrefix}` +
-        `\\underbrace{` +
-        `\\underbrace{(` +
-        `\\underbrace{${formatCompactNumber(sourcePriceUsd)}}_{${labelVar("SPU")}}` +
-        `\\cdot(` +
-        `\\underbrace{${formatCompactNumber(bybitBase, 4)}}_{${labelVar("BBR")}}+\\underbrace{${formatCompactNumber(bybitExtra, 4)}}_{${labelVar("BEX")}}` +
-        `)` +
-        `\\cdot\\underbrace{${formatCompactNumber(promoFactor, 4)}}_{${labelVar("PRM")}}` +
-        `+\\underbrace{${formatCompactNumber(buyoutSurchargeRub)}}_{${labelVar("BSC")}}` +
-        `)}_{${labelGroup("BUY", buyoutRub)}}` +
-        `+\\underbrace{(` +
-        `\\underbrace{${formatCompactNumber(buyoutRub)}}_{${labelVar("BUY")}}` +
-        `\\cdot\\underbrace{${formatCompactNumber(paymentFeeRate, 4)}}_{${labelVar("PFRP")}}` +
-        `)}_{${labelGroup("PFR", paymentFeeRub)}}` +
-        `+\\underbrace{${formatCompactNumber(insuranceRub)}}_{${labelVar("INS")}}` +
-        `+\\underbrace{(` +
-        `(\\max(0,\\underbrace{${formatCompactNumber(spAfterPromoEur, 4)}}_{${labelVar("SPE")}}-\\underbrace{${formatCompactNumber(customsThresholdEur, 4)}}_{${labelVar("THR")}})` +
-        `\\cdot\\underbrace{${formatCompactNumber(customsDutyRate, 4)}}_{${labelVar("DUT")}}` +
-        `\\cdot(1+\\underbrace{${formatCompactNumber(customsProcessingRate, 4)}}_{${labelVar("CPR")}}))` +
-        `\\cdot\\underbrace{${formatCompactNumber(eurToUsdRate, 4)}}_{${labelVar("E2U")}}` +
-        `\\cdot(` +
-        `\\underbrace{${formatCompactNumber(bybitBase, 4)}}_{${labelVar("BBR")}}+\\underbrace{${formatCompactNumber(bybitExtra, 4)}}_{${labelVar("BEX")}}` +
-        `)` +
-        `+\\underbrace{${formatCompactNumber(customsFixedRub)}}_{${labelVar("CFX")}}` +
-        `)}_{${labelGroup("CDR", customsRub)}}` +
-        `+\\underbrace{${formatCompactNumber(supplierTransportRub)}}_{SSR[\\text{${escapeLatexText(supplierName)}}][\\text{${escapeLatexText(shippingRuleLabel || "-")}}]}` +
-        `}_{${labelGroup("SUB", subtotalBeforeMarkup)}}` +
-        `\\quad\\Rightarrow\\quad` +
-        `\\underbrace{(` +
-        `\\underbrace{${formatCompactNumber(subtotalBeforeMarkup)}}_{${labelVar("SUB")}}` +
-        `\\cdot(1+\\underbrace{${formatCompactNumber(markupRate, 4)}}_{${labelVar("MUP")}})` +
-        `+\\underbrace{${formatCompactNumber(serviceFeeRub)}}_{${labelVar("SVC")}}` +
-        `)}_{${labelGroup("SUBM", subtotalAfterMarkup)}}` +
-        `+\\underbrace{(` +
-        `\\underbrace{${formatCompactNumber(subtotalAfterMarkup)}}_{${labelVar("SUBM")}}` +
-        `\\cdot\\underbrace{${formatCompactNumber(taxRate, 4)}}_{${labelVar("TXR")}}` +
-        `)}_{${labelGroup("TAX", taxRub)}}` +
-        `${roundingSuffix}`;
-      const summarySpLatex = renderLatexInline("SP");
-      const summaryFpLatex = renderLatexInline("FPR");
-      const summaryRubLatex = renderLatexInline("SPR");
-      const marginRub =
-        toFiniteNumber(components.margin_rub)
-        ?? ((subtotalAfterMarkupRub !== null && passThroughCostsRub !== null)
-          ? subtotalAfterMarkupRub - passThroughCostsRub
-          : Math.round(finalPrice) - sourcePriceRub);
-      const usedKeys = new Set([
-        "SP",
-        "SPU",
-        "SPE",
-        "SPR",
-        "BBR",
-        "BEX",
-        "BFX",
-        "E2U",
-        "G2U",
-        "PRM",
-        "BSC",
-        "BUY",
-        "PFRP",
-        "PFR",
-        "THR",
-        "DUT",
-        "CPR",
-        "CFX",
-        "CDR",
-        "SSR",
-        "SUP",
-        "RNG",
-        "INS",
-        "SVC",
-        "SUB",
-        "SUBM",
-        "TXR",
-        "TAX",
-        "MUP",
-        "RND",
-        "FPR",
-      ]);
-      const keyValues: Record<string, unknown> = {
-        SP: sourcePriceRaw,
-        SPU: sourcePriceUsd,
-        SPE: sourcePriceEur,
-        SPR: sourcePriceRub,
-        BBR: bybitBase,
-        BEX: bybitExtra,
-        BFX: bybitFx,
-        E2U: eurToUsdRate,
-        G2U: gbpToUsdRate,
-        PRM: promoFactor,
-        BSC: buyoutSurchargeRub,
-        BUY: buyoutRub,
-        PFRP: toFiniteNumber(components.payment_fee_rate),
-        PFR: paymentFeeRub,
-        THR: customsThresholdEur,
-        DUT: customsDutyRate,
-        CPR: customsProcessingRate,
-        CFX: customsFixedRub,
-        CDR: customsRub,
-        SSR: supplierTransportRub,
-        SUP: supplierName,
-        RNG: shippingRuleLabel || "-",
-        INS: insuranceRub,
-        SVC: serviceFeeRub,
-        SUB: subtotalRub,
-        SUBM: subtotalAfterMarkupRub,
-        TXR: toFiniteNumber(components.tax_rate),
-        TAX: taxRub,
-        MUP: markupRate,
-        RND: finalRoundingMode,
-        FPR: finalPrice,
-      };
-      const legendDim: Record<string, boolean> = {};
-      const isZeroOrEmpty = (value: unknown): boolean => {
-        if (value === null || value === undefined) {
+    const labelVar = (symbol: string) => symbol;
+    const labelGroup = (symbol: string, value: number, digits = 4) => `${symbol}=${formatCompactNumber(value, digits)}`;
+    const roundingPrefix = finalRoundingMode === "none"
+      ? ""
+      : finalRoundingMode === "unit"
+        ? "\\lceil"
+        : `\\operatorname{ceil}_{${finalRoundingMode === "ten" ? "10" : finalRoundingMode === "hundred" ? "100" : "1000"}}(`;
+    const roundingSuffix = finalRoundingMode === "none"
+      ? ""
+      : finalRoundingMode === "unit"
+        ? "\\rceil"
+        : ")";
+    const exampleLatex =
+      `${roundingPrefix}` +
+      `\\underbrace{` +
+      `\\underbrace{(` +
+      `\\underbrace{${formatCompactNumber(sourcePriceUsd)}}_{${labelVar("SPU")}}` +
+      `\\cdot(` +
+      `\\underbrace{${formatCompactNumber(bybitBase, 4)}}_{${labelVar("BBR")}}+\\underbrace{${formatCompactNumber(bybitExtra, 4)}}_{${labelVar("BEX")}}` +
+      `)` +
+      `\\cdot\\underbrace{${formatCompactNumber(promoFactor, 4)}}_{${labelVar("PRM")}}` +
+      `+\\underbrace{${formatCompactNumber(buyoutSurchargeRub)}}_{${labelVar("BSC")}}` +
+      `)}_{${labelGroup("BUY", buyoutRub)}}` +
+      `+\\underbrace{(` +
+      `\\underbrace{${formatCompactNumber(buyoutRub)}}_{${labelVar("BUY")}}` +
+      `\\cdot\\underbrace{${formatCompactNumber(paymentFeeRate, 4)}}_{${labelVar("PFRP")}}` +
+      `)}_{${labelGroup("PFR", paymentFeeRub)}}` +
+      `+\\underbrace{${formatCompactNumber(insuranceRub)}}_{${labelVar("INS")}}` +
+      `+\\underbrace{(` +
+      `(\\max(0,\\underbrace{${formatCompactNumber(spAfterPromoEur, 4)}}_{${labelVar("SPE")}}-\\underbrace{${formatCompactNumber(customsThresholdEur, 4)}}_{${labelVar("THR")}})` +
+      `\\cdot\\underbrace{${formatCompactNumber(customsDutyRate, 4)}}_{${labelVar("DUT")}}` +
+      `\\cdot(1+\\underbrace{${formatCompactNumber(customsProcessingRate, 4)}}_{${labelVar("CPR")}}))` +
+      `\\cdot\\underbrace{${formatCompactNumber(eurToUsdRate, 4)}}_{${labelVar("E2U")}}` +
+      `\\cdot(` +
+      `\\underbrace{${formatCompactNumber(bybitBase, 4)}}_{${labelVar("BBR")}}+\\underbrace{${formatCompactNumber(bybitExtra, 4)}}_{${labelVar("BEX")}}` +
+      `)` +
+      `+\\underbrace{${formatCompactNumber(customsFixedRub)}}_{${labelVar("CFX")}}` +
+      `)}_{${labelGroup("CDR", customsRub)}}` +
+      `+\\underbrace{${formatCompactNumber(supplierTransportRub)}}_{SSR[\\text{${escapeLatexText(supplierName)}}][\\text{${escapeLatexText(shippingRuleLabel)}}]}` +
+      `}_{${labelGroup("SUB", subtotalRub)}}` +
+      `\\quad\\Rightarrow\\quad` +
+      `\\underbrace{(` +
+      `\\underbrace{${formatCompactNumber(subtotalRub)}}_{${labelVar("SUB")}}` +
+      `\\cdot(1+\\underbrace{${formatCompactNumber(markupRate, 4)}}_{${labelVar("MUP")}})` +
+      `+\\underbrace{${formatCompactNumber(serviceFeeRub)}}_{${labelVar("SVC")}}` +
+      `)}_{${labelGroup("SUBM", subtotalAfterMarkupRub)}}` +
+      `+\\underbrace{(` +
+      `\\underbrace{${formatCompactNumber(subtotalAfterMarkupRub)}}_{${labelVar("SUBM")}}` +
+      `\\cdot\\underbrace{${formatCompactNumber(taxRate, 4)}}_{${labelVar("TXR")}}` +
+      `)}_{${labelGroup("TAX", taxRub)}}` +
+      `${roundingSuffix}`;
+    const summarySpLatex = renderLatexInline("SP");
+    const summaryFpLatex = renderLatexInline("FPR");
+    const summaryRubLatex = renderLatexInline("SPR");
+    const marginRub = toFiniteNumber(components.margin_rub) ?? (finalPrice - sourcePriceRub);
+    const usedKeys = new Set([
+      "SP",
+      "SPU",
+      "SPE",
+      "SPR",
+      "BBR",
+      "BEX",
+      "BFX",
+      "E2U",
+      "G2U",
+      "PRM",
+      "BSC",
+      "BUY",
+      "PFRP",
+      "PFR",
+      "THR",
+      "DUT",
+      "CPR",
+      "CFX",
+      "CDR",
+      "SSR",
+      "SUP",
+      "RNG",
+      "INS",
+      "SVC",
+      "SUB",
+      "SUBM",
+      "TXR",
+      "TAX",
+      "MUP",
+      "RND",
+      "FPR",
+    ]);
+    const keyValues: Record<string, unknown> = {
+      SP: sourcePriceRaw,
+      SPU: sourcePriceUsd,
+      SPE: sourcePriceEur,
+      SPR: sourcePriceRub,
+      BBR: bybitBase,
+      BEX: bybitExtra,
+      BFX: bybitFx,
+      E2U: eurToUsdRate,
+      G2U: gbpToUsdRate,
+      PRM: promoFactor,
+      BSC: buyoutSurchargeRub,
+      BUY: buyoutRub,
+      PFRP: paymentFeeRate,
+      PFR: paymentFeeRub,
+      THR: customsThresholdEur,
+      DUT: customsDutyRate,
+      CPR: customsProcessingRate,
+      CFX: customsFixedRub,
+      CDR: customsRub,
+      SSR: supplierTransportRub,
+      SUP: supplierName,
+      RNG: shippingRuleLabel,
+      INS: insuranceRub,
+      SVC: serviceFeeRub,
+      SUB: subtotalRub,
+      SUBM: subtotalAfterMarkupRub,
+      TXR: taxRate,
+      TAX: taxRub,
+      MUP: markupRate,
+      RND: finalRoundingMode,
+      FPR: finalPrice,
+    };
+    const legendDim: Record<string, boolean> = {};
+    const isZeroOrEmpty = (value: unknown): boolean => {
+      if (value === null || value === undefined) {
+        return true;
+      }
+      if (typeof value === "number") {
+        return Math.abs(value) <= 0.0000001;
+      }
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) {
           return true;
         }
-        if (typeof value === "number") {
-          return Math.abs(value) <= 0.0000001;
-        }
-        if (typeof value === "string") {
-          const trimmed = value.trim();
-          if (!trimmed) {
-            return true;
-          }
-          const parsed = Number(trimmed);
-          if (Number.isFinite(parsed)) {
-            return Math.abs(parsed) <= 0.0000001;
-          }
-          return false;
+        const parsed = Number(trimmed);
+        if (Number.isFinite(parsed)) {
+          return Math.abs(parsed) <= 0.0000001;
         }
         return false;
-      };
-      for (const item of pricingSettings?.formula_legend || []) {
-        const key = item.key;
-        const used = usedKeys.has(key);
-        const zero = isZeroOrEmpty(keyValues[key]);
-        legendDim[key] = !used || zero;
       }
-      return {
-        productId: product.id,
-        title: product.title,
-        url: product.url,
-        imageUrl: getProductPrimaryImageUrl(product) || "",
-        finalPrice: Math.round(finalPrice),
-        sourcePrice: sourcePriceRaw,
-        sourcePriceRub,
-        sourceCurrency,
-        summarySpLatex,
-        summaryFpLatex,
-        summaryRubLatex,
-        marginRub,
-        legendDim,
-        formulaHtml: renderLatexBlock(exampleLatex),
-      };
+      return false;
+    };
+    for (const item of pricingSettings.formula_legend || []) {
+      const key = item.key;
+      legendDim[key] = !usedKeys.has(key) || isZeroOrEmpty(keyValues[key]);
     }
-    return null;
-  }, [products, pricingSettings, pricingExampleStartSeed]);
+    return {
+      productId: product.product_id,
+      title: product.title,
+      url: product.url,
+      sourceName: product.source_name || null,
+      imageUrl: product.image_url || "",
+      finalPrice: Math.round(finalPrice),
+      sourcePrice: sourcePriceRaw,
+      sourcePriceRub,
+      sourceCurrency,
+      summarySpLatex,
+      summaryFpLatex,
+      summaryRubLatex,
+      marginRub,
+      legendDim,
+      formulaHtml: renderLatexBlock(exampleLatex),
+    };
+  }, [pricingExampleProduct, pricingSettings]);
 
   const buildFilterQuery = (options?: { includeLimit?: boolean; cursor?: string | null }) => {
     const params = new URLSearchParams();
@@ -2070,7 +2073,7 @@ export function AdminPage() {
     }
 
     const ageLabel = lastUpdatedDate && !Number.isNaN(lastUpdatedDate.getTime())
-      ? `${Math.max(0, Math.floor((nowTickMs - lastUpdatedDate.getTime()) / 60000))} мин назад`
+      ? formatDurationHoursMinutesAgo((nowTickMs - lastUpdatedDate.getTime()) / 60000)
       : "-";
 
     return {
@@ -2104,6 +2107,30 @@ export function AdminPage() {
     pricingBlockedToastShownRef.current = true;
     pushToast("Ценообразование временно недоступно: ждем первый успешный курс Bybit после запуска системы.");
   }, [pricingBlockedByInitialBybit, pushToast]);
+
+  useEffect(() => {
+    if (tab !== "pricing" || !pricingSettings || pricingBlockedByInitialBybit) {
+      setPricingExampleProduct(null);
+      setPricingExampleLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setPricingExampleLoading(true);
+    void fetchPricingExampleProduct()
+      .then((payload) => {
+        if (!cancelled) {
+          setPricingExampleProduct(payload);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPricingExampleLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, pricingSettings, pricingBlockedByInitialBybit, fetchPricingExampleProduct]);
 
   useEffect(() => {
     const message = (shippingRulesValidationError || "").trim();
@@ -2897,33 +2924,35 @@ export function AdminPage() {
                       placeholder="Название категории"
                       disabled={selectedCategory.is_system}
                     />
-                    <label className="ui-switch">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategory.is_enabled}
-                        onChange={(event) => void onToggleCategoryEnabled(event.target.checked)}
-                      />
-                      <span className="ui-switch-track">
-                        <span className="ui-switch-thumb" />
-                      </span>
-                      <span className="ui-switch-text">{selectedCategory.is_enabled ? "Вкл" : "Выкл"}</span>
-                    </label>
-                    {!selectedCategory.is_system ? (
-                      <div className="favorite-toggle-row">
-                        <button
-                          type="button"
-                          className={selectedCategory.is_favorite ? "icon-btn favorite-toggle-btn favorite-toggle-btn--active" : "icon-btn favorite-toggle-btn"}
-                          onClick={() => void onToggleCategoryFavorite(!selectedCategory.is_favorite)}
-                          aria-label={selectedCategory.is_favorite ? "Убрать из избранного" : "Сделать избранным"}
-                        >
-                          <IconStar className="icon-svg icon-svg--sm" />
-                        </button>
-                        <span className="favorite-toggle-text">{selectedCategory.is_favorite ? "Добавлен в избранное" : "Сделать избранным"}</span>
-                      </div>
-                    ) : null}
-                    <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_system}>
-                      Удалить
-                    </button>
+                    <div className="category-controls-row">
+                      <label className="ui-switch ui-switch--compact">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategory.is_enabled}
+                          onChange={(event) => void onToggleCategoryEnabled(event.target.checked)}
+                        />
+                        <span className="ui-switch-track">
+                          <span className="ui-switch-thumb" />
+                        </span>
+                        <span className="ui-switch-text">{selectedCategory.is_enabled ? "Включено" : "Выключено"}</span>
+                      </label>
+                      {!selectedCategory.is_system ? (
+                        <div className="favorite-toggle-row">
+                          <button
+                            type="button"
+                            className={selectedCategory.is_favorite ? "icon-btn icon-btn--active favorite-toggle-btn favorite-toggle-btn--active" : "icon-btn favorite-toggle-btn"}
+                            onClick={() => void onToggleCategoryFavorite(!selectedCategory.is_favorite)}
+                            aria-label={selectedCategory.is_favorite ? "Убрать из избранного" : "Сделать избранным"}
+                          >
+                            <IconStar className="icon-svg icon-svg--sm" />
+                          </button>
+                          <span className="favorite-toggle-text">{selectedCategory.is_favorite ? "Добавлен в избранное" : "Сделать избранным"}</span>
+                        </div>
+                      ) : null}
+                      <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_system}>
+                        Удалить
+                      </button>
+                    </div>
                     {selectedCategory.is_system ? (
                       <p className="muted">Данная категория системная, ее нельзя удалить.</p>
                     ) : null}
@@ -3109,36 +3138,42 @@ export function AdminPage() {
             <AdminSourcesSkeleton rows={5} />
           ) : (
             <div className="sources-grid">
-            {sources.map((source) => (
+            {sources.map((source) => {
+              const href = /^https?:\/\//i.test(source.base_url) ? source.base_url : `https://${source.base_url}`;
+              const label = source.base_url.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+              return (
               <article key={source.key} className="list-row source-card">
                 <div className="source-card-head">
                   <strong className="source-card-title">
                     {source.name}
                     {source.status_label ? ` · ${source.status_label}` : ""}
                   </strong>
-                  <p className="muted">{source.base_url}</p>
-                  <p className="muted">
-                    Товаров: {source.products_count} • Категорий: {source.categories_count}
-                  </p>
+                  <a className="source-card-link" href={href} target="_blank" rel="noreferrer">
+                    {label}
+                  </a>
                 </div>
-                <label className="ui-switch ui-switch--compact source-card-switch">
-                  <input
-                    type="checkbox"
-                    checked={source.enabled}
-                    onChange={(event) => {
-                      void (async () => {
-                        const result = await toggleSourceEnabled(source.key, event.target.checked);
-                        pushToast(result.message);
-                      })();
-                    }}
-                  />
-                  <span className="ui-switch-track">
-                    <span className="ui-switch-thumb" />
-                  </span>
-                  <span className="ui-switch-text">{source.enabled ? "Включен" : "Выключен"}</span>
-                </label>
+                <div className="source-card-foot">
+                  <span className="source-pill">Товаров: {source.products_count}</span>
+                  <label className="ui-switch ui-switch--compact source-card-switch">
+                    <input
+                      type="checkbox"
+                      checked={source.enabled}
+                      onChange={(event) => {
+                        void (async () => {
+                          const result = await toggleSourceEnabled(source.key, event.target.checked);
+                          pushToast(result.message);
+                        })();
+                      }}
+                    />
+                    <span className="ui-switch-track">
+                      <span className="ui-switch-thumb" />
+                    </span>
+                    <span className="ui-switch-text">{source.enabled ? "Включен" : "Выключен"}</span>
+                  </label>
+                </div>
               </article>
-            ))}
+              );
+            })}
             </div>
           )}
         </div>
@@ -3216,14 +3251,28 @@ export function AdminPage() {
                       <HelpHint text="Это реальный товар из базы. Пример показывает, как числа подставляются в формулу." />
                     </p>
                     <div className="pricing-example-head">
-                      {pricingExample.imageUrl ? (
-                        <a href={pricingExample.url} target="_blank" rel="noreferrer" className="pricing-example-thumb-link">
-                          <img src={pricingExample.imageUrl} alt={pricingExample.title} className="pricing-example-thumb" />
-                        </a>
-                      ) : null}
-                      <a className="btn-link pricing-example-title-link" href={pricingExample.url} target="_blank" rel="noreferrer">
-                        {pricingExample.title}
-                      </a>
+                      <Link className="pricing-example-thumb-link" to={`/product/${pricingExample.productId}?from=admin`}>
+                        <ImageWithFallback
+                          src={pricingExample.imageUrl}
+                          alt={pricingExample.title}
+                          className="pricing-example-thumb"
+                          placeholderClassName="pricing-example-thumb-placeholder"
+                          placeholderText="Нет фото"
+                          loadingText="Загружаем..."
+                        />
+                      </Link>
+                      <div className="pricing-example-title-row">
+                        <Link className="btn-link pricing-example-title-link" to={`/product/${pricingExample.productId}?from=admin`}>
+                          {pricingExample.title}
+                        </Link>
+                        {pricingExample.url ? (
+                          <a className="btn-link pricing-example-source-link" href={pricingExample.url} target="_blank" rel="noreferrer">
+                            {pricingExample.sourceName || "Источник"}
+                          </a>
+                        ) : (
+                          <span className="muted pricing-example-source-link">{pricingExample.sourceName || "Источник"}</span>
+                        )}
+                      </div>
                     </div>
                     <div className="pricing-formula-text pricing-formula-latex pricing-example-formula" dangerouslySetInnerHTML={{ __html: pricingExample.formulaHtml }} />
                     <div className="pricing-example-summary">
@@ -3245,27 +3294,16 @@ export function AdminPage() {
                       </div>
                     </div>
                   </div>
+                ) : pricingExampleLoading ? (
+                  <div className="pricing-example-box">
+                    <AdminPricingSkeleton />
+                  </div>
                 ) : (
-                  <div className="pricing-example-box pricing-example-box--skeleton" aria-hidden="true">
+                  <div className="pricing-example-box pricing-example-box--empty">
                     <p className="with-help">
                       <strong>Пример на товаре:</strong>
                     </p>
-                    <div className="pricing-example-head">
-                      <div className="pricing-example-thumb pricing-example-thumb--skeleton skeleton" />
-                      <div className="pricing-example-title-skeleton-wrap">
-                        <div className="pricing-example-title-skeleton skeleton" />
-                        <div className="pricing-example-subtitle-skeleton skeleton" />
-                      </div>
-                    </div>
-                    <div className="pricing-example-formula-skeleton skeleton" />
-                    <div className="pricing-example-summary">
-                      {Array.from({ length: 4 }).map((_, idx) => (
-                        <div className="pricing-example-metric" key={`pricing-example-metric-skeleton-${idx}`}>
-                          <div className="pricing-example-metric-key-skeleton skeleton" />
-                          <div className="pricing-example-metric-value-skeleton skeleton" />
-                        </div>
-                      ))}
-                    </div>
+                    <p className="muted">Не удалось собрать пример: у доступных товаров не хватает расчетных полей.</p>
                   </div>
                 )}
                 <div className="pricing-formula-legend pricing-legend-grid">
@@ -3655,10 +3693,10 @@ export function AdminPage() {
 
       {tab === "weight" ? (
         <div className="card">
-          <h2>Настройки веса</h2>
           {weightTabLoading ? <AdminWeightSkeleton /> : (
-            <>
-
+            <div className="weight-layout">
+              <section>
+                <h2>Настройки веса</h2>
               <div className="weight-rule-create-row">
                 <input
                   type="number"
@@ -3723,8 +3761,9 @@ export function AdminPage() {
               </div>
             ))}
               </div>
-
-              <h3 style={{ marginTop: "1rem" }}>Товары без определенного веса</h3>
+              </section>
+              <section>
+              <h2>Товары без определенного веса</h2>
               {weightMissingProducts.length === 0 ? (
                 <p className="muted">Все товары имеют вес (из источника или по ключевым словам).</p>
               ) : (
@@ -3757,7 +3796,8 @@ export function AdminPage() {
                   </table>
                 </div>
               )}
-            </>
+              </section>
+            </div>
           )}
         </div>
       ) : null}
@@ -3836,9 +3876,6 @@ export function AdminPage() {
               onChange={(event) => void onImportSettingsFile(event)}
             />
           </div>
-          <p className="muted">
-            Рекомендуется сначала сделать экспорт текущих настроек как резервную копию, затем выполнять импорт.
-          </p>
         </div>
       ) : null}
 

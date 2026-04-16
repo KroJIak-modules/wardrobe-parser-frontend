@@ -17,9 +17,11 @@ import { CatalogHoverMenu } from "./catalog-hover-menu";
 import {
   ALL_PRODUCTS_ROOT_SLUG,
   DEFAULT_CATALOG_FILTERS,
+  deriveStatusAfterUnhide,
   getSourceNameById,
   getStatusClass,
   getStatusLabel,
+  normalizeProductStatus,
   resolveBuyoutPrice,
   sortCatalogRoots,
   type CatalogFilters,
@@ -52,16 +54,6 @@ function formatMoney(value: number | null | undefined, currency: string): string
     maximumFractionDigits: 2,
   }).format(value);
   return `${amount} ${currency}`;
-}
-
-function normalizeUiStatus(status: string): ProductUiStatus {
-  if (status === "available") {
-    return "available";
-  }
-  if (status === "out_of_stock") {
-    return "out_of_stock";
-  }
-  return "hidden";
 }
 
 function flattenCounts(node: CategoryView, target: Map<string, number>) {
@@ -475,12 +467,13 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     setFilters((prev) => ({ ...prev, sourceId: value === "all" || !Number.isFinite(parsed) ? "all" : parsed }));
   };
 
-  const onToggleHidden = async (productId: number, currentStatus: ProductUiStatus) => {
+  const onToggleHidden = async (product: ServiceProduct, currentStatus: ProductUiStatus) => {
+    const productId = product.id;
     if (pendingStatusIds.has(productId)) {
       return;
     }
 
-    const nextStatus = currentStatus === "hidden" ? "available" : "hidden";
+    const nextStatus = currentStatus === "hidden" ? deriveStatusAfterUnhide(product.variants) : "hidden";
     setPendingStatusIds((prev) => {
       const next = new Set(prev);
       next.add(productId);
@@ -488,9 +481,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     });
 
     const result = await setProductStatus(productId, nextStatus);
-    if (result.ok) {
-      setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, status: nextStatus } : item)));
-    }
     pushToast(result.message);
     setPendingStatusIds((prev) => {
       const next = new Set(prev);
@@ -622,7 +612,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
               const statusClass = getStatusClass(product.status);
               const buyoutRub = resolveBuyoutPrice(product);
               const priceTitle = `Оригинальная цена: ${formatMoney(product.source_price ?? product.price, product.source_currency || product.currency)}\nЗакупка (без маржи): ${buyoutRub === null ? "-" : formatMoney(buyoutRub, "RUB")}`;
-              const normalizedStatus = normalizeUiStatus(product.status || "hidden");
+              const normalizedStatus = normalizeProductStatus(product.status || "hidden");
 
               return (
                 <article
@@ -696,7 +686,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                       disabled={pendingStatusIds.has(product.id)}
                       onClick={(event) => {
                         event.stopPropagation();
-                        void onToggleHidden(product.id, normalizedStatus);
+                        void onToggleHidden(product, normalizedStatus);
                       }}
                     >
                       {normalizedStatus === "hidden" ? <IconEyeOff className="icon-svg" /> : <IconEye className="icon-svg" />}

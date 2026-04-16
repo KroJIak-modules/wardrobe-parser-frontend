@@ -115,6 +115,39 @@ export function normalizeProductStatus(status: string | null | undefined): Produ
   return "hidden";
 }
 
+function variantIsAvailable(variant: unknown): boolean {
+  if (!variant || typeof variant !== "object") {
+    return false;
+  }
+  const row = variant as Record<string, unknown>;
+  const rawAvailable = row.available;
+  if (typeof rawAvailable === "boolean") {
+    if (rawAvailable) {
+      return true;
+    }
+  } else if (rawAvailable !== null && rawAvailable !== undefined) {
+    const normalized = String(rawAvailable).trim().toLowerCase();
+    if (["1", "true", "yes", "y", "in_stock"].includes(normalized)) {
+      return true;
+    }
+  }
+  const inventoryRaw = row.inventory_quantity;
+  const inventory =
+    typeof inventoryRaw === "number"
+      ? inventoryRaw
+      : typeof inventoryRaw === "string"
+        ? Number(inventoryRaw)
+        : Number.NaN;
+  return Number.isFinite(inventory) && inventory > 0;
+}
+
+export function deriveStatusAfterUnhide(variants: unknown): ProductUiStatus {
+  if (!Array.isArray(variants) || variants.length === 0) {
+    return "available";
+  }
+  return variants.some((item) => variantIsAvailable(item)) ? "available" : "out_of_stock";
+}
+
 export function withSyntheticAllRoot(categories: CategoryView[]): CategoryView[] {
   const enabledRoots = categories.filter((category) => category.is_enabled);
   const hasAll = enabledRoots.some((category) => category.slug === ALL_PRODUCTS_ROOT_SLUG);

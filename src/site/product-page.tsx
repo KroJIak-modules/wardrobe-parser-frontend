@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ImageWithFallback } from "../shared/image-with-fallback";
+import { IconChevronLeft, IconChevronRight, IconExternalLink, IconEye, IconEyeOff } from "../shared/mono-icons";
 import { ProductPageSkeleton } from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
 import { useToasts } from "../shared/use-toasts";
 import { LatexBrand } from "../shared/latex-brand";
 import { getProductPrimaryImageUrl, useLiveData } from "../shared/live-data-context";
-import { getSourceNameById, getStatusClass, getStatusLabel } from "./catalog-helpers";
+import { deriveStatusAfterUnhide, getSourceNameById, getStatusClass, getStatusLabel, normalizeProductStatus } from "./catalog-helpers";
 
 type VariantInfo = {
   title: string;
@@ -14,15 +15,15 @@ type VariantInfo = {
   inventory_quantity: number;
 };
 
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) {
+function formatMoney(value: number | null | undefined, currency: string | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return "-";
   }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-  return date.toLocaleString("ru-RU");
+  const amount = new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+  return `${amount} ${currency || ""}`.trim();
 }
 
 function buildVariantLabel(variant: {
@@ -41,7 +42,7 @@ function buildVariantLabel(variant: {
 export function ProductPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const { products, sources, getProductById } = useLiveData();
+  const { products, sources, getProductById, setProductStatus } = useLiveData();
   const fromAdmin = searchParams.get("from") === "admin";
 
   const productId = Number(id);
@@ -53,6 +54,7 @@ export function ProductPage() {
   const { toasts, pushToast, closeToast } = useToasts();
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
+  const [statusPending, setStatusPending] = useState<boolean>(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,20 +119,6 @@ export function ProductPage() {
 
   const sourceNameById = useMemo(() => getSourceNameById(sources), [sources]);
 
-  const categoryNames = useMemo(() => {
-    if (!product) {
-      return [] as string[];
-    }
-    const names = (product.internal_category_names || []).filter(Boolean);
-    if (names.length > 0) {
-      return names;
-    }
-    if (product.internal_category_name) {
-      return [product.internal_category_name];
-    }
-    return [];
-  }, [product]);
-
   const statusClass = getStatusClass(product?.status || "unknown");
 
   if (loading) {
@@ -153,7 +141,50 @@ export function ProductPage() {
 
   const activeImage = images[activeImageIndex] || null;
   const sourceName = sourceNameById.get(product.source_id) || `Источник #${product.source_id}`;
-  const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+  const hasVariants = Array.isArray(product.variants) && product.variants.length > 1;
+  const originalPrice = formatMoney(product.source_price ?? product.price, product.source_currency ?? product.currency);
+  const finalPrice = formatMoney(product.final_price ?? product.price, product.final_currency ?? product.currency);
+  const normalizedStatus = normalizeProductStatus(product.status);
+  const categoryNames = (() => {
+    const names = (product.internal_category_names || []).filter(Boolean);
+    if (names.length > 0) {
+      return names;
+    }
+    if (product.internal_category_name) {
+      return [product.internal_category_name];
+    }
+    return [];
+  })();
+  const normalizedVendor = String(product.vendor || "").trim().toLowerCase();
+  const categoryChips = categoryNames.filter((name) => String(name).trim().toLowerCase() !== normalizedVendor);
+
+  const toggleHidden = async () => {
+    if (statusPending) {
+      return;
+    }
+    setStatusPending(true);
+    const nextStatus = normalizedStatus === "hidden" ? deriveStatusAfterUnhide(product.variants) : "hidden";
+    const result = await setProductStatus(product.id, nextStatus);
+    if (result.ok) {
+      setProduct((prev) => (prev ? { ...prev, status: nextStatus } : prev));
+    }
+    pushToast(result.message);
+    setStatusPending(false);
+  };
+
+  const goPrevImage = () => {
+    if (images.length <= 1) {
+      return;
+    }
+    setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  const goNextImage = () => {
+    if (images.length <= 1) {
+      return;
+    }
+    setActiveImageIndex((prev) => (prev + 1) % images.length);
+  };
 
   return (
     <article className="section product-view">
@@ -165,17 +196,36 @@ export function ProductPage() {
 
       <div className="product-view-grid">
         <section className="card product-gallery-card">
-          {activeImage ? (
-            <img className="detail-image" src={activeImage} alt={product.title} />
-          ) : (
-            <ImageWithFallback
-              src={null}
-              alt={product.title}
-              className="detail-image"
-              placeholderClassName="detail-image detail-image--placeholder"
-              placeholderText="No image"
-            />
-          )}
+          <div className="product-slider">
+            {activeImage ? (
+              <ImageWithFallback
+                src={activeImage}
+                alt={product.title}
+                className="detail-image"
+                placeholderClassName="detail-image detail-image--placeholder"
+                placeholderText="Нет фото"
+                loading="eager"
+              />
+            ) : (
+              <ImageWithFallback
+                src={null}
+                alt={product.title}
+                className="detail-image"
+                placeholderClassName="detail-image detail-image--placeholder"
+                placeholderText="Нет фото"
+              />
+            )}
+            {images.length > 1 ? (
+              <>
+                <button type="button" className="slider-arrow slider-arrow--left" onClick={goPrevImage} aria-label="Предыдущее фото">
+                  <IconChevronLeft className="icon-svg" />
+                </button>
+                <button type="button" className="slider-arrow slider-arrow--right" onClick={goNextImage} aria-label="Следующее фото">
+                  <IconChevronRight className="icon-svg" />
+                </button>
+              </>
+            ) : null}
+          </div>
 
           {images.length > 1 ? (
             <div className="slider-thumbs">
@@ -196,17 +246,26 @@ export function ProductPage() {
         <section className="card product-main-card">
           <div className="product-main-head">
             <h1>{product.title}</h1>
+          </div>
+          <div className="product-main-status">
             <span className={statusClass}>{getStatusLabel(product.status)}</span>
           </div>
 
-          <div className="product-main-price">{product.price ?? "-"} {product.currency}</div>
-
           <div className="product-main-meta">
-            <p><strong>Источник:</strong> {sourceName}</p>
-            <p><strong>Бренд:</strong> <LatexBrand value={product.vendor} fallback="-" /></p>
-            <p><strong>Handle:</strong> {product.handle || "-"}</p>
-            <p><strong>Категории:</strong> {categoryNames.length > 0 ? categoryNames.join(", ") : "-"}</p>
-            <p><strong>Обновлено:</strong> {formatDateTime(product.updated_at)}</p>
+            <div className="product-meta-chips">
+              <span className="product-meta-chip product-meta-chip--muted">
+                Бренд: <LatexBrand value={product.vendor} fallback="Без бренда" />
+              </span>
+            </div>
+            {categoryChips.length > 0 ? (
+              <div className="product-meta-categories">
+                {categoryChips.map((name) => (
+                  <span key={name} className="product-meta-chip">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {hasVariants ? (
@@ -252,10 +311,26 @@ export function ProductPage() {
             </div>
           ) : null}
 
+          <div className="product-pricing-card">
+            <div className="product-pricing-item">
+              <span className="muted">Итоговая цена</span>
+              <strong>{finalPrice}</strong>
+            </div>
+            <div className="product-pricing-item">
+              <span className="muted">Оригинальная цена</span>
+              <strong>{originalPrice}</strong>
+            </div>
+          </div>
+
           <div className="product-main-actions">
-            <a className="btn-link" href={product.url} target="_blank" rel="noreferrer">
-              Открыть товар у источника
+            <a className="btn-link product-action-btn" href={product.url} target="_blank" rel="noreferrer" title={`Открыть ${sourceName}`}>
+              <IconExternalLink className="icon-svg" />
+              Открыть источник
             </a>
+            <button type="button" className="btn-link product-action-btn" onClick={() => void toggleHidden()} disabled={statusPending}>
+              {normalizedStatus === "hidden" ? <IconEyeOff className="icon-svg" /> : <IconEye className="icon-svg" />}
+              {normalizedStatus === "hidden" ? "Показать товар" : "Скрыть товар"}
+            </button>
           </div>
         </section>
       </div>

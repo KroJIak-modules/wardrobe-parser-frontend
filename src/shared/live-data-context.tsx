@@ -285,6 +285,18 @@ export type PricingSettings = {
   formula_legend: Array<{ key: string; description: string }>;
 };
 
+export type PricingExampleProduct = {
+  product_id: number;
+  title: string;
+  url: string;
+  source_name: string | null;
+  image_url: string | null;
+  source_price: number | null;
+  source_currency: string | null;
+  final_price: number | null;
+  components: Record<string, unknown>;
+};
+
 export type PricingSupplierRate = {
   step_500g: number;
   rate_rub: number;
@@ -458,6 +470,7 @@ type LiveDataContextValue = {
   deleteWeightRule: (id: number) => Promise<{ ok: boolean; message: string }>;
   addWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
   removeWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
+  fetchPricingExampleProduct: () => Promise<PricingExampleProduct | null>;
   updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
   updatePricingSupplier: (
     supplierId: number,
@@ -1247,7 +1260,12 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         }
         const payload = (await res.json().catch(() => null)) as ServiceProduct | null;
         if (payload && typeof payload.id === "number") {
-          setProducts((prev) => prev.map((item) => (item.id === payload.id ? { ...item, ...payload } : item)));
+          const isStatusOnlyPatch = String((payload.pricing_components as { reason?: unknown } | null | undefined)?.reason || "") === "status-only-patch";
+          if (isStatusOnlyPatch) {
+            setProducts((prev) => prev.map((item) => (item.id === payload.id ? { ...item, status: payload.status } : item)));
+          } else {
+            setProducts((prev) => prev.map((item) => (item.id === payload.id ? { ...item, ...payload } : item)));
+          }
         } else {
           setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, status } : item)));
         }
@@ -1510,6 +1528,19 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     },
     [refreshWeightOnly]
   );
+
+  const fetchPricingExampleProduct = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/products/pricing-example`);
+      if (!res.ok) {
+        return null;
+      }
+      const payload = (await res.json()) as PricingExampleProduct;
+      return payload || null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const updatePricingSettings = useCallback(
     async (payload: Partial<PricingSettings>) => {
@@ -1776,6 +1807,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       deleteWeightRule,
       addWeightKeyword,
       removeWeightKeyword,
+      fetchPricingExampleProduct,
       updatePricingSettings,
       updatePricingSupplier,
       createPricingSupplier,
@@ -1835,6 +1867,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       deleteWeightRule,
       addWeightKeyword,
       removeWeightKeyword,
+      fetchPricingExampleProduct,
       updatePricingSettings,
       updatePricingSupplier,
       createPricingSupplier,
