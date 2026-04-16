@@ -251,6 +251,43 @@ body {
   color: #111111;
 }
 
+.route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  pointer-events: none;
+  z-index: 1200;
+  opacity: 0;
+}
+
+.route-progress::before {
+  content: "";
+  display: block;
+  width: 32%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(55, 117, 214, 0.04) 0%, #3775d6 46%, rgba(55, 117, 214, 0.04) 100%);
+  transform: translateX(-120%);
+}
+
+.route-progress--visible {
+  opacity: 1;
+}
+
+.route-progress--visible::before {
+  animation: route-progress-slide 0.34s ease-out forwards;
+}
+
+@keyframes route-progress-slide {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -263,7 +300,7 @@ a {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 120;
   height: 60px;
   padding: 6px 16px;
   background: #ffffff;
@@ -2664,4 +2701,177 @@ button:disabled {
   border-color: #cccccc;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Management panel refresh */
+.admin {
+  max-width: 1240px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin .card {
+  border: 1px solid #dfe5f1;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(22, 32, 52, 0.06);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+}
+
+.admin-head {
+  margin-bottom: 0;
+  padding: 14px;
+  border: 1px solid #dfe5f1;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  box-shadow: 0 8px 24px rgba(22, 32, 52, 0.05);
+}
+
+.admin-head h1 {
+  margin-bottom: 8px;
+  font-size: 30px;
+  letter-spacing: 0.01em;
+}
+
+.admin .tabs {
+  margin-bottom: 0;
+  padding: 10px;
+  border: 1px solid #dfe5f1;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin .tab {
+  border: 1px solid #d3dbe8;
+  background: #f7f9fd;
+  border-radius: 10px;
+  padding: 8px 13px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #243046;
+}
+
+.admin .tab:hover {
+  border-color: #bdc8dc;
+  background: #eef3fb;
+}
+
+.admin .tab--active {
+  border-color: #aebbd3;
+  background: #e7edf8;
+  color: #1f2a40;
+}
+
+.admin .actions {
+  flex-wrap: wrap;
+}
+
+.admin button,
+.admin .btn-link {
+  border: 1px solid #cfd8e8;
+  border-radius: 10px;
+  background: #f7faff;
+  color: #1f2a3f;
+  font-weight: 600;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.admin button:hover:not(:disabled),
+.admin .btn-link:hover {
+  border-color: #b8c4da;
+  background: #eef4ff;
+  transform: translateY(-1px);
+}
+
+.admin .products-filters {
+  border: 1px solid #d9e1ef;
+  border-radius: 12px;
+  background: #fafdff;
+}
+
+.admin input,
+.admin select,
+.admin textarea {
+  border: 1px solid #cfd8e7;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.admin input:focus,
+.admin select:focus,
+.admin textarea:focus {
+  outline: none;
+  border-color: #9fb3d7;
+  box-shadow: 0 0 0 3px rgba(70, 111, 184, 0.12);
+}
+
+.admin .products-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid #dde4f1;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin .products-table th {
+  background: #f3f7ff;
+  color: #2f3a4f;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.admin .products-table td,
+.admin .products-table th {
+  border-bottom: 1px solid #e7edf6;
+  padding: 10px;
+}
+
+.admin .products-table tbody tr:hover {
+  background: #f9fbff;
+}
+
+.admin .list-row,
+.admin .dedup-item,
+.admin .weight-rule-row,
+.admin .manual-product-row,
+.admin .pricing-example-metric,
+.admin .pricing-worker-item {
+  border-color: #dfe6f2;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin .pricing-formula-box,
+.admin .pricing-worker-box,
+.admin .pricing-example-box,
+.admin .pricing-supplier-list,
+.admin .pricing-source-map-list,
+.admin .pricing-svc-list {
+  border-color: #dbe4f2;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin .pricing-supplier-list-head,
+.admin .pricing-source-map-head,
+.admin .pricing-svc-head {
+  background: #f3f7ff;
+  color: #33415a;
+}
+
+.admin .status-pill--ok {
+  background: #e9f8ee;
+  color: #1f7a3b;
+}
+
+.admin .status-pill--bad {
+  background: #fdeced;
+  color: #ab3030;
+}
+
+.admin .status-pill--warn {
+  background: #fff5e6;
+  color: #9b5f00;
 }

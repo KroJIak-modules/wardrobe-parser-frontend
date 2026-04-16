@@ -525,7 +525,7 @@ const writeCachedPricingSettings = (value: PricingSettings) => {
 
 const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefined);
 
-export function LiveDataProvider({ children }: { children: ReactNode }) {
+export function LiveDataProvider({ children, routePath }: { children: ReactNode; routePath?: string }) {
   const [products, setProducts] = useState<ServiceProduct[]>([]);
   const [productsTotal, setProductsTotal] = useState<number>(0);
   const [productsHasMore, setProductsHasMore] = useState<boolean>(false);
@@ -546,6 +546,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [loadingMoreProducts, setLoadingMoreProducts] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const loadingMoreLockRef = useRef<boolean>(false);
+  const lastRouteKindRef = useRef<"admin" | "site" | null>(null);
 
   const categories = useMemo<CategoryView[]>(() => {
     const build = (nodes: AdminCategoryNode[]): CategoryView[] => {
@@ -1563,29 +1564,51 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    let cancelled = false;
+    const currentPath = routePath ?? (typeof window !== "undefined" ? window.location.pathname : "/");
+    const isManagementRoute = currentPath.startsWith("/control");
+    const routeKind: "admin" | "site" = isManagementRoute ? "admin" : "site";
+    const shouldBootstrap = lastRouteKindRef.current !== routeKind;
+    if (!shouldBootstrap) {
+      return undefined;
+    }
+    lastRouteKindRef.current = routeKind;
+
     const run = async () => {
+      setError(null);
       try {
-        const isAdminRoute = window.location.pathname.startsWith("/admin");
-        if (isAdminRoute) {
+        if (routeKind === "admin") {
           await Promise.all([
             refresh(),
             refreshCategoriesOnly({ includeCounts: false }),
           ]);
-          void refreshCategoriesOnly({ includeCounts: true }).catch((e: unknown) => {
-            setError(e instanceof Error ? e.message : "Unknown error");
-          });
+          if (!cancelled) {
+            void refreshCategoriesOnly({ includeCounts: true }).catch((e: unknown) => {
+              if (!cancelled) {
+                setError(e instanceof Error ? e.message : "Unknown error");
+              }
+            });
+          }
           return;
         }
+        setLoading(true);
         await refreshSourcesOnly();
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Unknown error");
-        setLoading(false);
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Unknown error");
+          setLoading(false);
+        }
       }
     };
     void run();
-    return undefined;
-  }, [refresh, refreshCategoriesOnly, refreshSourcesOnly]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh, refreshCategoriesOnly, refreshSourcesOnly, routePath]);
 
   useEffect(() => {
     if (!latestJob || !["pending", "in_progress"].includes(latestJob.status)) {

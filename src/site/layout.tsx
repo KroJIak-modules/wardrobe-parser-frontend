@@ -8,7 +8,7 @@ export function SiteLayout() {
           <Link to="/" className="brand" aria-label="Anton Shell">
             <img src="/logo_anton_shell.svg" alt="Anton Shell" className="brand-logo" />
           </Link>
-          <Link to="/admin" className="topbar-cta">
+          <Link to="/control" className="topbar-cta">
             Панель управления
           </Link>
         </div>

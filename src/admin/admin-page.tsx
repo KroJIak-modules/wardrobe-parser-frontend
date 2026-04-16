@@ -525,7 +525,7 @@ type AdminListProduct = {
 export function AdminPage() {
   useEffect(() => {
     const prevTitle = document.title;
-    document.title = "Админ панель | Anton Shell";
+    document.title = "Панель управления | Anton Shell";
     return () => {
       document.title = prevTitle;
     };
@@ -2670,7 +2670,7 @@ export function AdminPage() {
   return (
     <section className="section admin">
       <div className="admin-head">
-        <h1>Admin Panel</h1>
+        <h1>Панель управления</h1>
         <div className="actions">
           <button type="button" onClick={onRunSync} disabled={!canRunSync}>
             {isSyncInProgress ? "Синхронизация..." : "Синхронизировать товары"}
@@ -3878,7 +3878,7 @@ export function AdminPage() {
           <h2>Экспорт и импорт настроек</h2>
           {(settingsExportInProgress || settingsImportInProgress) ? <AdminSectionSkeleton rows={2} /> : null}
           <p className="muted">
-            Экспортируется конфигурация админки: ценообразование, поставщики, источники, правила веса и категории.
+            Экспортируется конфигурация панели управления: ценообразование, поставщики, источники, правила веса и категории.
             Товары в файл не попадают.
           </p>
           <div className="settings-transfer-actions">
