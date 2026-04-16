@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { renderToString } from "katex";
 import "katex/dist/katex.min.css";
 import { useLiveData, type CategoryManualProduct, type PricingSettings, type SettingsTransferPayload } from "../shared/live-data-context";
 import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
-import { IconChevronDown, IconClose, IconInfo, IconPlus } from "../shared/mono-icons";
+import { IconChevronDown, IconClose, IconInfo, IconPlus, IconStar } from "../shared/mono-icons";
 import {
   AdminCategoriesSkeleton,
   AdminDedupSkeleton,
@@ -36,6 +36,7 @@ const tabs: { key: AdminTab; label: string }[] = [
   { key: "weight", label: "Вес" },
   { key: "settings", label: "Настройки" },
 ];
+const tabKeys = new Set<AdminTab>(tabs.map((item) => item.key));
 
 const whitelist = [
   "jadedldn.com",
@@ -50,7 +51,6 @@ const whitelist = [
 const currencyOptions = ["RUB", "EUR", "USD"];
 const API_BASE = "/api/v1";
 const PAGE_SIZE = 100;
-const NO_BRAND_VALUE = "__NO_BRAND__";
 const pricingNumericKeys = [
   "weight_tolerance",
   "customs_duty_rate",
@@ -494,35 +494,47 @@ function HelpHint({ text }: { text: string }) {
   );
 }
 
-type AdminListProduct = {
+type AdminProductsTableItem = {
   id: number;
   source_id: number;
-  handle: string;
   title: string;
-  vendor: string | null;
-  product_type: string | null;
   url: string;
-  price: number | null;
-  currency: string;
-  source_price?: number | null;
-  source_currency?: string | null;
-  final_price?: number | null;
-  final_currency?: string | null;
+  product_type: string | null;
   status: string;
   image_count: number;
   image_urls: string[];
   image_ids: number[];
-  internal_category_id?: number | null;
+  source_price?: number | null;
+  source_currency?: string | null;
+  final_price?: number | null;
+  final_currency?: string | null;
   internal_category_name?: string | null;
-  internal_category_slug?: string | null;
-  internal_category_ids?: number[];
-  internal_category_names?: string[];
-  internal_category_slugs?: string[];
-  created_at: string;
-  updated_at: string;
+};
+
+type AdminFilterFacetOption = {
+  value: string;
+  label: string;
+  count: number;
+};
+
+const normalizeAdminTab = (raw: string | undefined): AdminTab => {
+  if (!raw) {
+    return "products";
+  }
+  return tabKeys.has(raw as AdminTab) ? (raw as AdminTab) : "products";
 };
 
 export function AdminPage() {
+  const navigate = useNavigate();
+  const { tab: tabParam } = useParams<{ tab?: string }>();
+  const tab = normalizeAdminTab(tabParam);
+
+  useEffect(() => {
+    if (!tabParam || tabParam !== tab) {
+      navigate(`/control/${tab}`, { replace: true });
+    }
+  }, [navigate, tab, tabParam]);
+
   useEffect(() => {
     const prevTitle = document.title;
     document.title = "Панель управления | Anton Shell";
@@ -533,18 +545,14 @@ export function AdminPage() {
 
   const {
     products,
-    productsTotal,
-    productsHasMore,
     sources,
     latestJob,
-    loadingMoreProducts,
     loadingCategoriesTree,
     loadingCategoryCounts,
     error,
     ensurePricingLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
-    loadMoreProducts,
     runSync,
     cancelSync,
     previewProductByUrl,
@@ -584,7 +592,6 @@ export function AdminPage() {
     assignSourceSupplier,
   } = useLiveData();
 
-  const [tab, setTab] = useState<AdminTab>("products");
   const [openModal, setOpenModal] = useState<boolean>(false);
   const { toasts, pushToast, closeToast } = useToasts();
 
@@ -648,11 +655,15 @@ export function AdminPage() {
   const shippingValidationToastRef = useRef<string | null>(null);
   const svcValidationToastRef = useRef<string | null>(null);
 
-  const [filteredServerProducts, setFilteredServerProducts] = useState<AdminListProduct[]>([]);
-  const [filteredServerTotal, setFilteredServerTotal] = useState<number>(0);
-  const [filteredServerHasMore, setFilteredServerHasMore] = useState<boolean>(false);
-  const [filteredServerCursor, setFilteredServerCursor] = useState<string | null>(null);
-  const [loadingFilteredServer, setLoadingFilteredServer] = useState<boolean>(false);
+  const [tableProducts, setTableProducts] = useState<AdminProductsTableItem[]>([]);
+  const [tableTotal, setTableTotal] = useState<number>(0);
+  const [tableOverallTotal, setTableOverallTotal] = useState<number>(0);
+  const [tableHasMore, setTableHasMore] = useState<boolean>(false);
+  const [tableCursor, setTableCursor] = useState<string | null>(null);
+  const [tableLoading, setTableLoading] = useState<boolean>(false);
+  const [tableLoadingMore, setTableLoadingMore] = useState<boolean>(false);
+  const [productVendors, setProductVendors] = useState<AdminFilterFacetOption[]>([]);
+  const [productTypes, setProductTypes] = useState<AdminFilterFacetOption[]>([]);
 
   const isSyncInProgress = Boolean(latestJob && ["in_progress", "pending"].includes(latestJob.status));
   const canRunSync = !isSyncInProgress;
@@ -762,64 +773,6 @@ export function AdminPage() {
     }
     return !selectedCategory.has_children && selectedCategory.children.length === 0;
   }, [selectedCategory]);
-
-  const flattenedAdminCategories = useMemo(() => {
-    const list: { id: number; name: string; keywords: string[]; title_keywords: string[] }[] = [];
-    const walk = (nodes: typeof adminCategories) => {
-      for (const node of nodes) {
-        if (node.is_enabled) {
-          list.push({
-            id: node.id,
-            name: node.name,
-            keywords: node.keywords || [],
-            title_keywords: node.title_keywords || [],
-          });
-        }
-        walk(node.children);
-      }
-    };
-    walk(adminCategories);
-    return list;
-  }, [adminCategories]);
-
-  const inferInternalCategoryName = (product: (typeof products)[number]) => {
-    if ((product.internal_category_names || []).length > 0) {
-      return product.internal_category_names!.join(", ");
-    }
-    if (product.internal_category_name && product.internal_category_name.trim()) {
-      return product.internal_category_name.trim();
-    }
-    const haystack = `${product.title} ${product.vendor || ""} ${product.product_type || ""}`.toLowerCase();
-    const titleHaystack = `${product.title || ""}`.toLowerCase();
-    let best: { name: string; score: number } | null = null;
-
-    for (const category of flattenedAdminCategories) {
-      let score = 0;
-      for (const keyword of category.keywords) {
-        const normalized = keyword.trim().toLowerCase();
-        if (!normalized) {
-          continue;
-        }
-        if (haystack.includes(normalized)) {
-          score += normalized.length;
-        }
-      }
-      for (const keyword of category.title_keywords) {
-        const normalized = keyword.trim().toLowerCase();
-        if (!normalized) {
-          continue;
-        }
-        if (titleHaystack.includes(normalized)) {
-          score += normalized.length;
-        }
-      }
-      if (score > 0 && (!best || score > best.score)) {
-        best = { name: category.name, score };
-      }
-    }
-
-    return best?.name || "Прочее";
-  };
 
   useEffect(() => {
     if (!selectedCategory) {
@@ -1891,71 +1844,11 @@ export function AdminPage() {
     return null;
   }, [products, pricingSettings, pricingExampleStartSeed]);
 
-  const productVendors = useMemo(() => {
-    const set = new Set<string>();
-    for (const product of products) {
-      if (product.vendor) {
-        set.add(product.vendor);
-      }
-    }
-    return [...set.values()].sort((a, b) => a.localeCompare(b));
-  }, [products]);
-
-  const productTypes = useMemo(() => {
-    const set = new Set<string>();
-    for (const product of products) {
-      if (product.product_type) {
-        set.add(product.product_type);
-      }
-    }
-    return [...set.values()].sort((a, b) => a.localeCompare(b));
-  }, [products]);
-
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const searchValue = productSearch.trim().toLowerCase();
-      const searchText = [
-        String(product.id),
-        product.title,
-        product.handle,
-        product.vendor || "",
-        product.product_type || "",
-        product.url,
-        product.status,
-        product.currency,
-        String(product.price ?? ""),
-        String(product.source_price ?? ""),
-        String(product.final_price ?? ""),
-      ]
-        .join(" ")
-        .toLowerCase();
-      const matchesSearch = !searchValue || searchText.includes(searchValue);
-
-      const matchesSource = !productSourceFilter || String(product.source_id) === productSourceFilter;
-      const matchesVendor = !productVendorFilter
-        || (productVendorFilter === NO_BRAND_VALUE
-          ? !product.vendor || !product.vendor.trim()
-          : product.vendor === productVendorFilter);
-      const matchesType = !productTypeFilter || product.product_type === productTypeFilter;
-      const matchesStatus = !productStatusFilter || product.status === productStatusFilter;
-
-      return matchesSearch && matchesSource && matchesVendor && matchesType && matchesStatus;
-    });
-  }, [products, productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
-
-  const hasActiveFilters = useMemo(() => {
-    return Boolean(
-      productSearch.trim() ||
-      productSourceFilter ||
-      productVendorFilter ||
-      productTypeFilter ||
-      productStatusFilter
-    );
-  }, [productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
-
-  const buildFilterQuery = () => {
+  const buildFilterQuery = (options?: { includeLimit?: boolean; cursor?: string | null }) => {
     const params = new URLSearchParams();
-    params.set("limit", String(PAGE_SIZE));
+    if (options?.includeLimit ?? true) {
+      params.set("limit", String(PAGE_SIZE));
+    }
     if (productSearch.trim()) {
       params.set("search", productSearch.trim());
     }
@@ -1971,15 +1864,14 @@ export function AdminPage() {
     if (productStatusFilter) {
       params.set("status", productStatusFilter);
     }
+    if (options?.cursor) {
+      params.set("cursor", options.cursor);
+    }
     return params;
   };
 
   useEffect(() => {
-    if (!hasActiveFilters) {
-      setFilteredServerProducts([]);
-      setFilteredServerTotal(0);
-      setFilteredServerHasMore(false);
-      setFilteredServerCursor(null);
+    if (tab !== "products") {
       return;
     }
 
@@ -1987,31 +1879,56 @@ export function AdminPage() {
     const controller = new AbortController();
     const run = async () => {
       try {
-        setLoadingFilteredServer(true);
-        const params = buildFilterQuery();
-        const res = await fetch(`${API_BASE}/admin/products?${params.toString()}`, { signal: controller.signal });
-        if (!res.ok) {
-          throw new Error(`Products API error: ${res.status}`);
+        setTableLoading(true);
+        const productsParams = buildFilterQuery({ includeLimit: true });
+        const facetsParams = buildFilterQuery({ includeLimit: false });
+        const [productsRes, facetsRes] = await Promise.all([
+          fetch(`${API_BASE}/admin/products/table?${productsParams.toString()}`, { signal: controller.signal }),
+          fetch(`${API_BASE}/admin/products/table/facets?${facetsParams.toString()}`, { signal: controller.signal }),
+        ]);
+
+        if (!productsRes.ok) {
+          throw new Error(`Products table API error: ${productsRes.status}`);
         }
-        const payload = (await res.json()) as { items: AdminListProduct[]; total: number; next_cursor?: string | null; has_more?: boolean };
+        if (!facetsRes.ok) {
+          throw new Error(`Products facets API error: ${facetsRes.status}`);
+        }
+
+        const payload = (await productsRes.json()) as {
+          items: AdminProductsTableItem[];
+          total: number;
+          overall_total?: number;
+          next_cursor?: string | null;
+          has_more?: boolean;
+        };
+        const facetsPayload = (await facetsRes.json()) as {
+          vendors?: AdminFilterFacetOption[];
+          local_categories?: AdminFilterFacetOption[];
+          total?: number;
+          overall_total?: number;
+        };
+
         if (cancelled) {
           return;
         }
         const items = payload.items || [];
-        setFilteredServerProducts(items);
-        setFilteredServerTotal(payload.total || 0);
-        setFilteredServerCursor(payload.next_cursor || null);
-        setFilteredServerHasMore(Boolean(payload.has_more && payload.next_cursor));
+        setTableProducts(items);
+        setTableTotal(payload.total || facetsPayload.total || 0);
+        setTableOverallTotal(payload.overall_total || facetsPayload.overall_total || 0);
+        setTableCursor(payload.next_cursor || null);
+        setTableHasMore(Boolean(payload.has_more && payload.next_cursor));
+        setProductVendors(facetsPayload.vendors || []);
+        setProductTypes(facetsPayload.local_categories || []);
       } catch (e) {
         if ((e as Error).name === "AbortError") {
           return;
         }
         if (!cancelled) {
-          pushToast(e instanceof Error ? e.message : "Ошибка фильтрации");
+          pushToast(e instanceof Error ? e.message : "Ошибка загрузки таблицы товаров");
         }
       } finally {
         if (!cancelled) {
-          setLoadingFilteredServer(false);
+          setTableLoading(false);
         }
       }
     };
@@ -2024,48 +1941,42 @@ export function AdminPage() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [hasActiveFilters, productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
+  }, [tab, productSearch, productSourceFilter, productVendorFilter, productTypeFilter, productStatusFilter]);
 
-  const loadMoreFilteredProducts = async () => {
-    if (!filteredServerHasMore || loadingFilteredServer || !filteredServerCursor) {
+  const loadMoreTableProducts = async () => {
+    if (!tableHasMore || tableLoadingMore || !tableCursor) {
       return;
     }
     try {
-      setLoadingFilteredServer(true);
-      const params = buildFilterQuery();
-      params.set("cursor", filteredServerCursor);
-      const res = await fetch(`${API_BASE}/admin/products?${params.toString()}`);
+      setTableLoadingMore(true);
+      const params = buildFilterQuery({ includeLimit: true, cursor: tableCursor });
+      const res = await fetch(`${API_BASE}/admin/products/table?${params.toString()}`);
       if (!res.ok) {
-        throw new Error(`Products API error: ${res.status}`);
+        throw new Error(`Products table API error: ${res.status}`);
       }
-      const payload = (await res.json()) as { items: AdminListProduct[]; total: number; next_cursor?: string | null; has_more?: boolean };
+      const payload = (await res.json()) as {
+        items: AdminProductsTableItem[];
+        total: number;
+        overall_total?: number;
+        next_cursor?: string | null;
+        has_more?: boolean;
+      };
       const nextItems = payload.items || [];
-      setFilteredServerProducts((prev) => {
+      setTableProducts((prev) => {
         const known = new Set(prev.map((item) => item.id));
         const toAdd = nextItems.filter((item) => !known.has(item.id));
         return [...prev, ...toAdd];
       });
-      setFilteredServerTotal(payload.total || 0);
-      setFilteredServerCursor(payload.next_cursor || null);
-      setFilteredServerHasMore(Boolean(payload.has_more && payload.next_cursor));
+      setTableTotal(payload.total || 0);
+      setTableOverallTotal(payload.overall_total || tableOverallTotal);
+      setTableCursor(payload.next_cursor || null);
+      setTableHasMore(Boolean(payload.has_more && payload.next_cursor));
     } catch (e) {
       pushToast(e instanceof Error ? e.message : "Ошибка догрузки");
     } finally {
-      setLoadingFilteredServer(false);
+      setTableLoadingMore(false);
     }
   };
-
-  const displayedProducts = hasActiveFilters ? filteredServerProducts : filteredProducts;
-  const displayedTotal = hasActiveFilters ? filteredServerTotal : productsTotal;
-  const displayedHasMore = hasActiveFilters ? filteredServerHasMore : productsHasMore;
-  const displayedLoadingMore = hasActiveFilters ? loadingFilteredServer : loadingMoreProducts;
-  const displayedProductInternalCategoryNames = useMemo(() => {
-    const out = new Map<number, string>();
-    for (const product of displayedProducts) {
-      out.set(product.id, inferInternalCategoryName(product));
-    }
-    return out;
-  }, [displayedProducts, flattenedAdminCategories]);
 
   useEffect(() => {
     if (tab !== "products") {
@@ -2081,14 +1992,10 @@ export function AdminPage() {
         if (!entries.some((entry) => entry.isIntersecting)) {
           return;
         }
-        if (!displayedHasMore || displayedLoadingMore) {
+        if (!tableHasMore || tableLoadingMore) {
           return;
         }
-        if (hasActiveFilters) {
-          void loadMoreFilteredProducts();
-        } else {
-          void loadMoreProducts();
-        }
+        void loadMoreTableProducts();
       },
       { rootMargin: "600px 0px" }
     );
@@ -2096,11 +2003,9 @@ export function AdminPage() {
     return () => observer.disconnect();
   }, [
     tab,
-    displayedHasMore,
-    displayedLoadingMore,
-    hasActiveFilters,
-    loadMoreProducts,
-    loadMoreFilteredProducts,
+    tableHasMore,
+    tableLoadingMore,
+    loadMoreTableProducts,
   ]);
 
   const sourceById = useMemo(() => {
@@ -2228,10 +2133,10 @@ export function AdminPage() {
 
   const statusBadge = (status: string) => {
     if (status === "available") {
-      return { label: "Доступен", cls: "status-pill status-pill--ok" };
+      return { label: "В наличии", cls: "status-pill status-pill--ok" };
     }
     if (status === "out_of_stock") {
-      return { label: "Нет в наличии", cls: "status-pill status-pill--bad" };
+      return { label: "Нет в наличии", cls: "status-pill status-pill--warn" };
     }
     return { label: "Скрыт", cls: "status-pill status-pill--muted" };
   };
@@ -2654,7 +2559,7 @@ export function AdminPage() {
                   </button>
                 ) : null}
                 <span className="muted">
-                  {!node.is_enabled ? "выключена" : node.is_system ? "системная" : node.keywords_editable ? `${node.keywords.length} ключей` : "ветка"} • {node.product_count} товаров
+                  {!node.is_enabled ? "выключена" : node.is_system ? "системная" : node.keywords_editable ? `${node.keywords.length} ключей` : "ветка"} • {loadingCategoryCounts ? "..." : node.product_count} товаров
                 </span>
               </div>
               {node.children.length > 0 && !hideChildrenInTree ? (
@@ -2668,6 +2573,18 @@ export function AdminPage() {
   };
 
   return (
+    <div className="shell">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <Link to="/" className="brand" aria-label="Anton Shell">
+            <img src="/logo_anton_shell.svg" alt="Anton Shell" className="brand-logo" />
+          </Link>
+          <Link to="/" className="topbar-cta">
+            Каталог товаров
+          </Link>
+        </div>
+      </header>
+      <main className="container container--admin">
     <section className="section admin">
       <div className="admin-head">
         <h1>Панель управления</h1>
@@ -2681,9 +2598,6 @@ export function AdminPage() {
           <button type="button" onClick={() => setOpenModal(true)}>
             Добавить товар
           </button>
-          <Link className="btn-link" to="/">
-            Открыть витрину
-          </Link>
         </div>
         {latestJob ? (
           <div className="sync-summary">
@@ -2721,7 +2635,7 @@ export function AdminPage() {
             key={item.key}
             type="button"
             className={item.key === tab ? "tab tab--active" : "tab"}
-            onClick={() => setTab(item.key)}
+            onClick={() => navigate(`/control/${item.key}`)}
           >
             {item.label}
           </button>
@@ -2730,18 +2644,15 @@ export function AdminPage() {
 
       {tab === "products" ? (
         <div className="card">
-          {loading && displayedProducts.length === 0 ? (
+          {tableLoading && tableProducts.length === 0 ? (
             <AdminProductsSkeleton />
           ) : (
             <>
           <h2>
-            {loading && displayedProducts.length === 0
+            {tableLoading && tableProducts.length === 0
               ? "Все товары"
-              : hasActiveFilters && !productSourceFilter
-              ? `Все товары (${displayedProducts.length}/${displayedTotal})`
-              : `Все товары (${hasActiveFilters ? displayedTotal : productsTotal})`}
+              : `Все товары (${tableTotal}/${tableOverallTotal})`}
           </h2>
-          <p className="muted">Подгрузка товаров выполняется автоматически при скролле вниз.</p>
 
           <div className="products-layout">
             <aside className="products-filters card">
@@ -2759,24 +2670,23 @@ export function AdminPage() {
               </select>
               <select value={productVendorFilter} onChange={(event) => setProductVendorFilter(event.target.value)}>
                 <option value="">Все бренды</option>
-                <option value={NO_BRAND_VALUE}>Без бренда</option>
                 {productVendors.map((vendor) => (
-                  <option key={vendor} value={vendor}>
-                    {vendor}
+                  <option key={vendor.value} value={vendor.value}>
+                    {vendor.label} ({vendor.count})
                   </option>
                 ))}
               </select>
               <select value={productTypeFilter} onChange={(event) => setProductTypeFilter(event.target.value)}>
                 <option value="">Все локальные категории</option>
                 {productTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                  <option key={type.value} value={type.value}>
+                    {type.label} ({type.count})
                   </option>
                 ))}
               </select>
               <select value={productStatusFilter} onChange={(event) => setProductStatusFilter(event.target.value)}>
                 <option value="">Все статусы</option>
-                <option value="available">Доступен</option>
+                <option value="available">В наличии</option>
                 <option value="out_of_stock">Нет в наличии</option>
                 <option value="hidden">Скрыт</option>
               </select>
@@ -2802,48 +2712,51 @@ export function AdminPage() {
                     <th>Название</th>
                     <th>Сайт</th>
                     <th>Локальная категория</th>
-                    <th>Категория</th>
+                    <th>Категория/Бренд</th>
                     <th>Статус</th>
                     <th>Оригинальная цена</th>
                     <th>Итоговая цена (RUB)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayedProducts.map((product) => {
+                  {tableProducts.map((product) => {
                     const status = statusBadge(product.status);
-                    const sourcePrice = product.source_price ?? product.price;
-                    const sourceCurrency = product.source_currency ?? product.currency;
-                    const finalPrice = product.final_price ?? (product.currency === "RUB" ? product.price : null);
-                    const finalCurrency = product.final_currency ?? (product.currency === "RUB" ? "RUB" : null);
+                    const sourcePrice = product.source_price;
+                    const sourceCurrency = product.source_currency;
+                    const finalPrice = product.final_price ?? null;
+                    const finalCurrency = product.final_currency ?? "RUB";
                     const source = sourceById.get(product.source_id);
+                    const adminProductHref = `/product/${product.id}?from=admin`;
                     return (
                       <tr key={product.id}>
                         <td>
-                          <ImageWithFallback
-                            src={getProductPrimaryImageUrl(product)}
-                            alt={product.title}
-                            className="thumb-mini-image"
-                            placeholderClassName="thumb-mini"
-                            placeholderText={product.image_count > 0 ? `${product.image_count} фото` : "Нет фото"}
-                            loadingText={product.image_count > 0 ? "Загружаем..." : "Нет фото"}
-                          />
+                          <Link className="thumb-mini-link" to={adminProductHref}>
+                            <ImageWithFallback
+                              src={getProductPrimaryImageUrl(product)}
+                              alt={product.title}
+                              className="thumb-mini-image"
+                              placeholderClassName="thumb-mini"
+                              placeholderText={product.image_count > 0 ? `${product.image_count} фото` : "Нет фото"}
+                              loadingText={product.image_count > 0 ? "Загружаем..." : "Нет фото"}
+                            />
+                          </Link>
                         </td>
                         <td>
-                          <Link className="btn-link" to={`/product/${product.id}`}>
+                          <Link className="btn-link" to={adminProductHref}>
                             {product.title}
                           </Link>
                         </td>
                         <td>
-                          {source?.base_url ? (
-                            <a className="btn-link" href={source.base_url} target="_blank" rel="noreferrer">
-                              {source?.name || source.base_url}
+                          {product.url ? (
+                            <a className="btn-link" href={product.url} target="_blank" rel="noreferrer">
+                              {source?.name || `#${product.source_id}`}
                             </a>
                           ) : (
                             source?.name || `#${product.source_id}`
                           )}
                         </td>
                         <td>{product.product_type || "-"}</td>
-                        <td>{displayedProductInternalCategoryNames.get(product.id) || "Прочее"}</td>
+                        <td>{(product.internal_category_name || "").trim() || "Прочее"}</td>
                         <td>
                           <span className={status.cls}>{status.label}</span>
                         </td>
@@ -2856,8 +2769,8 @@ export function AdminPage() {
                   })}
                 </tbody>
               </table>
-              {!loading && displayedProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
-              {displayedLoadingMore ? <AdminTableSkeleton rows={3} cols={8} /> : null}
+              {!tableLoading && tableProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
+              {tableLoadingMore ? <AdminTableSkeleton rows={3} cols={8} /> : null}
               <div ref={productsSentinelRef} style={{ height: "1px" }} />
             </div>
           </div>
@@ -2948,7 +2861,7 @@ export function AdminPage() {
               <div className="cat-tree-wrap">{renderTree(adminCategories)}</div>
             </div>
 
-            <div className="card">
+            <div className="card category-editor-panel">
               {createFormOpen ? (
                 <div className="form">
                   <h3>Создание категории</h3>
@@ -2996,17 +2909,17 @@ export function AdminPage() {
                       <span className="ui-switch-text">{selectedCategory.is_enabled ? "Вкл" : "Выкл"}</span>
                     </label>
                     {!selectedCategory.is_system ? (
-                      <label className="ui-switch">
-                        <input
-                          type="checkbox"
-                          checked={selectedCategory.is_favorite}
-                          onChange={(event) => void onToggleCategoryFavorite(event.target.checked)}
-                        />
-                        <span className="ui-switch-track">
-                          <span className="ui-switch-thumb" />
-                        </span>
-                        <span className="ui-switch-text">{selectedCategory.is_favorite ? "Избранная" : "Обычная"}</span>
-                      </label>
+                      <div className="favorite-toggle-row">
+                        <button
+                          type="button"
+                          className={selectedCategory.is_favorite ? "icon-btn favorite-toggle-btn favorite-toggle-btn--active" : "icon-btn favorite-toggle-btn"}
+                          onClick={() => void onToggleCategoryFavorite(!selectedCategory.is_favorite)}
+                          aria-label={selectedCategory.is_favorite ? "Убрать из избранного" : "Сделать избранным"}
+                        >
+                          <IconStar className="icon-svg icon-svg--sm" />
+                        </button>
+                        <span className="favorite-toggle-text">{selectedCategory.is_favorite ? "Добавлен в избранное" : "Сделать избранным"}</span>
+                      </div>
                     ) : null}
                     <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_system}>
                       Удалить
@@ -3143,9 +3056,8 @@ export function AdminPage() {
                             );
                           })}
 
-                          <p className="muted">Добавленные товары</p>
+                          {manualAssignedLoading || manualAssignedProducts.length > 0 ? <p className="muted">Добавленные товары</p> : null}
                           {manualAssignedLoading ? <AdminSectionSkeleton rows={2} /> : null}
-                          {!manualAssignedLoading && manualAssignedProducts.length === 0 ? <p className="muted">Пока пусто</p> : null}
                           {manualAssignedProducts.map((item) => {
                             const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
                             return (
@@ -3172,7 +3084,7 @@ export function AdminPage() {
                           })}
                         </>
                       ) : (
-                        <p className="muted">Ручное добавление доступно только для конечных категорий.</p>
+                        <p className="muted">Добавление ключевых слов и товаров доступно только для конечных категорий.</p>
                       )}
                       {!selectedCategory.keywords_editable && selectedCategory.keywords_locked_reason ? (
                         <p className="muted">{selectedCategory.keywords_locked_reason}</p>
@@ -3196,11 +3108,11 @@ export function AdminPage() {
           {loading ? (
             <AdminSourcesSkeleton rows={5} />
           ) : (
-            <div className="list">
+            <div className="sources-grid">
             {sources.map((source) => (
-              <div key={source.key} className="list-row">
-                <div>
-                  <strong>
+              <article key={source.key} className="list-row source-card">
+                <div className="source-card-head">
+                  <strong className="source-card-title">
                     {source.name}
                     {source.status_label ? ` · ${source.status_label}` : ""}
                   </strong>
@@ -3209,7 +3121,7 @@ export function AdminPage() {
                     Товаров: {source.products_count} • Категорий: {source.categories_count}
                   </p>
                 </div>
-                <label className="switch-wrap">
+                <label className="ui-switch ui-switch--compact source-card-switch">
                   <input
                     type="checkbox"
                     checked={source.enabled}
@@ -3220,9 +3132,12 @@ export function AdminPage() {
                       })();
                     }}
                   />
-                  <span>{source.enabled ? "Включен" : "Выключен"}</span>
+                  <span className="ui-switch-track">
+                    <span className="ui-switch-thumb" />
+                  </span>
+                  <span className="ui-switch-text">{source.enabled ? "Включен" : "Выключен"}</span>
                 </label>
-              </div>
+              </article>
             ))}
             </div>
           )}
@@ -3331,7 +3246,27 @@ export function AdminPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="muted">Пока нет товара с полностью рассчитанной ценой для примера.</p>
+                  <div className="pricing-example-box pricing-example-box--skeleton" aria-hidden="true">
+                    <p className="with-help">
+                      <strong>Пример на товаре:</strong>
+                    </p>
+                    <div className="pricing-example-head">
+                      <div className="pricing-example-thumb pricing-example-thumb--skeleton skeleton" />
+                      <div className="pricing-example-title-skeleton-wrap">
+                        <div className="pricing-example-title-skeleton skeleton" />
+                        <div className="pricing-example-subtitle-skeleton skeleton" />
+                      </div>
+                    </div>
+                    <div className="pricing-example-formula-skeleton skeleton" />
+                    <div className="pricing-example-summary">
+                      {Array.from({ length: 4 }).map((_, idx) => (
+                        <div className="pricing-example-metric" key={`pricing-example-metric-skeleton-${idx}`}>
+                          <div className="pricing-example-metric-key-skeleton skeleton" />
+                          <div className="pricing-example-metric-value-skeleton skeleton" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 <div className="pricing-formula-legend pricing-legend-grid">
                   {pricingSettings.formula_legend.map((item) => (
@@ -3723,7 +3658,6 @@ export function AdminPage() {
           <h2>Настройки веса</h2>
           {weightTabLoading ? <AdminWeightSkeleton /> : (
             <>
-              <p className="muted">Вес в граммах задается слева. Справа добавляй англ-ключевые слова.</p>
 
               <div className="weight-rule-create-row">
                 <input
@@ -3849,30 +3783,36 @@ export function AdminPage() {
                 disabled={!pricingSettings}
               />
             </label>
-            <label className="pricing-settings-field">
+            <div className="pricing-settings-field">
               <span className="muted with-help">
                 <span className="pricing-field-label">
                   <span>Исключать бренды-магазины</span>
                 </span>
                 <HelpHint text="Если включено, из «Дизайнеров» убираются бренды, которые совпадают с именем/доменом самого источника." />
               </span>
-              <input
-                type="checkbox"
-                checked={Boolean(pricingSettings?.designers_exclude_store_vendors)}
-                disabled={!pricingSettings}
-                onChange={async (event) => {
-                  if (!pricingSettings) {
-                    return;
-                  }
-                  const result = await updatePricingSettings({
-                    designers_exclude_store_vendors: Boolean(event.target.checked),
-                  });
-                  if (!result.ok) {
-                    pushToast(result.message);
-                  }
-                }}
-              />
-            </label>
+              <label className="ui-switch ui-switch--compact">
+                <input
+                  type="checkbox"
+                  checked={Boolean(pricingSettings?.designers_exclude_store_vendors)}
+                  disabled={!pricingSettings}
+                  onChange={async (event) => {
+                    if (!pricingSettings) {
+                      return;
+                    }
+                    const result = await updatePricingSettings({
+                      designers_exclude_store_vendors: Boolean(event.target.checked),
+                    });
+                    if (!result.ok) {
+                      pushToast(result.message);
+                    }
+                  }}
+                />
+                <span className="ui-switch-track">
+                  <span className="ui-switch-thumb" />
+                </span>
+                <span className="ui-switch-text">{pricingSettings?.designers_exclude_store_vendors ? "Включено" : "Выключено"}</span>
+              </label>
+            </div>
           </div>
 
           <h2>Экспорт и импорт настроек</h2>
@@ -3999,5 +3939,7 @@ export function AdminPage() {
         </div>
       ) : null}
     </section>
+      </main>
+    </div>
   );
 }

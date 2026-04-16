@@ -56,7 +56,8 @@ function AppRoutes() {
           <Route path="category/:slug" element={<CategoryPage />} />
           <Route path="product/:id" element={<ProductPage />} />
         </Route>
-        <Route path={MANAGEMENT_PATH} element={<AdminPage />} />
+        <Route path={MANAGEMENT_PATH} element={<Navigate to={`${MANAGEMENT_PATH}/products`} replace />} />
+        <Route path={`${MANAGEMENT_PATH}/:tab`} element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </LiveDataProvider>

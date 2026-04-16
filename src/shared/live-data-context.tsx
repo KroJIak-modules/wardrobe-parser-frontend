@@ -667,6 +667,25 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     setProductsHasMore((payload.items || []).length + (payload.offset || 0) < (payload.total || 0));
   }, []);
 
+  const refreshAdminCoreOnly = useCallback(async () => {
+    const [sourcesRes, latestJobRes] = await Promise.all([
+      fetch(`${API_BASE}/shopify/sources-admin`),
+      fetch(`${API_BASE}/jobs/latest`),
+    ]);
+
+    if (!sourcesRes.ok) {
+      throw new Error(`Sources API error: ${sourcesRes.status}`);
+    }
+    if (!latestJobRes.ok) {
+      throw new Error(`Jobs API error: ${latestJobRes.status}`);
+    }
+
+    const sourcesPayload = (await sourcesRes.json()) as Source[];
+    const latestPayload = (await latestJobRes.json()) as JobsLatest;
+    setSources(sourcesPayload || []);
+    setLatestJob(latestPayload);
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -936,9 +955,33 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        const created = (await res.json()) as { id: number };
-        await refreshCategoriesOnly();
-        return { ok: true, message: "Категория создана", categoryId: created.id };
+        const created = (await res.json()) as AdminCategoryNode;
+        if (created && typeof created.id === "number") {
+          const insertNode = (nodes: AdminCategoryNode[]): AdminCategoryNode[] => {
+            if (created.parent_id === null) {
+              return [...nodes, created];
+            }
+            return nodes.map((node) => {
+              if (node.id === created.parent_id) {
+                return {
+                  ...node,
+                  has_children: true,
+                  children: [...node.children, created],
+                };
+              }
+              if (!node.children || node.children.length === 0) {
+                return node;
+              }
+              return {
+                ...node,
+                children: insertNode(node.children),
+              };
+            });
+          };
+          setAdminCategories((prev) => insertNode(prev));
+        }
+        void refreshCategoriesOnly({ includeCounts: true, silent: true });
+        return { ok: true, message: "Категория создана", categoryId: created?.id };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
       }
@@ -958,7 +1001,41 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refreshCategoriesOnly();
+
+        const updatedNode = (await res.json().catch(() => null)) as AdminCategoryNode | null;
+        if (updatedNode && typeof updatedNode.id === "number") {
+          const patchNodeById = (nodes: AdminCategoryNode[]): AdminCategoryNode[] =>
+            nodes.map((node) => {
+              if (node.id === updatedNode.id) {
+                return {
+                  ...node,
+                  name: updatedNode.name,
+                  slug: updatedNode.slug,
+                  parent_id: updatedNode.parent_id,
+                  is_enabled: updatedNode.is_enabled,
+                  is_favorite: updatedNode.is_favorite,
+                  keywords_editable: updatedNode.keywords_editable,
+                  keywords_locked_reason: updatedNode.keywords_locked_reason,
+                  is_designers_root: updatedNode.is_designers_root,
+                  is_in_designers_branch: updatedNode.is_in_designers_branch,
+                  product_count: updatedNode.product_count,
+                };
+              }
+              if (!node.children || node.children.length === 0) {
+                return node;
+              }
+              return {
+                ...node,
+                children: patchNodeById(node.children),
+              };
+            });
+          setAdminCategories((prev) => patchNodeById(prev));
+        }
+
+        const touchedStructuralField = Boolean(payload.parent_id !== undefined);
+        if (touchedStructuralField) {
+          void refreshCategoriesOnly({ includeCounts: true, silent: true });
+        }
         return { ok: true, message: "Категория обновлена" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
@@ -977,7 +1054,22 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
           const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
           return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
         }
-        await refreshCategoriesOnly();
+        const dropNodeById = (nodes: AdminCategoryNode[]): AdminCategoryNode[] =>
+          nodes
+            .filter((node) => node.id !== id)
+            .map((node) => {
+              if (!node.children || node.children.length === 0) {
+                return node;
+              }
+              const nextChildren = dropNodeById(node.children);
+              return {
+                ...node,
+                has_children: nextChildren.length > 0,
+                children: nextChildren,
+              };
+            });
+        setAdminCategories((prev) => dropNodeById(prev));
+        void refreshCategoriesOnly({ includeCounts: true, silent: true });
         return { ok: true, message: "Категория удалена" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
@@ -1578,16 +1670,13 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       setError(null);
       try {
         if (routeKind === "admin") {
+          setLoading(true);
           await Promise.all([
-            refresh(),
-            refreshCategoriesOnly({ includeCounts: false }),
+            refreshAdminCoreOnly(),
+            refreshCategoriesOnly({ includeCounts: true }),
           ]);
           if (!cancelled) {
-            void refreshCategoriesOnly({ includeCounts: true }).catch((e: unknown) => {
-              if (!cancelled) {
-                setError(e instanceof Error ? e.message : "Unknown error");
-              }
-            });
+            setLoading(false);
           }
           return;
         }
@@ -1608,7 +1697,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     return () => {
       cancelled = true;
     };
-  }, [refresh, refreshCategoriesOnly, refreshSourcesOnly, routePath]);
+  }, [refreshAdminCoreOnly, refreshCategoriesOnly, refreshSourcesOnly, routePath]);
 
   useEffect(() => {
     if (!latestJob || !["pending", "in_progress"].includes(latestJob.status)) {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { ProductPageSkeleton } from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
@@ -40,7 +40,9 @@ function buildVariantLabel(variant: {
 
 export function ProductPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { products, sources, getProductById } = useLiveData();
+  const fromAdmin = searchParams.get("from") === "admin";
 
   const productId = Number(id);
   const inlineProduct = Number.isFinite(productId) ? products.find((item) => item.id === productId) || null : null;
@@ -140,8 +142,8 @@ export function ProductPage() {
       <section className="section">
         <div className="catalog-empty card">
           <p>Товар не найден</p>
-          <Link className="btn-link" to="/">
-            Вернуться к каталогу
+          <Link className="btn-link" to={fromAdmin ? "/control/products" : "/"}>
+            {fromAdmin ? "Вернуться в панель управления" : "Вернуться к каталогу"}
           </Link>
         </div>
         <ToastStack toasts={toasts} onClose={closeToast} />
@@ -156,8 +158,8 @@ export function ProductPage() {
   return (
     <article className="section product-view">
       <div className="product-view-back">
-        <Link className="btn-link" to="/">
-          ← Назад к каталогу
+        <Link className="btn-link" to={fromAdmin ? "/control/products" : "/"}>
+          {fromAdmin ? "← Назад в панель управления" : "← Назад к каталогу"}
         </Link>
       </div>
 
