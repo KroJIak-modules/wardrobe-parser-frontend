@@ -179,3 +179,185 @@ export function ProductPageSkeleton() {
     </article>
   );
 }
+
+export function AdminDedupSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="dedup-list" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, idx) => (
+        <div key={`dedup-skeleton-${idx}`} className="dedup-item admin-dedup-skeleton-item">
+          <div className="dedup-head">
+            <SkeletonBlock className="admin-dedup-skeleton-score" />
+            <SkeletonBlock className="admin-dedup-skeleton-reasons" />
+          </div>
+          <div className="dedup-grid">
+            {Array.from({ length: 2 }).map((__, cidx) => (
+              <div key={`dedup-skeleton-col-${idx}-${cidx}`} className="dedup-col admin-dedup-skeleton-col">
+                <SkeletonBlock className="admin-dedup-skeleton-title" />
+                <SkeletonBlock className="admin-dedup-skeleton-line admin-dedup-skeleton-line--short" />
+                <SkeletonBlock className="admin-dedup-skeleton-line" />
+                <SkeletonBlock className="admin-dedup-skeleton-btn" />
+              </div>
+            ))}
+          </div>
+          <div className="actions">
+            <SkeletonBlock className="admin-dedup-skeleton-btn admin-dedup-skeleton-btn--wide" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AdminCategoriesSkeleton() {
+  return (
+    <div className="categories-layout" aria-hidden="true">
+      <div>
+        <div className="actions" style={{ marginBottom: "0.5rem" }}>
+          <SkeletonBlock className="admin-categories-skeleton-root-btn" />
+        </div>
+        <div className="cat-tree-wrap admin-categories-skeleton-tree">
+          {Array.from({ length: 8 }).map((_, idx) => (
+            <div key={`admin-cat-tree-skeleton-${idx}`} className="admin-categories-skeleton-tree-row" style={{ marginLeft: `${(idx % 3) * 12}px` }}>
+              <SkeletonBlock className="admin-categories-skeleton-tree-node" />
+              <SkeletonBlock className="admin-categories-skeleton-tree-meta" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="card">
+        <SkeletonBlock className="admin-categories-skeleton-panel-title" />
+        <div className="form">
+          <SkeletonBlock className="admin-categories-skeleton-input" />
+          <SkeletonBlock className="admin-categories-skeleton-switch" />
+          <SkeletonBlock className="admin-categories-skeleton-switch" />
+          <SkeletonBlock className="admin-categories-skeleton-btn" />
+        </div>
+        <SkeletonBlock className="admin-categories-skeleton-hint" />
+      </div>
+    </div>
+  );
+}
+
+export function AdminSourcesSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="list" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, idx) => (
+        <div key={`source-skeleton-${idx}`} className="list-row admin-sources-skeleton-row">
+          <div className="admin-sources-skeleton-main">
+            <SkeletonBlock className="admin-sources-skeleton-title" />
+            <SkeletonBlock className="admin-sources-skeleton-line" />
+            <SkeletonBlock className="admin-sources-skeleton-line admin-sources-skeleton-line--short" />
+          </div>
+          <SkeletonBlock className="admin-sources-skeleton-switch" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AdminPricingSkeleton() {
+  return (
+    <div className="admin-pricing-skeleton" aria-hidden="true">
+      <div className="pricing-worker-box">
+        <SkeletonBlock className="admin-pricing-skeleton-section-title" />
+        <div className="pricing-worker-grid">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={`pricing-worker-skeleton-${idx}`} className="pricing-worker-item">
+              <SkeletonBlock className="admin-pricing-skeleton-line admin-pricing-skeleton-line--label" />
+              <SkeletonBlock className="admin-pricing-skeleton-line" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="pricing-formula-box">
+        <SkeletonBlock className="admin-pricing-skeleton-section-title" />
+        <SkeletonBlock className="admin-pricing-skeleton-formula" />
+        <div className="pricing-example-summary">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={`pricing-example-skeleton-${idx}`} className="pricing-example-metric">
+              <SkeletonBlock className="admin-pricing-skeleton-line admin-pricing-skeleton-line--label" />
+              <SkeletonBlock className="admin-pricing-skeleton-line" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="pricing-settings-grid">
+        {Array.from({ length: 6 }).map((_, idx) => (
+          <div key={`pricing-field-skeleton-${idx}`} className="pricing-settings-field">
+            <SkeletonBlock className="admin-pricing-skeleton-line admin-pricing-skeleton-line--label" />
+            <SkeletonBlock className="admin-pricing-skeleton-input" />
+          </div>
+        ))}
+      </div>
+
+      <div className="pricing-source-map-list">
+        <div className="pricing-source-map-head">
+          {Array.from({ length: 7 }).map((_, idx) => (
+            <SkeletonBlock key={`pricing-map-head-skeleton-${idx}`} className="admin-pricing-skeleton-line admin-pricing-skeleton-line--label" />
+          ))}
+        </div>
+        {Array.from({ length: 3 }).map((_, ridx) => (
+          <div key={`pricing-map-row-skeleton-${ridx}`} className="pricing-source-map-row">
+            {Array.from({ length: 7 }).map((_, cidx) => (
+              <SkeletonBlock key={`pricing-map-cell-skeleton-${ridx}-${cidx}`} className="admin-pricing-skeleton-input" />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AdminWeightSkeleton() {
+  return (
+    <div className="admin-weight-skeleton" aria-hidden="true">
+      <SkeletonBlock className="admin-weight-skeleton-hint" />
+      <div className="weight-rule-create-row">
+        <SkeletonBlock className="admin-weight-skeleton-input" />
+        <SkeletonBlock className="admin-weight-skeleton-btn" />
+      </div>
+      <div className="weight-rules-list">
+        {Array.from({ length: 4 }).map((_, idx) => (
+          <div key={`weight-rule-skeleton-${idx}`} className="weight-rule-row">
+            <div className="weight-rule-left">
+              <SkeletonBlock className="admin-weight-skeleton-line admin-weight-skeleton-line--label" />
+              <SkeletonBlock className="admin-weight-skeleton-input" />
+              <SkeletonBlock className="admin-weight-skeleton-btn" />
+            </div>
+            <div className="weight-rule-right">
+              <div className="chip-list">
+                <SkeletonBlock className="admin-weight-skeleton-chip" />
+                <SkeletonBlock className="admin-weight-skeleton-chip" />
+                <SkeletonBlock className="admin-weight-skeleton-chip" />
+              </div>
+              <SkeletonBlock className="admin-weight-skeleton-textarea" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AdminSettingsSkeleton() {
+  return (
+    <div className="admin-settings-skeleton" aria-hidden="true">
+      <div className="pricing-settings-grid" style={{ marginBottom: "1rem" }}>
+        {Array.from({ length: 2 }).map((_, idx) => (
+          <div key={`settings-field-skeleton-${idx}`} className="pricing-settings-field">
+            <SkeletonBlock className="admin-settings-skeleton-line admin-settings-skeleton-line--label" />
+            <SkeletonBlock className="admin-settings-skeleton-input" />
+          </div>
+        ))}
+      </div>
+      <SkeletonBlock className="admin-settings-skeleton-line" />
+      <div className="settings-transfer-actions">
+        <SkeletonBlock className="admin-settings-skeleton-btn" />
+        <SkeletonBlock className="admin-settings-skeleton-btn" />
+      </div>
+      <SkeletonBlock className="admin-settings-skeleton-line admin-settings-skeleton-line--short" />
+    </div>
+  );
+}

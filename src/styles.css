@@ -1085,6 +1085,257 @@ a {
   border-radius: 8px;
 }
 
+.admin-dedup-skeleton-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-dedup-skeleton-col {
+  gap: 10px;
+}
+
+.admin-dedup-skeleton-score {
+  width: 82px;
+  height: 18px;
+  border-radius: 999px;
+}
+
+.admin-dedup-skeleton-reasons {
+  width: 220px;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-dedup-skeleton-title {
+  width: 90%;
+  height: 18px;
+  border-radius: 8px;
+}
+
+.admin-dedup-skeleton-line {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-dedup-skeleton-line--short {
+  width: 62%;
+}
+
+.admin-dedup-skeleton-btn {
+  width: 150px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.admin-dedup-skeleton-btn--wide {
+  width: 180px;
+}
+
+.admin-categories-skeleton-root-btn {
+  width: 72px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.admin-categories-skeleton-tree {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-categories-skeleton-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-categories-skeleton-tree-node {
+  width: min(280px, 72%);
+  height: 32px;
+  border-radius: 8px;
+}
+
+.admin-categories-skeleton-tree-meta {
+  width: 120px;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-categories-skeleton-panel-title {
+  width: 190px;
+  height: 20px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-categories-skeleton-input {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.admin-categories-skeleton-switch {
+  width: 140px;
+  height: 22px;
+  border-radius: 999px;
+}
+
+.admin-categories-skeleton-btn {
+  width: 96px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.admin-categories-skeleton-hint {
+  width: 86%;
+  height: 14px;
+  border-radius: 999px;
+  margin-top: 6px;
+}
+
+.admin-sources-skeleton-row {
+  align-items: center;
+}
+
+.admin-sources-skeleton-main {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.admin-sources-skeleton-title {
+  width: min(320px, 72%);
+  height: 18px;
+  border-radius: 8px;
+}
+
+.admin-sources-skeleton-line {
+  width: min(460px, 92%);
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-sources-skeleton-line--short {
+  width: min(260px, 56%);
+}
+
+.admin-sources-skeleton-switch {
+  width: 96px;
+  height: 22px;
+  border-radius: 999px;
+}
+
+.admin-pricing-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-pricing-skeleton-section-title {
+  width: min(280px, 70%);
+  height: 20px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.admin-pricing-skeleton-line {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-pricing-skeleton-line--label {
+  width: 64%;
+}
+
+.admin-pricing-skeleton-formula {
+  width: 100%;
+  min-height: 140px;
+  border-radius: 10px;
+}
+
+.admin-pricing-skeleton-input {
+  width: 100%;
+  height: 34px;
+  border-radius: 8px;
+}
+
+.admin-weight-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-weight-skeleton-hint {
+  width: min(460px, 90%);
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-weight-skeleton-line {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-weight-skeleton-line--label {
+  width: 72px;
+}
+
+.admin-weight-skeleton-input {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.admin-weight-skeleton-btn {
+  width: 100px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.admin-weight-skeleton-chip {
+  width: 90px;
+  height: 26px;
+  border-radius: 999px;
+}
+
+.admin-weight-skeleton-textarea {
+  width: 100%;
+  min-height: 64px;
+  border-radius: 8px;
+}
+
+.admin-settings-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-settings-skeleton-line {
+  width: min(560px, 96%);
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-settings-skeleton-line--label {
+  width: min(260px, 78%);
+}
+
+.admin-settings-skeleton-line--short {
+  width: min(420px, 80%);
+}
+
+.admin-settings-skeleton-input {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.admin-settings-skeleton-btn {
+  width: 120px;
+  height: 32px;
+  border-radius: 8px;
+}
+
 .btn-link,
 button {
   display: inline-block;

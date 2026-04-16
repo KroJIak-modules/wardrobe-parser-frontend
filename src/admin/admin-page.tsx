@@ -6,7 +6,17 @@ import { useLiveData, type CategoryManualProduct, type PricingSettings, type Set
 import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { IconChevronDown, IconClose, IconInfo, IconPlus } from "../shared/mono-icons";
-import { AdminProductsSkeleton, AdminSectionSkeleton, AdminTableSkeleton } from "../shared/skeleton";
+import {
+  AdminCategoriesSkeleton,
+  AdminDedupSkeleton,
+  AdminPricingSkeleton,
+  AdminProductsSkeleton,
+  AdminSectionSkeleton,
+  AdminSettingsSkeleton,
+  AdminSourcesSkeleton,
+  AdminTableSkeleton,
+  AdminWeightSkeleton,
+} from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
 import { useToasts } from "../shared/use-toasts";
 
@@ -2859,8 +2869,15 @@ export function AdminPage() {
       {tab === "dedup" ? (
         <div className="card">
           <h2>Дедубликация</h2>
-          <p className="muted">{loadingDedupCandidates ? "Кандидатов: ..." : `Кандидатов: ${dedupCandidates.length}`}</p>
-          <div className="dedup-list">
+          {(loadingDedupCandidates && dedupCandidates.length === 0) ? (
+            <>
+              <p className="muted">Кандидатов: ...</p>
+              <AdminDedupSkeleton rows={3} />
+            </>
+          ) : (
+            <>
+              <p className="muted">{`Кандидатов: ${dedupCandidates.length}`}</p>
+              <div className="dedup-list">
             {dedupCandidates.map((candidate) => (
               <div key={candidate.pair_key} className="dedup-item">
                 <div className="dedup-head">
@@ -2905,18 +2922,23 @@ export function AdminPage() {
                 </div>
               </div>
             ))}
-            {loadingDedupCandidates ? <AdminSectionSkeleton rows={4} /> : null}
+            {loadingDedupCandidates ? <AdminDedupSkeleton rows={1} /> : null}
             {!loadingDedupCandidates && dedupCandidates.length === 0 ? <p className="muted">Кандидатов нет</p> : null}
           </div>
+            </>
+          )}
         </div>
       ) : null}
 
       {tab === "categories" ? (
         <div className="card">
           <h2>Категории</h2>
-          {loadingCategoriesTree ? <AdminSectionSkeleton rows={6} /> : null}
-          {!loadingCategoriesTree && loadingCategoryCounts ? <AdminSectionSkeleton rows={3} /> : null}
-          <div className="categories-layout">
+          {loadingCategoriesTree ? (
+            <AdminCategoriesSkeleton />
+          ) : (
+            <>
+              {loadingCategoryCounts ? <AdminSectionSkeleton rows={2} /> : null}
+              <div className="categories-layout">
             <div>
               <div className="actions" style={{ marginBottom: "0.5rem" }}>
                 <button type="button" className="tree-plus" onClick={() => onStartCategoryCreate(null)}>
@@ -3163,14 +3185,18 @@ export function AdminPage() {
               )}
             </div>
           </div>
+            </>
+          )}
         </div>
       ) : null}
 
       {tab === "sources" ? (
         <div className="card">
           <h2>Источники ({sources.length})</h2>
-          {loading ? <AdminSectionSkeleton rows={5} /> : null}
-          <div className="list">
+          {loading ? (
+            <AdminSourcesSkeleton rows={5} />
+          ) : (
+            <div className="list">
             {sources.map((source) => (
               <div key={source.key} className="list-row">
                 <div>
@@ -3198,7 +3224,8 @@ export function AdminPage() {
                 </label>
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -3206,11 +3233,11 @@ export function AdminPage() {
         <div className="card">
           <h2>Настройки ценообразования</h2>
           {(pricingTabLoading && !pricingSettings) ? (
-            <AdminSectionSkeleton rows={8} />
+            <AdminPricingSkeleton />
           ) : !pricingSettings ? (
-            <AdminSectionSkeleton rows={8} />
+            <AdminPricingSkeleton />
           ) : pricingBlockedByInitialBybit ? (
-            <AdminSectionSkeleton rows={3} />
+            <AdminPricingSkeleton />
           ) : (
             <>
               <div className="pricing-worker-box">
@@ -3694,7 +3721,7 @@ export function AdminPage() {
       {tab === "weight" ? (
         <div className="card">
           <h2>Настройки веса</h2>
-          {weightTabLoading ? <AdminSectionSkeleton rows={6} /> : (
+          {weightTabLoading ? <AdminWeightSkeleton /> : (
             <>
               <p className="muted">Вес в граммах задается слева. Справа добавляй англ-ключевые слова.</p>
 
@@ -3804,7 +3831,7 @@ export function AdminPage() {
       {tab === "settings" ? (
         <div className="card">
           <h2>Параметры витрины</h2>
-          {(pricingTabLoading && !pricingSettings) ? <AdminSectionSkeleton rows={2} /> : null}
+          {(pricingTabLoading && !pricingSettings) ? <AdminSettingsSkeleton /> : null}
           <div className="pricing-settings-grid" style={{ marginBottom: "1rem" }}>
             <label className="pricing-settings-field">
               <span className="muted with-help">
