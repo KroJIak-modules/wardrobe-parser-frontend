@@ -206,12 +206,12 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
         throw new Error(`Ошибка: ${res.status}`);
       }
       const payload = (await res.json()) as CategoryView[];
-      const enabledRoots = (payload || []).filter((item) => item.is_enabled && item.parent_id === null);
-      cachedRoots = enabledRoots;
-      for (const root of enabledRoots) {
+      const rootsPayload = payload || [];
+      cachedRoots = rootsPayload;
+      for (const root of rootsPayload) {
         cachedSlugToRoot.set(root.slug, root.slug);
       }
-      setRoots(enabledRoots);
+      setRoots(rootsPayload);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       pushToast(`Ошибка каталога: ${message}`);
