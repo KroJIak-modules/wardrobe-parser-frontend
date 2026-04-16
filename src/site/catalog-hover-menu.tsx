@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { LatexBrand } from "../shared/latex-brand";
+import { LazyLatexBrand } from "../shared/lazy-latex-brand";
 import type { CategoryView } from "../shared/live-data-context";
 import { CatalogPanelSkeleton, CatalogRootsSkeleton } from "../shared/skeleton";
 import { ALL_PRODUCTS_ROOT_SLUG } from "./catalog-helpers";
@@ -7,7 +7,7 @@ import { ALL_PRODUCTS_ROOT_SLUG } from "./catalog-helpers";
 type CatalogHoverMenuProps = {
   roots: CategoryView[];
   rootsLoading: boolean;
-  openedRootSlug: string;
+  hoveredRootSlug: string | null;
   selectedRootSlug: string;
   selectedCategorySlug: string;
   categoryCounts: Map<string, number>;
@@ -15,7 +15,6 @@ type CatalogHoverMenuProps = {
   panelLoading: boolean;
   onRootHover: (rootSlug: string) => void;
   onSelect: (slug: string, rootSlug: string) => void;
-  onMenuEnter: () => void;
   onMenuLeave: () => void;
 };
 
@@ -47,7 +46,7 @@ function CategoryEntry({
         className={titleClassName}
         onClick={() => onSelect(category.slug, rootSlug)}
       >
-        {isDesignerBrand ? <LatexBrand value={category.name} fallback={category.name} /> : category.name}
+        {isDesignerBrand ? <LazyLatexBrand value={category.name} fallback={category.name} /> : category.name}
         <span className="catalog-hover-count">({formatCount(categoryCounts.get(category.slug) || 0)})</span>
       </button>
 
@@ -67,7 +66,7 @@ function CategoryEntry({
                 }
                 onClick={() => onSelect(child.slug, rootSlug)}
               >
-                {isDesignerChild ? <LatexBrand value={child.name} fallback={child.name} /> : child.name}
+                {isDesignerChild ? <LazyLatexBrand value={child.name} fallback={child.name} /> : child.name}
                 <span className="catalog-hover-count">({formatCount(categoryCounts.get(child.slug) || 0)})</span>
               </button>
             );
@@ -81,7 +80,7 @@ function CategoryEntry({
 export function CatalogHoverMenu({
   roots,
   rootsLoading,
-  openedRootSlug,
+  hoveredRootSlug,
   selectedRootSlug,
   selectedCategorySlug,
   categoryCounts,
@@ -89,29 +88,22 @@ export function CatalogHoverMenu({
   panelLoading,
   onRootHover,
   onSelect,
-  onMenuEnter,
   onMenuLeave,
 }: CatalogHoverMenuProps) {
-  const openedRoot = useMemo(() => roots.find((root) => root.slug === openedRootSlug) || roots[0], [roots, openedRootSlug]);
-  const activeRootSlug = useMemo(() => {
-    if (openedRootSlug === ALL_PRODUCTS_ROOT_SLUG && selectedRootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
-      return selectedRootSlug;
-    }
-    return openedRootSlug;
-  }, [openedRootSlug, selectedRootSlug]);
+  const hoveredRoot = useMemo(
+    () => (hoveredRootSlug ? roots.find((root) => root.slug === hoveredRootSlug) || null : null),
+    [roots, hoveredRootSlug]
+  );
+  const activeRootSlug = hoveredRootSlug || selectedRootSlug;
 
   if (rootsLoading) {
     return <CatalogRootsSkeleton />;
   }
 
-  if (!openedRoot) {
-    return null;
-  }
-
-  const shouldShowOverlay = openedRoot.slug !== ALL_PRODUCTS_ROOT_SLUG;
+  const shouldShowOverlay = hoveredRoot !== null && hoveredRoot.slug !== ALL_PRODUCTS_ROOT_SLUG;
 
   return (
-    <section className="catalog-hover" onMouseEnter={onMenuEnter} onMouseLeave={onMenuLeave}>
+    <section className="catalog-hover" onMouseLeave={onMenuLeave}>
       <div className="catalog-hover-roots" role="tablist" aria-label="Каталоги">
         {roots.map((root) => {
           const active = activeRootSlug === root.slug;
@@ -148,7 +140,7 @@ export function CatalogHoverMenu({
                   <CategoryEntry
                     key={category.slug}
                     category={category}
-                    rootSlug={openedRoot.slug}
+                    rootSlug={hoveredRoot?.slug || selectedRootSlug}
                     selectedCategorySlug={selectedCategorySlug}
                     categoryCounts={categoryCounts}
                     onSelect={onSelect}

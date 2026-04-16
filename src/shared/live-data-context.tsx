@@ -264,6 +264,8 @@ export type PricingSettings = {
   customs_fixed_rub: number;
   shipping_alt_threshold_eur: number;
   tax_rate: number;
+  designers_min_products: number;
+  designers_exclude_store_vendors: boolean;
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
@@ -361,6 +363,8 @@ export type SettingsTransferPricingSettings = {
   customs_fixed_rub: number;
   shipping_alt_threshold_eur: number;
   tax_rate: number;
+  designers_min_products: number;
+  designers_exclude_store_vendors: boolean;
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;

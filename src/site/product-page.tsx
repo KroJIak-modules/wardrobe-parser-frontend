@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ImageWithFallback } from "../shared/image-with-fallback";
-import { SkeletonBlock } from "../shared/skeleton";
+import { ProductPageSkeleton } from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
 import { useToasts } from "../shared/use-toasts";
 import { LatexBrand } from "../shared/latex-brand";
@@ -132,15 +132,7 @@ export function ProductPage() {
   const statusClass = getStatusClass(product?.status || "unknown");
 
   if (loading) {
-    return (
-      <section className="section">
-        <div className="card admin-skeleton-stack">
-          <SkeletonBlock className="admin-skeleton-row" />
-          <SkeletonBlock className="admin-skeleton-row" />
-          <SkeletonBlock className="admin-skeleton-row" />
-        </div>
-      </section>
-    );
+    return <ProductPageSkeleton />;
   }
 
   if (error || !product) {

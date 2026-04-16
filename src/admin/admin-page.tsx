@@ -6,7 +6,7 @@ import { useLiveData, type CategoryManualProduct, type PricingSettings, type Set
 import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { IconChevronDown, IconClose, IconInfo, IconPlus } from "../shared/mono-icons";
-import { AdminSectionSkeleton, AdminTableSkeleton } from "../shared/skeleton";
+import { AdminProductsSkeleton, AdminSectionSkeleton, AdminTableSkeleton } from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
 import { useToasts } from "../shared/use-toasts";
 
@@ -617,6 +617,7 @@ export function AdminPage() {
   const [svcRuleDrafts, setSvcRuleDrafts] = useState<SvcRuleDraft[]>([]);
   const [shippingRuleDrafts, setShippingRuleDrafts] = useState<ShippingRuleDraft[]>([]);
   const [finalRoundingModeDraft, setFinalRoundingModeDraft] = useState<FinalRoundingMode>("unit");
+  const [designersMinProductsDraft, setDesignersMinProductsDraft] = useState<string>("1");
   const [showBybitErrorPopup, setShowBybitErrorPopup] = useState<boolean>(false);
   const [settingsExportInProgress, setSettingsExportInProgress] = useState<boolean>(false);
   const [settingsImportInProgress, setSettingsImportInProgress] = useState<boolean>(false);
@@ -683,7 +684,7 @@ export function AdminPage() {
 
   useEffect(() => {
     const run = async () => {
-      if (tab === "pricing") {
+      if (tab === "pricing" || tab === "settings") {
         setPricingTabLoading(true);
         try {
           await ensurePricingLoaded();
@@ -958,6 +959,14 @@ export function AdminPage() {
     if (!pricingSettings) {
       return;
     }
+    const nextValue = Math.max(1, Math.trunc(Number(pricingSettings.designers_min_products || 1)));
+    setDesignersMinProductsDraft(String(nextValue));
+  }, [pricingSettings?.designers_min_products]);
+
+  useEffect(() => {
+    if (!pricingSettings) {
+      return;
+    }
     const patch: Partial<PricingSettings> = {};
     for (const key of pricingNumericKeys) {
       const raw = (pricingDrafts[key] ?? "").trim();
@@ -1028,6 +1037,28 @@ export function AdminPage() {
     }, 400);
     return () => window.clearTimeout(timer);
   }, [finalRoundingModeDraft, pricingSettings, updatePricingSettings]);
+
+  useEffect(() => {
+    if (!pricingSettings) {
+      return;
+    }
+    const parsed = Number((designersMinProductsDraft || "").trim());
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return;
+    }
+    const nextValue = Math.max(1, Math.trunc(parsed));
+    const currentValue = Math.max(1, Math.trunc(Number(pricingSettings.designers_min_products || 1)));
+    if (nextValue === currentValue) {
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      const result = await updatePricingSettings({ designers_min_products: nextValue });
+      if (!result.ok) {
+        pushToast(result.message);
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [designersMinProductsDraft, pricingSettings, updatePricingSettings]);
 
   useEffect(() => {
     if (!pricingSettings) {
@@ -2689,6 +2720,10 @@ export function AdminPage() {
 
       {tab === "products" ? (
         <div className="card">
+          {loading && displayedProducts.length === 0 ? (
+            <AdminProductsSkeleton />
+          ) : (
+            <>
           <h2>
             {loading && displayedProducts.length === 0
               ? "Все товары"
@@ -2811,12 +2846,13 @@ export function AdminPage() {
                   })}
                 </tbody>
               </table>
-              {loading && displayedProducts.length === 0 ? <AdminTableSkeleton rows={8} cols={8} /> : null}
               {!loading && displayedProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
               {displayedLoadingMore ? <AdminTableSkeleton rows={3} cols={8} /> : null}
               <div ref={productsSentinelRef} style={{ height: "1px" }} />
             </div>
           </div>
+            </>
+          )}
         </div>
       ) : null}
 
@@ -3767,6 +3803,51 @@ export function AdminPage() {
 
       {tab === "settings" ? (
         <div className="card">
+          <h2>Параметры витрины</h2>
+          {(pricingTabLoading && !pricingSettings) ? <AdminSectionSkeleton rows={2} /> : null}
+          <div className="pricing-settings-grid" style={{ marginBottom: "1rem" }}>
+            <label className="pricing-settings-field">
+              <span className="muted with-help">
+                <span className="pricing-field-label">
+                  <span>Минимум товаров у бренда для «Дизайнеров»</span>
+                </span>
+                <HelpHint text="Бренд попадет в ветку «Дизайнеры», только если у него не меньше этого количества товаров." />
+              </span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={designersMinProductsDraft}
+                onChange={(event) => setDesignersMinProductsDraft(event.target.value)}
+                disabled={!pricingSettings}
+              />
+            </label>
+            <label className="pricing-settings-field">
+              <span className="muted with-help">
+                <span className="pricing-field-label">
+                  <span>Исключать бренды-магазины</span>
+                </span>
+                <HelpHint text="Если включено, из «Дизайнеров» убираются бренды, которые совпадают с именем/доменом самого источника." />
+              </span>
+              <input
+                type="checkbox"
+                checked={Boolean(pricingSettings?.designers_exclude_store_vendors)}
+                disabled={!pricingSettings}
+                onChange={async (event) => {
+                  if (!pricingSettings) {
+                    return;
+                  }
+                  const result = await updatePricingSettings({
+                    designers_exclude_store_vendors: Boolean(event.target.checked),
+                  });
+                  if (!result.ok) {
+                    pushToast(result.message);
+                  }
+                }}
+              />
+            </label>
+          </div>
+
           <h2>Экспорт и импорт настроек</h2>
           {(settingsExportInProgress || settingsImportInProgress) ? <AdminSectionSkeleton rows={2} /> : null}
           <p className="muted">

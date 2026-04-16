@@ -1,4 +1,5 @@
 import { renderToString } from "katex";
+import { useMemo } from "react";
 
 function escapeLatexText(value: string): string {
   return value.replace(/([\\{}$&#_%~^])/g, "\\$1");
@@ -27,11 +28,11 @@ export function LatexBrand({
   fallback?: string;
   className?: string;
 }) {
+  const html = useMemo(() => renderBrandLatexHtml(value, fallback), [value, fallback]);
   return (
     <span
       className={className ? `latex-brand ${className}` : "latex-brand"}
-      dangerouslySetInnerHTML={{ __html: renderBrandLatexHtml(value, fallback) }}
+      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }
-

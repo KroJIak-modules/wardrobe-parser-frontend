@@ -91,8 +91,8 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestIdRef = useRef(0);
+  const fetchAbortRef = useRef<AbortController | null>(null);
   const routeSyncRef = useRef(false);
-  const closeMenuTimerRef = useRef<number | null>(null);
 
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_CATALOG_FILTERS);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>(forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG);
@@ -100,10 +100,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     const targetSlug = forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG;
     return cachedSlugToRoot.get(targetSlug) || ALL_PRODUCTS_ROOT_SLUG;
   });
-  const [openedRootSlug, setOpenedRootSlug] = useState<string>(() => {
-    const targetSlug = forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG;
-    return cachedSlugToRoot.get(targetSlug) || ALL_PRODUCTS_ROOT_SLUG;
-  });
+  const [hoveredRootSlug, setHoveredRootSlug] = useState<string | null>(null);
   const { toasts, pushToast, closeToast } = useToasts();
 
   const [products, setProducts] = useState<ServiceProduct[]>([]);
@@ -164,11 +161,16 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     return counts;
   }, [roots, rootNodes]);
 
+  const activePanelRootSlug = hoveredRootSlug;
+
   const panelCategories = useMemo(() => {
-    if (openedRootSlug === ALL_PRODUCTS_ROOT_SLUG) {
+    if (!activePanelRootSlug) {
       return [] as CategoryView[];
     }
-    const root = rootNodes.get(openedRootSlug);
+    if (activePanelRootSlug === ALL_PRODUCTS_ROOT_SLUG) {
+      return [] as CategoryView[];
+    }
+    const root = rootNodes.get(activePanelRootSlug);
     if (!root) {
       return [] as CategoryView[];
     }
@@ -183,32 +185,20 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       }
       return left.name.localeCompare(right.name, "ru");
     });
-  }, [openedRootSlug, rootNodes]);
+  }, [activePanelRootSlug, rootNodes]);
 
   const isPanelLoading = useMemo(() => {
-    if (openedRootSlug === ALL_PRODUCTS_ROOT_SLUG) {
+    if (!activePanelRootSlug) {
       return false;
     }
-    if (!rootNodes.has(openedRootSlug)) {
+    if (activePanelRootSlug === ALL_PRODUCTS_ROOT_SLUG) {
+      return false;
+    }
+    if (!rootNodes.has(activePanelRootSlug)) {
       return true;
     }
-    return Boolean(rootPanelLoading.get(openedRootSlug));
-  }, [rootNodes, rootPanelLoading, openedRootSlug]);
-
-  const cancelMenuClose = useCallback(() => {
-    if (closeMenuTimerRef.current !== null) {
-      window.clearTimeout(closeMenuTimerRef.current);
-      closeMenuTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleMenuClose = useCallback(() => {
-    cancelMenuClose();
-    closeMenuTimerRef.current = window.setTimeout(() => {
-      setOpenedRootSlug(ALL_PRODUCTS_ROOT_SLUG);
-      closeMenuTimerRef.current = null;
-    }, 140);
-  }, [cancelMenuClose]);
+    return Boolean(rootPanelLoading.get(activePanelRootSlug));
+  }, [rootNodes, rootPanelLoading, activePanelRootSlug]);
 
   const fetchRoots = useCallback(async () => {
     if (cachedRoots !== null) {
@@ -304,6 +294,13 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   }, [fetchRootPanel, rootNodes, roots]);
 
   const fetchPage = useCallback(async (cursor: string | null, append: boolean) => {
+    if (!append) {
+      fetchAbortRef.current?.abort();
+      fetchAbortRef.current = null;
+    }
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+
     const params = new URLSearchParams();
     params.set("limit", String(PAGE_SIZE));
     if (selectedCategorySlug !== ALL_PRODUCTS_ROOT_SLUG) {
@@ -330,7 +327,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/catalog/products?${params.toString()}`);
+      const res = await fetch(`${API_BASE}/catalog/products?${params.toString()}`, { signal: controller.signal });
       if (!res.ok) {
         const payload = (await res.json().catch(() => null)) as { detail?: string } | null;
         throw new Error(payload?.detail || `Ошибка: ${res.status}`);
@@ -344,6 +341,9 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       setNextCursor(payload.next_cursor || null);
       setHasMoreServer(Boolean(payload.has_more && payload.next_cursor));
     } catch (e) {
+      if (controller.signal.aborted) {
+        return;
+      }
       if (myRequestId !== requestIdRef.current) {
         return;
       }
@@ -355,6 +355,9 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       setNextCursor(null);
       setHasMoreServer(false);
     } finally {
+      if (fetchAbortRef.current === controller) {
+        fetchAbortRef.current = null;
+      }
       if (myRequestId === requestIdRef.current) {
         setLoadingFirstPage(false);
         setLoadingNextPage(false);
@@ -374,14 +377,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   }, [fetchRoots]);
 
   useEffect(() => {
-    return () => {
-      if (closeMenuTimerRef.current !== null) {
-        window.clearTimeout(closeMenuTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     if (roots.length === 0) {
       return;
     }
@@ -389,7 +384,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     const cachedRootSlug = cachedSlugToRoot.get(targetSlug);
     if (cachedRootSlug) {
       setSelectedRootSlug(cachedRootSlug);
-      setOpenedRootSlug(cachedRootSlug);
     }
     if (
       routeSyncRef.current
@@ -402,7 +396,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     void (async () => {
       const rootSlug = await resolveRootSlugForCategory(targetSlug);
       setSelectedRootSlug(rootSlug);
-      setOpenedRootSlug(rootSlug);
       if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
         await fetchRootPanel(rootSlug);
       }
@@ -419,6 +412,13 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   }, [selectedCategorySlug, fetchPage]);
 
   useEffect(() => {
+    return () => {
+      fetchAbortRef.current?.abort();
+      fetchAbortRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const node = sentinelRef.current;
     if (!node) {
       return;
@@ -429,7 +429,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
         if (!entries.some((entry) => entry.isIntersecting)) {
           return;
         }
-        if (!hasMoreServer || loadingNextPage || loadingFirstPage || !nextCursor) {
+        if (products.length === 0 || !hasMoreServer || loadingNextPage || loadingFirstPage || !nextCursor) {
           return;
         }
         void fetchPage(nextCursor, true);
@@ -439,11 +439,10 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [fetchPage, hasMoreServer, loadingNextPage, loadingFirstPage, nextCursor]);
+  }, [fetchPage, hasMoreServer, loadingNextPage, loadingFirstPage, nextCursor, products.length]);
 
   const handleRootHover = (rootSlug: string) => {
-    cancelMenuClose();
-    setOpenedRootSlug(rootSlug);
+    setHoveredRootSlug(rootSlug);
     if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
       if (!cachedRootNodes.has(rootSlug)) {
         setRootPanelLoading((prev) => new Map(prev).set(rootSlug, true));
@@ -453,10 +452,9 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   };
 
   const handleCategorySelect = (slug: string, rootSlug: string) => {
-    cancelMenuClose();
+    setHoveredRootSlug(null);
     setSelectedCategorySlug(slug);
     setSelectedRootSlug(rootSlug);
-    setOpenedRootSlug(rootSlug);
     if (slug === ALL_PRODUCTS_ROOT_SLUG) {
       navigate("/");
       return;
@@ -565,7 +563,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       <CatalogHoverMenu
         roots={sortedRoots}
         rootsLoading={rootsLoading}
-        openedRootSlug={openedRootSlug}
+        hoveredRootSlug={hoveredRootSlug}
         selectedRootSlug={selectedRootSlug}
         selectedCategorySlug={selectedCategorySlug}
         categoryCounts={countsBySlug}
@@ -573,8 +571,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
         panelLoading={isPanelLoading}
         onRootHover={handleRootHover}
         onSelect={handleCategorySelect}
-        onMenuEnter={cancelMenuClose}
-        onMenuLeave={scheduleMenuClose}
+        onMenuLeave={() => setHoveredRootSlug(null)}
       />
 
       <div className="catalog-filters card">
@@ -768,13 +765,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
           <div ref={sentinelRef} className="catalog-sentinel" />
 
           {(loadingNextPage || hasMoreServer) ? (
-            loadingNextPage ? (
-              <CatalogCardSkeletonGrid count={4} />
-            ) : (
-              <div className="catalog-loading-more">
-                <span className="muted">Прокрути ниже, чтобы загрузить ещё товары</span>
-              </div>
-            )
+            loadingNextPage ? <CatalogCardSkeletonGrid count={4} /> : null
           ) : null}
         </>
       ) : null}
