@@ -564,7 +564,6 @@ export function AdminPage() {
     exportSettings,
     importSettings,
     assignSourceSupplier,
-    refresh,
   } = useLiveData();
 
   const [tab, setTab] = useState<AdminTab>("products");
@@ -673,10 +672,6 @@ export function AdminPage() {
       setShowBybitErrorPopup(false);
     }
   }, [pricingSettings?.bybit_last_error]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
 
   useEffect(() => {
     const run = async () => {

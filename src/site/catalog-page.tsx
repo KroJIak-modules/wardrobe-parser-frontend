@@ -83,6 +83,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_CATALOG_FILTERS);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>(forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG);
   const [selectedRootSlug, setSelectedRootSlug] = useState<string>(ALL_PRODUCTS_ROOT_SLUG);
+  const [openedRootSlug, setOpenedRootSlug] = useState<string>(ALL_PRODUCTS_ROOT_SLUG);
   const { toasts, pushToast, closeToast } = useToasts();
 
   const [products, setProducts] = useState<ServiceProduct[]>([]);
@@ -143,17 +144,17 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   }, [roots, rootNodes]);
 
   const panelCategories = useMemo(() => {
-    if (selectedRootSlug === ALL_PRODUCTS_ROOT_SLUG) {
+    if (openedRootSlug === ALL_PRODUCTS_ROOT_SLUG) {
       return [] as CategoryView[];
     }
-    const root = rootNodes.get(selectedRootSlug);
+    const root = rootNodes.get(openedRootSlug);
     if (!root) {
       return [] as CategoryView[];
     }
     return root.children && root.children.length > 0 ? root.children : [root];
-  }, [selectedRootSlug, rootNodes]);
+  }, [openedRootSlug, rootNodes]);
 
-  const isPanelLoading = useMemo(() => Boolean(rootPanelLoading.get(selectedRootSlug)), [rootPanelLoading, selectedRootSlug]);
+  const isPanelLoading = useMemo(() => Boolean(rootPanelLoading.get(openedRootSlug)), [rootPanelLoading, openedRootSlug]);
 
   const fetchRoots = useCallback(async () => {
     setRootsLoading(true);
@@ -304,6 +305,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     void (async () => {
       const rootSlug = await resolveRootSlugForCategory(targetSlug);
       setSelectedRootSlug(rootSlug);
+      setOpenedRootSlug(rootSlug);
       if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
         await fetchRootPanel(rootSlug);
       }
@@ -339,14 +341,20 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   }, [fetchPage, hasMoreServer, loadingNextPage, loadingFirstPage, nextCursor]);
 
   const handleRootHover = (rootSlug: string) => {
+    setOpenedRootSlug(rootSlug);
     if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
       void fetchRootPanel(rootSlug);
     }
   };
 
+  const handleRootLeave = () => {
+    setOpenedRootSlug(selectedRootSlug);
+  };
+
   const handleCategorySelect = (slug: string, rootSlug: string) => {
     setSelectedCategorySlug(slug);
     setSelectedRootSlug(rootSlug);
+    setOpenedRootSlug(rootSlug);
     if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
       void fetchRootPanel(rootSlug);
     }
@@ -444,12 +452,14 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       <CatalogHoverMenu
         roots={sortedRoots}
         rootsLoading={rootsLoading}
+        openedRootSlug={openedRootSlug}
         selectedRootSlug={selectedRootSlug}
         selectedCategorySlug={selectedCategorySlug}
         categoryCounts={countsBySlug}
         panelCategories={panelCategories}
         panelLoading={isPanelLoading}
         onRootHover={handleRootHover}
+        onRootLeave={handleRootLeave}
         onSelect={handleCategorySelect}
       />
 

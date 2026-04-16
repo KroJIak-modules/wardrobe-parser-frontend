@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { CategoryView } from "../shared/live-data-context";
 import { CatalogPanelSkeleton, CatalogRootsSkeleton } from "../shared/skeleton";
 import { ALL_PRODUCTS_ROOT_SLUG } from "./catalog-helpers";
@@ -6,12 +6,14 @@ import { ALL_PRODUCTS_ROOT_SLUG } from "./catalog-helpers";
 type CatalogHoverMenuProps = {
   roots: CategoryView[];
   rootsLoading: boolean;
+  openedRootSlug: string;
   selectedRootSlug: string;
   selectedCategorySlug: string;
   categoryCounts: Map<string, number>;
   panelCategories: CategoryView[];
   panelLoading: boolean;
   onRootHover: (rootSlug: string) => void;
+  onRootLeave: () => void;
   onSelect: (slug: string, rootSlug: string) => void;
 };
 
@@ -70,17 +72,16 @@ function CategoryEntry({
 export function CatalogHoverMenu({
   roots,
   rootsLoading,
+  openedRootSlug,
   selectedRootSlug,
   selectedCategorySlug,
   categoryCounts,
   panelCategories,
   panelLoading,
   onRootHover,
+  onRootLeave,
   onSelect,
 }: CatalogHoverMenuProps) {
-  const [hoveredRootSlug, setHoveredRootSlug] = useState<string>(selectedRootSlug);
-
-  const openedRootSlug = hoveredRootSlug || selectedRootSlug;
   const openedRoot = useMemo(() => roots.find((root) => root.slug === openedRootSlug) || roots[0], [roots, openedRootSlug]);
 
   if (rootsLoading) {
@@ -94,23 +95,22 @@ export function CatalogHoverMenu({
   const shouldShowOverlay = openedRoot.slug !== ALL_PRODUCTS_ROOT_SLUG;
 
   return (
-    <section className="catalog-hover" onMouseLeave={() => setHoveredRootSlug(selectedRootSlug)}>
+    <section className="catalog-hover" onMouseLeave={onRootLeave}>
       <div className="catalog-hover-roots" role="tablist" aria-label="Каталоги">
         {roots.map((root) => {
           const active = openedRoot.slug === root.slug;
+          const selected = selectedRootSlug === root.slug;
           return (
             <button
               key={root.slug}
               type="button"
               role="tab"
-              aria-selected={active}
+              aria-selected={selected}
               className={active ? "catalog-hover-root catalog-hover-root--active" : "catalog-hover-root"}
               onMouseEnter={() => {
-                setHoveredRootSlug(root.slug);
                 onRootHover(root.slug);
               }}
               onFocus={() => {
-                setHoveredRootSlug(root.slug);
                 onRootHover(root.slug);
               }}
               onClick={() => onSelect(root.slug, root.slug)}
