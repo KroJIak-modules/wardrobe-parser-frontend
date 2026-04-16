@@ -185,7 +185,15 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     });
   }, [openedRootSlug, rootNodes]);
 
-  const isPanelLoading = useMemo(() => Boolean(rootPanelLoading.get(openedRootSlug)), [rootPanelLoading, openedRootSlug]);
+  const isPanelLoading = useMemo(() => {
+    if (openedRootSlug === ALL_PRODUCTS_ROOT_SLUG) {
+      return false;
+    }
+    if (!rootNodes.has(openedRootSlug)) {
+      return true;
+    }
+    return Boolean(rootPanelLoading.get(openedRootSlug));
+  }, [rootNodes, rootPanelLoading, openedRootSlug]);
 
   const cancelMenuClose = useCallback(() => {
     if (closeMenuTimerRef.current !== null) {
@@ -437,6 +445,9 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     cancelMenuClose();
     setOpenedRootSlug(rootSlug);
     if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
+      if (!cachedRootNodes.has(rootSlug)) {
+        setRootPanelLoading((prev) => new Map(prev).set(rootSlug, true));
+      }
       void fetchRootPanel(rootSlug);
     }
   };
