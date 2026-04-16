@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 
 type ImageWithFallbackProps = {
   src: string | null | undefined;
@@ -11,7 +11,7 @@ type ImageWithFallbackProps = {
   loading?: "lazy" | "eager";
 };
 
-export function ImageWithFallback({
+function ImageWithFallbackBase({
   src,
   alt,
   className,
@@ -70,3 +70,5 @@ export function ImageWithFallback({
     </div>
   );
 }
+
+export const ImageWithFallback = memo(ImageWithFallbackBase);

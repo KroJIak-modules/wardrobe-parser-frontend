@@ -1212,7 +1212,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
               : item
           )
         );
-        return { ok: true, message: "Звездные категории сохранены", assignedCategoryIds: assigned };
+        return { ok: true, message: "Избранные категории сохранены", assignedCategoryIds: assigned };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCategoryIds: [] };
       }

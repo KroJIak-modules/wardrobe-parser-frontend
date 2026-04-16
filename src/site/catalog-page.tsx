@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconClose, IconExternalLink, IconEye, IconEyeOff, IconStar } from "../shared/mono-icons";
 import { ImageWithFallback } from "../shared/image-with-fallback";
+import { LatexBrand } from "../shared/latex-brand";
 import { CatalogCardSkeletonGrid } from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
 import { useToasts } from "../shared/use-toasts";
@@ -38,6 +39,10 @@ type CatalogProductsResponse = {
 const PAGE_SIZE = 36;
 const API_BASE = "/api/v1";
 
+let cachedRoots: CategoryView[] | null = null;
+let cachedRootNodes = new Map<string, CategoryView>();
+let cachedSlugToRoot = new Map<string, string>();
+
 function formatMoney(value: number | null | undefined, currency: string): string {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return "-";
@@ -73,17 +78,32 @@ function hasSlug(node: CategoryView, slug: string): boolean {
   return (node.children || []).some((child) => hasSlug(child, slug));
 }
 
+function fillSlugRootMap(node: CategoryView, rootSlug: string) {
+  cachedSlugToRoot.set(node.slug, rootSlug);
+  for (const child of node.children || []) {
+    fillSlugRootMap(child, rootSlug);
+  }
+}
+
 export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   const { sources, loading, error, getProductStarredCategories, setProductStarredCategories, setProductStatus } = useLiveData();
   const navigate = useNavigate();
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestIdRef = useRef(0);
+  const routeSyncRef = useRef(false);
+  const closeMenuTimerRef = useRef<number | null>(null);
 
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_CATALOG_FILTERS);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>(forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG);
-  const [selectedRootSlug, setSelectedRootSlug] = useState<string>(ALL_PRODUCTS_ROOT_SLUG);
-  const [openedRootSlug, setOpenedRootSlug] = useState<string>(ALL_PRODUCTS_ROOT_SLUG);
+  const [selectedRootSlug, setSelectedRootSlug] = useState<string>(() => {
+    const targetSlug = forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG;
+    return cachedSlugToRoot.get(targetSlug) || ALL_PRODUCTS_ROOT_SLUG;
+  });
+  const [openedRootSlug, setOpenedRootSlug] = useState<string>(() => {
+    const targetSlug = forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG;
+    return cachedSlugToRoot.get(targetSlug) || ALL_PRODUCTS_ROOT_SLUG;
+  });
   const { toasts, pushToast, closeToast } = useToasts();
 
   const [products, setProducts] = useState<ServiceProduct[]>([]);
@@ -91,10 +111,11 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   const [hasMoreServer, setHasMoreServer] = useState<boolean>(false);
   const [loadingFirstPage, setLoadingFirstPage] = useState<boolean>(false);
   const [loadingNextPage, setLoadingNextPage] = useState<boolean>(false);
+  const [pendingStatusIds, setPendingStatusIds] = useState<Set<number>>(new Set());
 
-  const [rootsLoading, setRootsLoading] = useState<boolean>(true);
-  const [roots, setRoots] = useState<CategoryView[]>([]);
-  const [rootNodes, setRootNodes] = useState<Map<string, CategoryView>>(new Map());
+  const [rootsLoading, setRootsLoading] = useState<boolean>(cachedRoots === null);
+  const [roots, setRoots] = useState<CategoryView[]>(cachedRoots || []);
+  const [rootNodes, setRootNodes] = useState<Map<string, CategoryView>>(() => new Map(cachedRootNodes));
   const [rootPanelLoading, setRootPanelLoading] = useState<Map<string, boolean>>(new Map());
 
   const [starPicker, setStarPicker] = useState<{
@@ -151,12 +172,43 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     if (!root) {
       return [] as CategoryView[];
     }
-    return root.children && root.children.length > 0 ? root.children : [root];
+    const base = root.children && root.children.length > 0 ? [...root.children] : [root];
+    if (!root.is_designers_root) {
+      return base;
+    }
+    return base.sort((left, right) => {
+      const byCount = Number(right.count || 0) - Number(left.count || 0);
+      if (byCount !== 0) {
+        return byCount;
+      }
+      return left.name.localeCompare(right.name, "ru");
+    });
   }, [openedRootSlug, rootNodes]);
 
   const isPanelLoading = useMemo(() => Boolean(rootPanelLoading.get(openedRootSlug)), [rootPanelLoading, openedRootSlug]);
 
+  const cancelMenuClose = useCallback(() => {
+    if (closeMenuTimerRef.current !== null) {
+      window.clearTimeout(closeMenuTimerRef.current);
+      closeMenuTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleMenuClose = useCallback(() => {
+    cancelMenuClose();
+    closeMenuTimerRef.current = window.setTimeout(() => {
+      setOpenedRootSlug(ALL_PRODUCTS_ROOT_SLUG);
+      closeMenuTimerRef.current = null;
+    }, 140);
+  }, [cancelMenuClose]);
+
   const fetchRoots = useCallback(async () => {
+    if (cachedRoots !== null) {
+      setRoots(cachedRoots);
+      setRootsLoading(false);
+      return;
+    }
+
     setRootsLoading(true);
     try {
       const res = await fetch(`${API_BASE}/catalog/categories/roots?include_counts=1`);
@@ -165,6 +217,10 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       }
       const payload = (await res.json()) as CategoryView[];
       const enabledRoots = (payload || []).filter((item) => item.is_enabled && item.parent_id === null);
+      cachedRoots = enabledRoots;
+      for (const root of enabledRoots) {
+        cachedSlugToRoot.set(root.slug, root.slug);
+      }
       setRoots(enabledRoots);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -179,8 +235,8 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     if (!rootSlug || rootSlug === ALL_PRODUCTS_ROOT_SLUG) {
       return null;
     }
-    if (rootNodes.has(rootSlug)) {
-      return rootNodes.get(rootSlug) || null;
+    if (cachedRootNodes.has(rootSlug)) {
+      return cachedRootNodes.get(rootSlug) || null;
     }
     setRootPanelLoading((prev) => new Map(prev).set(rootSlug, true));
     try {
@@ -189,7 +245,13 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
         throw new Error(`Ошибка: ${res.status}`);
       }
       const payload = (await res.json()) as CategoryView;
-      setRootNodes((prev) => new Map(prev).set(rootSlug, payload));
+      cachedRootNodes.set(rootSlug, payload);
+      fillSlugRootMap(payload, rootSlug);
+      setRootNodes((prev) => {
+        const next = new Map(prev);
+        next.set(rootSlug, payload);
+        return next;
+      });
       return payload;
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
@@ -202,24 +264,31 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
         return next;
       });
     }
-  }, [pushToast, rootNodes]);
+  }, [pushToast]);
 
   const resolveRootSlugForCategory = useCallback(async (slug: string): Promise<string> => {
     if (slug === ALL_PRODUCTS_ROOT_SLUG) {
       return ALL_PRODUCTS_ROOT_SLUG;
     }
+    const cached = cachedSlugToRoot.get(slug);
+    if (cached) {
+      return cached;
+    }
     const directRoot = roots.find((root) => root.slug === slug);
     if (directRoot) {
+      cachedSlugToRoot.set(slug, directRoot.slug);
       return directRoot.slug;
     }
     for (const [rootSlug, rootNode] of rootNodes.entries()) {
       if (hasSlug(rootNode, slug)) {
+        cachedSlugToRoot.set(slug, rootSlug);
         return rootSlug;
       }
     }
     for (const root of roots) {
       const rootNode = (await fetchRootPanel(root.slug)) || null;
       if (rootNode && hasSlug(rootNode, slug)) {
+        cachedSlugToRoot.set(slug, root.slug);
         return root.slug;
       }
     }
@@ -297,10 +366,30 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   }, [fetchRoots]);
 
   useEffect(() => {
+    return () => {
+      if (closeMenuTimerRef.current !== null) {
+        window.clearTimeout(closeMenuTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (roots.length === 0) {
       return;
     }
     const targetSlug = forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG;
+    const cachedRootSlug = cachedSlugToRoot.get(targetSlug);
+    if (cachedRootSlug) {
+      setSelectedRootSlug(cachedRootSlug);
+      setOpenedRootSlug(cachedRootSlug);
+    }
+    if (
+      routeSyncRef.current
+      && targetSlug === selectedCategorySlug
+      && (targetSlug === ALL_PRODUCTS_ROOT_SLUG || selectedRootSlug !== ALL_PRODUCTS_ROOT_SLUG)
+    ) {
+      return;
+    }
     setSelectedCategorySlug(targetSlug);
     void (async () => {
       const rootSlug = await resolveRootSlugForCategory(targetSlug);
@@ -309,11 +398,15 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
         await fetchRootPanel(rootSlug);
       }
+      routeSyncRef.current = true;
     })();
-  }, [forcedCategorySlug, roots, resolveRootSlugForCategory, fetchRootPanel]);
+  }, [forcedCategorySlug, roots, resolveRootSlugForCategory, fetchRootPanel, selectedCategorySlug, selectedRootSlug]);
 
   useEffect(() => {
     setStarPicker(null);
+    // Reset pagination before fetching a new category/filter slice.
+    setHasMoreServer(false);
+    setNextCursor(null);
     void fetchPage(null, false);
   }, [selectedCategorySlug, fetchPage]);
 
@@ -341,23 +434,18 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   }, [fetchPage, hasMoreServer, loadingNextPage, loadingFirstPage, nextCursor]);
 
   const handleRootHover = (rootSlug: string) => {
+    cancelMenuClose();
     setOpenedRootSlug(rootSlug);
     if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
       void fetchRootPanel(rootSlug);
     }
-  };
-
-  const handleRootLeave = () => {
-    setOpenedRootSlug(selectedRootSlug);
   };
 
   const handleCategorySelect = (slug: string, rootSlug: string) => {
+    cancelMenuClose();
     setSelectedCategorySlug(slug);
     setSelectedRootSlug(rootSlug);
     setOpenedRootSlug(rootSlug);
-    if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
-      void fetchRootPanel(rootSlug);
-    }
     if (slug === ALL_PRODUCTS_ROOT_SLUG) {
       navigate("/");
       return;
@@ -379,12 +467,27 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   };
 
   const onToggleHidden = async (productId: number, currentStatus: ProductUiStatus) => {
+    if (pendingStatusIds.has(productId)) {
+      return;
+    }
+
     const nextStatus = currentStatus === "hidden" ? "available" : "hidden";
+    setPendingStatusIds((prev) => {
+      const next = new Set(prev);
+      next.add(productId);
+      return next;
+    });
+
     const result = await setProductStatus(productId, nextStatus);
-    pushToast(result.message);
     if (result.ok) {
       setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, status: nextStatus } : item)));
     }
+    pushToast(result.message);
+    setPendingStatusIds((prev) => {
+      const next = new Set(prev);
+      next.delete(productId);
+      return next;
+    });
   };
 
   const onOpenStarPicker = async (productId: number) => {
@@ -396,8 +499,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       return;
     }
     if (result.availableCategories.length === 0) {
-      pushToast("Нет звездных категорий. Отметь категории звездой в админке.");
-      setStarPicker(null);
+      setStarPicker({ productId, loading: false, options: [], selected: [] });
       return;
     }
     setStarPicker({
@@ -445,7 +547,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     <section className="section catalog">
       <div className="catalog-head">
         <div>
-          <h1>Каталог продавца</h1>
+          <h1>Каталог товаров</h1>
         </div>
       </div>
 
@@ -459,8 +561,9 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
         panelCategories={panelCategories}
         panelLoading={isPanelLoading}
         onRootHover={handleRootHover}
-        onRootLeave={handleRootLeave}
         onSelect={handleCategorySelect}
+        onMenuEnter={cancelMenuClose}
+        onMenuLeave={scheduleMenuClose}
       />
 
       <div className="catalog-filters card">
@@ -556,7 +659,9 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
 
                   <h3 className="catalog-card-title" title={product.title}>{product.title}</h3>
 
-                  <p className="muted catalog-card-subtitle">{product.vendor || "Без бренда"}</p>
+                  <p className="muted catalog-card-subtitle">
+                    <LatexBrand value={product.vendor} />
+                  </p>
 
                   <p className="catalog-card-price" title={priceTitle}>
                     {formatMoney(product.price, product.currency)}
@@ -580,6 +685,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                       type="button"
                       className="icon-btn"
                       title={normalizedStatus === "hidden" ? "Показать товар" : "Скрыть товар"}
+                      disabled={pendingStatusIds.has(product.id)}
                       onClick={(event) => {
                         event.stopPropagation();
                         void onToggleHidden(product.id, normalizedStatus);
@@ -590,7 +696,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                     <button
                       type="button"
                       className={product.is_favorite ? "icon-btn icon-btn--active" : "icon-btn"}
-                      title="Выбрать звездные категории"
+                      title="Выбрать избранные категории"
                       onClick={(event) => {
                         event.stopPropagation();
                         if (starPicker && starPicker.productId === product.id) {
@@ -608,25 +714,31 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                         role="dialog"
-                        aria-label="Выбор звездных категорий"
+                        aria-label="Выбор избранных категорий"
                       >
                         <div className="star-picker-head">
-                          <strong>Звездные категории</strong>
-                          <button type="button" className="icon-btn" onClick={() => setStarPicker(null)} title="Закрыть">
-                            <IconClose className="icon-svg" />
-                          </button>
+                          <strong>Избранные категории</strong>
+                          {starPicker.options.length > 0 ? (
+                            <button type="button" className="icon-btn" onClick={() => setStarPicker(null)} title="Закрыть">
+                              <IconClose className="icon-svg" />
+                            </button>
+                          ) : null}
                         </div>
-                        {starPicker.options.map((option) => (
-                          <label key={option.id} className="star-picker-option">
-                            <input
-                              type="checkbox"
-                              checked={starPicker.selected.includes(option.id)}
-                              onChange={() => void onToggleStarCategory(product.id, option.id)}
-                              disabled={starPicker.loading}
-                            />
-                            <span>{option.name}</span>
-                          </label>
-                        ))}
+                        {starPicker.options.length === 0 ? (
+                          <p className="star-picker-empty">Пусто</p>
+                        ) : (
+                          starPicker.options.map((option) => (
+                            <label key={option.id} className="star-picker-option">
+                              <input
+                                type="checkbox"
+                                checked={starPicker.selected.includes(option.id)}
+                                onChange={() => void onToggleStarCategory(product.id, option.id)}
+                                disabled={starPicker.loading}
+                              />
+                              <span>{option.name}</span>
+                            </label>
+                          ))
+                        )}
                       </div>
                     ) : null}
                   </div>

@@ -4,6 +4,7 @@ import { ImageWithFallback } from "../shared/image-with-fallback";
 import { SkeletonBlock } from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
 import { useToasts } from "../shared/use-toasts";
+import { LatexBrand } from "../shared/latex-brand";
 import { getProductPrimaryImageUrl, useLiveData } from "../shared/live-data-context";
 import { getSourceNameById, getStatusClass, getStatusLabel } from "./catalog-helpers";
 
@@ -208,7 +209,7 @@ export function ProductPage() {
 
           <div className="product-main-meta">
             <p><strong>Источник:</strong> {sourceName}</p>
-            <p><strong>Бренд:</strong> {product.vendor || "-"}</p>
+            <p><strong>Бренд:</strong> <LatexBrand value={product.vendor} fallback="-" /></p>
             <p><strong>Handle:</strong> {product.handle || "-"}</p>
             <p><strong>Категории:</strong> {categoryNames.length > 0 ? categoryNames.join(", ") : "-"}</p>
             <p><strong>Обновлено:</strong> {formatDateTime(product.updated_at)}</p>

@@ -1,20 +1,17 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 
 export function SiteLayout() {
   return (
     <div className="shell">
       <header className="topbar">
-        <Link to="/" className="brand">
-          Wardrobe
-        </Link>
-        <nav className="menu">
-          <NavLink to="/" className="menu-link">
-            Products
-          </NavLink>
-          <NavLink to="/admin" className="menu-link">
-            Admin
-          </NavLink>
-        </nav>
+        <div className="topbar-inner">
+          <Link to="/" className="brand" aria-label="Anton Shell">
+            <img src="/logo_anton_shell.svg" alt="Anton Shell" className="brand-logo" />
+          </Link>
+          <Link to="/admin" className="topbar-cta">
+            Панель управления
+          </Link>
+        </div>
       </header>
       <main className="container">
         <Outlet />

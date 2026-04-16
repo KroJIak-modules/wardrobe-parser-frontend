@@ -513,6 +513,14 @@ type AdminListProduct = {
 };
 
 export function AdminPage() {
+  useEffect(() => {
+    const prevTitle = document.title;
+    document.title = "Админ панель | Anton Shell";
+    return () => {
+      document.title = prevTitle;
+    };
+  }, []);
+
   const {
     products,
     productsTotal,
@@ -2426,7 +2434,7 @@ export function AdminPage() {
       return;
     }
     const result = await updateCategory(selectedCategoryId, { is_favorite: isFavorite });
-    pushToast(result.ok ? (isFavorite ? "Категория отмечена звездой" : "Звезда снята") : result.message);
+    pushToast(result.ok ? (isFavorite ? "Категория добавлена в избранное" : "Категория удалена из избранного") : result.message);
   };
 
   const onAddManualProduct = async (productId: number) => {
@@ -2939,7 +2947,7 @@ export function AdminPage() {
                         <span className="ui-switch-track">
                           <span className="ui-switch-thumb" />
                         </span>
-                        <span className="ui-switch-text">{selectedCategory.is_favorite ? "Звездная" : "Обычная"}</span>
+                        <span className="ui-switch-text">{selectedCategory.is_favorite ? "Избранная" : "Обычная"}</span>
                       </label>
                     ) : null}
                     <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_system}>

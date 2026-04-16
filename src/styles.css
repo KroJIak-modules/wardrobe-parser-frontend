@@ -264,32 +264,51 @@ a {
   position: sticky;
   top: 0;
   z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
+  height: 60px;
+  padding: 6px 16px;
   background: #ffffff;
   border-bottom: 1px solid #e6e6e6;
 }
 
-.brand {
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.menu {
+.topbar-inner {
+  max-width: 1120px;
+  margin: 0 auto;
   display: flex;
-  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.menu-link {
+.brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand-logo {
+  display: block;
+  height: 46px;
+  width: auto;
+}
+
+.topbar-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d6df;
+  background: #f7f9fd;
+  color: #1e2430;
   font-size: 14px;
-  color: #666666;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.menu-link.active {
-  color: #111111;
-  font-weight: 600;
+.topbar-cta:hover {
+  background: #eef2f9;
+  border-color: #bbc4d2;
 }
 
 .container {
@@ -434,11 +453,20 @@ a {
 
 .catalog-hover-overlay {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  width: min(1120px, calc(100vw - 24px));
+  width: min(900px, calc(100vw - 24px));
   z-index: 40;
+}
+
+.catalog-hover-overlay::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  left: 0;
+  right: 0;
+  height: 14px;
 }
 
 .catalog-hover-grid {
@@ -577,6 +605,20 @@ a {
   margin: 0;
 }
 
+.latex-brand {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.latex-brand .katex {
+  font-size: 1em;
+}
+
+.latex-brand .katex .text {
+  font-family: "Latin Modern Roman", "CMU Serif", "Times New Roman", serif;
+  letter-spacing: 0.02em;
+}
+
 .catalog-card-price {
   margin: 0;
   font-size: 18px;
@@ -650,6 +692,12 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 13px;
+}
+
+.star-picker-empty {
+  margin: 0;
+  color: #666666;
   font-size: 13px;
 }
 
@@ -2109,7 +2157,18 @@ button:disabled {
   }
 
   .topbar {
-    padding: 12px 14px;
+    height: 56px;
+    padding: 6px 16px;
+  }
+
+  .brand-logo {
+    height: 40px;
+  }
+
+  .topbar-cta {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 13px;
   }
 }
 
