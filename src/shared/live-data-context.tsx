@@ -48,6 +48,7 @@ export type ServiceProduct = {
   pricing_manual_required?: boolean;
   pricing_reason?: string | null;
   pricing_components?: Record<string, unknown>;
+  buyout_price_rub?: number | null;
   status: string;
   image_count: number;
   image_urls: string[];
@@ -1560,20 +1561,27 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const run = async () => {
       try {
-        await Promise.all([
-          refresh(),
-          refreshCategoriesOnly({ includeCounts: false }),
-        ]);
-        void refreshCategoriesOnly({ includeCounts: true }).catch((e: unknown) => {
-          setError(e instanceof Error ? e.message : "Unknown error");
-        });
+        const isAdminRoute = window.location.pathname.startsWith("/admin");
+        if (isAdminRoute) {
+          await Promise.all([
+            refresh(),
+            refreshCategoriesOnly({ includeCounts: false }),
+          ]);
+          void refreshCategoriesOnly({ includeCounts: true }).catch((e: unknown) => {
+            setError(e instanceof Error ? e.message : "Unknown error");
+          });
+          return;
+        }
+        await refreshSourcesOnly();
+        setLoading(false);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unknown error");
+        setLoading(false);
       }
     };
     void run();
     return undefined;
-  }, [refresh, refreshCategoriesOnly]);
+  }, [refresh, refreshCategoriesOnly, refreshSourcesOnly]);
 
   useEffect(() => {
     if (!latestJob || !["pending", "in_progress"].includes(latestJob.status)) {

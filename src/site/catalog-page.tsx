@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { IconClose, IconExternalLink, IconEye, IconEyeOff, IconStar } from "../shared/mono-icons";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { CatalogCardSkeletonGrid } from "../shared/skeleton";
+import { ToastStack } from "../shared/toast-stack";
+import { useToasts } from "../shared/use-toasts";
 import {
   getProductPrimaryImageUrl,
   type CategoryView,
@@ -81,14 +83,13 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_CATALOG_FILTERS);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>(forcedCategorySlug || ALL_PRODUCTS_ROOT_SLUG);
   const [selectedRootSlug, setSelectedRootSlug] = useState<string>(ALL_PRODUCTS_ROOT_SLUG);
-  const [inlineMessage, setInlineMessage] = useState<string | null>(null);
+  const { toasts, pushToast, closeToast } = useToasts();
 
   const [products, setProducts] = useState<ServiceProduct[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMoreServer, setHasMoreServer] = useState<boolean>(false);
   const [loadingFirstPage, setLoadingFirstPage] = useState<boolean>(false);
   const [loadingNextPage, setLoadingNextPage] = useState<boolean>(false);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   const [rootsLoading, setRootsLoading] = useState<boolean>(true);
   const [roots, setRoots] = useState<CategoryView[]>([]);
@@ -141,8 +142,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     return counts;
   }, [roots, rootNodes]);
 
-  const selectedCatalogTotal = useMemo(() => countsBySlug.get(selectedCategorySlug) || 0, [countsBySlug, selectedCategorySlug]);
-
   const panelCategories = useMemo(() => {
     if (selectedRootSlug === ALL_PRODUCTS_ROOT_SLUG) {
       return [] as CategoryView[];
@@ -166,14 +165,14 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       const payload = (await res.json()) as CategoryView[];
       const enabledRoots = (payload || []).filter((item) => item.is_enabled && item.parent_id === null);
       setRoots(enabledRoots);
-      setCatalogError(null);
     } catch (e) {
-      setCatalogError(e instanceof Error ? e.message : "Unknown error");
+      const message = e instanceof Error ? e.message : "Unknown error";
+      pushToast(`Ошибка каталога: ${message}`);
       setRoots([]);
     } finally {
       setRootsLoading(false);
     }
-  }, []);
+  }, [pushToast]);
 
   const fetchRootPanel = useCallback(async (rootSlug: string) => {
     if (!rootSlug || rootSlug === ALL_PRODUCTS_ROOT_SLUG) {
@@ -190,10 +189,10 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       }
       const payload = (await res.json()) as CategoryView;
       setRootNodes((prev) => new Map(prev).set(rootSlug, payload));
-      setCatalogError(null);
       return payload;
     } catch (e) {
-      setCatalogError(e instanceof Error ? e.message : "Unknown error");
+      const message = e instanceof Error ? e.message : "Unknown error";
+      pushToast(`Ошибка каталога: ${message}`);
       return null;
     } finally {
       setRootPanelLoading((prev) => {
@@ -202,7 +201,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
         return next;
       });
     }
-  }, [rootNodes]);
+  }, [pushToast, rootNodes]);
 
   const resolveRootSlugForCategory = useCallback(async (slug: string): Promise<string> => {
     if (slug === ALL_PRODUCTS_ROOT_SLUG) {
@@ -266,12 +265,12 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       setProducts((prev) => (append ? [...prev, ...items] : items));
       setNextCursor(payload.next_cursor || null);
       setHasMoreServer(Boolean(payload.has_more && payload.next_cursor));
-      setCatalogError(null);
     } catch (e) {
       if (myRequestId !== requestIdRef.current) {
         return;
       }
-      setCatalogError(e instanceof Error ? e.message : "Unknown error");
+      const message = e instanceof Error ? e.message : "Unknown error";
+      pushToast(`Ошибка каталога: ${message}`);
       if (!append) {
         setProducts([]);
       }
@@ -283,7 +282,14 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
         setLoadingNextPage(false);
       }
     }
-  }, [filters.query, filters.sourceId, filters.status, selectedCategorySlug]);
+  }, [filters.query, filters.sourceId, filters.status, pushToast, selectedCategorySlug]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    pushToast(`Ошибка: ${error}`);
+  }, [error, pushToast]);
 
   useEffect(() => {
     void fetchRoots();
@@ -305,7 +311,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   }, [forcedCategorySlug, roots, resolveRootSlugForCategory, fetchRootPanel]);
 
   useEffect(() => {
-    setInlineMessage(null);
     setStarPicker(null);
     void fetchPage(null, false);
   }, [selectedCategorySlug, fetchPage]);
@@ -342,7 +347,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   const handleCategorySelect = (slug: string, rootSlug: string) => {
     setSelectedCategorySlug(slug);
     setSelectedRootSlug(rootSlug);
-    setInlineMessage(null);
     if (rootSlug !== ALL_PRODUCTS_ROOT_SLUG) {
       void fetchRootPanel(rootSlug);
     }
@@ -369,7 +373,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   const onToggleHidden = async (productId: number, currentStatus: ProductUiStatus) => {
     const nextStatus = currentStatus === "hidden" ? "available" : "hidden";
     const result = await setProductStatus(productId, nextStatus);
-    setInlineMessage(result.message);
+    pushToast(result.message);
     if (result.ok) {
       setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, status: nextStatus } : item)));
     }
@@ -379,12 +383,12 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     setStarPicker({ productId, loading: true, options: [], selected: [] });
     const result = await getProductStarredCategories(productId);
     if (!result.ok) {
-      setInlineMessage(result.message);
+      pushToast(result.message);
       setStarPicker(null);
       return;
     }
     if (result.availableCategories.length === 0) {
-      setInlineMessage("Нет звездных категорий. Отметь категории звездой в админке.");
+      pushToast("Нет звездных категорий. Отметь категории звездой в админке.");
       setStarPicker(null);
       return;
     }
@@ -405,7 +409,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     const nextSelected = isSelected ? previousSelected.filter((id) => id !== categoryId) : [...previousSelected, categoryId];
     setStarPicker((prev) => (prev && prev.productId === productId ? { ...prev, loading: true, selected: nextSelected } : prev));
     const result = await setProductStarredCategories(productId, nextSelected);
-    setInlineMessage(result.message);
+    pushToast(result.message);
     if (result.ok) {
       setProducts((prev) =>
         prev.map((item) =>
@@ -434,7 +438,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
       <div className="catalog-head">
         <div>
           <h1>Каталог продавца</h1>
-          <p className="muted">В каталоге выбранного раздела: {selectedCatalogTotal}</p>
         </div>
       </div>
 
@@ -485,14 +488,6 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
           </label>
         </div>
       </div>
-
-      <div className="catalog-subhead">
-        <p className="muted">Показано: {products.length}</p>
-        {inlineMessage ? <p className="muted">{inlineMessage}</p> : null}
-      </div>
-
-      {error ? <p className="muted catalog-error">Ошибка загрузки: {error}</p> : null}
-      {catalogError ? <p className="muted catalog-error">Ошибка каталога: {catalogError}</p> : null}
 
       {showGridSkeleton ? <CatalogCardSkeletonGrid count={12} /> : null}
 
@@ -650,6 +645,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
           ) : null}
         </>
       ) : null}
+      <ToastStack toasts={toasts} onClose={closeToast} />
     </section>
   );
 }

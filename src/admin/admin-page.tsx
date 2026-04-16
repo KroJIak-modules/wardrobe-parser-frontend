@@ -7,17 +7,14 @@ import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { IconChevronDown, IconClose, IconInfo, IconPlus } from "../shared/mono-icons";
 import { AdminSectionSkeleton, AdminTableSkeleton } from "../shared/skeleton";
+import { ToastStack } from "../shared/toast-stack";
+import { useToasts } from "../shared/use-toasts";
 
 type AdminTab = "products" | "dedup" | "categories" | "sources" | "pricing" | "weight" | "settings";
 
 type UploadPreview = {
   file: File;
   url: string;
-};
-
-type ToastItem = {
-  id: number;
-  message: string;
 };
 
 const tabs: { key: AdminTab; label: string }[] = [
@@ -567,12 +564,12 @@ export function AdminPage() {
     exportSettings,
     importSettings,
     assignSourceSupplier,
+    refresh,
   } = useLiveData();
 
   const [tab, setTab] = useState<AdminTab>("products");
   const [openModal, setOpenModal] = useState<boolean>(false);
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const toastIdRef = useRef<number>(1);
+  const { toasts, pushToast, closeToast } = useToasts();
 
   const [productUrl, setProductUrl] = useState<string>("");
   const [productTitle, setProductTitle] = useState<string>("");
@@ -629,6 +626,9 @@ export function AdminPage() {
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
   const settingsImportInputRef = useRef<HTMLInputElement | null>(null);
   const bybitWarnToastShownRef = useRef<string | null>(null);
+  const pricingBlockedToastShownRef = useRef<boolean>(false);
+  const shippingValidationToastRef = useRef<string | null>(null);
+  const svcValidationToastRef = useRef<string | null>(null);
 
   const [filteredServerProducts, setFilteredServerProducts] = useState<AdminListProduct[]>([]);
   const [filteredServerTotal, setFilteredServerTotal] = useState<number>(0);
@@ -640,19 +640,6 @@ export function AdminPage() {
   const canRunSync = !isSyncInProgress;
   const canCancelSync = Boolean(latestJob?.can_cancel && latestJob?.job_id);
 
-  const pushToast = (message: string) => {
-    const text = message.trim();
-    if (!text) {
-      return;
-    }
-    const id = toastIdRef.current++;
-    setToasts((prev) => [...prev, { id, message: text }]);
-  };
-
-  const closeToast = (toastId: number) => {
-    setToasts((prev) => prev.filter((item) => item.id !== toastId));
-  };
-
   useEffect(() => {
     return () => {
       for (const item of imagePreviews) {
@@ -660,22 +647,6 @@ export function AdminPage() {
       }
     };
   }, [imagePreviews]);
-
-  useEffect(() => {
-    if (toasts.length === 0) {
-      return;
-    }
-    const timers = toasts.map((toast) =>
-      window.setTimeout(() => {
-        closeToast(toast.id);
-      }, 4500)
-    );
-    return () => {
-      for (const timer of timers) {
-        window.clearTimeout(timer);
-      }
-    };
-  }, [toasts]);
 
   useEffect(() => {
     if (!error) {
@@ -702,6 +673,10 @@ export function AdminPage() {
       setShowBybitErrorPopup(false);
     }
   }, [pricingSettings?.bybit_last_error]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   useEffect(() => {
     const run = async () => {
@@ -2169,6 +2144,44 @@ export function AdminPage() {
     return !hasSuccessfulRefresh && failedNow;
   }, [pricingSettings]);
 
+  useEffect(() => {
+    if (!pricingBlockedByInitialBybit) {
+      pricingBlockedToastShownRef.current = false;
+      return;
+    }
+    if (pricingBlockedToastShownRef.current) {
+      return;
+    }
+    pricingBlockedToastShownRef.current = true;
+    pushToast("Ценообразование временно недоступно: ждем первый успешный курс Bybit после запуска системы.");
+  }, [pricingBlockedByInitialBybit, pushToast]);
+
+  useEffect(() => {
+    const message = (shippingRulesValidationError || "").trim();
+    if (!message) {
+      shippingValidationToastRef.current = null;
+      return;
+    }
+    if (shippingValidationToastRef.current === message) {
+      return;
+    }
+    shippingValidationToastRef.current = message;
+    pushToast(message);
+  }, [shippingRulesValidationError, pushToast]);
+
+  useEffect(() => {
+    const message = (svcRulesValidationError || "").trim();
+    if (!message) {
+      svcValidationToastRef.current = null;
+      return;
+    }
+    if (svcValidationToastRef.current === message) {
+      return;
+    }
+    svcValidationToastRef.current = message;
+    pushToast(message);
+  }, [svcRulesValidationError, pushToast]);
+
   const statusBadge = (status: string) => {
     if (status === "available") {
       return { label: "Доступен", cls: "status-pill status-pill--ok" };
@@ -3158,7 +3171,7 @@ export function AdminPage() {
           ) : !pricingSettings ? (
             <AdminSectionSkeleton rows={8} />
           ) : pricingBlockedByInitialBybit ? (
-            <p className="muted">Ценообразование временно недоступно: ждем первый успешный курс Bybit после запуска системы.</p>
+            <AdminSectionSkeleton rows={3} />
           ) : (
             <>
               <div className="pricing-worker-box">
@@ -3442,9 +3455,6 @@ export function AdminPage() {
                     </div>
                   );
                 })}
-                {shippingRulesValidationError ? (
-                  <p className="muted pricing-svc-error">{shippingRulesValidationError}</p>
-                ) : null}
               </div>
 
               <h3 className="with-help">
@@ -3523,9 +3533,6 @@ export function AdminPage() {
                     Добавить надбавку
                   </button>
                 </div>
-                {svcRulesValidationError ? (
-                  <p className="muted pricing-svc-error">{svcRulesValidationError}</p>
-                ) : null}
               </div>
 
               <h3 className="with-help">
@@ -3871,16 +3878,7 @@ export function AdminPage() {
         </div>
       ) : null}
 
-      <div className="toast-stack" aria-live="polite" aria-atomic="true">
-        {toasts.map((toast) => (
-          <div key={toast.id} className="toast-item">
-            <span>{toast.message}</span>
-            <button type="button" className="toast-close" onClick={() => closeToast(toast.id)}>
-              <IconClose className="icon-svg icon-svg--sm" />
-            </button>
-          </div>
-        ))}
-      </div>
+      <ToastStack toasts={toasts} onClose={closeToast} />
 
       {zoomedImageUrl ? (
         <div className="modal-backdrop" onClick={() => setZoomedImageUrl(null)}>

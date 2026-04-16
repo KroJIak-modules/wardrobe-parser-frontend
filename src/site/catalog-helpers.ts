@@ -305,6 +305,9 @@ export function findSelectedRootSlug(roots: CategoryView[], selectedCategorySlug
 }
 
 export function resolveBuyoutPrice(product: ServiceProduct): number | null {
+  if (typeof product.buyout_price_rub === "number" && Number.isFinite(product.buyout_price_rub)) {
+    return product.buyout_price_rub;
+  }
   const components = product.pricing_components || {};
   const keys = ["buyout_rub", "buyout_price_rub", "buyout"]; 
   for (const key of keys) {

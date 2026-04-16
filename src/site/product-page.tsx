@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { SkeletonBlock } from "../shared/skeleton";
+import { ToastStack } from "../shared/toast-stack";
+import { useToasts } from "../shared/use-toasts";
 import { getProductPrimaryImageUrl, useLiveData } from "../shared/live-data-context";
 import { getSourceNameById, getStatusClass, getStatusLabel } from "./catalog-helpers";
 
@@ -45,6 +47,7 @@ export function ProductPage() {
   const [product, setProduct] = useState<typeof inlineProduct>(inlineProduct);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const { toasts, pushToast, closeToast } = useToasts();
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
 
@@ -82,6 +85,13 @@ export function ProductPage() {
       cancelled = true;
     };
   }, [productId, inlineProduct, getProductById]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    pushToast(error);
+  }, [error, pushToast]);
 
   const images = useMemo(() => {
     if (!product) {
@@ -136,11 +146,12 @@ export function ProductPage() {
     return (
       <section className="section">
         <div className="catalog-empty card">
-          <p>{error || "Товар не найден"}</p>
+          <p>Товар не найден</p>
           <Link className="btn-link" to="/">
             Вернуться к каталогу
           </Link>
         </div>
+        <ToastStack toasts={toasts} onClose={closeToast} />
       </section>
     );
   }
@@ -253,6 +264,7 @@ export function ProductPage() {
           </div>
         </section>
       </div>
+      <ToastStack toasts={toasts} onClose={closeToast} />
     </article>
   );
 }
