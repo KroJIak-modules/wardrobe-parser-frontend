@@ -686,6 +686,8 @@ export function AdminPage() {
     undoDedupDecision,
     loading,
     toggleSourceEnabled,
+    toggleSourceSyncEnabled,
+    toggleSourceAutoHideProducts,
     weightRules,
     weightMissingProducts,
     pricingSettings,
@@ -2148,6 +2150,29 @@ export function AdminPage() {
     });
   };
 
+  const formatSyncStatusRu = (status: string | null | undefined) => {
+    const value = String(status || "").trim().toLowerCase();
+    if (value === "pending") {
+      return "В очереди";
+    }
+    if (value === "in_progress") {
+      return "Выполняется";
+    }
+    if (value === "completed" || value === "success") {
+      return "Завершено";
+    }
+    if (value === "partial") {
+      return "Частично";
+    }
+    if (value === "cancelled") {
+      return "Отменено";
+    }
+    if (value === "failed") {
+      return "Ошибка";
+    }
+    return "Неизвестно";
+  };
+
   const bybitWorkerInfo = useMemo(() => {
     if (!pricingSettings) {
       return {
@@ -2936,16 +2961,19 @@ export function AdminPage() {
           <div className="sync-summary">
             {isSyncInProgress ? (
               <>
-                <p className="muted">
-                  Этап: {latestJob.current_stage || "discovery"} • Сайт: {latestJob.current_source_name || "-"} (
-                  {latestJob.current_source_index || 0}/{latestJob.total_sources || 0})
-                </p>
                 <div className="sync-progress">
                   <div className="sync-progress__bar" style={{ width: `${Math.max(0, Math.min(100, latestJob.progress_percent || 0))}%` }} />
                 </div>
-                <p className="muted">
-                  {Math.max(0, Math.min(100, latestJob.progress_percent || 0))}% • Сайты: {latestJob.processed_sources}/{latestJob.total_sources}
-                </p>
+                <div className="sync-stats">
+                  <span className="sync-pill">{`${latestJob.processed_sources || 0}/${latestJob.total_sources || 0}`}</span>
+                  <span className="sync-pill">{latestJob.current_source_name || "—"}</span>
+                  <span className="sync-pill">{latestJob.current_source_parser_type || "—"}</span>
+                  <span className="sync-pill">Выгружено: {latestJob.processed_products || 0}</span>
+                  <span className="sync-pill">Обнаружено: {latestJob.expected_products || 0}</span>
+                  <span className="sync-pill">Ошибок: {latestJob.failed_products || 0}</span>
+                  <span className="sync-pill">{Math.max(0, Math.min(100, latestJob.progress_percent || 0))}%</span>
+                  <span className="sync-pill">{formatSyncStatusRu(latestJob.status)}</span>
+                </div>
               </>
             ) : (
               latestJob.status === "completed" ? (
@@ -3694,23 +3722,63 @@ export function AdminPage() {
                   </a>
                 </div>
                 <div className="source-card-foot">
-                  <span className="source-pill">Товаров: {source.products_count}</span>
-                  <label className="ui-switch ui-switch--compact source-card-switch">
-                    <input
-                      type="checkbox"
-                      checked={source.enabled}
-                      onChange={(event) => {
-                        void (async () => {
-                          const result = await toggleSourceEnabled(source.key, event.target.checked);
-                          pushToast(result.message);
-                        })();
-                      }}
-                    />
-                    <span className="ui-switch-track">
-                      <span className="ui-switch-thumb" />
-                    </span>
-                    <span className="ui-switch-text">{source.enabled ? "Включен" : "Выключен"}</span>
-                  </label>
+                  <div className="source-card-meta">
+                    <span className="source-pill">Товаров: {source.products_count}</span>
+                    <span className="source-pill">Время: {source.last_sync_duration_sec ?? 0}с</span>
+                    <span className="source-pill">Последняя: {source.last_sync_at ? formatDateTime(source.last_sync_at) : "—"}</span>
+                  </div>
+                  <div className="source-card-switches">
+                    <label className="ui-switch ui-switch--compact source-card-switch">
+                      <input
+                        type="checkbox"
+                        checked={source.enabled}
+                        onChange={(event) => {
+                          void (async () => {
+                            const result = await toggleSourceEnabled(source.key, event.target.checked);
+                            pushToast(result.message);
+                          })();
+                        }}
+                      />
+                      <span className="ui-switch-track">
+                        <span className="ui-switch-thumb" />
+                      </span>
+                      <span className="ui-switch-text">{source.enabled ? "Тип включен" : "Тип выключен"}</span>
+                    </label>
+                    <label className="ui-switch ui-switch--compact source-card-switch">
+                      <input
+                        type="checkbox"
+                        checked={source.sync_enabled}
+                        onChange={(event) => {
+                          void (async () => {
+                            const result = await toggleSourceSyncEnabled(source.key, event.target.checked);
+                            pushToast(result.message);
+                          })();
+                        }}
+                      />
+                      <span className="ui-switch-track">
+                        <span className="ui-switch-thumb" />
+                      </span>
+                      <span className="ui-switch-text">{source.sync_enabled ? "Участвует в sync" : "Исключен из sync"}</span>
+                    </label>
+                    <label className="ui-switch ui-switch--compact source-card-switch">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(source.hide_auto_added_products)}
+                        onChange={(event) => {
+                          void (async () => {
+                            const result = await toggleSourceAutoHideProducts(source.key, event.target.checked);
+                            pushToast(result.message);
+                          })();
+                        }}
+                      />
+                      <span className="ui-switch-track">
+                        <span className="ui-switch-thumb" />
+                      </span>
+                      <span className="ui-switch-text">
+                        {Boolean(source.hide_auto_added_products) ? "Скрывать автотовары" : "Показывать автотовары"}
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </article>
               );

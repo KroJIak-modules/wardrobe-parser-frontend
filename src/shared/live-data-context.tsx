@@ -7,10 +7,15 @@ type Source = {
   base_url: string;
   parser_type: string;
   enabled: boolean;
+  sync_enabled: boolean;
+  hide_auto_added_products?: boolean;
   notes: string | null;
   status_label: string | null;
   products_count: number;
   categories_count: number;
+  last_sync_at?: string | null;
+  last_sync_duration_sec?: number | null;
+  last_sync_status?: string | null;
   supplier_id: number | null;
   supplier_key: string | null;
   supplier_name: string | null;
@@ -132,6 +137,7 @@ type JobsLatest = {
   failed_products: number;
   products_progress_percent: number;
   current_source_name: string | null;
+  current_source_parser_type: string | null;
   current_source_index: number;
   current_stage: string | null;
   current_source_processed_products: number;
@@ -502,6 +508,8 @@ type LiveDataContextValue = {
   ) => Promise<{ ok: boolean; message: string; assignedCategoryIds: number[] }>;
   ensureAllProductsLoaded: () => Promise<void>;
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  toggleSourceSyncEnabled: (sourceKey: string, syncEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  toggleSourceAutoHideProducts: (sourceKey: string, hideAutoAddedProducts: boolean) => Promise<{ ok: boolean; message: string }>;
   createWeightRule: (weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   updateWeightRule: (id: number, weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   deleteWeightRule: (id: number) => Promise<{ ok: boolean; message: string }>;
@@ -1543,6 +1551,50 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     []
   );
 
+  const toggleSourceSyncEnabled = useCallback(
+    async (sourceKey: string, syncEnabled: boolean) => {
+      try {
+        const res = await authFetch(`${API_BASE}/shopify/sources/${sourceKey}/sync-enabled`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sync_enabled: syncEnabled }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        const updated = (await res.json()) as Source;
+        setSources((prev) => prev.map((item) => (item.key === sourceKey ? updated : item)));
+        return { ok: true, message: syncEnabled ? "Источник участвует в синхронизации" : "Источник исключен из синхронизации" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    []
+  );
+
+  const toggleSourceAutoHideProducts = useCallback(
+    async (sourceKey: string, hideAutoAddedProducts: boolean) => {
+      try {
+        const res = await authFetch(`${API_BASE}/shopify/sources/${sourceKey}/hide-auto-added-products`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hide_auto_added_products: hideAutoAddedProducts }),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        const updated = (await res.json()) as Source;
+        setSources((prev) => prev.map((item) => (item.key === sourceKey ? updated : item)));
+        return { ok: true, message: hideAutoAddedProducts ? "Автотовары скрываются глобально" : "Автотовары снова показываются" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    []
+  );
+
   const assignSourceSupplier = useCallback(
     async (
       sourceKey: string,
@@ -1953,6 +2005,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       setProductStarredCategories,
       ensureAllProductsLoaded,
       toggleSourceEnabled,
+      toggleSourceSyncEnabled,
+      toggleSourceAutoHideProducts,
       assignSourceSupplier,
       createWeightRule,
       updateWeightRule,
@@ -2018,6 +2072,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       setProductStarredCategories,
       ensureAllProductsLoaded,
       toggleSourceEnabled,
+      toggleSourceSyncEnabled,
+      toggleSourceAutoHideProducts,
       assignSourceSupplier,
       createWeightRule,
       updateWeightRule,

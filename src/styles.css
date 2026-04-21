@@ -2734,9 +2734,7 @@ textarea {
 
 .source-card-foot {
   margin-top: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: 10px;
 }
 
@@ -2754,6 +2752,18 @@ textarea {
 
 .source-card-switch {
   margin-top: 0;
+}
+
+.source-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source-card-switches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .table-wrap {
@@ -2944,9 +2954,12 @@ textarea {
 .sync-pill {
   display: inline-block;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 6px 11px;
   font-size: 12px;
   font-weight: 600;
+  border: 1px solid #d9dee7;
+  background: #f4f6f9;
+  color: #243040;
 }
 
 .sync-pill--new {
