@@ -36,12 +36,27 @@ type ProductVariant = {
   sku: string | null;
 };
 
+export type ProductEditState = {
+  title_sync_locked: boolean;
+  description_sync_locked: boolean;
+  images_sync_locked: boolean;
+  title_override?: string | null;
+  description_override?: string | null;
+  hidden_source_image_ids: number[];
+  manual_image_ids: number[];
+  manual_image_order: string[];
+  source_image_ids: number[];
+};
+
 export type ServiceProduct = {
   id: number;
   source_id: number;
   handle: string;
   title: string;
   vendor: string | null;
+  vendor_original?: string | null;
+  vendor_mapped?: string | null;
+  vendor_display?: string | null;
   product_type: string | null;
   url: string;
   price: number | null;
@@ -68,6 +83,7 @@ export type ServiceProduct = {
   internal_category_names?: string[];
   internal_category_slugs?: string[];
   description?: string | null;
+  product_edit?: ProductEditState;
   created_at: string;
   updated_at: string;
 };
@@ -213,6 +229,7 @@ export type AdminCategoryNode = {
   product_count: number;
   keywords: string[];
   title_keywords: string[];
+  status_keywords: string[];
   effective_keywords: string[];
   children: AdminCategoryNode[];
 };
@@ -391,7 +408,7 @@ export type SettingsTransferCategoryEntry = {
 export type SettingsTransferCategoryKeywordEntry = {
   category_slug: string;
   keyword: string;
-  scope: "local" | "title";
+  scope: "local" | "title" | "status";
 };
 
 export type SettingsTransferPricingSettings = {
@@ -457,6 +474,7 @@ type LiveDataContextValue = {
   ensurePricingLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: (force?: boolean) => Promise<void>;
   ensureDedupLoaded: (force?: boolean) => Promise<void>;
+  ensureCategoriesLoaded: (force?: boolean) => Promise<void>;
   loadMoreProducts: () => Promise<void>;
   getProductById: (id: number, opts?: { forceFetch?: boolean }) => Promise<ServiceProduct | null>;
   runSync: () => Promise<{ ok: boolean; message: string }>;
@@ -488,8 +506,8 @@ type LiveDataContextValue = {
     payload: { name?: string; parent_id?: number | null; is_enabled?: boolean; is_favorite?: boolean }
   ) => Promise<{ ok: boolean; message: string }>;
   deleteCategory: (id: number) => Promise<{ ok: boolean; message: string }>;
-  addCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title") => Promise<{ ok: boolean; message: string }>;
-  removeCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title") => Promise<{ ok: boolean; message: string }>;
+  addCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title" | "status") => Promise<{ ok: boolean; message: string }>;
+  removeCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title" | "status") => Promise<{ ok: boolean; message: string }>;
   getCategoryManualProducts: (categoryId: number) => Promise<{ ok: boolean; message: string; items: CategoryManualProduct[] }>;
   searchCategoryManualProducts: (categoryId: number, query: string, limit?: number) => Promise<{ ok: boolean; message: string; items: CategoryManualProduct[] }>;
   addCategoryManualProduct: (categoryId: number, productId: number) => Promise<{ ok: boolean; message: string }>;
@@ -499,6 +517,19 @@ type LiveDataContextValue = {
   combineDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
   undoDedupDecision: (pairKey: string) => Promise<{ ok: boolean; message: string }>;
   setProductStatus: (productId: number, status: "available" | "out_of_stock" | "hidden") => Promise<{ ok: boolean; message: string }>;
+  updateProductOverrides: (
+    productId: number,
+    payload: {
+      title?: string;
+      description?: string;
+      images?: {
+        hidden_source_image_ids?: number[];
+        manual_image_ids?: number[];
+        manual_image_order?: string[];
+      };
+      reset_to_default?: Array<"title" | "description" | "images">;
+    }
+  ) => Promise<{ ok: boolean; message: string; product: ServiceProduct | null }>;
   getProductStarredCategories: (
     productId: number
   ) => Promise<{ ok: boolean; message: string; assignedCategoryIds: number[]; availableCategories: ProductStarredCategoryOption[] }>;
@@ -609,6 +640,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const [pricingLoaded, setPricingLoaded] = useState<boolean>(false);
   const [weightLoaded, setWeightLoaded] = useState<boolean>(false);
   const [dedupLoaded, setDedupLoaded] = useState<boolean>(false);
+  const [categoriesLoaded, setCategoriesLoaded] = useState<boolean>(false);
   const [latestJob, setLatestJob] = useState<JobsLatest>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingCategoriesTree, setLoadingCategoriesTree] = useState<boolean>(false);
@@ -617,6 +649,11 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const [error, setError] = useState<string | null>(null);
   const loadingMoreLockRef = useRef<boolean>(false);
   const lastRouteKindRef = useRef<"admin" | "site" | null>(null);
+  const productsRef = useRef<ServiceProduct[]>([]);
+
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
 
   const categories = useMemo<CategoryView[]>(() => {
     const build = (nodes: AdminCategoryNode[]): CategoryView[] => {
@@ -706,6 +743,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       }
       const payload = (await res.json()) as AdminCategoryNode[];
       setAdminCategories(payload || []);
+      setCategoriesLoaded(true);
     } finally {
       if (!silent) {
         if (includeCounts) {
@@ -836,6 +874,13 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     await refreshDedupOnly();
   }, [dedupLoaded, refreshDedupOnly]);
 
+  const ensureCategoriesLoaded = useCallback(async (force = false) => {
+    if (!force && categoriesLoaded) {
+      return;
+    }
+    await refreshCategoriesOnly({ includeCounts: true });
+  }, [categoriesLoaded, refreshCategoriesOnly]);
+
   const loadMoreProducts = useCallback(async () => {
     if (!productsHasMore || loadingMoreProducts || loadingMoreLockRef.current) {
       return;
@@ -873,7 +918,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const getProductById = useCallback(async (id: number, opts?: { forceFetch?: boolean }) => {
     try {
-      const existing = products.find((item) => item.id === id);
+      const existing = productsRef.current.find((item) => item.id === id);
       if (existing && !opts?.forceFetch) {
         if (isUnavailableStatus(existing.status)) {
           return null;
@@ -902,7 +947,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     } catch {
       return null;
     }
-  }, [products]);
+  }, []);
 
   const runSync = useCallback(async () => {
     try {
@@ -1205,7 +1250,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   );
 
   const addCategoryKeyword = useCallback(
-    async (id: number, keyword: string, scope: "local" | "title" = "local") => {
+    async (id: number, keyword: string, scope: "local" | "title" | "status" = "local") => {
       try {
         const res = await authFetch(`${API_BASE}/categories/${id}/keywords`, {
           method: "POST",
@@ -1226,7 +1271,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   );
 
   const removeCategoryKeyword = useCallback(
-    async (id: number, keyword: string, scope: "local" | "title" = "local") => {
+    async (id: number, keyword: string, scope: "local" | "title" | "status" = "local") => {
       try {
         const encodedKeyword = encodeURIComponent(keyword);
         const res = await authFetch(`${API_BASE}/categories/${id}/keywords/${encodedKeyword}?scope=${scope}`, {
@@ -1427,6 +1472,42 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         return { ok: true, message: "Статус товара обновлен" };
       } catch (e) {
         return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    []
+  );
+
+  const updateProductOverrides = useCallback(
+    async (
+      productId: number,
+      payload: {
+        title?: string;
+        description?: string;
+        images?: {
+          hidden_source_image_ids?: number[];
+          manual_image_ids?: number[];
+          manual_image_order?: string[];
+        };
+        reset_to_default?: Array<"title" | "description" | "images">;
+      }
+    ) => {
+      try {
+        const res = await authFetch(`${API_BASE}/products/${productId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}`, product: null };
+        }
+        const nextProduct = (await res.json().catch(() => null)) as ServiceProduct | null;
+        if (nextProduct && typeof nextProduct.id === "number") {
+          setProducts((prev) => prev.map((item) => (item.id === nextProduct.id ? { ...item, ...nextProduct } : item)));
+        }
+        return { ok: true, message: "Товар обновлен", product: nextProduct };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error", product: null };
       }
     },
     []
@@ -1901,10 +1982,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       try {
         if (routeKind === "admin") {
           setLoading(true);
-          await Promise.all([
-            refreshAdminCoreOnly(),
-            refreshCategoriesOnly({ includeCounts: true }),
-          ]);
+          await refreshAdminCoreOnly();
           if (!cancelled) {
             setLoading(false);
           }
@@ -1927,7 +2005,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     return () => {
       cancelled = true;
     };
-  }, [refreshAdminCoreOnly, refreshCategoriesOnly, refreshSourcesOnly, routePath]);
+  }, [refreshAdminCoreOnly, refreshSourcesOnly, routePath]);
 
   useEffect(() => {
     if (!latestJob || !["pending", "in_progress"].includes(latestJob.status)) {
@@ -1978,6 +2056,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensurePricingLoaded,
       ensureWeightLoaded,
       ensureDedupLoaded,
+      ensureCategoriesLoaded,
       loadMoreProducts,
       getProductById,
       runSync,
@@ -2001,6 +2080,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       combineDedupPair,
       undoDedupDecision,
       setProductStatus,
+      updateProductOverrides,
       getProductStarredCategories,
       setProductStarredCategories,
       ensureAllProductsLoaded,
@@ -2045,6 +2125,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensurePricingLoaded,
       ensureWeightLoaded,
       ensureDedupLoaded,
+      ensureCategoriesLoaded,
       loadMoreProducts,
       getProductById,
       runSync,
@@ -2068,6 +2149,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       combineDedupPair,
       undoDedupDecision,
       setProductStatus,
+      updateProductOverrides,
       getProductStarredCategories,
       setProductStarredCategories,
       ensureAllProductsLoaded,

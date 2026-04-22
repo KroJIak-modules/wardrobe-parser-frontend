@@ -1,4 +1,4 @@
-export type AdminTab = "products" | "dedup" | "categories" | "sources" | "pricing" | "weight" | "settings";
+export type AdminTab = "products" | "dedup" | "categories" | "designers" | "sources" | "pricing" | "weight" | "settings";
 
 export type UploadPreview = {
   file: File;
@@ -87,6 +87,10 @@ export type AdminProductsTableItem = {
   id: number;
   source_id: number;
   title: string;
+  vendor?: string | null;
+  vendor_original?: string | null;
+  vendor_mapped?: string | null;
+  vendor_display?: string | null;
   url: string;
   product_type: string | null;
   status: string;
@@ -104,4 +108,10 @@ export type AdminFilterFacetOption = {
   value: string;
   label: string;
   count: number;
+};
+
+export type BrandMappingItem = {
+  source_brand: string;
+  target_brand: string;
+  include_in_designers: boolean;
 };

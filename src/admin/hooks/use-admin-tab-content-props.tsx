@@ -6,8 +6,9 @@ import { getAdminProductStatusBadge } from "../admin-product-status";
 
 type TabContentProps = ComponentProps<typeof AdminTabContent>;
 
-type Params = Omit<TabContentProps, "productsTabProps" | "dedupTabProps" | "categoriesTabProps" | "sourcesTabProps" | "pricingTabProps" | "weightTabProps" | "settingsTabProps"> & {
+type Params = Omit<TabContentProps, "productsTabProps" | "dedupTabProps" | "categoriesTabProps" | "designersTabProps" | "sourcesTabProps" | "pricingTabProps" | "weightTabProps" | "settingsTabProps"> & {
   productsTabProps: Omit<TabContentProps["productsTabProps"], "statusBadge">;
+  designersTabProps: TabContentProps["designersTabProps"];
   categoriesPropsTree: {
     adminCategories: AdminCategoryNode[];
     selectedCategoryId: number | null;
@@ -26,6 +27,7 @@ export function useAdminTabContentProps(params: Params): TabContentProps {
     dedupTabProps,
     categoriesPropsTree,
     categoriesTabRest,
+    designersTabProps,
     sourcesTabProps,
     pricingTabProps,
     weightTabProps,
@@ -54,6 +56,7 @@ export function useAdminTabContentProps(params: Params): TabContentProps {
         />
       ),
     },
+    designersTabProps,
     sourcesTabProps,
     pricingTabProps,
     weightTabProps,

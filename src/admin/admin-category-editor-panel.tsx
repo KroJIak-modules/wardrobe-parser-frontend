@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { IconClose, IconStar } from "../shared/mono-icons";
 import type { AdminCategoryNode, CategoryManualProduct } from "../shared/live-data-context";
 import { HelpHint } from "./help-hint";
@@ -24,8 +24,8 @@ type Props = {
   setKeywordInput: Dispatch<SetStateAction<string>>;
   titleKeywordInput: string;
   setTitleKeywordInput: Dispatch<SetStateAction<string>>;
-  onRemoveKeyword: (keyword: string, scope: "local" | "title") => Promise<void>;
-  onAddKeyword: (scope: "local" | "title") => Promise<void>;
+  onRemoveKeyword: (keyword: string, scope: "local" | "title" | "status") => Promise<void>;
+  onAddKeyword: (scope: "local" | "title" | "status", forcedKeyword?: string) => Promise<void>;
   selectedCategoryIsLeaf: boolean;
   manualSearchInput: string;
   setManualSearchInput: Dispatch<SetStateAction<string>>;
@@ -70,6 +70,25 @@ export function AdminCategoryEditorPanel(props: Props) {
     manualAssignedProducts,
     onRemoveManualProduct,
   } = props;
+  const [statusMenuOpen, setStatusMenuOpen] = useState<boolean>(false);
+  const statusOptions = useMemo(
+    () => [
+      { value: "available", label: "В наличии" },
+      { value: "out_of_stock", label: "Не в наличии" },
+      { value: "hidden", label: "Скрыто" },
+      { value: "unavailable", label: "Недоступен" },
+    ],
+    []
+  );
+  const selectedStatusSet = useMemo(() => new Set(selectedCategory?.status_keywords || []), [selectedCategory?.status_keywords]);
+  const availableStatusOptions = useMemo(
+    () => statusOptions.filter((option) => !selectedStatusSet.has(option.value)),
+    [statusOptions, selectedStatusSet]
+  );
+  const statusLabelMap = useMemo(
+    () => new Map(statusOptions.map((option) => [option.value, option.label])),
+    [statusOptions]
+  );
 
   if (createFormOpen) {
     return (
@@ -194,6 +213,47 @@ export function AdminCategoryEditorPanel(props: Props) {
               disabled={!selectedCategory.keywords_editable}
             />
             <button type="button" onClick={() => void onAddKeyword("title")} disabled={!selectedCategory.keywords_editable}>Добавить ключ</button>
+          </div>
+          <p className="muted">Фильтр по статусу товара</p>
+          <div className="chip-list">
+            {(selectedCategory.status_keywords || []).map((statusValue: string) => (
+              <span key={statusValue} className={selectedCategory.keywords_editable ? "tag tag--with-action" : "tag tag--muted"}>
+                <span>{statusLabelMap.get(statusValue) || statusValue}</span>
+                {selectedCategory.keywords_editable ? (
+                  <button type="button" className="tag-x" onClick={() => void onRemoveKeyword(statusValue, "status")}>
+                    <IconClose className="icon-svg icon-svg--sm" />
+                  </button>
+                ) : null}
+              </span>
+            ))}
+          </div>
+          <div className="status-filter-select-wrap" tabIndex={0} onBlur={() => setStatusMenuOpen(false)}>
+            <button
+              type="button"
+              className="status-filter-select"
+              onClick={() => setStatusMenuOpen((prev) => !prev)}
+              disabled={!selectedCategory.keywords_editable || availableStatusOptions.length === 0}
+            >
+              {availableStatusOptions.length === 0 ? "Все статусы добавлены" : "Добавить статус"}
+            </button>
+            {statusMenuOpen && selectedCategory.keywords_editable && availableStatusOptions.length > 0 ? (
+              <div className="status-filter-menu" role="listbox">
+                {availableStatusOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className="status-filter-menu-item"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setStatusMenuOpen(false);
+                      void onAddKeyword("status", option.value);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {selectedCategoryIsLeaf ? (

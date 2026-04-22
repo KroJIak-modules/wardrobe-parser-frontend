@@ -20,6 +20,7 @@ type ProductsTableFacetsPayload = {
 
 type UseAdminProductsTableParams = {
   tab: string;
+  latestJobStatus?: string | null;
   search: string;
   sourceId: string;
   vendor: string;
@@ -29,7 +30,7 @@ type UseAdminProductsTableParams = {
 };
 
 export function useAdminProductsTable(params: UseAdminProductsTableParams) {
-  const { tab, search, sourceId, vendor, productType, status, pushToast } = params;
+  const { tab, latestJobStatus, search, sourceId, vendor, productType, status, pushToast } = params;
 
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
   const [tableProducts, setTableProducts] = useState<AdminProductsTableItem[]>([]);
@@ -41,6 +42,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [tableLoadingMore, setTableLoadingMore] = useState<boolean>(false);
   const [productVendors, setProductVendors] = useState<AdminFilterFacetOption[]>([]);
   const [productTypes, setProductTypes] = useState<AdminFilterFacetOption[]>([]);
+  const isReloadingRef = useRef<boolean>(false);
 
   const buildFilterQuery = useCallback((options?: { includeLimit?: boolean; cursor?: string | null }) => {
     const query = new URLSearchParams();
@@ -97,6 +99,42 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     }
   }, [tableHasMore, tableLoadingMore, tableCursor, buildFilterQuery, pushToast]);
 
+  const reloadTableData = useCallback(async (signal?: AbortSignal) => {
+    if (isReloadingRef.current) {
+      return;
+    }
+    isReloadingRef.current = true;
+    try {
+      setTableLoading(true);
+      const productsQuery = buildFilterQuery({ includeLimit: true });
+      const facetsQuery = buildFilterQuery({ includeLimit: false });
+      const [productsResponse, facetsResponse] = await Promise.all([
+        authFetch(`${API_BASE}/admin/products/table?${productsQuery.toString()}`, { signal }),
+        authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal }),
+      ]);
+
+      if (!productsResponse.ok) {
+        throw new Error(`Products table API error: ${productsResponse.status}`);
+      }
+      if (!facetsResponse.ok) {
+        throw new Error(`Products facets API error: ${facetsResponse.status}`);
+      }
+
+      const payload = (await productsResponse.json()) as ProductsTablePayload;
+      const facetsPayload = (await facetsResponse.json()) as ProductsTableFacetsPayload;
+      setTableProducts(payload.items || []);
+      setTableTotal(payload.total || facetsPayload.total || 0);
+      setTableOverallTotal(payload.overall_total || facetsPayload.overall_total || 0);
+      setTableCursor(payload.next_cursor || null);
+      setTableHasMore(Boolean(payload.has_more && payload.next_cursor));
+      setProductVendors(facetsPayload.vendors || []);
+      setProductTypes(facetsPayload.local_categories || []);
+    } finally {
+      setTableLoading(false);
+      isReloadingRef.current = false;
+    }
+  }, [buildFilterQuery]);
+
   useEffect(() => {
     if (tab !== "products") {
       return;
@@ -107,44 +145,16 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
 
     const run = async () => {
       try {
-        setTableLoading(true);
-        const productsQuery = buildFilterQuery({ includeLimit: true });
-        const facetsQuery = buildFilterQuery({ includeLimit: false });
-        const [productsResponse, facetsResponse] = await Promise.all([
-          authFetch(`${API_BASE}/admin/products/table?${productsQuery.toString()}`, { signal: controller.signal }),
-          authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal: controller.signal }),
-        ]);
-
-        if (!productsResponse.ok) {
-          throw new Error(`Products table API error: ${productsResponse.status}`);
-        }
-        if (!facetsResponse.ok) {
-          throw new Error(`Products facets API error: ${facetsResponse.status}`);
-        }
-
-        const payload = (await productsResponse.json()) as ProductsTablePayload;
-        const facetsPayload = (await facetsResponse.json()) as ProductsTableFacetsPayload;
         if (cancelled) {
           return;
         }
-
-        setTableProducts(payload.items || []);
-        setTableTotal(payload.total || facetsPayload.total || 0);
-        setTableOverallTotal(payload.overall_total || facetsPayload.overall_total || 0);
-        setTableCursor(payload.next_cursor || null);
-        setTableHasMore(Boolean(payload.has_more && payload.next_cursor));
-        setProductVendors(facetsPayload.vendors || []);
-        setProductTypes(facetsPayload.local_categories || []);
+        await reloadTableData(controller.signal);
       } catch (error) {
         if ((error as Error).name === "AbortError") {
           return;
         }
         if (!cancelled) {
           pushToast(error instanceof Error ? error.message : "Ошибка загрузки таблицы товаров");
-        }
-      } finally {
-        if (!cancelled) {
-          setTableLoading(false);
         }
       }
     };
@@ -158,7 +168,20 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [tab, buildFilterQuery, pushToast]);
+  }, [tab, reloadTableData, pushToast]);
+
+  useEffect(() => {
+    if (tab !== "products") {
+      return;
+    }
+    if (!latestJobStatus || !["pending", "in_progress"].includes(latestJobStatus)) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void reloadTableData();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [tab, latestJobStatus, reloadTableData]);
 
   useEffect(() => {
     if (tab !== "products") {

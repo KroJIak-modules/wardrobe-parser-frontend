@@ -4,6 +4,7 @@ const tabs: { key: AdminTab; label: string }[] = [
   { key: "products", label: "Все товары" },
   { key: "dedup", label: "Дедубликация" },
   { key: "categories", label: "Категории" },
+  { key: "designers", label: "Дизайнеры" },
   { key: "sources", label: "Источники" },
   { key: "pricing", label: "Ценообразование" },
   { key: "weight", label: "Вес" },

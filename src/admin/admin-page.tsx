@@ -33,6 +33,7 @@ import { useAdminTabPreload } from "./hooks/use-admin-tab-preload";
 import { useAdminPricingRuntime } from "./hooks/use-admin-pricing-runtime";
 import { useAdminSvcValidationToast } from "./hooks/use-admin-svc-validation-toast";
 import { useAdminSourceMap } from "./hooks/use-admin-source-map";
+import { useAdminBrandMapping } from "./hooks/use-admin-brand-mapping";
 import { useAdminPageLifecycle } from "./hooks/use-admin-page-lifecycle";
 import { useAdminErrorToast } from "./hooks/use-admin-error-toast";
 import { useAdminTabContentProps } from "./hooks/use-admin-tab-content-props";
@@ -66,6 +67,7 @@ export function AdminPage() {
     ensurePricingLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
+    ensureCategoriesLoaded,
     runSync,
     cancelSync,
     previewProductByUrl,
@@ -273,6 +275,7 @@ export function AdminPage() {
     ensurePricingLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
+    ensureCategoriesLoaded,
   });
 
   const {
@@ -404,6 +407,7 @@ export function AdminPage() {
     productTypes,
   } = useAdminProductsTable({
     tab,
+    latestJobStatus: latestJob?.status ?? null,
     search: productSearch,
     sourceId: productSourceFilter,
     vendor: productVendorFilter,
@@ -413,6 +417,16 @@ export function AdminPage() {
   });
 
   const sourceById = useAdminSourceMap(sources);
+  const {
+    loading: designersLoading,
+    saving: designersSaving,
+    hasUnsavedChanges: designersHasUnsavedChanges,
+    rows: designersRows,
+    knownTargets: designerKnownTargets,
+    onChangeTarget: onChangeDesignerTarget,
+    onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
+    save: saveDesignerMapping,
+  } = useAdminBrandMapping(tab, pushToast);
 
   useAdminSvcValidationToast(svcRulesValidationError, pushToast);
 
@@ -498,6 +512,16 @@ export function AdminPage() {
       manualAssignedLoading,
       manualAssignedProducts,
       onRemoveManualProduct,
+    },
+    designersTabProps: {
+      loading: designersLoading,
+      saving: designersSaving,
+      hasUnsavedChanges: designersHasUnsavedChanges,
+      rows: designersRows,
+      knownTargets: designerKnownTargets,
+      onChangeTarget: onChangeDesignerTarget,
+      onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
+      onSave: saveDesignerMapping,
     },
     sourcesTabProps: {
       sources,

@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { AdminProductsTab } from "./admin-products-tab";
 import { AdminDedupTab } from "./admin-dedup-tab";
 import { AdminCategoriesTab } from "./admin-categories-tab";
+import { AdminDesignersTab } from "./admin-designers-tab";
 import { AdminSourcesTab } from "./admin-sources-tab";
 import { AdminPricingTab } from "./admin-pricing-tab";
 import { AdminWeightTab } from "./admin-weight-tab";
@@ -13,6 +14,7 @@ type AdminTabContentProps = {
   productsTabProps: ComponentProps<typeof AdminProductsTab>;
   dedupTabProps: ComponentProps<typeof AdminDedupTab>;
   categoriesTabProps: ComponentProps<typeof AdminCategoriesTab>;
+  designersTabProps: ComponentProps<typeof AdminDesignersTab>;
   sourcesTabProps: ComponentProps<typeof AdminSourcesTab>;
   pricingTabProps: ComponentProps<typeof AdminPricingTab>;
   weightTabProps: ComponentProps<typeof AdminWeightTab>;
@@ -24,6 +26,7 @@ export function AdminTabContent({
   productsTabProps,
   dedupTabProps,
   categoriesTabProps,
+  designersTabProps,
   sourcesTabProps,
   pricingTabProps,
   weightTabProps,
@@ -40,6 +43,9 @@ export function AdminTabContent({
   }
   if (tab === "sources") {
     return <AdminSourcesTab {...sourcesTabProps} />;
+  }
+  if (tab === "designers") {
+    return <AdminDesignersTab {...designersTabProps} />;
   }
   if (tab === "pricing") {
     return <AdminPricingTab {...pricingTabProps} />;

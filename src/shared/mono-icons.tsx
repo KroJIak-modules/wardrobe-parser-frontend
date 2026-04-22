@@ -86,3 +86,19 @@ export function IconInfo({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconPencil({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M15.75 5.25L18.75 8.25M14.25 6.75L6 15V18H9L17.25 9.75M6 18H4.5V19.5H6V18Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconTrash({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M4.5 7.5H19.5M9 7.5V5.25C9 4.84 9.34 4.5 9.75 4.5H14.25C14.66 4.5 15 4.84 15 5.25V7.5M7.5 7.5L8.1 18.3C8.15 19.02 8.75 19.59 9.47 19.59H14.53C15.25 19.59 15.85 19.02 15.9 18.3L16.5 7.5M10.5 10.5V16.5M13.5 10.5V16.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

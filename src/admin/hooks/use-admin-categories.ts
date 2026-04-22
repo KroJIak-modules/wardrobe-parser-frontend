@@ -11,7 +11,7 @@ type CategoryNode = {
   keywords_locked_reason: string | null;
 };
 
-type KeywordScope = "local" | "title";
+type KeywordScope = "local" | "title" | "status";
 
 type UseAdminCategoriesParams = {
   adminCategories: CategoryNode[];
@@ -201,11 +201,14 @@ export function useAdminCategories(params: UseAdminCategoriesParams) {
     }
   };
 
-  const onAddKeyword = async (scope: KeywordScope) => {
+  const onAddKeyword = async (scope: KeywordScope, forcedKeyword?: string) => {
     if (!selectedCategoryId) {
       return;
     }
-    const raw = (scope === "local" ? keywordInput : titleKeywordInput).trim().toLowerCase();
+    const baseValue = typeof forcedKeyword === "string"
+      ? forcedKeyword
+      : (scope === "local" ? keywordInput : titleKeywordInput);
+    const raw = baseValue.trim().toLowerCase();
     if (!raw) {
       return;
     }

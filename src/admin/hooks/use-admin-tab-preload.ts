@@ -8,6 +8,7 @@ type UseAdminTabPreloadParams = {
   ensurePricingLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: () => Promise<void>;
   ensureDedupLoaded: () => Promise<void>;
+  ensureCategoriesLoaded: (force?: boolean) => Promise<void>;
 };
 
 export function useAdminTabPreload({
@@ -17,6 +18,7 @@ export function useAdminTabPreload({
   ensurePricingLoaded,
   ensureWeightLoaded,
   ensureDedupLoaded,
+  ensureCategoriesLoaded,
 }: UseAdminTabPreloadParams) {
   useEffect(() => {
     const run = async () => {
@@ -40,8 +42,20 @@ export function useAdminTabPreload({
       }
       if (tab === "dedup") {
         await ensureDedupLoaded();
+        return;
+      }
+      if (tab === "categories") {
+        await ensureCategoriesLoaded();
       }
     };
     void run();
-  }, [tab, ensurePricingLoaded, ensureWeightLoaded, ensureDedupLoaded, setPricingTabLoading, setWeightTabLoading]);
+  }, [
+    tab,
+    ensurePricingLoaded,
+    ensureWeightLoaded,
+    ensureDedupLoaded,
+    ensureCategoriesLoaded,
+    setPricingTabLoading,
+    setWeightTabLoading,
+  ]);
 }
