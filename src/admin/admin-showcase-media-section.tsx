@@ -34,7 +34,6 @@ export function AdminShowcaseMediaSection({
   return (
     <div className="showcase-media-settings">
       <div className="showcase-media-block">
-        {showcaseHeroImageId ? <p className="muted">Заставка</p> : null}
         <div
           className="showcase-hero-tile"
           onClick={() => heroInputRef.current?.click()}

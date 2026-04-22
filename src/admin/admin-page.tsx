@@ -113,6 +113,7 @@ export function AdminPage() {
     importSettings,
     assignSourceSupplier,
     fetchPricingExampleProduct,
+    updateShowcaseMediaSettings,
   } = useLiveData();
 
   const { toasts, pushToast, closeToast } = useToasts();
@@ -379,7 +380,7 @@ export function AdminPage() {
   } = useAdminShowcase({
     pricingSettings,
     uploadShowcaseImage,
-    updatePricingSettings,
+    updateShowcaseMediaSettings,
     pushToast,
   });
 

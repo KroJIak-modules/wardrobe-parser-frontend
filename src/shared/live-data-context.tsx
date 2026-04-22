@@ -548,6 +548,10 @@ type LiveDataContextValue = {
   removeWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
   fetchPricingExampleProduct: () => Promise<PricingExampleProduct | null>;
   updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
+  updateShowcaseMediaSettings: (payload: {
+    showcase_hero_image_asset_id?: number | null;
+    showcase_carousel_image_asset_ids?: number[];
+  }) => Promise<{ ok: boolean; message: string }>;
   updatePricingSupplier: (
     supplierId: number,
     payload: {
@@ -1849,6 +1853,45 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     [refreshDedupOnly]
   );
 
+  const updateShowcaseMediaSettings = useCallback(
+    async (payload: {
+      showcase_hero_image_asset_id?: number | null;
+      showcase_carousel_image_asset_ids?: number[];
+    }) => {
+      try {
+        const res = await authFetch(`${API_BASE}/settings/showcase-media`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
+          return { ok: false, message: errorPayload?.detail || `Ошибка: ${res.status}` };
+        }
+        const updated = (await res.json()) as {
+          showcase_hero_image_asset_id?: number | null;
+          showcase_carousel_image_asset_ids?: number[];
+        };
+        setPricingSettings((prev) => {
+          if (!prev) {
+            return prev;
+          }
+          return {
+            ...prev,
+            showcase_hero_image_asset_id: updated?.showcase_hero_image_asset_id ?? null,
+            showcase_carousel_image_asset_ids: Array.isArray(updated?.showcase_carousel_image_asset_ids)
+              ? updated.showcase_carousel_image_asset_ids
+              : [],
+          };
+        });
+        return { ok: true, message: "Медиа витрины сохранены" };
+      } catch (e) {
+        return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+      }
+    },
+    []
+  );
+
   const updatePricingSupplier = useCallback(
     async (
       supplierId: number,
@@ -2095,6 +2138,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       removeWeightKeyword,
       fetchPricingExampleProduct,
       updatePricingSettings,
+      updateShowcaseMediaSettings,
       updatePricingSupplier,
       createPricingSupplier,
       deletePricingSupplier,
@@ -2164,6 +2208,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       removeWeightKeyword,
       fetchPricingExampleProduct,
       updatePricingSettings,
+      updateShowcaseMediaSettings,
       updatePricingSupplier,
       createPricingSupplier,
       deletePricingSupplier,

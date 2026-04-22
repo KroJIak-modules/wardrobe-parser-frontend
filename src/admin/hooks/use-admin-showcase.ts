@@ -4,12 +4,15 @@ import type { PricingSettings, ShowcaseImageItem } from "../admin-types";
 type UseAdminShowcaseParams = {
   pricingSettings: PricingSettings | null;
   uploadShowcaseImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId?: number }>;
-  updatePricingSettings: (patch: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
+  updateShowcaseMediaSettings: (patch: {
+    showcase_hero_image_asset_id?: number | null;
+    showcase_carousel_image_asset_ids?: number[];
+  }) => Promise<{ ok: boolean; message: string }>;
   pushToast: (message: string) => void;
 };
 
 export function useAdminShowcase(params: UseAdminShowcaseParams) {
-  const { pricingSettings, uploadShowcaseImage, updatePricingSettings, pushToast } = params;
+  const { pricingSettings, uploadShowcaseImage, updateShowcaseMediaSettings, pushToast } = params;
 
   const [showcaseHeroImageId, setShowcaseHeroImageId] = useState<number | null>(null);
   const [showcaseCarousel, setShowcaseCarousel] = useState<ShowcaseImageItem[]>([]);
@@ -36,7 +39,10 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
   const saveShowcaseSettings = async (patch: Partial<PricingSettings>) => {
     setShowcaseSaving(true);
     try {
-      const result = await updatePricingSettings(patch);
+      const result = await updateShowcaseMediaSettings({
+        showcase_hero_image_asset_id: patch.showcase_hero_image_asset_id,
+        showcase_carousel_image_asset_ids: patch.showcase_carousel_image_asset_ids,
+      });
       if (!result.ok) {
         pushToast(result.message);
         return false;

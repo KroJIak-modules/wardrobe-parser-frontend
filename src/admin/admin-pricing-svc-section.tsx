@@ -13,7 +13,7 @@ export function AdminPricingSvcSection({ svcRuleDrafts, setSvcRuleDrafts, svcRul
   return (
     <>
       <h3 className="with-help">
-        Надбавка SVC
+        Тарифная сетка SVC
         <HelpHint text="SVC — это ваша надбавка по диапазонам BUY. Диапазоны не должны пересекаться и касаться границ друг друга." />
       </h3>
       <div className="pricing-svc-list">
@@ -80,7 +80,7 @@ export function AdminPricingSvcSection({ svcRuleDrafts, setSvcRuleDrafts, svcRul
         })}
         <div className="pricing-svc-actions">
           <button type="button" onClick={onAddSvcRule}>
-            Добавить надбавку
+            Добавить диапазон
           </button>
         </div>
       </div>
