@@ -1,0 +1,149 @@
+import { Link } from "react-router-dom";
+import { IconClose } from "../shared/mono-icons";
+import { AdminWeightSkeleton } from "../shared/skeleton";
+import type { WeightMissingProduct, WeightRule } from "../shared/live-data-context";
+
+type Props = {
+  weightTabLoading: boolean;
+  newWeightRuleGrams: string;
+  setNewWeightRuleGrams: (value: string) => void;
+  onCreateWeightRule: () => Promise<void>;
+  weightRules: WeightRule[];
+  weightRuleDrafts: Record<number, string>;
+  setWeightRuleDrafts: (updater: (prev: Record<number, string>) => Record<number, string>) => void;
+  onDeleteWeightRule: (ruleId: number) => Promise<void>;
+  weightKeywordInputs: Record<number, string>;
+  setWeightKeywordInputs: (updater: (prev: Record<number, string>) => Record<number, string>) => void;
+  onRemoveWeightKeyword: (ruleId: number, keyword: string) => Promise<void>;
+  onAddWeightKeyword: (ruleId: number) => Promise<void>;
+  weightMissingProducts: WeightMissingProduct[];
+};
+
+export function AdminWeightTab({
+  weightTabLoading,
+  newWeightRuleGrams,
+  setNewWeightRuleGrams,
+  onCreateWeightRule,
+  weightRules,
+  weightRuleDrafts,
+  setWeightRuleDrafts,
+  onDeleteWeightRule,
+  weightKeywordInputs,
+  setWeightKeywordInputs,
+  onRemoveWeightKeyword,
+  onAddWeightKeyword,
+  weightMissingProducts,
+}: Props) {
+  return (
+    <div className="card">
+      {weightTabLoading ? (
+        <AdminWeightSkeleton />
+      ) : (
+        <div className="weight-layout">
+          <section>
+            <h2>Настройки веса</h2>
+            <div className="weight-rule-create-row">
+              <input
+                type="number"
+                min={1}
+                value={newWeightRuleGrams}
+                onChange={(event) => setNewWeightRuleGrams(event.target.value)}
+                placeholder="Вес, г"
+              />
+              <button type="button" onClick={() => void onCreateWeightRule()}>
+                Добавить правило
+              </button>
+            </div>
+
+            <div className="weight-rules-list">
+              {weightRules.map((rule) => (
+                <div key={rule.id} className="weight-rule-row">
+                  <div className="weight-rule-left">
+                    <label className="muted">Вес (г)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={weightRuleDrafts[rule.id] ?? String(rule.weight_grams)}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setWeightRuleDrafts((prev) => ({ ...prev, [rule.id]: nextValue }));
+                      }}
+                    />
+                    <div className="weight-rule-actions">
+                      <button type="button" onClick={() => void onDeleteWeightRule(rule.id)}>
+                        Удалить
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="weight-rule-right">
+                    <div className="chip-list">
+                      {rule.keywords.map((keyword) => (
+                        <span key={`${rule.id}-${keyword}`} className="tag tag--with-action">
+                          <span>{keyword}</span>
+                          <button type="button" className="tag-x" onClick={() => void onRemoveWeightKeyword(rule.id, keyword)}>
+                            <IconClose className="icon-svg icon-svg--sm" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={weightKeywordInputs[rule.id] || ""}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setWeightKeywordInputs((prev) => ({ ...prev, [rule.id]: nextValue }));
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          void onAddWeightKeyword(rule.id);
+                        }
+                      }}
+                      placeholder="Введите keyword на английском и нажмите Enter"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section>
+            <h2>Товары без определенного веса</h2>
+            {weightMissingProducts.length === 0 ? (
+              <p className="muted">Все товары имеют вес (из источника или по ключевым словам).</p>
+            ) : (
+              <div className="table-wrap table-wrap--spaced">
+                <table className="products-table">
+                  <thead>
+                    <tr>
+                      <th>Товар</th>
+                      <th>Сайт</th>
+                      <th>Источник</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {weightMissingProducts.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <Link className="btn-link" to={`/product/${item.id}`}>
+                            {item.title}
+                          </Link>
+                        </td>
+                        <td>{item.source_name}</td>
+                        <td>
+                          <a className="btn-link" href={item.url} target="_blank" rel="noreferrer">
+                            Открыть товар
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}

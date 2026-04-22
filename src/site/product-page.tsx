@@ -7,6 +7,8 @@ import { ToastStack } from "../shared/toast-stack";
 import { useToasts } from "../shared/use-toasts";
 import { LatexBrand } from "../shared/latex-brand";
 import { getProductPrimaryImageUrl, useLiveData } from "../shared/live-data-context";
+import { buildPricingExampleView } from "../admin/admin-pricing-view-model";
+import { formatDisplayMoney, renderLegendSymbol } from "../admin/admin-formatters";
 import { deriveStatusAfterUnhide, getSourceNameById, getStatusClass, getStatusLabel, normalizeProductStatus } from "./catalog-helpers";
 
 type VariantInfo = {
@@ -66,7 +68,7 @@ function toThumbUrl(url: string): string {
 export function ProductPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const { products, sources, getProductById, setProductStatus } = useLiveData();
+  const { products, sources, getProductById, setProductStatus, pricingSettings, ensurePricingLoaded } = useLiveData();
   const fromAdmin = searchParams.get("from") === "admin";
 
   const productId = Number(id);
@@ -79,6 +81,7 @@ export function ProductPage() {
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
   const [statusPending, setStatusPending] = useState<boolean>(false);
+  const [legendExpanded, setLegendExpanded] = useState<boolean>(false);
   const description = String(product?.description || "").trim();
 
   useEffect(() => {
@@ -118,6 +121,10 @@ export function ProductPage() {
   }, [productId, inlineProduct, getProductById]);
 
   useEffect(() => {
+    void ensurePricingLoaded();
+  }, [ensurePricingLoaded]);
+
+  useEffect(() => {
     if (!error) {
       return;
     }
@@ -144,6 +151,26 @@ export function ProductPage() {
   }, [images.length, activeImageIndex]);
 
   const sourceNameById = useMemo(() => getSourceNameById(sources), [sources]);
+  const sourceName = product ? (sourceNameById.get(product.source_id) || `Источник #${product.source_id}`) : null;
+  const pricingExample = useMemo(() => {
+    if (!pricingSettings || !product || !sourceName) {
+      return null;
+    }
+    return buildPricingExampleView(
+      {
+        product_id: product.id,
+        title: product.title,
+        url: product.url,
+        source_name: sourceName,
+        image_url: images[0] || null,
+        source_price: product.source_price ?? product.price ?? null,
+        source_currency: product.source_currency ?? product.currency ?? null,
+        final_price: product.final_price ?? product.price ?? null,
+        components: (product.pricing_components || {}) as Record<string, unknown>,
+      },
+      pricingSettings
+    );
+  }, [pricingSettings, product, sourceName, images]);
 
   const statusClass = getStatusClass(product?.status || "unknown");
 
@@ -166,7 +193,6 @@ export function ProductPage() {
   }
 
   const activeImage = images[activeImageIndex] || null;
-  const sourceName = sourceNameById.get(product.source_id) || `Источник #${product.source_id}`;
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 1;
   const selectedVariant = (
     selectedVariantIndex !== null
@@ -392,6 +418,55 @@ export function ProductPage() {
               <strong>{originalPrice}</strong>
             </div>
           </div>
+
+          {pricingSettings && pricingExample ? (
+            <div className="pricing-formula-box">
+              <h3>Формула финальной цены</h3>
+              <div className="pricing-formula-text pricing-formula-latex pricing-example-formula" dangerouslySetInnerHTML={{ __html: pricingExample.formulaHtml }} />
+              <div className="pricing-example-summary product-formula-summary">
+                <div className="pricing-example-metric">
+                  <div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summarySpLatex }} />
+                  <div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.sourcePrice, pricingExample.sourceCurrency)}</div>
+                </div>
+                <div className="pricing-example-metric">
+                  <div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summaryRubLatex }} />
+                  <div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.sourcePriceRub, "RUB")}</div>
+                </div>
+                <div className="pricing-example-metric">
+                  <div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summaryFpLatex }} />
+                  <div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.finalPrice, "RUB")}</div>
+                </div>
+                <div className="pricing-example-metric">
+                  <div className="pricing-example-metric-key">Моржа</div>
+                  <div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.marginRub, "RUB")}</div>
+                </div>
+              </div>
+              <div className="product-formula-legend-panel">
+                <button
+                  type="button"
+                  className={`product-formula-legend-toggle ${legendExpanded ? "is-open" : ""}`}
+                  onClick={() => setLegendExpanded((prev) => !prev)}
+                  aria-expanded={legendExpanded}
+                >
+                  <span>Обозначения переменных</span>
+                  <IconChevronRight className="icon-svg product-formula-legend-toggle-icon" />
+                </button>
+                <div className={`product-formula-legend-collapse ${legendExpanded ? "is-open" : ""}`} aria-hidden={!legendExpanded}>
+                  <div className="pricing-formula-legend pricing-legend-grid">
+                    {pricingSettings.formula_legend.map((item) => (
+                      <div key={item.key} className="pricing-legend-item">
+                        <p
+                          className={pricingExample.legendDim?.[item.key] ? "pricing-legend-key pricing-legend-key--dim" : "pricing-legend-key"}
+                          dangerouslySetInnerHTML={{ __html: renderLegendSymbol(item.key) }}
+                        />
+                        <p className="muted">{item.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="product-main-actions">
             <a className="btn-link product-action-btn" href={product.url} target="_blank" rel="noreferrer" title={`Открыть ${sourceName}`}>
