@@ -39,6 +39,8 @@ type ProductVariant = {
 export type ProductEditState = {
   title_sync_locked: boolean;
   description_sync_locked: boolean;
+  description_visible_override?: boolean | null;
+  description_visible_effective?: boolean;
   images_sync_locked: boolean;
   title_override?: string | null;
   description_override?: string | null;
@@ -315,6 +317,7 @@ export type PricingSettings = {
   designers_min_products: number;
   designers_exclude_store_vendors: boolean;
   dedup_only_available_products: boolean;
+  show_product_description: boolean;
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
@@ -430,6 +433,7 @@ export type SettingsTransferPricingSettings = {
   designers_min_products: number;
   designers_exclude_store_vendors: boolean;
   dedup_only_available_products: boolean;
+  show_product_description: boolean;
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
@@ -522,12 +526,13 @@ type LiveDataContextValue = {
     payload: {
       title?: string;
       description?: string;
+      description_visible?: boolean | null;
       images?: {
         hidden_source_image_ids?: number[];
         manual_image_ids?: number[];
         manual_image_order?: string[];
       };
-      reset_to_default?: Array<"title" | "description" | "images">;
+      reset_to_default?: Array<"title" | "description" | "images" | "description_visibility">;
     }
   ) => Promise<{ ok: boolean; message: string; product: ServiceProduct | null }>;
   getProductStarredCategories: (

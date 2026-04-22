@@ -270,6 +270,12 @@ export function ProductPage() {
   const normalizedVendor = vendorMapped.toLowerCase();
   const categoryChips = categoryNames.filter((name) => String(name).trim().toLowerCase() !== normalizedVendor);
   const hasBrand = Boolean(vendorOriginal || vendorMapped);
+  const descriptionVisibleEffective = (
+    typeof imageEdit.description_visible_effective === "boolean"
+      ? imageEdit.description_visible_effective
+      : Boolean(pricingSettings?.show_product_description ?? true)
+  );
+  const descriptionVisibilityLocked = imageEdit.description_visible_override !== undefined && imageEdit.description_visible_override !== null;
   const sourceImageIds = imageEdit.source_image_ids;
   const hiddenSourceIdSet = new Set<number>(imageEdit.hidden_source_image_ids);
   const manualImageIds = imageEdit.manual_image_ids;
@@ -428,6 +434,32 @@ export function ProductPage() {
     setEditPending(false);
   };
 
+  const onToggleDescriptionVisibility = async () => {
+    setEditPending(true);
+    const result = await updateProductOverrides(product.id, {
+      description_visible: !descriptionVisibleEffective,
+    });
+    pushToast(result.message);
+    if (result.ok && result.product) {
+      setProduct(result.product);
+      setEditingDescription(false);
+    }
+    setEditPending(false);
+  };
+
+  const onResetDescriptionVisibility = async () => {
+    setEditPending(true);
+    const result = await updateProductOverrides(product.id, {
+      reset_to_default: ["description_visibility"],
+    });
+    pushToast(result.message);
+    if (result.ok && result.product) {
+      setProduct(result.product);
+      setEditingDescription(false);
+    }
+    setEditPending(false);
+  };
+
   const toggleHidden = async () => {
     if (statusPending) {
       return;
@@ -564,11 +596,24 @@ export function ProductPage() {
             <h3>
               Описание
               {canEdit ? (
+                <button
+                  type="button"
+                  className={`product-edit-icon-btn ${descriptionVisibleEffective ? "" : "product-edit-icon-btn--off"}`}
+                  onClick={() => void onToggleDescriptionVisibility()}
+                  title={descriptionVisibleEffective ? "Скрыть описание в API" : "Показывать описание в API"}
+                >
+                  {descriptionVisibleEffective ? <IconEye className="icon-svg" /> : <IconEyeOff className="icon-svg" />}
+                </button>
+              ) : null}
+              {canEdit ? (
                 <button type="button" className="product-edit-icon-btn" onClick={() => setEditingDescription(true)} title="Редактировать описание">
                   <IconPencil className="icon-svg" />
                 </button>
               ) : null}
             </h3>
+            {!descriptionVisibleEffective ? (
+              <p className="muted">Описание скрыто{descriptionVisibilityLocked ? " для этого товара" : " глобальной настройкой"}.</p>
+            ) : null}
             {editingDescription ? (
               <div className="product-inline-edit">
                 <textarea value={descriptionDraft} onChange={(event) => setDescriptionDraft(event.target.value)} className="product-inline-textarea" rows={5} disabled={editPending} />
@@ -576,10 +621,20 @@ export function ProductPage() {
                   <button type="button" className="btn-link" onClick={() => void onSaveDescription()} disabled={editPending}>Сохранить</button>
                   <button type="button" className="btn-link" onClick={() => { setEditingDescription(false); setDescriptionDraft(description); }} disabled={editPending}>Отмена</button>
                   <button type="button" className="btn-link" onClick={() => void onResetFieldToDefault("description")} disabled={editPending}>Сброс</button>
+                  {descriptionVisibilityLocked ? (
+                    <button type="button" className="btn-link" onClick={() => void onResetDescriptionVisibility()} disabled={editPending}>
+                      Сброс видимости
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ) : (
-              <p className="product-description-text" onDoubleClick={() => canEdit && setEditingDescription(true)}>{description || "Описание отсутствует"}</p>
+              <p
+                className={`product-description-text ${descriptionVisibleEffective ? "" : "product-description-text--dimmed"}`}
+                onDoubleClick={() => canEdit && setEditingDescription(true)}
+              >
+                {description || "Описание отсутствует"}
+              </p>
             )}
           </div>
 

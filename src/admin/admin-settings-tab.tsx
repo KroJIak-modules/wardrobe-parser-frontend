@@ -59,41 +59,47 @@ export function AdminSettingsTab({
   onImportSettingsFile,
 }: Props) {
   return (
-    <div className="card">
-      <h2>Параметры витрины</h2>
-      {pricingTabLoading && !pricingSettings ? <AdminSettingsSkeleton /> : null}
-      <AdminSettingsGeneralSection
-        pricingSettings={pricingSettings}
-        designersMinProductsDraft={designersMinProductsDraft}
-        setDesignersMinProductsDraft={setDesignersMinProductsDraft}
-        updatePricingSettings={updatePricingSettings}
-        pushToast={pushToast}
-      />
+    <div className="admin-settings-layout">
+      <section className="card admin-settings-section">
+        <h2>Параметры витрины</h2>
+        {pricingTabLoading && !pricingSettings ? <AdminSettingsSkeleton /> : null}
+        <AdminSettingsGeneralSection
+          pricingSettings={pricingSettings}
+          designersMinProductsDraft={designersMinProductsDraft}
+          setDesignersMinProductsDraft={setDesignersMinProductsDraft}
+          updatePricingSettings={updatePricingSettings}
+          pushToast={pushToast}
+        />
+      </section>
 
-      <h2>Медиа витрины</h2>
-      <AdminShowcaseMediaSection
-        showcaseHeroImageId={showcaseHeroImageId}
-        heroInputRef={heroInputRef}
-        showcaseSaving={showcaseSaving}
-        onRemoveHeroImage={onRemoveHeroImage}
-        onPickHeroImage={onPickHeroImage}
-        showcaseCarousel={showcaseCarousel}
-        setDraggingCarouselId={setDraggingCarouselId}
-        onReorderCarouselImage={onReorderCarouselImage}
-        onRemoveCarouselImage={onRemoveCarouselImage}
-        carouselInputRef={carouselInputRef}
-        onPickCarouselImages={onPickCarouselImages}
-      />
+      <section className="card admin-settings-section">
+        <h2>Медиа витрины</h2>
+        <AdminShowcaseMediaSection
+          showcaseHeroImageId={showcaseHeroImageId}
+          heroInputRef={heroInputRef}
+          showcaseSaving={showcaseSaving}
+          onRemoveHeroImage={onRemoveHeroImage}
+          onPickHeroImage={onPickHeroImage}
+          showcaseCarousel={showcaseCarousel}
+          setDraggingCarouselId={setDraggingCarouselId}
+          onReorderCarouselImage={onReorderCarouselImage}
+          onRemoveCarouselImage={onRemoveCarouselImage}
+          carouselInputRef={carouselInputRef}
+          onPickCarouselImages={onPickCarouselImages}
+        />
+      </section>
 
-      <h2>Экспорт и импорт настроек</h2>
-      <AdminSettingsTransferSection
-        settingsExportInProgress={settingsExportInProgress}
-        settingsImportInProgress={settingsImportInProgress}
-        onExportSettings={onExportSettings}
-        onOpenImportDialog={onOpenImportDialog}
-        settingsImportInputRef={settingsImportInputRef}
-        onImportSettingsFile={onImportSettingsFile}
-      />
+      <section className="card admin-settings-section">
+        <h2>Экспорт и импорт настроек</h2>
+        <AdminSettingsTransferSection
+          settingsExportInProgress={settingsExportInProgress}
+          settingsImportInProgress={settingsImportInProgress}
+          onExportSettings={onExportSettings}
+          onOpenImportDialog={onOpenImportDialog}
+          settingsImportInputRef={settingsImportInputRef}
+          onImportSettingsFile={onImportSettingsFile}
+        />
+      </section>
     </div>
   );
 }

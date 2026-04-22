@@ -1259,6 +1259,12 @@ button.topbar-cta {
   border-radius: 10px;
 }
 
+.product-skeleton-heading {
+  width: 170px;
+  height: 22px;
+  border-radius: 10px;
+}
+
 .product-skeleton-status {
   width: 104px;
   height: 24px;
@@ -1276,6 +1282,11 @@ button.topbar-cta {
   width: 120px;
 }
 
+.product-skeleton-chip--tiny {
+  width: 88px;
+  height: 24px;
+}
+
 .product-skeleton-meta-line {
   width: 100%;
   height: 14px;
@@ -1284,6 +1295,21 @@ button.topbar-cta {
 
 .product-skeleton-meta-line--label {
   width: 90px;
+}
+
+.product-skeleton-meta-line--label-wide {
+  width: 130px;
+}
+
+.product-skeleton-description-line {
+  margin-top: 8px;
+  width: 100%;
+  height: 13px;
+  border-radius: 999px;
+}
+
+.product-skeleton-description-line--short {
+  width: 72%;
 }
 
 .product-skeleton-price-value {
@@ -1303,6 +1329,29 @@ button.topbar-cta {
   width: 100%;
   min-height: 34px;
   border-radius: 8px;
+}
+
+.product-skeleton-pricing-example {
+  margin-top: 14px;
+}
+
+.product-skeleton-pricing-metric {
+  width: 100%;
+  min-height: 118px;
+  border-radius: 24px;
+}
+
+.product-skeleton-formula {
+  margin-top: 10px;
+  width: 100%;
+  min-height: 100px;
+  border-radius: 10px;
+}
+
+.product-skeleton-editor-thumb {
+  width: 100%;
+  height: 92px;
+  border-radius: 10px;
 }
 
 .product-skeleton-action {
@@ -1444,9 +1493,34 @@ button.topbar-cta {
   width: min(260px, 56%);
 }
 
+.admin-sources-skeleton-link {
+  width: min(280px, 60%);
+  height: 14px;
+  border-radius: 999px;
+}
+
+.admin-sources-skeleton-meta {
+  width: 100%;
+}
+
+.admin-sources-skeleton-pill {
+  width: 140px;
+  height: 30px;
+  border-radius: 999px;
+}
+
+.admin-sources-skeleton-pill--wide {
+  width: 220px;
+}
+
+.admin-sources-skeleton-switches {
+  width: 100%;
+  justify-content: flex-end;
+}
+
 .admin-sources-skeleton-switch {
-  width: 96px;
-  height: 22px;
+  width: 168px;
+  height: 26px;
   border-radius: 999px;
 }
 
@@ -1687,6 +1761,15 @@ button {
   margin: 0;
   color: #2e3239;
   white-space: pre-line;
+}
+
+.product-description-text--dimmed {
+  color: #9aa3af;
+}
+
+.product-edit-icon-btn--off {
+  background: #f1f4fa;
+  color: #6f7f95;
 }
 
 .product-inline-edit {
@@ -2109,6 +2192,21 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 14px;
+}
+
+.admin-settings-layout {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-settings-section {
+  padding: 16px;
+}
+
+.admin-settings-section > h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  line-height: 1.2;
 }
 
 .products-layout {

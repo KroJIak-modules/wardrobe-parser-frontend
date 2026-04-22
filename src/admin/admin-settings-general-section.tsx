@@ -97,6 +97,18 @@ export function AdminSettingsGeneralSection({
           if (!result.ok) pushToast(result.message);
         }}
       />
+
+      <ToggleField
+        label="Показывать описание товаров в API"
+        hint="Глобально включает/выключает выдачу поля description у товаров. Локальные настройки в карточке товара имеют приоритет."
+        checked={Boolean(pricingSettings?.show_product_description)}
+        disabled={!pricingSettings}
+        onChange={async (checked) => {
+          if (!pricingSettings) return;
+          const result = await updatePricingSettings({ show_product_description: checked });
+          if (!result.ok) pushToast(result.message);
+        }}
+      />
     </div>
   );
 }

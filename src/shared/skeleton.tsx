@@ -155,9 +155,24 @@ export function ProductPageSkeleton() {
           </div>
           <SkeletonBlock className="product-skeleton-status" />
 
+          <div className="product-main-description">
+            <SkeletonBlock className="product-skeleton-heading" />
+            <SkeletonBlock className="product-skeleton-description-line" />
+            <SkeletonBlock className="product-skeleton-description-line" />
+            <SkeletonBlock className="product-skeleton-description-line product-skeleton-description-line--short" />
+          </div>
+
           <div className="product-main-meta">
             <div className="product-meta-line">
               <SkeletonBlock className="product-skeleton-chip" />
+            </div>
+            <div className="product-meta-line">
+              <SkeletonBlock className="product-skeleton-meta-line product-skeleton-meta-line--label-wide" />
+              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
+            </div>
+            <div className="product-meta-line">
+              <SkeletonBlock className="product-skeleton-meta-line product-skeleton-meta-line--label-wide" />
+              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--short" />
             </div>
             <div className="product-meta-line">
               <SkeletonBlock className="product-skeleton-meta-line product-skeleton-meta-line--label" />
@@ -186,6 +201,29 @@ export function ProductPageSkeleton() {
             <div className="product-pricing-item">
               <SkeletonBlock className="product-skeleton-meta-line product-skeleton-meta-line--label" />
               <SkeletonBlock className="product-skeleton-price-value" />
+            </div>
+          </div>
+
+          <div className="pricing-example-card product-skeleton-pricing-example">
+            <SkeletonBlock className="product-skeleton-heading" />
+            <div className="pricing-example-metrics">
+              <SkeletonBlock className="product-skeleton-pricing-metric" />
+              <SkeletonBlock className="product-skeleton-pricing-metric" />
+              <SkeletonBlock className="product-skeleton-pricing-metric" />
+              <SkeletonBlock className="product-skeleton-pricing-metric" />
+            </div>
+            <SkeletonBlock className="product-skeleton-formula" />
+          </div>
+
+          <div className="product-images-editor">
+            <div className="product-images-editor-head">
+              <SkeletonBlock className="product-skeleton-variants-title" />
+              <SkeletonBlock className="product-skeleton-chip product-skeleton-chip--tiny" />
+            </div>
+            <div className="product-images-editor-grid">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <SkeletonBlock key={`product-skeleton-editor-thumb-${idx}`} className="product-skeleton-editor-thumb" />
+              ))}
             </div>
           </div>
 
@@ -259,16 +297,26 @@ export function AdminCategoriesSkeleton() {
 
 export function AdminSourcesSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="list" aria-hidden="true">
+    <div className="sources-grid" aria-hidden="true">
       {Array.from({ length: rows }).map((_, idx) => (
-        <div key={`source-skeleton-${idx}`} className="list-row admin-sources-skeleton-row">
-          <div className="admin-sources-skeleton-main">
+        <article key={`source-skeleton-${idx}`} className="source-card admin-sources-skeleton-row">
+          <div className="source-card-head admin-sources-skeleton-main">
             <SkeletonBlock className="admin-sources-skeleton-title" />
-            <SkeletonBlock className="admin-sources-skeleton-line" />
-            <SkeletonBlock className="admin-sources-skeleton-line admin-sources-skeleton-line--short" />
+            <SkeletonBlock className="admin-sources-skeleton-link" />
           </div>
-          <SkeletonBlock className="admin-sources-skeleton-switch" />
-        </div>
+          <div className="source-card-foot">
+            <div className="source-card-meta admin-sources-skeleton-meta">
+              <SkeletonBlock className="admin-sources-skeleton-pill" />
+              <SkeletonBlock className="admin-sources-skeleton-pill" />
+              <SkeletonBlock className="admin-sources-skeleton-pill admin-sources-skeleton-pill--wide" />
+            </div>
+            <div className="source-card-switches admin-sources-skeleton-switches">
+              <SkeletonBlock className="admin-sources-skeleton-switch" />
+              <SkeletonBlock className="admin-sources-skeleton-switch" />
+              <SkeletonBlock className="admin-sources-skeleton-switch" />
+            </div>
+          </div>
+        </article>
       ))}
     </div>
   );
