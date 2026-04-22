@@ -40,3 +40,29 @@ export function formatSyncStatusRu(status: string | null | undefined): string {
   }
   return "Неизвестно";
 }
+
+export function formatSyncStageRu(stage: string | null | undefined): string {
+  const value = String(stage || "").trim().toLowerCase();
+  if (!value) {
+    return "—";
+  }
+  if (value === "discovering_urls") {
+    return "Поиск ссылок";
+  }
+  if (value === "syncing_products") {
+    return "Синхронизация товаров";
+  }
+  if (value === "source_finished") {
+    return "Источник завершен";
+  }
+  if (value === "fallback_discovering_urls") {
+    return "Fallback: поиск ссылок";
+  }
+  if (value === "fallback_sampling_products_js") {
+    return "Fallback: проверка products.js";
+  }
+  if (value === "fallback_exporting_previews") {
+    return "Fallback: выгрузка товаров";
+  }
+  return stage || "—";
+}

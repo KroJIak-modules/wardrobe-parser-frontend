@@ -5,6 +5,9 @@ type SyncSummaryJob = {
   total_sources?: number | null;
   current_source_name?: string | null;
   current_source_parser_type?: string | null;
+  current_stage?: string | null;
+  current_source_processed_products?: number | null;
+  current_source_total_products?: number | null;
   processed_products?: number | null;
   expected_products?: number | null;
   failed_products?: number | null;
@@ -18,11 +21,12 @@ type SyncSummaryProps = {
   isSyncInProgress: boolean;
   formatDateTime: (value: string | null | undefined) => string;
   formatSyncStatusRu: (status: string) => string;
+  formatSyncStageRu: (stage: string | null | undefined) => string;
 };
 
 const clampPercent = (value: number | null | undefined): number => Math.max(0, Math.min(100, value || 0));
 
-export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, formatSyncStatusRu }: SyncSummaryProps) {
+export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, formatSyncStatusRu, formatSyncStageRu }: SyncSummaryProps) {
   if (!latestJob) {
     return null;
   }
@@ -38,6 +42,10 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
             <span className="sync-pill">{`${latestJob.processed_sources || 0}/${latestJob.total_sources || 0}`}</span>
             <span className="sync-pill">{latestJob.current_source_name || "—"}</span>
             <span className="sync-pill">{latestJob.current_source_parser_type || "—"}</span>
+            <span className="sync-pill">{formatSyncStageRu(latestJob.current_stage)}</span>
+            <span className="sync-pill">
+              Источник: {latestJob.current_source_processed_products || 0}/{latestJob.current_source_total_products || 0}
+            </span>
             <span className="sync-pill">Выгружено: {latestJob.processed_products || 0}</span>
             <span className="sync-pill">Обнаружено: {latestJob.expected_products || 0}</span>
             <span className="sync-pill">Ошибок: {latestJob.failed_products || 0}</span>

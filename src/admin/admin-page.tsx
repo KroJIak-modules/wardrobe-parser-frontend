@@ -10,7 +10,7 @@ import {
   tabs,
 } from "./admin-constants";
 import { formatCompactNumber, normalizeSupplierCategory } from "./admin-formatters";
-import { formatDateTime, formatSyncStatusRu } from "./admin-sync-formatters";
+import { formatDateTime, formatSyncStageRu, formatSyncStatusRu } from "./admin-sync-formatters";
 import { useAdminProductsTable } from "./hooks/use-admin-products-table";
 import { useAdminProductFilters } from "./hooks/use-admin-product-filters";
 import { useAdminProductCreate } from "./hooks/use-admin-product-create";
@@ -639,6 +639,7 @@ export function AdminPage() {
             onOpenCreateProduct={() => setOpenModal(true)}
             formatDateTime={formatDateTime}
             formatSyncStatusRu={formatSyncStatusRu}
+            formatSyncStageRu={formatSyncStageRu}
           />
 
           <AdminTabs tabs={tabs} activeTab={tab} onSelectTab={(nextTab) => navigate(`/control/${nextTab}`)} />
