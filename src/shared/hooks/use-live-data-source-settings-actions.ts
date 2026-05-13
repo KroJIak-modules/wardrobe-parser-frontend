@@ -3,19 +3,22 @@ import { API_BASE } from "../admin-auth";
 import { errResult, okResult } from "../action-result";
 import { apiJson, apiNoContent } from "../api-client";
 import type { PricingExampleProduct, PricingSettings, SettingsTransferPayload, Source } from "../live-data-types";
+import type { AdminUiSettings } from "../live-data-types";
 
 export function useLiveDataSourceSettingsActions(params: {
   setSources: React.Dispatch<React.SetStateAction<Source[]>>;
   setPricingSettings: React.Dispatch<React.SetStateAction<PricingSettings | null>>;
+  setAdminUiSettings: React.Dispatch<React.SetStateAction<AdminUiSettings | null>>;
   refresh: () => Promise<void>;
   refreshSourcesOnly: () => Promise<void>;
   refreshPricingOnly: () => Promise<void>;
+  refreshAdminUiOnly: () => Promise<void>;
   refreshWeightOnly: () => Promise<void>;
   refreshCategoriesOnly: (options?: { includeCounts?: boolean; silent?: boolean }) => Promise<void>;
   refreshDedupOnly: () => Promise<void>;
   setError: (value: string | null) => void;
 }) {
-  const { setSources, setPricingSettings, refresh, refreshSourcesOnly, refreshPricingOnly, refreshWeightOnly, refreshCategoriesOnly, refreshDedupOnly, setError } = params;
+  const { setSources, setPricingSettings, setAdminUiSettings, refresh, refreshSourcesOnly, refreshPricingOnly, refreshAdminUiOnly, refreshWeightOnly, refreshCategoriesOnly, refreshDedupOnly, setError } = params;
 
   const patchSource = useCallback((sourceKey: string, updated: Source) => {
     setSources((prev) => prev.map((item) => (item.key === sourceKey ? updated : item)));
@@ -134,11 +137,23 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [setPricingSettings]);
 
-  const fetchPricingExampleProduct = useCallback(async (): Promise<PricingExampleProduct | null> => {
+  const fetchPricingExampleProduct = useCallback(async (): Promise<{ product: PricingExampleProduct | null; errorMessage: string | null }> => {
     try {
-      return await apiJson<PricingExampleProduct>(`${API_BASE}/products/pricing-example`);
-    } catch {
-      return null;
+      const product = await apiJson<PricingExampleProduct>(`${API_BASE}/products/pricing-example`);
+      return { product, errorMessage: null };
+    } catch (e) {
+      const text = e instanceof Error ? e.message : "Unknown error";
+      const lower = text.toLowerCase();
+      if (lower.includes("нет доступных товаров")) {
+        return { product: null, errorMessage: "Сейчас нет доступных товаров для примера ценообразования." };
+      }
+      if (lower.includes("не удалось выбрать товар")) {
+        return { product: null, errorMessage: "Не удалось выбрать товар для примера. Попробуй обновить страницу." };
+      }
+      if (lower.includes("500") || lower.includes("502") || lower.includes("503") || lower.includes("504")) {
+        return { product: null, errorMessage: "Не удалось собрать пример из-за временной ошибки. Попробуй еще раз позже." };
+      }
+      return { product: null, errorMessage: "Не удалось собрать пример: у доступных товаров не хватает расчетных полей." };
     }
   }, []);
 
@@ -161,25 +176,57 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [refresh, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]);
 
+  const resetSettings = useCallback(async () => {
+    try {
+      await apiJson<{ ok: boolean }>(`${API_BASE}/settings/reset`, { method: "POST" });
+      await Promise.all([refresh(), refreshPricingOnly(), refreshWeightOnly(), refreshCategoriesOnly({ includeCounts: true, silent: true }), refreshSourcesOnly()]);
+      return okResult("Настройки сброшены");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [refresh, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]);
+
   const updateShowcaseMediaSettings = useCallback(async (payload: {
     showcase_hero_image_asset_id?: number | null;
     showcase_carousel_image_asset_ids?: number[];
   }) => {
     try {
-      const updated = await apiJson<{ showcase_hero_image_asset_id?: number | null; showcase_carousel_image_asset_ids?: number[] }>(
-        `${API_BASE}/settings/showcase-media`,
-        { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
-      );
-      setPricingSettings((prev) => prev ? ({
-        ...prev,
-        showcase_hero_image_asset_id: updated?.showcase_hero_image_asset_id ?? null,
-        showcase_carousel_image_asset_ids: Array.isArray(updated?.showcase_carousel_image_asset_ids) ? updated.showcase_carousel_image_asset_ids : [],
-      }) : prev);
+      if (payload.showcase_hero_image_asset_id === null) {
+        await apiNoContent(`${API_BASE}/showcase/hero`, { method: "DELETE" });
+      } else if (typeof payload.showcase_hero_image_asset_id === "number" && payload.showcase_hero_image_asset_id > 0) {
+        await apiJson<{ ok: boolean; image_asset_id: number }>(`${API_BASE}/showcase/hero`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_asset_id: payload.showcase_hero_image_asset_id }),
+        });
+      }
+      if (Array.isArray(payload.showcase_carousel_image_asset_ids)) {
+        await apiJson<{ ok: boolean; items: number[] }>(`${API_BASE}/showcase/carousel/order`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: payload.showcase_carousel_image_asset_ids }),
+        });
+      }
+      await refreshAdminUiOnly();
       return okResult("Медиа витрины сохранены");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
-  }, [setPricingSettings]);
+  }, [refreshAdminUiOnly]);
+
+  const updateAdminUiSettings = useCallback(async (payload: Partial<AdminUiSettings>) => {
+    try {
+      const updated = await apiJson<AdminUiSettings>(`${API_BASE}/settings/admin-ui`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setAdminUiSettings(updated || null);
+      return okResult("Настройки интерфейса сохранены");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [setAdminUiSettings]);
 
   const updatePricingSupplier = useCallback(async (supplierId: number, payload: Record<string, unknown>) => {
     try {
@@ -230,6 +277,7 @@ export function useLiveDataSourceSettingsActions(params: {
     addWeightKeyword,
     removeWeightKeyword,
     updatePricingSettings,
+    updateAdminUiSettings,
     fetchPricingExampleProduct,
     updateShowcaseMediaSettings,
     updatePricingSupplier,
@@ -237,5 +285,6 @@ export function useLiveDataSourceSettingsActions(params: {
     deletePricingSupplier,
     exportSettings,
     importSettings,
+    resetSettings,
   };
 }

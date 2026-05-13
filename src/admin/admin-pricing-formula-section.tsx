@@ -11,9 +11,10 @@ type Props = {
   pricingFormulaHtml: string;
   pricingExample: PricingExampleView | null;
   pricingExampleLoading: boolean;
+  pricingExampleError: string | null;
 };
 
-export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml, pricingExample, pricingExampleLoading }: Props) {
+export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml, pricingExample, pricingExampleLoading, pricingExampleError }: Props) {
   return (
     <div className="pricing-formula-box">
       <h3 className="with-help">
@@ -80,7 +81,9 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
           <p className="with-help">
             <strong>Пример на товаре:</strong>
           </p>
-          <p className="muted">Не удалось собрать пример: у доступных товаров не хватает расчетных полей.</p>
+          <div className="login-error-alert" role="alert" aria-live="polite">
+            {pricingExampleError || "Не удалось собрать пример: у доступных товаров не хватает расчетных полей."}
+          </div>
         </div>
       )}
       <div className="pricing-formula-legend pricing-legend-grid">

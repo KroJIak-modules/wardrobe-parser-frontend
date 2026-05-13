@@ -84,11 +84,7 @@ const toCompressedThumbUrl = (url: string | null | undefined, width = 240, heigh
   if (!raw) {
     return null;
   }
-  if (!raw.startsWith("/api/v1/images/")) {
-    return raw;
-  }
-  const sep = raw.includes("?") ? "&" : "?";
-  return `${raw}${sep}w=${Math.max(16, Math.round(width))}&h=${Math.max(16, Math.round(height))}&q=${Math.max(25, Math.min(95, Math.round(quality)))}`;
+  return raw;
 };
 
 const toTitleCaseRu = (value: string): string => {

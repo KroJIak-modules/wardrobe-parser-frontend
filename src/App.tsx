@@ -90,32 +90,16 @@ function AdminLoginRoute() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [sessionOk, setSessionOk] = useState(false);
 
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const ok = await checkAdminSessionSilently();
-      if (!alive) {
-        return;
-      }
-      setSessionOk(ok);
-      if (!ok) {
-        const reason = String(searchParams.get("reason") || "");
-        const expired = window.sessionStorage.getItem(ADMIN_AUTH_EXPIRED_FLAG) === "1";
-        if (expired && reason === "expired") {
-          pushToast("Ваша сессия истекла. Войдите снова.");
-          window.sessionStorage.removeItem(ADMIN_AUTH_EXPIRED_FLAG);
-        } else {
-          window.sessionStorage.removeItem(ADMIN_AUTH_EXPIRED_FLAG);
-        }
-      }
-      setCheckingSession(false);
-    })();
-    return () => {
-      alive = false;
-    };
+    const reason = String(searchParams.get("reason") || "");
+    const expired = window.sessionStorage.getItem(ADMIN_AUTH_EXPIRED_FLAG) === "1";
+    if (expired && reason === "expired") {
+      pushToast("Ваша сессия истекла. Войдите снова.");
+      window.sessionStorage.removeItem(ADMIN_AUTH_EXPIRED_FLAG);
+    } else {
+      window.sessionStorage.removeItem(ADMIN_AUTH_EXPIRED_FLAG);
+    }
   }, [pushToast, searchParams]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -148,14 +132,6 @@ function AdminLoginRoute() {
       setSubmitting(false);
     }
   };
-
-  if (checkingSession) {
-    return null;
-  }
-
-  if (sessionOk) {
-    return <Navigate to={`${MANAGEMENT_PATH}/${DEFAULT_ADMIN_TAB}`} replace />;
-  }
 
   return (
     <div className="admin-login-page">
@@ -199,10 +175,6 @@ function AppRoutes() {
   const [authOk, setAuthOk] = useState(false);
 
   useEffect(() => {
-    if (isAuthRoute) {
-      setAuthChecking(false);
-      return;
-    }
     setAuthChecking(true);
     let alive = true;
     void (async () => {
@@ -234,6 +206,9 @@ function AppRoutes() {
 
   if (!authOk && !isAuthRoute) {
     return <Navigate to={LOGIN_PATH} replace />;
+  }
+  if (authOk && isAuthRoute) {
+    return <Navigate to={`${MANAGEMENT_PATH}/${DEFAULT_ADMIN_TAB}`} replace />;
   }
 
   const appRoutes = (

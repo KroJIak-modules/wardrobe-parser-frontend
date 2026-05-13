@@ -68,6 +68,7 @@ export function AdminPage() {
     loadingCategoryCounts,
     error,
     ensurePricingLoaded,
+    ensureAdminUiLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
     ensureDedupDecisionsLoaded,
@@ -105,17 +106,20 @@ export function AdminPage() {
     weightRules,
     weightMissingProducts,
     pricingSettings,
+    adminUiSettings,
     createWeightRule,
     updateWeightRule,
     deleteWeightRule,
     addWeightKeyword,
     removeWeightKeyword,
     updatePricingSettings,
+    updateAdminUiSettings,
     updatePricingSupplier,
     createPricingSupplier,
     deletePricingSupplier,
     exportSettings,
     importSettings,
+    resetSettings,
     assignSourceSupplier,
     fetchPricingExampleProduct,
     updateShowcaseMediaSettings,
@@ -141,9 +145,15 @@ export function AdminPage() {
     onExportSettings,
     onOpenImportDialog,
     onImportSettingsFile,
+    settingsResetInProgress,
+    resetConfirmOpen,
+    onRequestResetSettings,
+    onCancelResetSettings,
+    onConfirmResetSettings,
   } = useAdminSettingsTransfer({
     exportSettings,
     importSettings,
+    resetSettings,
     pushToast,
   });
   const {
@@ -278,6 +288,11 @@ export function AdminPage() {
     setDesignersMinProductsDraft,
     pricingFormulaHtml,
   } = useAdminPricingLocalState({ pricingSettings });
+  useEffect(() => {
+    if (!adminUiSettings) return;
+    const nextValue = Math.max(1, Math.trunc(Number(adminUiSettings.designers_min_products || 1)));
+    setDesignersMinProductsDraft(String(nextValue));
+  }, [adminUiSettings?.designers_min_products, setDesignersMinProductsDraft]);
   const [pricingTabLoading, setPricingTabLoading] = useState<boolean>(false);
   const [weightTabLoading, setWeightTabLoading] = useState<boolean>(false);
   const heroInputRef = useRef<HTMLInputElement | null>(null);
@@ -290,6 +305,7 @@ export function AdminPage() {
     setPricingTabLoading,
     setWeightTabLoading,
     ensurePricingLoaded,
+    ensureAdminUiLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
     ensureCategoriesLoaded,
@@ -325,8 +341,6 @@ export function AdminPage() {
     setMarkupRateDraft,
     finalRoundingModeDraft,
     setFinalRoundingModeDraft,
-    designersMinProductsDraft,
-    setDesignersMinProductsDraft,
     updatePricingSettings,
     pushToast,
   });
@@ -395,7 +409,7 @@ export function AdminPage() {
     onStartCarouselDrag,
     onEndCarouselDrag,
   } = useAdminShowcase({
-    pricingSettings,
+    adminUiSettings,
     uploadShowcaseImage,
     updateShowcaseMediaSettings,
     pushToast,
@@ -405,6 +419,7 @@ export function AdminPage() {
     showBybitErrorPopup,
     setShowBybitErrorPopup,
     pricingExample,
+    pricingExampleError,
     pricingExampleLoading,
     bybitWorkerInfo,
     pricingBlockedByInitialBybit,
@@ -556,6 +571,7 @@ export function AdminPage() {
       formatDateTime,
       pricingFormulaHtml,
       pricingExample,
+      pricingExampleError,
       pricingExampleLoading,
       markupRateDraft,
       setMarkupRateDraft,
@@ -607,10 +623,10 @@ export function AdminPage() {
     },
     settingsTabProps: {
       pricingTabLoading,
-      pricingSettings,
+      adminUiSettings,
       designersMinProductsDraft,
       setDesignersMinProductsDraft,
-      updatePricingSettings,
+      updateAdminUiSettings,
       pushToast,
       showcaseHeroImageId,
       heroInputRef,
@@ -635,6 +651,11 @@ export function AdminPage() {
       onOpenImportDialog,
       settingsImportInputRef,
       onImportSettingsFile,
+      settingsResetInProgress,
+      resetConfirmOpen,
+      onRequestResetSettings,
+      onCancelResetSettings,
+      onConfirmResetSettings,
     },
   });
 

@@ -60,15 +60,19 @@ export function useLiveDataProductActions(params: {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      await apiJson(`${API_BASE}/products/upload-image`, { method: "POST", body: formData });
-      return okResult("Изображение загружено");
+      const payload = await apiJson<{ image_asset_id?: number }>(`${API_BASE}/products/upload-image`, { method: "POST", body: formData });
+      const imageAssetId = Number(payload?.image_asset_id);
+      if (!Number.isFinite(imageAssetId) || imageAssetId <= 0) {
+        return { ok: false, message: "Сервер вернул некорректный id изображения", imageAssetId: null };
+      }
+      return { ok: true, message: "Изображение загружено", imageAssetId };
     } catch (e) {
-      return errResult(e instanceof Error ? e.message : "Unknown error");
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", imageAssetId: null };
     }
   }, []);
 
   const updateProductOverrides = useCallback(async (productId: number, payload: {
-    title?: string; description?: string; images?: { hidden_source_image_ids?: number[]; manual_image_ids?: number[]; manual_image_order?: string[] };
+    title?: string; description?: string; images?: { hidden_source_image_urls?: string[]; manual_image_urls?: string[]; manual_image_order?: string[] };
     reset_to_default?: Array<"title" | "description" | "images">;
   }) => {
     try {

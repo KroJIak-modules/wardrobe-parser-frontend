@@ -1,8 +1,12 @@
-import type { ChangeEvent, KeyboardEvent, MouseEvent, RefObject } from "react";
+import { useEffect, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import { IconClose, IconPlus } from "../shared/mono-icons";
-import { toImageGatewayUrl } from "../shared/product-image";
+import { SHOWCASE_CAROUSEL_LIMIT } from "./admin-showcase-constants";
 
 type CarouselItem = { id: number };
+
+function toShowcaseImageUrl(imageId: number): string {
+  return `/api/v1/showcase/carousel/${imageId}/image`;
+}
 
 type Props = {
   showcaseHeroImageId: number | null;
@@ -31,9 +35,16 @@ export function AdminShowcaseMediaSection({
   carouselInputRef,
   onPickCarouselImages,
 }: Props) {
+  const [heroImageFailed, setHeroImageFailed] = useState(false);
+
+  useEffect(() => {
+    setHeroImageFailed(false);
+  }, [showcaseHeroImageId]);
+
   return (
     <div className="showcase-media-settings">
       <div className="showcase-media-block">
+        <h3 className="settings-subtitle">Заставка на главном экране</h3>
         <div
           className="showcase-hero-tile"
           onClick={() => heroInputRef.current?.click()}
@@ -47,9 +58,14 @@ export function AdminShowcaseMediaSection({
           tabIndex={0}
           aria-disabled={showcaseSaving}
         >
-          {showcaseHeroImageId ? (
+          {showcaseHeroImageId && !heroImageFailed ? (
             <>
-              <img src={toImageGatewayUrl(showcaseHeroImageId, { w: 960, h: 420, q: 75 }) || ""} alt="Заставка" loading="lazy" />
+              <img
+                src={"/api/v1/showcase/hero/image"}
+                alt="Заставка витрины"
+                loading="lazy"
+                onError={() => setHeroImageFailed(true)}
+              />
               <button type="button" className="showcase-remove-btn" onClick={(event) => void onRemoveHeroImage(event)}>
                 <IconClose className="icon-svg icon-svg--sm" />
               </button>
@@ -62,7 +78,7 @@ export function AdminShowcaseMediaSection({
       </div>
 
       <div className="showcase-media-block">
-        <p className="muted">Карусель ({showcaseCarousel.length}/20)</p>
+        <h3 className="settings-subtitle">{`Карусель (${showcaseCarousel.length}/${SHOWCASE_CAROUSEL_LIMIT})`}</h3>
         <div className="showcase-carousel-grid">
           {showcaseCarousel.map((item) => (
             <div
@@ -74,13 +90,13 @@ export function AdminShowcaseMediaSection({
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => void onReorderCarouselImage(item.id)}
             >
-              <img src={toImageGatewayUrl(item.id, { w: 480, h: 300, q: 72 }) || ""} alt="Слайд карусели" loading="lazy" />
+              <img src={toShowcaseImageUrl(item.id)} alt="Слайд карусели" loading="lazy" />
               <button type="button" className="showcase-remove-btn" onClick={() => void onRemoveCarouselImage(item.id)}>
                 <IconClose className="icon-svg icon-svg--sm" />
               </button>
             </div>
           ))}
-          {showcaseCarousel.length < 20 ? (
+          {showcaseCarousel.length < SHOWCASE_CAROUSEL_LIMIT ? (
             <button type="button" className="showcase-carousel-add" onClick={() => carouselInputRef.current?.click()} disabled={showcaseSaving}>
               <IconPlus className="icon-svg icon-svg--sm" />
             </button>

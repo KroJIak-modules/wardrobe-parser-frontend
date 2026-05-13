@@ -26,7 +26,7 @@ type UseAdminProductCreateParams = {
     product_type: string | null;
     image_count?: number;
   }) => Promise<{ ok: boolean; message: string }>;
-  uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string }>;
+  uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   pushToast: (message: string) => void;
 };
 

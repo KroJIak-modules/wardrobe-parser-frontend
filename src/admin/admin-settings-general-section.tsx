@@ -1,21 +1,36 @@
-import type { PricingSettings } from "../shared/live-data-context";
+import type { AdminUiSettings } from "./admin-types";
 import { HelpHint } from "./help-hint";
+import { useEffect } from "react";
 
 type Props = {
-  pricingSettings: PricingSettings | null;
+  adminUiSettings: AdminUiSettings | null;
   designersMinProductsDraft: string;
   setDesignersMinProductsDraft: (value: string) => void;
-  updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
+  updateAdminUiSettings: (payload: Partial<AdminUiSettings>) => Promise<{ ok: boolean; message: string }>;
   pushToast: (message: string) => void;
 };
 
 export function AdminSettingsGeneralSection({
-  pricingSettings,
+  adminUiSettings,
   designersMinProductsDraft,
   setDesignersMinProductsDraft,
-  updatePricingSettings,
+  updateAdminUiSettings,
   pushToast,
 }: Props) {
+  useEffect(() => {
+    if (!adminUiSettings) return;
+    const parsed = Number((designersMinProductsDraft || "").trim());
+    if (!Number.isFinite(parsed) || parsed < 1) return;
+    const nextValue = Math.max(1, Math.trunc(parsed));
+    const currentValue = Math.max(1, Math.trunc(Number(adminUiSettings.designers_min_products || 1)));
+    if (nextValue === currentValue) return;
+    const timer = window.setTimeout(async () => {
+      const result = await updateAdminUiSettings({ designers_min_products: nextValue });
+      if (!result.ok) pushToast(result.message);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [designersMinProductsDraft, adminUiSettings, updateAdminUiSettings, pushToast]);
+
   return (
     <div className="pricing-settings-grid pricing-settings-grid--spaced">
       <div className="pricing-settings-field pricing-settings-field--stacked">
@@ -31,21 +46,18 @@ export function AdminSettingsGeneralSection({
             step="1"
             value={designersMinProductsDraft}
             onChange={(event) => setDesignersMinProductsDraft(event.target.value)}
-            disabled={!pricingSettings}
+            disabled={!adminUiSettings}
           />
         </label>
-        <span className="muted with-help">
-          <HelpHint text="Если включено, из «Дизайнеров» убираются бренды, которые совпадают с именем/доменом самого источника." />
-        </span>
         <label className="ui-switch ui-switch--compact">
           <input
             type="checkbox"
-            checked={Boolean(pricingSettings?.designers_exclude_store_vendors)}
-            disabled={!pricingSettings}
+            checked={Boolean(adminUiSettings?.designers_exclude_store_vendors)}
+            disabled={!adminUiSettings}
             onChange={(event) => {
               void (async () => {
-                if (!pricingSettings) return;
-                const result = await updatePricingSettings({ designers_exclude_store_vendors: Boolean(event.target.checked) });
+                if (!adminUiSettings) return;
+                const result = await updateAdminUiSettings({ designers_exclude_store_vendors: Boolean(event.target.checked) });
                 if (!result.ok) pushToast(result.message);
               })();
             }}
@@ -54,6 +66,9 @@ export function AdminSettingsGeneralSection({
             <span className="ui-switch-thumb" />
           </span>
           <span className="ui-switch-text">Исключать бренды-магазины</span>
+          <span className="settings-inline-hint">
+            <HelpHint text="Если включено, из «Дизайнеров» убираются бренды, которые совпадают с именем/доменом самого источника." />
+          </span>
         </label>
       </div>
 

@@ -47,6 +47,10 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const loadingMoreLockRef = useRef<boolean>(false);
   const productsRef = useRef<ServiceProduct[]>([]);
 
+  const onAdminReferenceError = useCallback((message: string) => {
+    setError(message);
+  }, []);
+
   const {
     adminCategories,
     dedupCandidates,
@@ -56,12 +60,15 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     weightRules,
     weightMissingProducts,
     pricingSettings,
+    adminUiSettings,
     refreshDedupOnly,
     refreshDedupDecisionsOnly,
     refreshPricingOnly,
+    refreshAdminUiOnly,
     refreshCategoriesOnly,
     refreshWeightOnly,
     ensurePricingLoaded,
+    ensureAdminUiLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
     ensureDedupDecisionsLoaded,
@@ -69,7 +76,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     loadingCategoriesTree,
     loadingCategoryCounts,
     setAdminCategories,
-  } = useLiveDataAdminReference((message) => setError(message));
+    setAdminUiSettings,
+  } = useLiveDataAdminReference(onAdminReferenceError);
 
   useEffect(() => {
     productsRef.current = products;
@@ -266,6 +274,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     addWeightKeyword,
     removeWeightKeyword,
     updatePricingSettings,
+    updateAdminUiSettings,
     fetchPricingExampleProduct,
     updateShowcaseMediaSettings,
     updatePricingSupplier,
@@ -273,12 +282,15 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     deletePricingSupplier,
     exportSettings,
     importSettings,
+    resetSettings,
   } = useLiveDataSourceSettingsActions({
     setSources,
     setPricingSettings: (next) => setPricingSettings(next),
+    setAdminUiSettings: (next) => setAdminUiSettings(next),
     refresh,
     refreshSourcesOnly,
     refreshPricingOnly,
+    refreshAdminUiOnly,
     refreshWeightOnly,
     refreshCategoriesOnly,
     refreshDedupOnly,
@@ -465,7 +477,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await authFetch(`${API_BASE}/settings/showcase/upload-image`, {
+      const res = await authFetch(`${API_BASE}/showcase/carousel/upload`, {
         method: "POST",
         body: formData,
       });
@@ -558,6 +570,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       weightRules,
       weightMissingProducts,
       pricingSettings,
+      adminUiSettings,
       sources,
       latestJob,
       loading,
@@ -567,6 +580,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       error,
       refresh,
       ensurePricingLoaded,
+      ensureAdminUiLoaded,
       ensureWeightLoaded,
       ensureDedupLoaded,
       ensureDedupDecisionsLoaded,
@@ -610,12 +624,14 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       removeWeightKeyword,
       fetchPricingExampleProduct,
       updatePricingSettings,
+      updateAdminUiSettings,
       updateShowcaseMediaSettings,
       updatePricingSupplier,
       createPricingSupplier,
       deletePricingSupplier,
       exportSettings,
       importSettings,
+      resetSettings,
     }),
     [
       products,
@@ -630,6 +646,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       weightRules,
       weightMissingProducts,
       pricingSettings,
+      adminUiSettings,
       sources,
       latestJob,
       loading,
@@ -639,6 +656,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       error,
       refresh,
       ensurePricingLoaded,
+      ensureAdminUiLoaded,
       ensureWeightLoaded,
       ensureDedupLoaded,
       ensureDedupDecisionsLoaded,
@@ -682,12 +700,14 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       removeWeightKeyword,
       fetchPricingExampleProduct,
       updatePricingSettings,
+      updateAdminUiSettings,
       updateShowcaseMediaSettings,
       updatePricingSupplier,
       createPricingSupplier,
       deletePricingSupplier,
       exportSettings,
       importSettings,
+      resetSettings,
     ]
   );
 

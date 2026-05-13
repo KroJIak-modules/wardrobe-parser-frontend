@@ -1,6 +1,7 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import type { DedupCandidate } from "../shared/live-data-context";
 import { AdminDedupSkeleton } from "../shared/skeleton";
+import { EmptyState } from "../shared/empty-state";
 import { formatDedupReason } from "./admin-formatters";
 import { AdminDedupProductCard } from "./admin-dedup-product-card";
 
@@ -114,7 +115,7 @@ export function AdminDedupCandidatesView({
           </div>
         ))}
         {loadingDedupCandidates ? <AdminDedupSkeleton rows={1} /> : null}
-        {!loadingDedupCandidates && dedupCandidates.length === 0 ? <p className="muted">Кандидатов нет</p> : null}
+        {!loadingDedupCandidates && dedupCandidates.length === 0 ? <EmptyState compact title="Дубликатов пока нет" /> : null}
       </div>
     </>
   );

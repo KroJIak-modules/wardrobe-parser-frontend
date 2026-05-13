@@ -1,5 +1,5 @@
 import type { ChangeEvent, KeyboardEvent, MouseEvent, RefObject } from "react";
-import type { PricingSettings } from "../shared/live-data-context";
+import type { AdminUiSettings } from "./admin-types";
 import { AdminSettingsSkeleton } from "../shared/skeleton";
 import { AdminSettingsGeneralSection } from "./admin-settings-general-section";
 import { AdminShowcaseMediaSection } from "./admin-showcase-media-section";
@@ -9,10 +9,10 @@ type CarouselItem = { id: number };
 
 type Props = {
   pricingTabLoading: boolean;
-  pricingSettings: PricingSettings | null;
+  adminUiSettings: AdminUiSettings | null;
   designersMinProductsDraft: string;
   setDesignersMinProductsDraft: (value: string) => void;
-  updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
+  updateAdminUiSettings: (payload: Partial<AdminUiSettings>) => Promise<{ ok: boolean; message: string }>;
   pushToast: (message: string) => void;
   showcaseHeroImageId: number | null;
   heroInputRef: RefObject<HTMLInputElement | null>;
@@ -27,18 +27,23 @@ type Props = {
   onPickCarouselImages: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   settingsExportInProgress: boolean;
   settingsImportInProgress: boolean;
+  settingsResetInProgress: boolean;
+  resetConfirmOpen: boolean;
   onExportSettings: () => Promise<void>;
   onOpenImportDialog: () => void;
   settingsImportInputRef: RefObject<HTMLInputElement | null>;
   onImportSettingsFile: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onRequestResetSettings: () => void;
+  onCancelResetSettings: () => void;
+  onConfirmResetSettings: () => Promise<void>;
 };
 
 export function AdminSettingsTab({
   pricingTabLoading,
-  pricingSettings,
+  adminUiSettings,
   designersMinProductsDraft,
   setDesignersMinProductsDraft,
-  updatePricingSettings,
+  updateAdminUiSettings,
   pushToast,
   showcaseHeroImageId,
   heroInputRef,
@@ -53,21 +58,26 @@ export function AdminSettingsTab({
   onPickCarouselImages,
   settingsExportInProgress,
   settingsImportInProgress,
+  settingsResetInProgress,
+  resetConfirmOpen,
   onExportSettings,
   onOpenImportDialog,
   settingsImportInputRef,
   onImportSettingsFile,
+  onRequestResetSettings,
+  onCancelResetSettings,
+  onConfirmResetSettings,
 }: Props) {
   return (
     <div className="admin-settings-layout">
       <section className="card admin-settings-section">
         <h2>Параметры витрины</h2>
-        {pricingTabLoading && !pricingSettings ? <AdminSettingsSkeleton /> : null}
+        {pricingTabLoading && !adminUiSettings ? <AdminSettingsSkeleton /> : null}
         <AdminSettingsGeneralSection
-          pricingSettings={pricingSettings}
+          adminUiSettings={adminUiSettings}
           designersMinProductsDraft={designersMinProductsDraft}
           setDesignersMinProductsDraft={setDesignersMinProductsDraft}
-          updatePricingSettings={updatePricingSettings}
+          updateAdminUiSettings={updateAdminUiSettings}
           pushToast={pushToast}
         />
       </section>
@@ -94,10 +104,15 @@ export function AdminSettingsTab({
         <AdminSettingsTransferSection
           settingsExportInProgress={settingsExportInProgress}
           settingsImportInProgress={settingsImportInProgress}
+          settingsResetInProgress={settingsResetInProgress}
+          resetConfirmOpen={resetConfirmOpen}
           onExportSettings={onExportSettings}
           onOpenImportDialog={onOpenImportDialog}
           settingsImportInputRef={settingsImportInputRef}
           onImportSettingsFile={onImportSettingsFile}
+          onRequestResetSettings={onRequestResetSettings}
+          onCancelResetSettings={onCancelResetSettings}
+          onConfirmResetSettings={onConfirmResetSettings}
         />
       </section>
     </div>

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { API_BASE } from "../admin-auth";
 import { apiJson } from "../api-client";
 import type {
+  AdminUiSettings,
   AdminCategoryNode,
   DedupCandidate,
   DedupDecision,
@@ -19,7 +20,9 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const [weightRules, setWeightRules] = useState<WeightRule[]>([]);
   const [weightMissingProducts, setWeightMissingProducts] = useState<WeightMissingProduct[]>([]);
   const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(null);
+  const [adminUiSettings, setAdminUiSettings] = useState<AdminUiSettings | null>(null);
   const [pricingLoaded, setPricingLoaded] = useState<boolean>(false);
+  const [adminUiLoaded, setAdminUiLoaded] = useState<boolean>(false);
   const [weightLoaded, setWeightLoaded] = useState<boolean>(false);
   const [dedupLoaded, setDedupLoaded] = useState<boolean>(false);
   const [categoriesLoaded, setCategoriesLoaded] = useState<boolean>(false);
@@ -66,6 +69,12 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     setPricingLoaded(true);
   }, []);
 
+  const refreshAdminUiOnly = useCallback(async () => {
+    const payload = await apiJson<AdminUiSettings>(`${API_BASE}/settings/admin-ui`);
+    setAdminUiSettings(payload || null);
+    setAdminUiLoaded(true);
+  }, []);
+
   const refreshCategoriesOnly = useCallback(async (options?: { includeCounts?: boolean; silent?: boolean }) => {
     const includeCounts = options?.includeCounts ?? true;
     const silent = options?.silent ?? false;
@@ -100,6 +109,11 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     await refreshPricingOnly();
   }, [pricingLoaded, refreshPricingOnly]);
 
+  const ensureAdminUiLoaded = useCallback(async (force = false) => {
+    if (!force && adminUiLoaded) return;
+    await refreshAdminUiOnly();
+  }, [adminUiLoaded, refreshAdminUiOnly]);
+
   const ensureWeightLoaded = useCallback(async (force = false) => {
     if (!force && weightLoaded) return;
     await refreshWeightOnly();
@@ -128,6 +142,7 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     weightRules,
     weightMissingProducts,
     pricingSettings,
+    adminUiSettings,
     pricingLoaded,
     weightLoaded,
     dedupLoaded,
@@ -137,13 +152,16 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     refreshDedupOnly,
     refreshDedupDecisionsOnly,
     refreshPricingOnly,
+    refreshAdminUiOnly,
     refreshCategoriesOnly,
     refreshWeightOnly,
     ensurePricingLoaded,
+    ensureAdminUiLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
     ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
     setAdminCategories,
+    setAdminUiSettings,
   };
 }

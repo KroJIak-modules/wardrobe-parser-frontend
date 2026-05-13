@@ -36,6 +36,7 @@ type Props = {
   pricingFormulaHtml: string;
   pricingExample: PricingExampleView | null;
   pricingExampleLoading: boolean;
+  pricingExampleError: string | null;
   markupRateDraft: string;
   setMarkupRateDraft: Dispatch<SetStateAction<string>>;
   pricingDrafts: Record<PricingFieldKey, string>;
@@ -81,6 +82,7 @@ export function AdminPricingTab({
   pricingFormulaHtml,
   pricingExample,
   pricingExampleLoading,
+  pricingExampleError,
   markupRateDraft,
   setMarkupRateDraft,
   pricingDrafts,
@@ -134,6 +136,7 @@ export function AdminPricingTab({
             pricingFormulaHtml={pricingFormulaHtml}
             pricingExample={pricingExample}
             pricingExampleLoading={pricingExampleLoading}
+            pricingExampleError={pricingExampleError}
           />
 
           <AdminPricingCoreFieldsSection

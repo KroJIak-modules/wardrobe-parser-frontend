@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PricingExampleProduct, PricingSettings } from "../../shared/live-data-context";
+import type { PricingExampleProduct, PricingExampleFetchResult, PricingSettings } from "../../shared/live-data-context";
 import { buildBybitWorkerInfo, buildPricingExampleView, isPricingBlockedByInitialBybit } from "../admin-pricing-view-model";
 import type { BybitWorkerInfo, PricingExampleView } from "../admin-types";
 
 type UseAdminPricingRuntimeParams = {
   tab: string;
   pricingSettings: PricingSettings | null;
-  fetchPricingExampleProduct: () => Promise<PricingExampleProduct | null>;
+  fetchPricingExampleProduct: () => Promise<PricingExampleFetchResult>;
   pushToast: (message: string) => void;
 };
 
@@ -19,6 +19,7 @@ export function useAdminPricingRuntime({
   const [showBybitErrorPopup, setShowBybitErrorPopup] = useState<boolean>(false);
   const [nowTickMs, setNowTickMs] = useState<number>(() => Date.now());
   const [pricingExampleProduct, setPricingExampleProduct] = useState<PricingExampleProduct | null>(null);
+  const [pricingExampleError, setPricingExampleError] = useState<string | null>(null);
   const [pricingExampleLoading, setPricingExampleLoading] = useState<boolean>(false);
   const bybitWarnToastShownRef = useRef<string | null>(null);
   const pricingBlockedToastShownRef = useRef<boolean>(false);
@@ -74,15 +75,17 @@ export function useAdminPricingRuntime({
   useEffect(() => {
     if (tab !== "pricing" || !pricingSettings || pricingBlockedByInitialBybit) {
       setPricingExampleProduct(null);
+      setPricingExampleError(null);
       setPricingExampleLoading(false);
       return;
     }
     let cancelled = false;
     setPricingExampleLoading(true);
     void fetchPricingExampleProduct()
-      .then((payload) => {
+      .then((result) => {
         if (!cancelled) {
-          setPricingExampleProduct(payload);
+          setPricingExampleProduct(result.product);
+          setPricingExampleError(result.errorMessage);
         }
       })
       .finally(() => {
@@ -104,6 +107,7 @@ export function useAdminPricingRuntime({
     showBybitErrorPopup,
     setShowBybitErrorPopup,
     pricingExample,
+    pricingExampleError,
     pricingExampleLoading,
     bybitWorkerInfo,
     pricingBlockedByInitialBybit,

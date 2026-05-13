@@ -6,6 +6,7 @@ type UseAdminTabPreloadParams = {
   setPricingTabLoading: (value: boolean) => void;
   setWeightTabLoading: (value: boolean) => void;
   ensurePricingLoaded: (force?: boolean) => Promise<void>;
+  ensureAdminUiLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: () => Promise<void>;
   ensureDedupLoaded: () => Promise<void>;
   ensureCategoriesLoaded: (force?: boolean) => Promise<void>;
@@ -17,12 +18,14 @@ export function useAdminTabPreload({
   setPricingTabLoading,
   setWeightTabLoading,
   ensurePricingLoaded,
+  ensureAdminUiLoaded,
   ensureWeightLoaded,
   ensureDedupLoaded,
   ensureCategoriesLoaded,
   refreshSourcesOnly,
 }: UseAdminTabPreloadParams) {
   const ensurePricingLoadedRef = useRef(ensurePricingLoaded);
+  const ensureAdminUiLoadedRef = useRef(ensureAdminUiLoaded);
   const ensureWeightLoadedRef = useRef(ensureWeightLoaded);
   const ensureDedupLoadedRef = useRef(ensureDedupLoaded);
   const ensureCategoriesLoadedRef = useRef(ensureCategoriesLoaded);
@@ -32,6 +35,7 @@ export function useAdminTabPreload({
 
   useEffect(() => {
     ensurePricingLoadedRef.current = ensurePricingLoaded;
+    ensureAdminUiLoadedRef.current = ensureAdminUiLoaded;
     ensureWeightLoadedRef.current = ensureWeightLoaded;
     ensureDedupLoadedRef.current = ensureDedupLoaded;
     ensureCategoriesLoadedRef.current = ensureCategoriesLoaded;
@@ -40,6 +44,7 @@ export function useAdminTabPreload({
     setWeightTabLoadingRef.current = setWeightTabLoading;
   }, [
     ensurePricingLoaded,
+    ensureAdminUiLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
     ensureCategoriesLoaded,
@@ -50,13 +55,17 @@ export function useAdminTabPreload({
 
   useEffect(() => {
     const run = async () => {
-      if (tab === "pricing" || tab === "settings") {
+      if (tab === "pricing") {
         setPricingTabLoadingRef.current(true);
         try {
           await ensurePricingLoadedRef.current(true);
         } finally {
           setPricingTabLoadingRef.current(false);
         }
+        return;
+      }
+      if (tab === "settings") {
+        await ensureAdminUiLoadedRef.current(true);
         return;
       }
       if (tab === "weight") {

@@ -115,3 +115,10 @@ export type BrandMappingItem = {
   target_brand: string;
   include_in_designers: boolean;
 };
+
+export type AdminUiSettings = {
+  designers_min_products: number;
+  designers_exclude_store_vendors: boolean;
+  showcase_hero_image_asset_id?: number | null;
+  showcase_carousel_image_asset_ids?: number[];
+};

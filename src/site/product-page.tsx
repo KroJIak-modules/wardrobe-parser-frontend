@@ -58,21 +58,17 @@ function buildVariantLabel(variant: VariantInfo): string {
 }
 
 function toThumbUrl(url: string): string {
-  if (!url.startsWith("/api/v1/images/")) {
-    return url;
-  }
-  const delimiter = url.includes("?") ? "&" : "?";
-  return `${url}${delimiter}w=140&h=140&q=50`;
+  return url;
 }
 
 type ImageEditState = {
   title_sync_locked: boolean;
   description_sync_locked: boolean;
   images_sync_locked: boolean;
-  hidden_source_image_ids: number[];
-  manual_image_ids: number[];
+  hidden_source_image_urls: string[];
+  manual_image_urls: string[];
   manual_image_order: string[];
-  source_image_ids: number[];
+  source_image_urls: string[];
 };
 
 export function ProductPage() {
@@ -86,7 +82,7 @@ export function ProductPage() {
     pricingSettings,
     ensurePricingLoaded,
     updateProductOverrides,
-    uploadShowcaseImage,
+    uploadProductImage,
   } = useLiveData();
   const fromAdmin = searchParams.get("from") === "admin";
   const canEdit = (() => {
@@ -165,40 +161,38 @@ export function ProductPage() {
   }, [product?.id, product?.title, product?.description]);
 
   const imageEdit = useMemo<ImageEditState>(() => {
-    const fallbackSource = (product?.image_ids || []).map((value) => Number(value)).filter((value) => Number.isFinite(value));
+    const fallbackSourceUrls = Array.isArray(product?.image_urls) ? product.image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [];
     const raw = product?.product_edit || {};
     return {
       title_sync_locked: Boolean(raw.title_sync_locked),
       description_sync_locked: Boolean(raw.description_sync_locked),
       images_sync_locked: Boolean(raw.images_sync_locked),
-      hidden_source_image_ids: Array.isArray(raw.hidden_source_image_ids) ? raw.hidden_source_image_ids.map((x) => Number(x)).filter(Number.isFinite) : [],
-      manual_image_ids: Array.isArray(raw.manual_image_ids) ? raw.manual_image_ids.map((x) => Number(x)).filter(Number.isFinite) : [],
+      hidden_source_image_urls: Array.isArray(raw.hidden_source_image_urls) ? raw.hidden_source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
+      manual_image_urls: Array.isArray(raw.manual_image_urls) ? raw.manual_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
       manual_image_order: Array.isArray(raw.manual_image_order) ? raw.manual_image_order.map((x) => String(x)) : [],
-      source_image_ids: Array.isArray(raw.source_image_ids) && raw.source_image_ids.length > 0
-        ? raw.source_image_ids.map((x) => Number(x)).filter(Number.isFinite)
-        : fallbackSource,
+      source_image_urls: fallbackSourceUrls,
     };
-  }, [product?.product_edit, product?.image_ids]);
+  }, [product?.product_edit, product?.image_urls]);
 
   const images = useMemo(() => {
     if (!product) {
       return [] as string[];
     }
-    const ids = (product.image_ids || []).map((imageId) => (imageId ? `/api/v1/images/${imageId}` : null)).filter(Boolean) as string[];
-    if (ids.length > 0) {
-      return ids;
+    const direct = (product.image_urls || []).map((url) => String(url || "").trim()).filter(Boolean);
+    if (direct.length > 0) {
+      return direct;
     }
     const fallback = getProductPrimaryImageUrl(product);
     return fallback ? [fallback] : [];
   }, [product]);
 
   useEffect(() => {
-    const editableLength = imageEdit.source_image_ids.length + imageEdit.manual_image_ids.length;
+    const editableLength = imageEdit.source_image_urls.length + imageEdit.manual_image_urls.length;
     const imagesLength = canEdit ? editableLength : images.length;
     if (activeImageIndex > Math.max(0, imagesLength - 1)) {
       setActiveImageIndex(0);
     }
-  }, [canEdit, imageEdit.source_image_ids.length, imageEdit.manual_image_ids.length, images.length, activeImageIndex]);
+  }, [canEdit, imageEdit.source_image_urls.length, imageEdit.manual_image_urls.length, images.length, activeImageIndex]);
 
   const sourceNameById = useMemo(() => getSourceNameById(sources), [sources]);
   const sourceName = product ? (sourceNameById.get(product.source_id) || `Источник #${product.source_id}`) : null;
@@ -278,11 +272,11 @@ export function ProductPage() {
       : Boolean(pricingSettings?.show_product_description ?? true)
   );
   const descriptionVisibilityLocked = imageEdit.description_visible_override !== undefined && imageEdit.description_visible_override !== null;
-  const sourceImageIds = imageEdit.source_image_ids;
-  const hiddenSourceIdSet = new Set<number>(imageEdit.hidden_source_image_ids);
-  const manualImageIds = imageEdit.manual_image_ids;
-  const sourceTokens = sourceImageIds.map((imageId) => `s:${imageId}`);
-  const manualTokens = manualImageIds.map((imageId) => `m:${imageId}`);
+  const sourceImageUrls = imageEdit.source_image_urls;
+  const hiddenSourceUrlSet = new Set<string>(imageEdit.hidden_source_image_urls);
+  const manualImageUrls = imageEdit.manual_image_urls;
+  const sourceTokens = sourceImageUrls.map((imageUrl) => `s:${imageUrl}`);
+  const manualTokens = manualImageUrls.map((imageUrl) => `m:${imageUrl}`);
   const imageEditorTokens = (() => {
     const valid = new Set<string>([...sourceTokens, ...manualTokens]);
     const ordered = imageEdit.manual_image_order.filter((token) => valid.has(token));
@@ -290,22 +284,28 @@ export function ProductPage() {
     return [...ordered, ...missing];
   })();
   const imageEditorItems = imageEditorTokens.map((token) => {
-    const [kind, rawId] = token.split(":");
-    const imageId = Number(rawId);
+    const [kind, ...rest] = token.split(":");
+    const imageUrlRaw = rest.join(":");
     const isSource = kind === "s";
     const isManual = kind === "m";
-    if (!Number.isFinite(imageId) || (!isSource && !isManual)) {
+    if (!imageUrlRaw || (!isSource && !isManual)) {
       return null;
     }
-    const hidden = isSource && hiddenSourceIdSet.has(imageId);
+    const hidden = isSource && hiddenSourceUrlSet.has(imageUrlRaw);
+    const sourceUrl = imageUrlRaw;
+    const manualUrl = imageUrlRaw;
+    const imageUrl = isSource ? sourceUrl : manualUrl;
+    if (!imageUrl) {
+      return null;
+    }
     return {
       token,
-      imageId,
+      imageId: 0,
       isSource,
       isManual,
       hidden,
-      imageUrl: `/api/v1/images/${imageId}`,
-      thumbUrl: `/api/v1/images/${imageId}?w=120&h=120&q=55`,
+      imageUrl,
+      thumbUrl: imageUrl,
     };
   }).filter(Boolean) as Array<{
     token: string;
@@ -319,7 +319,7 @@ export function ProductPage() {
   const galleryImages = canEdit ? imageEditorItems.map((item) => item.imageUrl) : images;
   const activeImage = galleryImages[activeImageIndex] || null;
 
-  const persistImagePatch = async (next: { hidden_source_image_ids: number[]; manual_image_ids: number[]; manual_image_order: string[] }) => {
+  const persistImagePatch = async (next: { hidden_source_image_urls: string[]; manual_image_urls: string[]; manual_image_order: string[] }) => {
     setEditPending(true);
     const result = await updateProductOverrides(product.id, { images: next });
     pushToast(result.message);
@@ -329,25 +329,25 @@ export function ProductPage() {
     setEditPending(false);
   };
 
-  const toggleSourceImageVisibility = async (imageId: number) => {
-    const next = new Set(hiddenSourceIdSet);
-    if (next.has(imageId)) {
-      next.delete(imageId);
+  const toggleSourceImageVisibility = async (imageUrl: string) => {
+    const next = new Set(hiddenSourceUrlSet);
+    if (next.has(imageUrl)) {
+      next.delete(imageUrl);
     } else {
-      next.add(imageId);
+      next.add(imageUrl);
     }
     await persistImagePatch({
-      hidden_source_image_ids: Array.from(next),
-      manual_image_ids: manualImageIds,
+      hidden_source_image_urls: Array.from(next),
+      manual_image_urls: manualImageUrls,
       manual_image_order: imageEdit.manual_image_order,
     });
   };
 
-  const removeManualImage = async (imageId: number) => {
+  const removeManualImage = async (imageUrl: string) => {
     await persistImagePatch({
-      hidden_source_image_ids: imageEdit.hidden_source_image_ids,
-      manual_image_ids: manualImageIds.filter((id) => id !== imageId),
-      manual_image_order: imageEdit.manual_image_order.filter((token) => token !== `m:${imageId}`),
+      hidden_source_image_urls: imageEdit.hidden_source_image_urls,
+      manual_image_urls: manualImageUrls.filter((url) => url !== imageUrl),
+      manual_image_order: imageEdit.manual_image_order.filter((token) => token !== `m:${imageUrl}`),
     });
   };
 
@@ -364,8 +364,8 @@ export function ProductPage() {
     const [moved] = current.splice(fromIndex, 1);
     current.splice(toIndex, 0, moved);
     await persistImagePatch({
-      hidden_source_image_ids: imageEdit.hidden_source_image_ids,
-      manual_image_ids: manualImageIds,
+      hidden_source_image_urls: imageEdit.hidden_source_image_urls,
+      manual_image_urls: manualImageUrls,
       manual_image_order: current,
     });
   };
@@ -377,18 +377,19 @@ export function ProductPage() {
       return;
     }
     setEditPending(true);
-    const upload = await uploadShowcaseImage(file);
+    const upload = await uploadProductImage(file);
     if (!upload.ok || !upload.imageAssetId) {
       pushToast(upload.message);
       setEditPending(false);
       return;
     }
-    const nextManual = [...manualImageIds, upload.imageAssetId];
-    const nextOrder = [...imageEditorTokens, `m:${upload.imageAssetId}`];
+    const uploadedUrl = `/api/v1/products/images/${upload.imageAssetId}`;
+    const nextManual = [...manualImageUrls, uploadedUrl];
+    const nextOrder = [...imageEditorTokens, `m:${uploadedUrl}`];
     const result = await updateProductOverrides(product.id, {
-      images: {
-        hidden_source_image_ids: imageEdit.hidden_source_image_ids,
-        manual_image_ids: nextManual,
+        images: {
+        hidden_source_image_urls: imageEdit.hidden_source_image_urls,
+        manual_image_urls: nextManual,
         manual_image_order: nextOrder,
       },
     });
@@ -537,11 +538,11 @@ export function ProductPage() {
                         <ImageWithFallback src={item.thumbUrl} alt={`${product.title}-${index + 1}`} className="slider-thumb-image" placeholderClassName="slider-thumb-placeholder" placeholderText="Фото" />
                       </button>
                       {item.isSource ? (
-                        <button type="button" className="product-image-edit-action" onClick={() => void toggleSourceImageVisibility(item.imageId)} title={item.hidden ? "Показать фото" : "Скрыть фото"}>
+                        <button type="button" className="product-image-edit-action" onClick={() => void toggleSourceImageVisibility(item.imageUrl)} title={item.hidden ? "Показать фото" : "Скрыть фото"}>
                           {item.hidden ? <IconEyeOff className="icon-svg" /> : <IconEye className="icon-svg" />}
                         </button>
                       ) : (
-                        <button type="button" className="product-image-edit-action product-image-edit-action--danger" onClick={() => void removeManualImage(item.imageId)} title="Удалить фото">
+                        <button type="button" className="product-image-edit-action product-image-edit-action--danger" onClick={() => void removeManualImage(item.imageUrl)} title="Удалить фото">
                           <IconTrash className="icon-svg" />
                         </button>
                       )}

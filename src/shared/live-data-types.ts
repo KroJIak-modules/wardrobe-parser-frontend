@@ -42,10 +42,10 @@ export type ProductEditState = {
   images_sync_locked: boolean;
   title_override?: string | null;
   description_override?: string | null;
-  hidden_source_image_ids: number[];
-  manual_image_ids: number[];
+  hidden_source_image_urls: string[];
+  manual_image_urls: string[];
   manual_image_order: string[];
-  source_image_ids: number[];
+  source_image_urls: string[];
 };
 
 export type ServiceProduct = {
@@ -72,7 +72,6 @@ export type ServiceProduct = {
   status: string;
   image_count: number;
   image_urls: string[];
-  image_ids: number[];
   variants: ProductVariant[];
   is_favorite?: boolean;
   starred_category_ids?: number[];
@@ -145,6 +144,11 @@ export type SourceRunItem = {
   discovery_mode: string | null;
   started_at?: string | null;
   completed_at?: string | null;
+};
+
+export type PricingExampleFetchResult = {
+  product: PricingExampleProduct | null;
+  errorMessage: string | null;
 };
 
 export type SyncJobDetails = SyncJobHistoryItem & {
@@ -266,16 +270,12 @@ export type PricingSettings = {
   customs_fixed_rub: number;
   shipping_alt_threshold_eur: number;
   tax_rate: number;
-  designers_min_products: number;
-  designers_exclude_store_vendors: boolean;
   dedup_only_available_products: boolean;
   show_product_description: boolean;
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
   shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
-  showcase_hero_image_asset_id?: number | null;
-  showcase_carousel_image_asset_ids?: number[];
   bybit_rate_status?: string;
   bybit_rate_warning?: string | null;
   bybit_bucket_step_usdt?: number;
@@ -289,6 +289,13 @@ export type PricingSettings = {
   formula_latex: string;
   formula_lines: string[];
   formula_legend: Array<{ key: string; description: string }>;
+};
+
+export type AdminUiSettings = {
+  designers_min_products: number;
+  designers_exclude_store_vendors: boolean;
+  showcase_hero_image_asset_id?: number | null;
+  showcase_carousel_image_asset_ids?: number[];
 };
 
 export type PricingExampleProduct = {
@@ -382,14 +389,17 @@ export type SettingsTransferPricingSettings = {
   customs_fixed_rub: number;
   shipping_alt_threshold_eur: number;
   tax_rate: number;
-  designers_min_products: number;
-  designers_exclude_store_vendors: boolean;
   dedup_only_available_products: boolean;
   show_product_description: boolean;
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
   shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
+};
+
+export type SettingsTransferAdminUiSettings = {
+  designers_min_products: number;
+  designers_exclude_store_vendors: boolean;
   showcase_hero_image_asset_id?: number | null;
   showcase_carousel_image_asset_ids?: number[];
 };
@@ -399,6 +409,7 @@ export type SettingsTransferPayload = {
   exported_at: string | null;
   project: string | null;
   pricing_settings: SettingsTransferPricingSettings;
+  admin_ui_settings: SettingsTransferAdminUiSettings;
   suppliers: SettingsTransferSupplierEntry[];
   sources: SettingsTransferSourceEntry[];
   weight_rules: SettingsTransferWeightRuleEntry[];
@@ -419,6 +430,7 @@ export type LiveDataContextValue = {
   weightRules: WeightRule[];
   weightMissingProducts: WeightMissingProduct[];
   pricingSettings: PricingSettings | null;
+  adminUiSettings: AdminUiSettings | null;
   sources: Source[];
   latestJob: JobsLatest;
   loading: boolean;
@@ -428,6 +440,7 @@ export type LiveDataContextValue = {
   error: string | null;
   refresh: () => Promise<void>;
   ensurePricingLoaded: (force?: boolean) => Promise<void>;
+  ensureAdminUiLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: (force?: boolean) => Promise<void>;
   ensureDedupLoaded: (force?: boolean) => Promise<void>;
   ensureDedupDecisionsLoaded: () => Promise<void>;
@@ -456,7 +469,7 @@ export type LiveDataContextValue = {
     product_type: string | null;
     image_count: number;
   }) => Promise<{ ok: boolean; message: string }>;
-  uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string }>;
+  uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadShowcaseImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string; categoryId?: number }>;
   updateCategory: (
@@ -482,8 +495,8 @@ export type LiveDataContextValue = {
       description?: string;
       description_visible?: boolean | null;
       images?: {
-        hidden_source_image_ids?: number[];
-        manual_image_ids?: number[];
+        hidden_source_image_urls?: string[];
+        manual_image_urls?: string[];
         manual_image_order?: string[];
       };
       reset_to_default?: Array<"title" | "description" | "images" | "description_visibility">;
@@ -505,8 +518,9 @@ export type LiveDataContextValue = {
   deleteWeightRule: (id: number) => Promise<{ ok: boolean; message: string }>;
   addWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
   removeWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
-  fetchPricingExampleProduct: () => Promise<PricingExampleProduct | null>;
+  fetchPricingExampleProduct: () => Promise<PricingExampleFetchResult>;
   updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
+  updateAdminUiSettings: (payload: Partial<AdminUiSettings>) => Promise<{ ok: boolean; message: string }>;
   updateShowcaseMediaSettings: (payload: {
     showcase_hero_image_asset_id?: number | null;
     showcase_carousel_image_asset_ids?: number[];
@@ -531,6 +545,7 @@ export type LiveDataContextValue = {
   deletePricingSupplier: (supplierId: number) => Promise<{ ok: boolean; message: string }>;
   exportSettings: () => Promise<{ ok: boolean; message: string; payload: SettingsTransferPayload | null }>;
   importSettings: (payload: SettingsTransferPayload) => Promise<{ ok: boolean; message: string }>;
+  resetSettings: () => Promise<{ ok: boolean; message: string }>;
   assignSourceSupplier: (
     sourceKey: string,
       payload: {

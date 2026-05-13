@@ -1,8 +1,9 @@
 import { useEffect, useState, type ChangeEvent, type MouseEvent } from "react";
-import type { PricingSettings, ShowcaseImageItem } from "../admin-types";
+import type { AdminUiSettings, ShowcaseImageItem } from "../admin-types";
+import { SHOWCASE_CAROUSEL_LIMIT } from "../admin-showcase-constants";
 
 type UseAdminShowcaseParams = {
-  pricingSettings: PricingSettings | null;
+  adminUiSettings: AdminUiSettings | null;
   uploadShowcaseImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId?: number }>;
   updateShowcaseMediaSettings: (patch: {
     showcase_hero_image_asset_id?: number | null;
@@ -12,7 +13,7 @@ type UseAdminShowcaseParams = {
 };
 
 export function useAdminShowcase(params: UseAdminShowcaseParams) {
-  const { pricingSettings, uploadShowcaseImage, updateShowcaseMediaSettings, pushToast } = params;
+  const { adminUiSettings, uploadShowcaseImage, updateShowcaseMediaSettings, pushToast } = params;
 
   const [showcaseHeroImageId, setShowcaseHeroImageId] = useState<number | null>(null);
   const [showcaseCarousel, setShowcaseCarousel] = useState<ShowcaseImageItem[]>([]);
@@ -20,21 +21,21 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
   const [draggingCarouselId, setDraggingCarouselId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!pricingSettings) {
+    if (!adminUiSettings) {
       return;
     }
-    const heroRaw = Number(pricingSettings.showcase_hero_image_asset_id);
+    const heroRaw = Number(adminUiSettings.showcase_hero_image_asset_id);
     setShowcaseHeroImageId(Number.isFinite(heroRaw) && heroRaw > 0 ? heroRaw : null);
-    const ids = Array.isArray(pricingSettings.showcase_carousel_image_asset_ids)
-      ? pricingSettings.showcase_carousel_image_asset_ids
+    const ids = Array.isArray(adminUiSettings.showcase_carousel_image_asset_ids)
+      ? adminUiSettings.showcase_carousel_image_asset_ids
       : [];
     const normalized = ids
       .map((item) => Number(item))
       .filter((item, index, arr) => Number.isFinite(item) && item > 0 && arr.indexOf(item) === index)
-      .slice(0, 20)
+      .slice(0, SHOWCASE_CAROUSEL_LIMIT)
       .map((id) => ({ id }));
     setShowcaseCarousel(normalized);
-  }, [pricingSettings?.showcase_hero_image_asset_id, pricingSettings?.showcase_carousel_image_asset_ids]);
+  }, [adminUiSettings?.showcase_hero_image_asset_id, adminUiSettings?.showcase_carousel_image_asset_ids]);
 
   const saveShowcaseSettings = async (patch: Partial<PricingSettings>) => {
     setShowcaseSaving(true);
@@ -85,11 +86,11 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
     if (files.length === 0) {
       return;
     }
-    if (showcaseCarousel.length >= 20) {
-      pushToast("Максимум 20 изображений в карусели");
+    if (showcaseCarousel.length >= SHOWCASE_CAROUSEL_LIMIT) {
+      pushToast(`Максимум ${SHOWCASE_CAROUSEL_LIMIT} изображений в карусели`);
       return;
     }
-    const remaining = Math.max(0, 20 - showcaseCarousel.length);
+    const remaining = Math.max(0, SHOWCASE_CAROUSEL_LIMIT - showcaseCarousel.length);
     const toUpload = files.slice(0, remaining);
     const uploadedIds: number[] = [];
     for (const file of toUpload) {
@@ -103,7 +104,7 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
     if (uploadedIds.length === 0) {
       return;
     }
-    const next = [...showcaseCarousel.map((item) => item.id), ...uploadedIds].slice(0, 20);
+    const next = [...showcaseCarousel.map((item) => item.id), ...uploadedIds].slice(0, SHOWCASE_CAROUSEL_LIMIT);
     if (await saveShowcaseSettings({ showcase_carousel_image_asset_ids: next })) {
       setShowcaseCarousel(next.map((id) => ({ id })));
     }

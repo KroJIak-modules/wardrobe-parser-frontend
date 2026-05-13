@@ -238,6 +238,13 @@
   gap: 14px;
 }
 
+.dedup-list > .empty-state {
+  grid-column: 1 / -1;
+  justify-self: center;
+  align-self: center;
+  width: 100%;
+}
+
 .dedup-item {
   border: 1px solid #dfe6f2;
   border-radius: 12px;
@@ -2938,6 +2945,19 @@ textarea {
   color: #222f42;
 }
 
+.settings-inline-hint {
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.settings-subtitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #243040;
+}
+
 .pricing-settings-input--compact {
   width: min(180px, 100%);
 }
@@ -3470,6 +3490,7 @@ textarea {
   position: relative;
   width: 100%;
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .source-currency-priority__chips {
@@ -3482,21 +3503,23 @@ textarea {
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  min-height: 74px;
+  height: 46px;
   border: 1px solid #d0d8e6;
   border-radius: 10px;
   background: #fff;
   padding: 6px;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
 .source-currency-priority__input-wrap {
   margin-top: 6px;
   width: 100%;
-  border: 1px solid #d0d8e6;
-  border-radius: 10px;
-  background: #fff;
-  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  flex: 0 0 auto;
 }
 
 .source-currency-chip {
@@ -3513,13 +3536,16 @@ textarea {
 }
 
 .source-currency-priority__input {
-  border: 0;
+  border: 1px solid #d0d8e6;
+  border-radius: 10px;
   outline: none;
   width: 100%;
   min-width: 0;
-  padding: 8px 2px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
   margin: 0;
-  background: transparent;
+  background: #fff;
 }
 
 .source-currency-priority__menu {
@@ -3535,6 +3561,10 @@ textarea {
   padding: 4px;
   display: grid;
   gap: 2px;
+}
+
+.source-attrs {
+  flex: 0 0 auto;
 }
 
 .source-currency-priority__option {
