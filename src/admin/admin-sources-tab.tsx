@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AdminSourcesSkeleton } from "../shared/skeleton";
+import { IconClose } from "../shared/mono-icons";
 
 type SourceItem = {
   key: string;
@@ -31,7 +32,12 @@ export function AdminSourcesTab({
   toggleSourceAutoHideProducts,
   pushToast,
 }: Props) {
+  const currencyOptions = ["USD", "EUR", "GBP", "JPY"] as const;
   const [sourceAttrVisibility, setSourceAttrVisibility] = useState<Record<string, { description: boolean; images: boolean }>>({});
+  const [sourceCurrencyPriority, setSourceCurrencyPriority] = useState<Record<string, string[]>>({});
+  const [currencyInputBySource, setCurrencyInputBySource] = useState<Record<string, string>>({});
+  const [currencyOpenBySource, setCurrencyOpenBySource] = useState<Record<string, boolean>>({});
+  const [dragCurrencyBySource, setDragCurrencyBySource] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     setSourceAttrVisibility((prev) => {
@@ -39,6 +45,18 @@ export function AdminSourcesTab({
       for (const source of sources) {
         if (!next[source.key]) {
           next[source.key] = { description: true, images: true };
+        }
+      }
+      return next;
+    });
+  }, [sources]);
+
+  useEffect(() => {
+    setSourceCurrencyPriority((prev) => {
+      const next = { ...prev };
+      for (const source of sources) {
+        if (!next[source.key]) {
+          next[source.key] = ["USD", "EUR", "GBP"];
         }
       }
       return next;
@@ -165,6 +183,107 @@ export function AdminSourcesTab({
                         </label>
                       </div>
                     </details>
+                    <div className="source-currency-priority" tabIndex={0} onBlur={() => setCurrencyOpenBySource((prev) => ({ ...prev, [source.key]: false }))}>
+                      <label className="source-currency-priority__label">Приоритет валют</label>
+                      <div className="source-currency-priority__field">
+                        <div className="source-currency-priority__chips">
+                          {(sourceCurrencyPriority[source.key] || []).map((currency) => (
+                            <button
+                              key={`${source.key}-${currency}`}
+                              type="button"
+                              className="source-currency-chip"
+                              draggable
+                              title="Перетащи для смены приоритета. Клик: удалить."
+                              onDragStart={() => {
+                                setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: currency }));
+                              }}
+                              onDragEnd={() => {
+                                setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: null }));
+                              }}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                              }}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                const dragged = dragCurrencyBySource[source.key];
+                                if (!dragged || dragged === currency) {
+                                  return;
+                                }
+                                setSourceCurrencyPriority((prev) => {
+                                  const list = [...(prev[source.key] || [])];
+                                  const from = list.indexOf(dragged);
+                                  const to = list.indexOf(currency);
+                                  if (from < 0 || to < 0) {
+                                    return prev;
+                                  }
+                                  const [moved] = list.splice(from, 1);
+                                  list.splice(to, 0, moved);
+                                  return { ...prev, [source.key]: list };
+                                });
+                              }}
+                              onClick={(event) => {
+                                setSourceCurrencyPriority((prev) => ({
+                                  ...prev,
+                                  [source.key]: (prev[source.key] || []).filter((item) => item !== currency),
+                                }));
+                              }}
+                            >
+                              <span>{currency}</span>
+                              <IconClose className="icon-svg icon-svg--sm" />
+                            </button>
+                          ))}
+                          <input
+                            className="source-currency-priority__input"
+                            value={currencyInputBySource[source.key] || ""}
+                            placeholder="Добавить валюту"
+                            onFocus={() => setCurrencyOpenBySource((prev) => ({ ...prev, [source.key]: true }))}
+                            onChange={(event) => {
+                              setCurrencyInputBySource((prev) => ({ ...prev, [source.key]: event.target.value.toUpperCase() }));
+                              setCurrencyOpenBySource((prev) => ({ ...prev, [source.key]: true }));
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key !== "Enter") {
+                                return;
+                              }
+                              event.preventDefault();
+                              const value = String(currencyInputBySource[source.key] || "").trim().toUpperCase();
+                              if (!currencyOptions.includes(value as (typeof currencyOptions)[number])) {
+                                return;
+                              }
+                              setSourceCurrencyPriority((prev) => {
+                                const list = prev[source.key] || [];
+                                if (list.includes(value)) {
+                                  return prev;
+                                }
+                                return { ...prev, [source.key]: [...list, value] };
+                              });
+                              setCurrencyInputBySource((prev) => ({ ...prev, [source.key]: "" }));
+                            }}
+                          />
+                        </div>
+                        {currencyOpenBySource[source.key] ? (
+                          <div className="source-currency-priority__menu">
+                            {currencyOptions
+                              .filter((item) => !(sourceCurrencyPriority[source.key] || []).includes(item))
+                              .filter((item) => item.includes(String(currencyInputBySource[source.key] || "").trim().toUpperCase()))
+                              .map((item) => (
+                                <button
+                                  key={`${source.key}-opt-${item}`}
+                                  type="button"
+                                  className="source-currency-priority__option"
+                                  onMouseDown={(event) => event.preventDefault()}
+                                  onClick={() => {
+                                    setSourceCurrencyPriority((prev) => ({ ...prev, [source.key]: [...(prev[source.key] || []), item] }));
+                                    setCurrencyInputBySource((prev) => ({ ...prev, [source.key]: "" }));
+                                  }}
+                                >
+                                  {item}
+                                </button>
+                              ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </article>
