@@ -1,6 +1,6 @@
 import type { ChangeEvent, KeyboardEvent, MouseEvent, RefObject } from "react";
-import { toImageGatewayUrl } from "../shared/live-data-context";
 import { IconClose, IconPlus } from "../shared/mono-icons";
+import { toImageGatewayUrl } from "../shared/product-image";
 
 type CarouselItem = { id: number };
 

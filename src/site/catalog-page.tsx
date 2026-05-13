@@ -5,9 +5,10 @@ import { ImageWithFallback } from "../shared/image-with-fallback";
 import { LatexBrand } from "../shared/latex-brand";
 import { CatalogCardSkeletonGrid } from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
+import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
+import { getProductPrimaryImageUrl } from "../shared/product-image";
 import {
-  getProductPrimaryImageUrl,
   type CategoryView,
   type ProductStarredCategoryOption,
   type ServiceProduct,
@@ -750,8 +751,10 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
 
           {products.length === 0 ? (
             <div className="catalog-empty card">
-              <p>По текущим фильтрам ничего не найдено.</p>
-              <p className="muted">Попробуй убрать часть фильтров или изменить строку поиска.</p>
+              <EmptyState
+                title="По текущим фильтрам ничего не найдено"
+                subtitle="Попробуй убрать часть фильтров или изменить строку поиска."
+              />
             </div>
           ) : null}
 

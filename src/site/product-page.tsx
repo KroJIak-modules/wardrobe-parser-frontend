@@ -5,9 +5,11 @@ import { formatDisplayMoney, renderLegendSymbol } from "../admin/admin-formatter
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { LatexBrand } from "../shared/latex-brand";
 import { IconChevronLeft, IconChevronRight, IconExternalLink, IconEye, IconEyeOff, IconPencil, IconPlus, IconTrash } from "../shared/mono-icons";
+import { getProductPrimaryImageUrl } from "../shared/product-image";
 import { ProductPageSkeleton } from "../shared/skeleton";
-import { getProductPrimaryImageUrl, useLiveData } from "../shared/live-data-context";
+import { useLiveData } from "../shared/live-data-context";
 import { ToastStack } from "../shared/toast-stack";
+import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
 import { deriveStatusAfterUnhide, getSourceNameById, getStatusClass, getStatusLabel, normalizeProductStatus } from "./catalog-helpers";
 
@@ -91,11 +93,7 @@ export function ProductPage() {
     if (fromAdmin) {
       return true;
     }
-    try {
-      return Boolean(window.localStorage.getItem("admin_access_token"));
-    } catch {
-      return false;
-    }
+    return false;
   })();
 
   const productId = Number(id);
@@ -231,10 +229,14 @@ export function ProductPage() {
     return (
       <section className="section">
         <div className="catalog-empty card">
-          <p>Товар не найден</p>
-          <Link className="btn-link" to={fromAdmin ? "/control/products" : "/"}>
-            {fromAdmin ? "Вернуться в панель управления" : "Вернуться к каталогу"}
-          </Link>
+          <EmptyState
+            title="Товар не найден"
+            action={(
+              <Link className="btn-link" to={fromAdmin ? "/control/products" : "/"}>
+                {fromAdmin ? "Вернуться в панель управления" : "Вернуться к каталогу"}
+              </Link>
+            )}
+          />
         </div>
         <ToastStack toasts={toasts} onClose={closeToast} />
       </section>

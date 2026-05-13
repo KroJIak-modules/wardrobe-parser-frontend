@@ -16,7 +16,6 @@ type SourceItem = {
 type Props = {
   sources: SourceItem[];
   loading: boolean;
-  formatDateTime: (value: string | null | undefined) => string;
   toggleSourceEnabled: (key: string, enabled: boolean) => Promise<{ message: string }>;
   toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ message: string }>;
   toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ message: string }>;
@@ -26,7 +25,6 @@ type Props = {
 export function AdminSourcesTab({
   sources,
   loading,
-  formatDateTime,
   toggleSourceEnabled,
   toggleSourceSyncEnabled,
   toggleSourceAutoHideProducts,
@@ -56,8 +54,7 @@ export function AdminSourcesTab({
                 <div className="source-card-foot">
                   <div className="source-card-meta">
                     <span className="source-pill">Товаров: {source.products_count}</span>
-                    <span className="source-pill">Время: {source.last_sync_duration_sec ?? 0}с</span>
-                    <span className="source-pill">Последняя: {source.last_sync_at ? formatDateTime(source.last_sync_at) : "—"}</span>
+                    <span className="source-pill">Прогон: {source.last_sync_duration_sec ?? 0}с</span>
                   </div>
                   <div className="source-card-switches">
                     <label className="ui-switch ui-switch--compact source-card-switch">
@@ -74,7 +71,7 @@ export function AdminSourcesTab({
                       <span className="ui-switch-track">
                         <span className="ui-switch-thumb" />
                       </span>
-                      <span className="ui-switch-text">{source.enabled ? "Тип включен" : "Тип выключен"}</span>
+                      <span className="ui-switch-text">Источник включен</span>
                     </label>
                     <label className="ui-switch ui-switch--compact source-card-switch">
                       <input
@@ -90,15 +87,15 @@ export function AdminSourcesTab({
                       <span className="ui-switch-track">
                         <span className="ui-switch-thumb" />
                       </span>
-                      <span className="ui-switch-text">{source.sync_enabled ? "Участвует в sync" : "Исключен из sync"}</span>
+                      <span className="ui-switch-text">Участие в sync</span>
                     </label>
                     <label className="ui-switch ui-switch--compact source-card-switch">
                       <input
                         type="checkbox"
-                        checked={Boolean(source.hide_auto_added_products)}
+                        checked={!Boolean(source.hide_auto_added_products)}
                         onChange={(event) => {
                           void (async () => {
-                            const result = await toggleSourceAutoHideProducts(source.key, event.target.checked);
+                            const result = await toggleSourceAutoHideProducts(source.key, !event.target.checked);
                             pushToast(result.message);
                           })();
                         }}
@@ -106,10 +103,27 @@ export function AdminSourcesTab({
                       <span className="ui-switch-track">
                         <span className="ui-switch-thumb" />
                       </span>
-                      <span className="ui-switch-text">
-                        {Boolean(source.hide_auto_added_products) ? "Скрывать автотовары" : "Показывать автотовары"}
-                      </span>
+                      <span className="ui-switch-text">Показывать товары</span>
                     </label>
+                    <details className="source-attrs">
+                      <summary className="source-attrs__summary">Правила атрибутов</summary>
+                      <div className="source-attrs__body">
+                        <label className="ui-switch ui-switch--compact source-card-switch">
+                          <input type="checkbox" defaultChecked />
+                          <span className="ui-switch-track">
+                            <span className="ui-switch-thumb" />
+                          </span>
+                          <span className="ui-switch-text">Показывать описание</span>
+                        </label>
+                        <label className="ui-switch ui-switch--compact source-card-switch">
+                          <input type="checkbox" defaultChecked />
+                          <span className="ui-switch-track">
+                            <span className="ui-switch-thumb" />
+                          </span>
+                          <span className="ui-switch-text">Показывать фотографии</span>
+                        </label>
+                      </div>
+                    </details>
                   </div>
                 </div>
               </article>

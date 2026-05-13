@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import "katex/dist/katex.min.css";
 import { useLiveData } from "../shared/live-data-context";
 import { useToasts } from "../shared/use-toasts";
-import { ADMIN_ACCESS_TOKEN_KEY, ADMIN_REFRESH_TOKEN_KEY } from "./auth-fetch";
+import { logoutAdminSession } from "../shared/admin-auth";
 import {
   currencyOptions,
   normalizeAdminTab,
@@ -13,6 +13,7 @@ import { formatCompactNumber, normalizeSupplierCategory } from "./admin-formatte
 import { formatDateTime, formatSyncStageRu, formatSyncStatusRu } from "./admin-sync-formatters";
 import { useAdminProductsTable } from "./hooks/use-admin-products-table";
 import { useAdminProductFilters } from "./hooks/use-admin-product-filters";
+import { readProductsQuery } from "./products-query";
 import { useAdminProductCreate } from "./hooks/use-admin-product-create";
 import { useAdminCategories } from "./hooks/use-admin-categories";
 import { useAdminDedupActions } from "./hooks/use-admin-dedup-actions";
@@ -46,13 +47,15 @@ import type {
 
 export function AdminPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { tab: tabParam } = useParams<{ tab?: string }>();
   const tab = normalizeAdminTab(tabParam);
   const { openProductCard } = useAdminProductNavigation();
   const onLogout = () => {
-    window.localStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
-    window.localStorage.removeItem(ADMIN_REFRESH_TOKEN_KEY);
-    navigate("/control/login", { replace: true });
+    void (async () => {
+      await logoutAdminSession();
+      navigate("/login", { replace: true });
+    })();
   };
 
   useAdminPageLifecycle(navigate, tab, tabParam);
@@ -68,6 +71,7 @@ export function AdminPage() {
     ensureWeightLoaded,
     ensureDedupLoaded,
     ensureCategoriesLoaded,
+    refreshSourcesOnly,
     runSync,
     cancelSync,
     previewProductByUrl,
@@ -116,7 +120,7 @@ export function AdminPage() {
     updateShowcaseMediaSettings,
   } = useLiveData();
 
-  const { toasts, pushToast, closeToast } = useToasts();
+  const { toasts, pushToast, closeToast, pauseToast, resumeToast } = useToasts();
   const {
     isSyncInProgress,
     canRunSync,
@@ -250,6 +254,10 @@ export function AdminPage() {
     productStatusFilter,
     setProductStatusFilter,
   } = useAdminProductFilters();
+  const productsQuery = useMemo(
+    () => readProductsQuery(searchParams),
+    [searchParams.toString()]
+  );
 
   const {
     pricingDrafts,
@@ -277,6 +285,7 @@ export function AdminPage() {
     ensureWeightLoaded,
     ensureDedupLoaded,
     ensureCategoriesLoaded,
+    refreshSourcesOnly,
   });
 
   const {
@@ -409,11 +418,7 @@ export function AdminPage() {
   } = useAdminProductsTable({
     tab,
     latestJobStatus: latestJob?.status ?? null,
-    search: productSearch,
-    sourceId: productSourceFilter,
-    vendor: productVendorFilter,
-    productType: productTypeFilter,
-    status: productStatusFilter,
+    query: productsQuery,
     pushToast,
   });
 
@@ -670,6 +675,8 @@ export function AdminPage() {
             onSaveProduct={onSaveProduct}
             toasts={toasts}
             closeToast={closeToast}
+            pauseToast={pauseToast}
+            resumeToast={resumeToast}
             zoomedImageUrl={zoomedImageUrl}
           />
         </section>

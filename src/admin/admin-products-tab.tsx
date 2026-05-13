@@ -1,4 +1,4 @@
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { RefObject } from "react";
 import { AdminProductsSkeleton } from "../shared/skeleton";
 import type { AdminFilterFacetOption, AdminProductsTableItem } from "./admin-types";
 import { AdminProductsFilters } from "./admin-products-filters";
@@ -19,15 +19,15 @@ type Props = {
   tableTotal: number;
   tableOverallTotal: number;
   productSearch: string;
-  setProductSearch: Dispatch<SetStateAction<string>>;
+  setProductSearch: (value: string) => void;
   productSourceFilter: string;
-  setProductSourceFilter: Dispatch<SetStateAction<string>>;
+  setProductSourceFilter: (value: string) => void;
   productVendorFilter: string;
-  setProductVendorFilter: Dispatch<SetStateAction<string>>;
+  setProductVendorFilter: (value: string) => void;
   productTypeFilter: string;
-  setProductTypeFilter: Dispatch<SetStateAction<string>>;
+  setProductTypeFilter: (value: string) => void;
   productStatusFilter: string;
-  setProductStatusFilter: Dispatch<SetStateAction<string>>;
+  setProductStatusFilter: (value: string) => void;
   sourceSelectOptions: Array<{ key: string; source_id: number | null; name: string }>;
   productVendors: AdminFilterFacetOption[];
   productTypes: AdminFilterFacetOption[];

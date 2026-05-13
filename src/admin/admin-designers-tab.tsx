@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import type { BrandMappingItem } from "./admin-types";
+import { EmptyState } from "../shared/empty-state";
 
 type Props = {
   loading: boolean;
@@ -85,7 +86,9 @@ export function AdminDesignersTab({
 
       <div className="designers-grid-wrap">
         {loading ? <p className="muted">Загрузка брендов...</p> : null}
-        {!loading && filteredRows.length === 0 ? <p className="muted">Ничего не найдено</p> : null}
+        {!loading && filteredRows.length === 0 ? (
+          <EmptyState compact title="Ничего не найдено" subtitle="Попробуй изменить строку поиска." />
+        ) : null}
         {!loading
           ? filteredRows.map((row) => {
               const suggestions = getSuggestions(row);

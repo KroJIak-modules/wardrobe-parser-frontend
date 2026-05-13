@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE, authFetch } from "../auth-fetch";
 import { PAGE_SIZE } from "../admin-constants";
+import { buildProductsApiQuery, type ProductsQueryState } from "../products-query";
 import type { AdminFilterFacetOption, AdminProductsTableItem } from "../admin-types";
+import { useDebouncedValue } from "../../shared/hooks/use-debounced-value";
 
 type ProductsTablePayload = {
   items: AdminProductsTableItem[];
@@ -21,16 +23,13 @@ type ProductsTableFacetsPayload = {
 type UseAdminProductsTableParams = {
   tab: string;
   latestJobStatus?: string | null;
-  search: string;
-  sourceId: string;
-  vendor: string;
-  productType: string;
-  status: string;
+  query: ProductsQueryState;
   pushToast: (message: string) => void;
 };
 
 export function useAdminProductsTable(params: UseAdminProductsTableParams) {
-  const { tab, latestJobStatus, search, sourceId, vendor, productType, status, pushToast } = params;
+  const { tab, latestJobStatus, query, pushToast } = params;
+  const debouncedQuery = useDebouncedValue(query, 220);
 
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
   const [tableProducts, setTableProducts] = useState<AdminProductsTableItem[]>([]);
@@ -42,33 +41,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [tableLoadingMore, setTableLoadingMore] = useState<boolean>(false);
   const [productVendors, setProductVendors] = useState<AdminFilterFacetOption[]>([]);
   const [productTypes, setProductTypes] = useState<AdminFilterFacetOption[]>([]);
-  const isReloadingRef = useRef<boolean>(false);
-
-  const buildFilterQuery = useCallback((options?: { includeLimit?: boolean; cursor?: string | null }) => {
-    const query = new URLSearchParams();
-    if (options?.includeLimit ?? true) {
-      query.set("limit", String(PAGE_SIZE));
-    }
-    if (search.trim()) {
-      query.set("search", search.trim());
-    }
-    if (sourceId) {
-      query.set("source_id", sourceId);
-    }
-    if (vendor) {
-      query.set("vendor", vendor);
-    }
-    if (productType) {
-      query.set("product_type", productType);
-    }
-    if (status) {
-      query.set("status", status);
-    }
-    if (options?.cursor) {
-      query.set("cursor", options.cursor);
-    }
-    return query;
-  }, [search, sourceId, vendor, productType, status]);
+  const requestSeqRef = useRef(0);
 
   const loadMoreTableProducts = useCallback(async () => {
     if (!tableHasMore || tableLoadingMore || !tableCursor) {
@@ -76,8 +49,8 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     }
     try {
       setTableLoadingMore(true);
-      const query = buildFilterQuery({ includeLimit: true, cursor: tableCursor });
-      const response = await authFetch(`${API_BASE}/admin/products/table?${query.toString()}`);
+      const queryParams = buildProductsApiQuery(debouncedQuery, { includeLimit: true, limit: PAGE_SIZE, cursor: tableCursor });
+      const response = await authFetch(`${API_BASE}/admin/products/table?${queryParams.toString()}`);
       if (!response.ok) {
         throw new Error(`Products table API error: ${response.status}`);
       }
@@ -97,17 +70,14 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     } finally {
       setTableLoadingMore(false);
     }
-  }, [tableHasMore, tableLoadingMore, tableCursor, buildFilterQuery, pushToast]);
+  }, [tableHasMore, tableLoadingMore, tableCursor, debouncedQuery, pushToast]);
 
   const reloadTableData = useCallback(async (signal?: AbortSignal) => {
-    if (isReloadingRef.current) {
-      return;
-    }
-    isReloadingRef.current = true;
+    const requestSeq = ++requestSeqRef.current;
+    setTableLoading(true);
     try {
-      setTableLoading(true);
-      const productsQuery = buildFilterQuery({ includeLimit: true });
-      const facetsQuery = buildFilterQuery({ includeLimit: false });
+      const productsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: true, limit: PAGE_SIZE });
+      const facetsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: false });
       const [productsResponse, facetsResponse] = await Promise.all([
         authFetch(`${API_BASE}/admin/products/table?${productsQuery.toString()}`, { signal }),
         authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal }),
@@ -122,6 +92,11 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
 
       const payload = (await productsResponse.json()) as ProductsTablePayload;
       const facetsPayload = (await facetsResponse.json()) as ProductsTableFacetsPayload;
+
+      if (requestSeq !== requestSeqRef.current) {
+        return;
+      }
+
       setTableProducts(payload.items || []);
       setTableTotal(payload.total || facetsPayload.total || 0);
       setTableOverallTotal(payload.overall_total || facetsPayload.overall_total || 0);
@@ -130,10 +105,11 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       setProductVendors(facetsPayload.vendors || []);
       setProductTypes(facetsPayload.local_categories || []);
     } finally {
-      setTableLoading(false);
-      isReloadingRef.current = false;
+      if (requestSeq === requestSeqRef.current) {
+        setTableLoading(false);
+      }
     }
-  }, [buildFilterQuery]);
+  }, [debouncedQuery]);
 
   useEffect(() => {
     if (tab !== "products") {
@@ -159,14 +135,11 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       }
     };
 
-    const timer = window.setTimeout(() => {
-      void run();
-    }, 280);
+    void run();
 
     return () => {
       cancelled = true;
       controller.abort();
-      window.clearTimeout(timer);
     };
   }, [tab, reloadTableData, pushToast]);
 

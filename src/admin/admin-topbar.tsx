@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { SiteHeader } from "../shared/site-header";
+import { LogOut } from "lucide-react";
 
 type AdminTopbarProps = {
   onLogout: () => void;
@@ -6,20 +7,11 @@ type AdminTopbarProps = {
 
 export function AdminTopbar({ onLogout }: AdminTopbarProps) {
   return (
-    <header className="topbar">
-      <div className="topbar-inner">
-        <Link to="/" className="brand" aria-label="Anton Shell">
-          <img src="/logo_anton_shell.svg" alt="Anton Shell" className="brand-logo" />
-        </Link>
-        <div className="topbar-actions">
-          <Link to="/" className="topbar-cta">
-            Каталог товаров
-          </Link>
-          <button type="button" className="topbar-cta" onClick={onLogout}>
-            Выход
-          </button>
-        </div>
-      </div>
-    </header>
+    <SiteHeader
+      actions={[
+        { label: "Каталог товаров", to: "/", variant: "primary" },
+        { ariaLabel: "Выйти", icon: <LogOut size={16} />, onClick: onLogout, variant: "default" },
+      ]}
+    />
   );
 }

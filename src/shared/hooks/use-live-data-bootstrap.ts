@@ -1,0 +1,67 @@
+import { useEffect, useRef } from "react";
+
+type RouteKind = "admin" | "site";
+
+type Params = {
+  routePath?: string;
+  setError: (value: string | null) => void;
+  setLoading: (value: boolean) => void;
+  refreshAdminCoreOnly: () => Promise<void>;
+  refreshSourcesOnly: () => Promise<void>;
+};
+
+export function useLiveDataBootstrap({
+  routePath,
+  setError,
+  setLoading,
+  refreshAdminCoreOnly,
+  refreshSourcesOnly,
+}: Params) {
+  const lastRouteKindRef = useRef<RouteKind | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const currentPath = routePath ?? (typeof window !== "undefined" ? window.location.pathname : "/");
+    const isManagementRoute = currentPath.startsWith("/control");
+    const routeKind: RouteKind = isManagementRoute ? "admin" : "site";
+    const shouldBootstrap = lastRouteKindRef.current !== routeKind;
+    if (!shouldBootstrap) {
+      return undefined;
+    }
+    lastRouteKindRef.current = routeKind;
+
+    const run = async () => {
+      setError(null);
+      try {
+        if (routeKind === "admin") {
+          const adminTab = currentPath.split("/")[2] || "";
+          const shouldPrefetchSources = adminTab === "sources" || adminTab === "pricing" || adminTab === "products";
+          setLoading(true);
+          await refreshAdminCoreOnly();
+          if (shouldPrefetchSources) {
+            await refreshSourcesOnly();
+          }
+          if (!cancelled) {
+            setLoading(false);
+          }
+          return;
+        }
+        setLoading(true);
+        await refreshSourcesOnly();
+        if (!cancelled) {
+          setLoading(false);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Unknown error");
+          setLoading(false);
+        }
+      }
+    };
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshAdminCoreOnly, refreshSourcesOnly, routePath, setError, setLoading]);
+}

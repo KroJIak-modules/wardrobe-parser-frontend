@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import { Link } from "react-router-dom";
-import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
+import { getProductPrimaryImageUrl } from "../shared/product-image";
 import { AdminTableSkeleton } from "../shared/skeleton";
 import type { AdminProductsTableItem } from "./admin-types";
 

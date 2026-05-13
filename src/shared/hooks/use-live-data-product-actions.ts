@@ -1,0 +1,150 @@
+import { useCallback } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import { API_BASE } from "../admin-auth";
+import { errResult, okResult } from "../action-result";
+import { apiJson } from "../api-client";
+import type { ProductStarredCategoryOption, ProductUrlPreview, ServiceProduct } from "../live-data-types";
+
+type SetProducts = Dispatch<SetStateAction<ServiceProduct[]>>;
+
+export function useLiveDataProductActions(params: {
+  setProducts: SetProducts;
+  refresh: () => Promise<void>;
+}) {
+  const { setProducts, refresh } = params;
+
+  const previewProductByUrl = useCallback(async (url: string) => {
+    try {
+      const payload = await apiJson<ProductUrlPreview>(`${API_BASE}/products/preview-by-url`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+      });
+      return { ...okResult("Preview получен", payload), preview: payload };
+    } catch (e) {
+      return { ...errResult(e instanceof Error ? e.message : "Unknown error", null), preview: null };
+    }
+  }, []);
+
+  const addProductByUrl = useCallback(async (url: string, payload?: {
+    title?: string; vendor?: string | null; product_type?: string | null; price?: number | null; currency?: string; image_count?: number;
+  }) => {
+    try {
+      await apiJson(`${API_BASE}/products/add-by-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, ...(payload || {}) }),
+      });
+      await refresh();
+      return okResult("Товар добавлен по URL");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [refresh]);
+
+  const createManualProduct = useCallback(async (payload: {
+    title: string; price: number | null; currency: string; product_type: string | null; image_count: number;
+  }) => {
+    try {
+      await apiJson(`${API_BASE}/products/manual`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      await refresh();
+      return okResult("Ручной товар сохранен");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [refresh]);
+
+  const uploadProductImage = useCallback(async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      await apiJson(`${API_BASE}/products/upload-image`, { method: "POST", body: formData });
+      return okResult("Изображение загружено");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, []);
+
+  const updateProductOverrides = useCallback(async (productId: number, payload: {
+    title?: string; description?: string; images?: { hidden_source_image_ids?: number[]; manual_image_ids?: number[]; manual_image_order?: string[] };
+    reset_to_default?: Array<"title" | "description" | "images">;
+  }) => {
+    try {
+      const nextProduct = await apiJson<ServiceProduct>(`${API_BASE}/products/${productId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (nextProduct?.id) {
+        setProducts((prev) => prev.map((item) => (item.id === nextProduct.id ? { ...item, ...nextProduct } : item)));
+      }
+      return { ok: true, message: "Товар обновлен", product: nextProduct };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", product: null };
+    }
+  }, [setProducts]);
+
+  const setProductStatus = useCallback(async (productId: number, status: "available" | "out_of_stock" | "hidden") => {
+    try {
+      const payload = await apiJson<ServiceProduct>(`${API_BASE}/products/${productId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (payload?.id) {
+        const statusOnly = String((payload.pricing_components as { reason?: unknown } | null | undefined)?.reason || "") === "status-only-patch";
+        setProducts((prev) => prev.map((item) => (item.id === payload.id ? (statusOnly ? { ...item, status: payload.status } : { ...item, ...payload }) : item)));
+      } else {
+        setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, status } : item)));
+      }
+      return { ok: true, message: "Статус товара обновлен" };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+    }
+  }, [setProducts]);
+
+  const getProductStarredCategories = useCallback(async (productId: number) => {
+    try {
+      const payload = await apiJson<{ assigned_category_ids?: number[]; available_categories?: ProductStarredCategoryOption[] }>(`${API_BASE}/products/${productId}/starred-categories`);
+      return {
+        ok: true,
+        message: "OK",
+        assignedCategoryIds: Array.isArray(payload.assigned_category_ids) ? payload.assigned_category_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item)) : [],
+        availableCategories: Array.isArray(payload.available_categories) ? payload.available_categories : [],
+      };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCategoryIds: [], availableCategories: [] };
+    }
+  }, []);
+
+  const setProductStarredCategories = useCallback(async (productId: number, categoryIds: number[]) => {
+    try {
+      const normalizedCategoryIds = [...new Set(categoryIds.filter((item) => Number.isFinite(item)).map((item) => Number(item)))];
+      const payload = await apiJson<{ assigned_category_ids?: number[] }>(`${API_BASE}/products/${productId}/starred-categories`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category_ids: normalizedCategoryIds }),
+      });
+      const assigned = Array.isArray(payload?.assigned_category_ids)
+        ? payload.assigned_category_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item))
+        : normalizedCategoryIds;
+      setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, starred_category_ids: assigned, is_favorite: assigned.length > 0 } : item)));
+      return { ok: true, message: "Избранные категории сохранены", assignedCategoryIds: assigned };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCategoryIds: [] };
+    }
+  }, [setProducts]);
+
+  return {
+    previewProductByUrl,
+    addProductByUrl,
+    createManualProduct,
+    uploadProductImage,
+    updateProductOverrides,
+    setProductStatus,
+    getProductStarredCategories,
+    setProductStarredCategories,
+  };
+}

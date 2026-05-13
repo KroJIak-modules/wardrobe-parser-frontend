@@ -1,7 +1,7 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import { IconExternalLink } from "../shared/mono-icons";
-import { getProductPrimaryImageUrl } from "../shared/live-data-context";
 import { ImageWithFallback } from "../shared/image-with-fallback";
+import { getProductPrimaryImageUrl } from "../shared/product-image";
 
 type Props = {
   id: number;

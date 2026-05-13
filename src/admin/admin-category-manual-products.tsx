@@ -2,6 +2,7 @@ import { IconPlus } from "../shared/mono-icons";
 import { AdminSectionSkeleton } from "../shared/skeleton";
 import type { CategoryManualProduct } from "../shared/live-data-context";
 import { toCompressedThumbUrl } from "./admin-formatters";
+import { EmptyState } from "../shared/empty-state";
 
 type Props = {
   manualSearchInput: string;
@@ -83,7 +84,9 @@ export function AdminCategoryManualProducts({
         />
       </div>
       {manualSearchLoading ? <AdminSectionSkeleton rows={2} /> : null}
-      {!manualSearchLoading && manualSearchInput.trim() && manualSearchResults.length === 0 ? <p className="muted">Ничего не найдено</p> : null}
+      {!manualSearchLoading && manualSearchInput.trim() && manualSearchResults.length === 0 ? (
+        <EmptyState compact title="Ничего не найдено" subtitle="Попробуй изменить поисковый запрос." />
+      ) : null}
       {manualSearchResults.map((item) => (
         <ManualProductRow
           key={`manual-search-${item.product_id}`}

@@ -5,6 +5,8 @@ type SyncSummaryJob = {
   total_sources?: number | null;
   current_source_name?: string | null;
   current_source_parser_type?: string | null;
+  current_strategy_index?: number | null;
+  current_strategy_total?: number | null;
   current_stage?: string | null;
   current_source_processed_products?: number | null;
   current_source_total_products?: number | null;
@@ -20,7 +22,7 @@ type SyncSummaryProps = {
   latestJob: SyncSummaryJob;
   isSyncInProgress: boolean;
   formatDateTime: (value: string | null | undefined) => string;
-  formatSyncStatusRu: (status: string) => string;
+  formatSyncStatusRu: (status: string | null | undefined) => string;
   formatSyncStageRu: (stage: string | null | undefined) => string;
 };
 
@@ -31,6 +33,35 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
     return null;
   }
 
+  const strategyIndex = Math.max(1, Number(latestJob.current_strategy_index || 1));
+  const strategyTotal = Math.max(strategyIndex, Number(latestJob.current_strategy_total || 1));
+  const lastAtRaw = latestJob.completed_at || latestJob.started_at || latestJob.created_at;
+
+  const formatElapsedRu = (iso: string | null | undefined): string => {
+    if (!iso) {
+      return "";
+    }
+    const ts = Date.parse(iso);
+    if (!Number.isFinite(ts)) {
+      return "";
+    }
+    const diffMin = Math.max(0, Math.floor((Date.now() - ts) / 60000));
+    const days = Math.floor(diffMin / (60 * 24));
+    const hours = Math.floor((diffMin % (60 * 24)) / 60);
+    const minutes = diffMin % 60;
+    const parts: string[] = [];
+    if (days > 0) {
+      parts.push(`${days} ${days % 10 === 1 && days % 100 !== 11 ? "день" : days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 10 || days % 100 >= 20) ? "дня" : "дней"}`);
+    }
+    if (hours > 0) {
+      parts.push(`${hours} ${hours % 10 === 1 && hours % 100 !== 11 ? "час" : hours % 10 >= 2 && hours % 10 <= 4 && (hours % 100 < 10 || hours % 100 >= 20) ? "часа" : "часов"}`);
+    }
+    if (minutes > 0) {
+      parts.push(`${minutes} ${minutes % 10 === 1 && minutes % 100 !== 11 ? "минута" : minutes % 10 >= 2 && minutes % 10 <= 4 && (minutes % 100 < 10 || minutes % 100 >= 20) ? "минуты" : "минут"}`);
+    }
+    return parts.join(", ");
+  };
+
   return (
     <div className="sync-summary">
       {isSyncInProgress ? (
@@ -39,28 +70,25 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
             <div className="sync-progress__bar" style={{ width: `${clampPercent(latestJob.progress_percent)}%` }} />
           </div>
           <div className="sync-stats">
-            <span className="sync-pill">{`${latestJob.processed_sources || 0}/${latestJob.total_sources || 0}`}</span>
-            <span className="sync-pill">{latestJob.current_source_name || "—"}</span>
-            <span className="sync-pill">{latestJob.current_source_parser_type || "—"}</span>
-            <span className="sync-pill">{formatSyncStageRu(latestJob.current_stage)}</span>
+            <span className="sync-pill">{`${latestJob.processed_sources || 0}/${latestJob.total_sources || 0} | ${latestJob.current_source_name || "—"}`}</span>
             <span className="sync-pill">
-              Источник: {latestJob.current_source_processed_products || 0}/{latestJob.current_source_total_products || 0}
+              Стратегия: {latestJob.current_source_parser_type || "—"} ({strategyIndex}/{strategyTotal})
             </span>
-            <span className="sync-pill">Выгружено: {latestJob.processed_products || 0}</span>
-            <span className="sync-pill">Обнаружено: {latestJob.expected_products || 0}</span>
-            <span className="sync-pill">Ошибок: {latestJob.failed_products || 0}</span>
+            <span className="sync-pill">Этап: {formatSyncStageRu(latestJob.current_stage)}</span>
+            <span className="sync-pill">Успешно: {latestJob.processed_products || 0}</span>
+            <span className="sync-pill">Ошибки: {latestJob.failed_products || 0}</span>
             <span className="sync-pill">{clampPercent(latestJob.progress_percent)}%</span>
-            <span className="sync-pill">{formatSyncStatusRu(latestJob.status)}</span>
           </div>
         </>
       ) : latestJob.status === "completed" ? (
-        <p className="muted">
+        <div className="sync-last-run">
           Синхронизация завершена! Дата последней синхронизиации: {formatDateTime(latestJob.completed_at)}
-        </p>
+        </div>
       ) : (
-        <p className="muted">
-          Последний запуск: {latestJob.status}. Дата: {formatDateTime(latestJob.completed_at || latestJob.started_at || latestJob.created_at)}
-        </p>
+        <div className="sync-last-run">
+          Статус последнего запуска: {formatSyncStatusRu(latestJob.status)}. Дата: {formatDateTime(lastAtRaw)}
+          {formatElapsedRu(lastAtRaw) ? `, ${formatElapsedRu(lastAtRaw)}` : ""}
+        </div>
       )}
     </div>
   );

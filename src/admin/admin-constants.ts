@@ -12,6 +12,7 @@ const tabs: { key: AdminTab; label: string }[] = [
 ];
 
 const tabKeys = new Set<AdminTab>(tabs.map((item) => item.key));
+const DEFAULT_ADMIN_TAB: AdminTab = tabs[0]?.key ?? "products";
 
 const currencyOptions = ["RUB", "EUR", "USD"];
 const PAGE_SIZE = 100;
@@ -132,9 +133,9 @@ const dedupActionLabelMap: Record<string, string> = {
 
 const normalizeAdminTab = (raw: string | undefined): AdminTab => {
   if (!raw) {
-    return "products";
+    return DEFAULT_ADMIN_TAB;
   }
-  return tabKeys.has(raw as AdminTab) ? (raw as AdminTab) : "products";
+  return tabKeys.has(raw as AdminTab) ? (raw as AdminTab) : DEFAULT_ADMIN_TAB;
 };
 
 const normalizeCurrencyCode = (value: string | null | undefined, fallback: CurrencyCode = "RUB"): CurrencyCode => {
@@ -149,6 +150,7 @@ export {
   currencyOptions,
   dedupActionLabelMap,
   dedupReasonLabelMap,
+  DEFAULT_ADMIN_TAB,
   finalRoundingOptions,
   legendKeyToLatex,
   normalizeAdminTab,

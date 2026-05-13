@@ -1,24 +1,34 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { logoutAdminSession } from "../shared/admin-auth";
+import { SiteHeader } from "../shared/site-header";
+import { LogOut } from "lucide-react";
 
 export function SiteLayout() {
+  const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isAdminOriginProduct = location.pathname.startsWith("/product/") && searchParams.get("from") === "admin";
-  const ctaTo = isAdminOriginProduct ? "/" : "/control";
+
+  const ctaTo = isAdminOriginProduct ? "/" : "/control/products";
   const ctaLabel = isAdminOriginProduct ? "Каталог товаров" : "Панель управления";
+  const actions = [
+    { label: ctaLabel, to: ctaTo, variant: "primary" as const },
+    {
+      ariaLabel: "Выйти",
+      icon: <LogOut size={16} />,
+      variant: "default" as const,
+      onClick: () => {
+        void (async () => {
+          await logoutAdminSession();
+          navigate("/login", { replace: true });
+        })();
+      },
+    },
+  ];
 
   return (
     <div className="shell">
-      <header className="topbar">
-        <div className="topbar-inner">
-          <Link to="/" className="brand" aria-label="Anton Shell">
-            <img src="/logo_anton_shell.svg" alt="Anton Shell" className="brand-logo" />
-          </Link>
-          <Link to={ctaTo} className="topbar-cta">
-            {ctaLabel}
-          </Link>
-        </div>
-      </header>
+      <SiteHeader actions={actions} />
       <main className="container">
         <Outlet />
       </main>

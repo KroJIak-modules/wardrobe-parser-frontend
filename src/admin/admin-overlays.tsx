@@ -32,7 +32,9 @@ type Props = {
   removePreviewImage: (url: string) => void;
   onSaveProduct: () => Promise<void>;
   toasts: ToastItem[];
-  closeToast: (id: string) => void;
+  closeToast: (id: number) => void;
+  pauseToast: (id: number) => void;
+  resumeToast: (id: number) => void;
   zoomedImageUrl: string | null;
 };
 
@@ -61,6 +63,8 @@ export function AdminOverlays({
   onSaveProduct,
   toasts,
   closeToast,
+  pauseToast,
+  resumeToast,
   zoomedImageUrl,
 }: Props) {
   return (
@@ -90,7 +94,7 @@ export function AdminOverlays({
         onSaveProduct={onSaveProduct}
       />
 
-      <ToastStack toasts={toasts} onClose={closeToast} />
+      <ToastStack toasts={toasts} onClose={closeToast} onPause={pauseToast} onResume={resumeToast} />
 
       {zoomedImageUrl ? (
         <div className="modal-backdrop" onClick={() => setZoomedImageUrl(null)}>

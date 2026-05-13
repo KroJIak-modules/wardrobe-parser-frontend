@@ -1,22 +1,45 @@
-import { useState } from "react";
+import { useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import { PRODUCTS_QUERY_KEYS, readProductsQuery, withProductsQueryParam } from "../products-query";
 
 export function useAdminProductFilters() {
-  const [productSearch, setProductSearch] = useState<string>("");
-  const [productSourceFilter, setProductSourceFilter] = useState<string>("");
-  const [productVendorFilter, setProductVendorFilter] = useState<string>("");
-  const [productTypeFilter, setProductTypeFilter] = useState<string>("");
-  const [productStatusFilter, setProductStatusFilter] = useState<string>("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const state = readProductsQuery(searchParams);
+
+  const setParam = useCallback((key: string, value: string) => {
+    setSearchParams((previous) => withProductsQueryParam(previous, key, value), { replace: true });
+  }, [setSearchParams]);
+
+  const setProductSearch = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.search, value);
+  }, [setParam]);
+
+  const setProductSourceFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.sourceId, value);
+  }, [setParam]);
+
+  const setProductVendorFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.vendor, value);
+  }, [setParam]);
+
+  const setProductTypeFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.productType, value);
+  }, [setParam]);
+
+  const setProductStatusFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.status, value);
+  }, [setParam]);
 
   return {
-    productSearch,
+    productSearch: state.search,
     setProductSearch,
-    productSourceFilter,
+    productSourceFilter: state.sourceId,
     setProductSourceFilter,
-    productVendorFilter,
+    productVendorFilter: state.vendor,
     setProductVendorFilter,
-    productTypeFilter,
+    productTypeFilter: state.productType,
     setProductTypeFilter,
-    productStatusFilter,
+    productStatusFilter: state.status,
     setProductStatusFilter,
   };
 }
