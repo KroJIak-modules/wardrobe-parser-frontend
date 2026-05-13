@@ -203,6 +203,7 @@ function AppRoutes() {
       setAuthChecking(false);
       return;
     }
+    setAuthChecking(true);
     let alive = true;
     void (async () => {
       const ok = await checkAdminSessionSilently();

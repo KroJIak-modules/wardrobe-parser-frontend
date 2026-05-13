@@ -2928,6 +2928,16 @@ textarea {
   gap: 6px;
 }
 
+.pricing-settings-field--stacked {
+  gap: 10px;
+}
+
+.pricing-field-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #222f42;
+}
+
 .pricing-settings-input--compact {
   width: min(180px, 100%);
 }
@@ -3472,12 +3482,21 @@ textarea {
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  height: 74px;
+  min-height: 74px;
   border: 1px solid #d0d8e6;
   border-radius: 10px;
   background: #fff;
   padding: 6px;
   overflow-y: auto;
+}
+
+.source-currency-priority__input-wrap {
+  margin-top: 6px;
+  width: 100%;
+  border: 1px solid #d0d8e6;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0 8px;
 }
 
 .source-currency-chip {
@@ -3496,11 +3515,9 @@ textarea {
 .source-currency-priority__input {
   border: 0;
   outline: none;
-  min-width: 120px;
-  flex: 1 1 120px;
-  width: auto;
-  max-width: 100%;
-  padding: 4px 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 2px;
   margin: 0;
   background: transparent;
 }

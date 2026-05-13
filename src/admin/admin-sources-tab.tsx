@@ -203,6 +203,8 @@ export function AdminSourcesTab({
                               <IconClose className="icon-svg icon-svg--sm" />
                             </button>
                           ))}
+                        </div>
+                        <div className="source-currency-priority__input-wrap">
                           <input
                             className="source-currency-priority__input"
                             value={currencyInputBySource[source.key] || ""}

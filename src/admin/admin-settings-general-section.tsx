@@ -18,25 +18,22 @@ export function AdminSettingsGeneralSection({
 }: Props) {
   return (
     <div className="pricing-settings-grid pricing-settings-grid--spaced">
-      <label className="pricing-settings-field">
-        <span className="muted with-help">
-          <span className="pricing-field-label">
-            <span>Минимум товаров у бренда для категории «Дизайнеры»</span>
+      <div className="pricing-settings-field pricing-settings-field--stacked">
+        <label className="pricing-settings-field">
+          <span className="with-help">
+            <span className="pricing-field-title">Порог бренда для категории «Дизайнеры»</span>
+            <HelpHint text="Бренд попадет в ветку «Дизайнеры», только если у него не меньше этого количества товаров." />
           </span>
-          <HelpHint text="Бренд попадет в ветку «Дизайнеры», только если у него не меньше этого количества товаров." />
-        </span>
-        <input
-          className="pricing-settings-input--compact"
-          type="number"
-          min="1"
-          step="1"
-          value={designersMinProductsDraft}
-          onChange={(event) => setDesignersMinProductsDraft(event.target.value)}
-          disabled={!pricingSettings}
-        />
-      </label>
-
-      <div className="pricing-settings-field">
+          <input
+            className="pricing-settings-input--compact"
+            type="number"
+            min="1"
+            step="1"
+            value={designersMinProductsDraft}
+            onChange={(event) => setDesignersMinProductsDraft(event.target.value)}
+            disabled={!pricingSettings}
+          />
+        </label>
         <span className="muted with-help">
           <HelpHint text="Если включено, из «Дизайнеров» убираются бренды, которые совпадают с именем/доменом самого источника." />
         </span>

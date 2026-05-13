@@ -56,8 +56,19 @@ export async function authFetch(input: RequestInfo | URL, init?: RequestInit): P
 }
 
 export async function checkAdminSessionSilently(): Promise<boolean> {
-  const res = await globalThis.fetch(`${API_BASE}/auth/me`, { credentials: "include" });
-  return res.ok;
+  const me = await globalThis.fetch(`${API_BASE}/auth/me`, { credentials: "include" });
+  if (me.ok) {
+    return true;
+  }
+  if (me.status !== 401) {
+    return false;
+  }
+  const refreshed = await refreshAdminSession();
+  if (!refreshed) {
+    return false;
+  }
+  const recheck = await globalThis.fetch(`${API_BASE}/auth/me`, { credentials: "include" });
+  return recheck.ok;
 }
 
 export async function logoutAdminSession(): Promise<void> {
