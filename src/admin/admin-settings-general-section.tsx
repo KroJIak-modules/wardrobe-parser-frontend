@@ -9,45 +9,6 @@ type Props = {
   pushToast: (message: string) => void;
 };
 
-function ToggleField({
-  label,
-  hint,
-  checked,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  checked: boolean;
-  disabled: boolean;
-  onChange: (checked: boolean) => Promise<void>;
-}) {
-  return (
-    <div className="pricing-settings-field">
-      <span className="muted with-help">
-        <span className="pricing-field-label">
-          <span>{label}</span>
-        </span>
-        <HelpHint text={hint} />
-      </span>
-      <label className="ui-switch ui-switch--compact">
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(event) => {
-            void onChange(Boolean(event.target.checked));
-          }}
-        />
-        <span className="ui-switch-track">
-          <span className="ui-switch-thumb" />
-        </span>
-        <span className="ui-switch-text">{checked ? "Включено" : "Выключено"}</span>
-      </label>
-    </div>
-  );
-}
-
 export function AdminSettingsGeneralSection({
   pricingSettings,
   designersMinProductsDraft,
@@ -60,11 +21,12 @@ export function AdminSettingsGeneralSection({
       <label className="pricing-settings-field">
         <span className="muted with-help">
           <span className="pricing-field-label">
-            <span>Минимум товаров у бренда для «Дизайнеров»</span>
+            <span>Минимум товаров у бренда для категории «Дизайнеры»</span>
           </span>
           <HelpHint text="Бренд попадет в ветку «Дизайнеры», только если у него не меньше этого количества товаров." />
         </span>
         <input
+          className="pricing-settings-input--compact"
           type="number"
           min="1"
           step="1"
@@ -74,41 +36,30 @@ export function AdminSettingsGeneralSection({
         />
       </label>
 
-      <ToggleField
-        label="Исключать бренды-магазины"
-        hint="Если включено, из «Дизайнеров» убираются бренды, которые совпадают с именем/доменом самого источника."
-        checked={Boolean(pricingSettings?.designers_exclude_store_vendors)}
-        disabled={!pricingSettings}
-        onChange={async (checked) => {
-          if (!pricingSettings) return;
-          const result = await updatePricingSettings({ designers_exclude_store_vendors: checked });
-          if (!result.ok) pushToast(result.message);
-        }}
-      />
+      <div className="pricing-settings-field">
+        <span className="muted with-help">
+          <HelpHint text="Если включено, из «Дизайнеров» убираются бренды, которые совпадают с именем/доменом самого источника." />
+        </span>
+        <label className="ui-switch ui-switch--compact">
+          <input
+            type="checkbox"
+            checked={Boolean(pricingSettings?.designers_exclude_store_vendors)}
+            disabled={!pricingSettings}
+            onChange={(event) => {
+              void (async () => {
+                if (!pricingSettings) return;
+                const result = await updatePricingSettings({ designers_exclude_store_vendors: Boolean(event.target.checked) });
+                if (!result.ok) pushToast(result.message);
+              })();
+            }}
+          />
+          <span className="ui-switch-track">
+            <span className="ui-switch-thumb" />
+          </span>
+          <span className="ui-switch-text">Исключать бренды-магазины</span>
+        </label>
+      </div>
 
-      <ToggleField
-        label="Показывать только доступные товары в дедубликации"
-        hint="Если включено, кандидаты в дедубликации формируются только из товаров со статусом «В наличии»."
-        checked={Boolean(pricingSettings?.dedup_only_available_products)}
-        disabled={!pricingSettings}
-        onChange={async (checked) => {
-          if (!pricingSettings) return;
-          const result = await updatePricingSettings({ dedup_only_available_products: checked });
-          if (!result.ok) pushToast(result.message);
-        }}
-      />
-
-      <ToggleField
-        label="Показывать описание товаров в API"
-        hint="Глобально включает/выключает выдачу поля description у товаров. Локальные настройки в карточке товара имеют приоритет."
-        checked={Boolean(pricingSettings?.show_product_description)}
-        disabled={!pricingSettings}
-        onChange={async (checked) => {
-          if (!pricingSettings) return;
-          const result = await updatePricingSettings({ show_product_description: checked });
-          if (!result.ok) pushToast(result.message);
-        }}
-      />
     </div>
   );
 }

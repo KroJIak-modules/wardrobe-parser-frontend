@@ -57,12 +57,14 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     weightMissingProducts,
     pricingSettings,
     refreshDedupOnly,
+    refreshDedupDecisionsOnly,
     refreshPricingOnly,
     refreshCategoriesOnly,
     refreshWeightOnly,
     ensurePricingLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
+    ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
     loadingCategoriesTree,
     loadingCategoryCounts,
@@ -397,6 +399,16 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       return startMock();
     }
     try {
+      // Guard against stale UI when another admin has already started sync.
+      const latestRes = await authFetch(`${API_BASE}/jobs/latest`);
+      if (latestRes.ok) {
+        const latestPayload = (await latestRes.json()) as JobsLatest;
+        if (latestPayload && ["pending", "in_progress"].includes(String(latestPayload.status || ""))) {
+          setLatestJob(latestPayload);
+          return { ok: false, message: "Синхронизация уже запущена другим админом" };
+        }
+      }
+
       const res = await authFetch(`${API_BASE}/jobs`, {
         method: "POST",
         headers: {
@@ -557,6 +569,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensurePricingLoaded,
       ensureWeightLoaded,
       ensureDedupLoaded,
+      ensureDedupDecisionsLoaded,
       ensureCategoriesLoaded,
       refreshSourcesOnly,
       loadMoreProducts,
@@ -628,6 +641,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensurePricingLoaded,
       ensureWeightLoaded,
       ensureDedupLoaded,
+      ensureDedupDecisionsLoaded,
       ensureCategoriesLoaded,
       refreshSourcesOnly,
       loadMoreProducts,

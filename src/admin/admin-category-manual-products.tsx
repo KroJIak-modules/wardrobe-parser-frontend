@@ -40,7 +40,7 @@ function ManualProductRow({
             fetchPriority="low"
           />
         ) : (
-          <span className="muted">Нет фото</span>
+          <span className="manual-product-media-placeholder photo-placeholder">Нет фото</span>
         )}
       </div>
       <div className="manual-product-main">

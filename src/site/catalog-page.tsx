@@ -636,9 +636,9 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                     src={getProductPrimaryImageUrl(product, { w: 520, h: 520, q: 55 })}
                     alt={product.title}
                     className="thumb catalog-thumb"
-                    placeholderClassName="thumb thumb--placeholder catalog-thumb"
-                    placeholderText={product.image_count > 0 ? "Image" : "No image"}
-                    fallbackText="No image"
+                    placeholderClassName="thumb thumb--placeholder catalog-thumb photo-placeholder"
+                    placeholderText={product.image_count > 0 ? `${product.image_count} фото` : "Нет фото"}
+                    fallbackText="Нет фото"
                   />
 
                   <div className="catalog-card-meta">

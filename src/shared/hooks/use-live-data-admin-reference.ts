@@ -29,7 +29,7 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const fetchDedupCandidates = useCallback(async () => {
     setLoadingDedupCandidates(true);
     try {
-      const dedupPayload = await apiJson<{ items: DedupCandidate[] }>(`${API_BASE}/dedup/candidates?limit=80`);
+      const dedupPayload = await apiJson<{ items: DedupCandidate[] }>(`${API_BASE}/dedup/candidates?limit=20`);
       setDedupCandidates(dedupPayload.items || []);
       setDedupLoaded(true);
     } catch (e) {
@@ -42,7 +42,7 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const fetchDedupDecisions = useCallback(async () => {
     setLoadingDedupDecisions(true);
     try {
-      const payload = await apiJson<{ items: DedupDecision[] }>(`${API_BASE}/dedup/decisions?limit=200`);
+      const payload = await apiJson<{ items: DedupDecision[] }>(`${API_BASE}/dedup/decisions?limit=20`);
       setDedupDecisions(payload.items || []);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Unknown error");
@@ -52,9 +52,13 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   }, [onError]);
 
   const refreshDedupOnly = useCallback(async () => {
-    await Promise.all([fetchDedupCandidates(), fetchDedupDecisions()]);
+    await fetchDedupCandidates();
     setDedupLoaded(true);
-  }, [fetchDedupCandidates, fetchDedupDecisions]);
+  }, [fetchDedupCandidates]);
+
+  const refreshDedupDecisionsOnly = useCallback(async () => {
+    await fetchDedupDecisions();
+  }, [fetchDedupDecisions]);
 
   const refreshPricingOnly = useCallback(async () => {
     const payload = await apiJson<PricingSettings>(`${API_BASE}/settings/pricing`);
@@ -106,6 +110,10 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     await refreshDedupOnly();
   }, [dedupLoaded, refreshDedupOnly]);
 
+  const ensureDedupDecisionsLoaded = useCallback(async () => {
+    await refreshDedupDecisionsOnly();
+  }, [refreshDedupDecisionsOnly]);
+
   const ensureCategoriesLoaded = useCallback(async (force = false) => {
     if (!force && categoriesLoaded) return;
     await refreshCategoriesOnly({ includeCounts: true });
@@ -127,12 +135,14 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     loadingCategoriesTree,
     loadingCategoryCounts,
     refreshDedupOnly,
+    refreshDedupDecisionsOnly,
     refreshPricingOnly,
     refreshCategoriesOnly,
     refreshWeightOnly,
     ensurePricingLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
+    ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
     setAdminCategories,
   };

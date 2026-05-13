@@ -128,14 +128,11 @@ export function useLiveDataSourceSettingsActions(params: {
     try {
       const updated = await apiJson<PricingSettings>(`${API_BASE}/settings/pricing`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       setPricingSettings(updated || null);
-      if (Object.prototype.hasOwnProperty.call(payload, "dedup_only_available_products")) {
-        void refreshDedupOnly().catch((e) => setError(e instanceof Error ? e.message : "Unknown error"));
-      }
       return okResult("Параметры формулы сохранены");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
-  }, [refreshDedupOnly, setError, setPricingSettings]);
+  }, [setPricingSettings]);
 
   const fetchPricingExampleProduct = useCallback(async (): Promise<PricingExampleProduct | null> => {
     try {

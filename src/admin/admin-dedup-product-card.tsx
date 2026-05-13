@@ -50,7 +50,7 @@ export function AdminDedupProductCard({
         src={getProductPrimaryImageUrl({ image_urls: imageUrls, image_ids: imageIds }, { w: 520, h: 360, q: 55 })}
         alt={title}
         className="dedup-card-media"
-        placeholderClassName="dedup-card-media dedup-card-media--placeholder"
+        placeholderClassName="dedup-card-media dedup-card-media--placeholder photo-placeholder"
         placeholderText={imageCount > 0 ? `${imageCount} фото` : "Нет фото"}
       />
       <div className="dedup-card-body">

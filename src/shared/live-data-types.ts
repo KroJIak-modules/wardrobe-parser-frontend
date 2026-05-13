@@ -430,6 +430,7 @@ export type LiveDataContextValue = {
   ensurePricingLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: (force?: boolean) => Promise<void>;
   ensureDedupLoaded: (force?: boolean) => Promise<void>;
+  ensureDedupDecisionsLoaded: () => Promise<void>;
   ensureCategoriesLoaded: (force?: boolean) => Promise<void>;
   refreshSourcesOnly: () => Promise<void>;
   loadMoreProducts: () => Promise<void>;

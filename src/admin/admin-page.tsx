@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import "katex/dist/katex.min.css";
 import { useLiveData } from "../shared/live-data-context";
@@ -70,6 +70,7 @@ export function AdminPage() {
     ensurePricingLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
+    ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
     refreshSourcesOnly,
     runSync,
@@ -194,6 +195,13 @@ export function AdminPage() {
     undoDedupDecision,
     pushToast,
   });
+
+  useEffect(() => {
+    if (tab !== "dedup" || dedupView !== "decisions") {
+      return;
+    }
+    void ensureDedupDecisionsLoaded();
+  }, [tab, dedupView, ensureDedupDecisionsLoaded]);
   const {
     selectedCategoryId,
     setSelectedCategoryId,

@@ -64,7 +64,7 @@ export function AdminProductsTable({
                       src={getProductPrimaryImageUrl(product, { w: 180, h: 180, q: 55 })}
                       alt={product.title}
                       className="thumb-mini-image"
-                      placeholderClassName="thumb-mini"
+                      placeholderClassName="thumb-mini photo-placeholder"
                       placeholderText={product.image_count > 0 ? `${product.image_count} фото` : "Нет фото"}
                       loadingText={product.image_count > 0 ? "Загружаем..." : "Нет фото"}
                     />

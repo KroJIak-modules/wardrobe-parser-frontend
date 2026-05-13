@@ -15,10 +15,7 @@ type Params = {
 
 export function useLiveJobPolling({ latestJob, setLatestJob, refresh, syncMockEnabled = false, readMockJob }: Params) {
   useEffect(() => {
-    if (!latestJob || !["pending", "in_progress"].includes(latestJob.status)) {
-      return undefined;
-    }
-
+    const inProgress = Boolean(latestJob && ["pending", "in_progress"].includes(latestJob.status));
     const timer = window.setInterval(async () => {
       try {
         if (syncMockEnabled && readMockJob) {
@@ -43,8 +40,8 @@ export function useLiveJobPolling({ latestJob, setLatestJob, refresh, syncMockEn
       } catch {
         // silent retry by next poll
       }
-    }, 3000);
+    }, inProgress ? 3000 : 10000);
 
     return () => window.clearInterval(timer);
-  }, [latestJob?.status, refresh, setLatestJob, syncMockEnabled, readMockJob]);
+  }, [latestJob, refresh, setLatestJob, syncMockEnabled, readMockJob]);
 }

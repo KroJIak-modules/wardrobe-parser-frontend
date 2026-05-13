@@ -33,7 +33,7 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
                 src={toCompressedThumbUrl(pricingExample.imageUrl, 240, 240, 55)}
                 alt={pricingExample.title}
                 className="pricing-example-thumb"
-                placeholderClassName="pricing-example-thumb-placeholder"
+                placeholderClassName="pricing-example-thumb-placeholder photo-placeholder"
                 placeholderText="Нет фото"
                 loadingText="Загружаем..."
               />

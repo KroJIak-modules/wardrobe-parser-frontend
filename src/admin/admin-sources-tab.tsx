@@ -37,7 +37,6 @@ export function AdminSourcesTab({
   const [sourceCurrencyPriority, setSourceCurrencyPriority] = useState<Record<string, string[]>>({});
   const [currencyInputBySource, setCurrencyInputBySource] = useState<Record<string, string>>({});
   const [currencyOpenBySource, setCurrencyOpenBySource] = useState<Record<string, boolean>>({});
-  const [dragCurrencyBySource, setDragCurrencyBySource] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     setSourceAttrVisibility((prev) => {
@@ -192,35 +191,7 @@ export function AdminSourcesTab({
                               key={`${source.key}-${currency}`}
                               type="button"
                               className="source-currency-chip"
-                              draggable
-                              title="Перетащи для смены приоритета. Клик: удалить."
-                              onDragStart={() => {
-                                setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: currency }));
-                              }}
-                              onDragEnd={() => {
-                                setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: null }));
-                              }}
-                              onDragOver={(event) => {
-                                event.preventDefault();
-                              }}
-                              onDrop={(event) => {
-                                event.preventDefault();
-                                const dragged = dragCurrencyBySource[source.key];
-                                if (!dragged || dragged === currency) {
-                                  return;
-                                }
-                                setSourceCurrencyPriority((prev) => {
-                                  const list = [...(prev[source.key] || [])];
-                                  const from = list.indexOf(dragged);
-                                  const to = list.indexOf(currency);
-                                  if (from < 0 || to < 0) {
-                                    return prev;
-                                  }
-                                  const [moved] = list.splice(from, 1);
-                                  list.splice(to, 0, moved);
-                                  return { ...prev, [source.key]: list };
-                                });
-                              }}
+                              title="Клик: удалить"
                               onClick={(event) => {
                                 setSourceCurrencyPriority((prev) => ({
                                   ...prev,
