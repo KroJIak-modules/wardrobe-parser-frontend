@@ -127,6 +127,34 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [patchSource]);
 
+  const updateSourceAttributeVisibility = useCallback(async (sourceKey: string, payload: { show_description?: boolean; show_images?: boolean }) => {
+    try {
+      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/attribute-visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      patchSource(sourceKey, updated);
+      return okResult("Правила атрибутов обновлены");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [patchSource]);
+
+  const updateSourceCurrencyPriority = useCallback(async (sourceKey: string, currencyPriority: string[]) => {
+    try {
+      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/currency-priority`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currency_priority: currencyPriority }),
+      });
+      patchSource(sourceKey, updated);
+      return okResult("Приоритет валют обновлен");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [patchSource]);
+
   const updatePricingSettings = useCallback(async (payload: Partial<PricingSettings>) => {
     try {
       const updated = await apiJson<PricingSettings>(`${API_BASE}/settings/pricing`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -270,6 +298,8 @@ export function useLiveDataSourceSettingsActions(params: {
     toggleSourceEnabled,
     toggleSourceSyncEnabled,
     toggleSourceAutoHideProducts,
+    updateSourceAttributeVisibility,
+    updateSourceCurrencyPriority,
     assignSourceSupplier,
     createWeightRule,
     updateWeightRule,

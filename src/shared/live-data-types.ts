@@ -7,6 +7,9 @@ export type Source = {
   enabled: boolean;
   sync_enabled: boolean;
   hide_auto_added_products?: boolean;
+  show_description?: boolean;
+  show_images?: boolean;
+  currency_priority?: string[];
   notes: string | null;
   status_label: string | null;
   products_count: number;
@@ -516,6 +519,11 @@ export type LiveDataContextValue = {
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceSyncEnabled: (sourceKey: string, syncEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (sourceKey: string, hideAutoAddedProducts: boolean) => Promise<{ ok: boolean; message: string }>;
+  updateSourceAttributeVisibility: (
+    sourceKey: string,
+    payload: { show_description?: boolean; show_images?: boolean }
+  ) => Promise<{ ok: boolean; message: string }>;
+  updateSourceCurrencyPriority: (sourceKey: string, currencyPriority: string[]) => Promise<{ ok: boolean; message: string }>;
   createWeightRule: (weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   updateWeightRule: (id: number, weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   deleteWeightRule: (id: number) => Promise<{ ok: boolean; message: string }>;

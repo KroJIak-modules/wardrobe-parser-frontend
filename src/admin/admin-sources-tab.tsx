@@ -13,6 +13,9 @@ type SourceItem = {
   enabled: boolean;
   sync_enabled: boolean;
   hide_auto_added_products?: boolean;
+  show_description?: boolean;
+  show_images?: boolean;
+  currency_priority?: string[];
 };
 
 type Props = {
@@ -21,6 +24,8 @@ type Props = {
   toggleSourceEnabled: (key: string, enabled: boolean) => Promise<{ message: string }>;
   toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ message: string }>;
   toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ message: string }>;
+  updateSourceAttributeVisibility: (key: string, payload: { show_description?: boolean; show_images?: boolean }) => Promise<{ message: string }>;
+  updateSourceCurrencyPriority: (key: string, currencyPriority: string[]) => Promise<{ message: string }>;
   latestJob: {
     job_id?: string;
     status?: string;
@@ -38,6 +43,8 @@ export function AdminSourcesTab({
   toggleSourceEnabled,
   toggleSourceSyncEnabled,
   toggleSourceAutoHideProducts,
+  updateSourceAttributeVisibility,
+  updateSourceCurrencyPriority,
   latestJob,
   runSyncForSource,
   cancelSync,
@@ -54,7 +61,10 @@ export function AdminSourcesTab({
       const next = { ...prev };
       for (const source of sources) {
         if (!next[source.key]) {
-          next[source.key] = { description: true, images: true };
+          next[source.key] = {
+            description: source.show_description ?? true,
+            images: source.show_images ?? true,
+          };
         }
       }
       return next;
@@ -66,7 +76,9 @@ export function AdminSourcesTab({
       const next = { ...prev };
       for (const source of sources) {
         if (!next[source.key]) {
-          next[source.key] = ["USD", "EUR", "GBP"];
+          next[source.key] = Array.isArray(source.currency_priority) && source.currency_priority.length > 0
+            ? source.currency_priority.map((x) => String(x).toUpperCase())
+            : ["USD", "EUR", "GBP"];
         }
       }
       return next;
@@ -201,6 +213,10 @@ export function AdminSourcesTab({
                                   images: prev[source.key]?.images ?? true,
                                 },
                               }));
+                              void (async () => {
+                                const result = await updateSourceAttributeVisibility(source.key, { show_description: checked });
+                                pushToast(result.message);
+                              })();
                             }}
                           />
                           <span className="ui-switch-track">
@@ -221,6 +237,10 @@ export function AdminSourcesTab({
                                   images: checked,
                                 },
                               }));
+                              void (async () => {
+                                const result = await updateSourceAttributeVisibility(source.key, { show_images: checked });
+                                pushToast(result.message);
+                              })();
                             }}
                           />
                           <span className="ui-switch-track">
@@ -241,10 +261,14 @@ export function AdminSourcesTab({
                               className="source-currency-chip"
                               title="Клик: удалить"
                               onClick={(event) => {
-                                setSourceCurrencyPriority((prev) => ({
-                                  ...prev,
-                                  [source.key]: (prev[source.key] || []).filter((item) => item !== currency),
-                                }));
+                                setSourceCurrencyPriority((prev) => {
+                                  const next = (prev[source.key] || []).filter((item) => item !== currency);
+                                  void (async () => {
+                                    const result = await updateSourceCurrencyPriority(source.key, next);
+                                    pushToast(result.message);
+                                  })();
+                                  return { ...prev, [source.key]: next };
+                                });
                               }}
                             >
                               <span>{currency}</span>
@@ -276,7 +300,12 @@ export function AdminSourcesTab({
                                 if (list.includes(value)) {
                                   return prev;
                                 }
-                                return { ...prev, [source.key]: [...list, value] };
+                                const next = [...list, value];
+                                void (async () => {
+                                  const result = await updateSourceCurrencyPriority(source.key, next);
+                                  pushToast(result.message);
+                                })();
+                                return { ...prev, [source.key]: next };
                               });
                               setCurrencyInputBySource((prev) => ({ ...prev, [source.key]: "" }));
                             }}
@@ -294,7 +323,14 @@ export function AdminSourcesTab({
                                   className="source-currency-priority__option"
                                   onMouseDown={(event) => event.preventDefault()}
                                   onClick={() => {
-                                    setSourceCurrencyPriority((prev) => ({ ...prev, [source.key]: [...(prev[source.key] || []), item] }));
+                                    setSourceCurrencyPriority((prev) => {
+                                      const next = [...(prev[source.key] || []), item];
+                                      void (async () => {
+                                        const result = await updateSourceCurrencyPriority(source.key, next);
+                                        pushToast(result.message);
+                                      })();
+                                      return { ...prev, [source.key]: next };
+                                    });
                                     setCurrencyInputBySource((prev) => ({ ...prev, [source.key]: "" }));
                                   }}
                                 >

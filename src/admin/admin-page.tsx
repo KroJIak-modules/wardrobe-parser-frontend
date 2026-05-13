@@ -104,6 +104,8 @@ export function AdminPage() {
     toggleSourceEnabled,
     toggleSourceSyncEnabled,
     toggleSourceAutoHideProducts,
+    updateSourceAttributeVisibility,
+    updateSourceCurrencyPriority,
     weightRules,
     weightMissingProducts,
     pricingSettings,
@@ -560,6 +562,8 @@ export function AdminPage() {
       toggleSourceEnabled,
       toggleSourceSyncEnabled,
       toggleSourceAutoHideProducts,
+      updateSourceAttributeVisibility,
+      updateSourceCurrencyPriority,
       pushToast,
     },
     pricingTabProps: {
