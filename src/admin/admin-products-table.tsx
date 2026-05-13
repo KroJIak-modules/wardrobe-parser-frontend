@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { getProductPrimaryImageUrl } from "../shared/product-image";
 import { AdminTableSkeleton } from "../shared/skeleton";
+import { EmptyState } from "../shared/empty-state";
 import type { AdminProductsTableItem } from "./admin-types";
 
 type StatusBadge = {
@@ -97,7 +98,9 @@ export function AdminProductsTable({
           })}
         </tbody>
       </table>
-      {!tableLoading && tableProducts.length === 0 ? <p className="muted">По текущим фильтрам товаров нет</p> : null}
+      {!tableLoading && tableProducts.length === 0 ? (
+        <EmptyState compact title="По текущим фильтрам товаров нет" />
+      ) : null}
       {tableLoadingMore ? <AdminTableSkeleton rows={3} cols={8} /> : null}
       <div ref={productsSentinelRef} className="products-sentinel" />
     </div>

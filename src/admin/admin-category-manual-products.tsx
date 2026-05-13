@@ -74,7 +74,7 @@ export function AdminCategoryManualProducts({
 }: Props) {
   return (
     <>
-      <p className="muted">Ручное добавление товаров в категорию</p>
+      <h4 className="category-section-title">Ручное добавление товаров в категорию</h4>
       <div className="form">
         <input
           value={manualSearchInput}

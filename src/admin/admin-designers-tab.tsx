@@ -78,16 +78,18 @@ export function AdminDesignersTab({
         />
       </div>
 
-      <div className="designers-grid designers-grid--head">
-        <div>Исходный бренд</div>
-        <div>Новое название</div>
-        <div>В дизайнеры</div>
-      </div>
+      {!loading && filteredRows.length > 0 ? (
+        <div className="designers-grid designers-grid--head">
+          <div>Исходный бренд</div>
+          <div>Новое название</div>
+          <div>В дизайнеры</div>
+        </div>
+      ) : null}
 
       <div className="designers-grid-wrap">
         {loading ? <p className="muted">Загрузка брендов...</p> : null}
         {!loading && filteredRows.length === 0 ? (
-          <EmptyState compact title="Ничего не найдено" subtitle="Попробуй изменить строку поиска." />
+          <EmptyState compact title="Ничего не найдено" />
         ) : null}
         {!loading
           ? filteredRows.map((row) => {
@@ -125,13 +127,16 @@ export function AdminDesignersTab({
                       </div>
                     ) : null}
                   </div>
-                  <label className="designers-toggle">
+                  <label className="ui-switch ui-switch--compact designers-toggle">
                     <input
                       type="checkbox"
                       checked={Boolean(row.include_in_designers)}
                       onChange={(event) => onToggleIncludeInDesigners(row.source_brand, event.target.checked)}
                     />
-                    <span>{row.include_in_designers ? "Включен" : "Выключен"}</span>
+                    <span className="ui-switch-track">
+                      <span className="ui-switch-thumb" />
+                    </span>
+                    <span className="ui-switch-text">В дизайнеры</span>
                   </label>
                 </div>
               );
@@ -139,11 +144,13 @@ export function AdminDesignersTab({
           : null}
       </div>
 
-      <div className="designers-save-fab-wrap">
-        <button type="button" className="btn designers-save-fab" disabled={saving || hasInvalid} onClick={() => void onSave()}>
-          {saving ? "Сохраняем..." : hasUnsavedChanges ? "Сохранить изменения" : "Сохранить"}
-        </button>
-      </div>
+      {filteredRows.length > 0 ? (
+        <div className="designers-save-fab-wrap">
+          <button type="button" className="btn designers-save-fab" disabled={saving || hasInvalid} onClick={() => void onSave()}>
+            {saving ? "Сохраняем..." : hasUnsavedChanges ? "Сохранить изменения" : "Сохранить"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

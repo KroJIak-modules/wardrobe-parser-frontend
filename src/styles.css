@@ -980,7 +980,8 @@ button.topbar-cta {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
 }
 
 .catalog-empty p {
@@ -2324,40 +2325,29 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.favorite-toggle-btn {
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid #d6d6d6;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #7a7a7a;
-}
-
-.favorite-toggle-btn:hover {
-  border-color: #d5ab2c;
-  background: #fff8e6;
-  color: #8b6400;
-}
-
-.favorite-toggle-btn--active {
-  border-color: #d5ab2c;
-  background: #fff5d6;
-  color: #8b6400;
-}
-
-.favorite-toggle-btn--active .icon-svg path {
-  fill: currentColor;
-  stroke: #8b6400;
+.category-delete-btn {
+  margin-left: auto;
+  align-self: center;
 }
 
 .favorite-toggle-text {
   font-size: 13px;
   font-weight: 600;
   color: #2f2f2f;
+}
+
+.category-section-title {
+  margin: 14px 0 8px;
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: #2b3648;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tabs {
@@ -4212,8 +4202,8 @@ button:disabled {
 
 .designers-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 180px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 140px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -4280,16 +4270,7 @@ button:disabled {
 }
 
 .designers-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: #111827;
-}
-
-.designers-toggle input {
-  width: 18px;
-  height: 18px;
+  justify-self: start;
 }
 
 .product-meta-brand-stack {

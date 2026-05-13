@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { AdminSourcesSkeleton } from "../shared/skeleton";
 
 type SourceItem = {
@@ -30,6 +31,20 @@ export function AdminSourcesTab({
   toggleSourceAutoHideProducts,
   pushToast,
 }: Props) {
+  const [sourceAttrVisibility, setSourceAttrVisibility] = useState<Record<string, { description: boolean; images: boolean }>>({});
+
+  useEffect(() => {
+    setSourceAttrVisibility((prev) => {
+      const next = { ...prev };
+      for (const source of sources) {
+        if (!next[source.key]) {
+          next[source.key] = { description: true, images: true };
+        }
+      }
+      return next;
+    });
+  }, [sources]);
+
   return (
     <div className="card">
       <h2>Источники ({sources.length})</h2>
@@ -109,14 +124,40 @@ export function AdminSourcesTab({
                       <summary className="source-attrs__summary">Правила атрибутов</summary>
                       <div className="source-attrs__body">
                         <label className="ui-switch ui-switch--compact source-card-switch">
-                          <input type="checkbox" defaultChecked />
+                          <input
+                            type="checkbox"
+                            checked={sourceAttrVisibility[source.key]?.description ?? true}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              setSourceAttrVisibility((prev) => ({
+                                ...prev,
+                                [source.key]: {
+                                  description: checked,
+                                  images: prev[source.key]?.images ?? true,
+                                },
+                              }));
+                            }}
+                          />
                           <span className="ui-switch-track">
                             <span className="ui-switch-thumb" />
                           </span>
                           <span className="ui-switch-text">Показывать описание</span>
                         </label>
                         <label className="ui-switch ui-switch--compact source-card-switch">
-                          <input type="checkbox" defaultChecked />
+                          <input
+                            type="checkbox"
+                            checked={sourceAttrVisibility[source.key]?.images ?? true}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              setSourceAttrVisibility((prev) => ({
+                                ...prev,
+                                [source.key]: {
+                                  description: prev[source.key]?.description ?? true,
+                                  images: checked,
+                                },
+                              }));
+                            }}
+                          />
                           <span className="ui-switch-track">
                             <span className="ui-switch-thumb" />
                           </span>

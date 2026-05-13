@@ -89,6 +89,7 @@ export function AdminCategoryEditorPanel(props: Props) {
     () => new Map(statusOptions.map((option) => [option.value, option.label])),
     [statusOptions]
   );
+  const leafOnlyHint = "Добавление ключевых слов и товаров доступно только для конечных категорий.";
 
   if (createFormOpen) {
     return (
@@ -133,16 +134,16 @@ export function AdminCategoryEditorPanel(props: Props) {
             <div className="favorite-toggle-row">
               <button
                 type="button"
-                className={selectedCategory.is_favorite ? "icon-btn icon-btn--active favorite-toggle-btn favorite-toggle-btn--active" : "icon-btn favorite-toggle-btn"}
+                className={selectedCategory.is_favorite ? "icon-btn icon-btn--active" : "icon-btn"}
                 onClick={() => void onToggleCategoryFavorite(!selectedCategory.is_favorite)}
                 aria-label={selectedCategory.is_favorite ? "Убрать из избранного" : "Сделать избранным"}
               >
-                <IconStar className="icon-svg icon-svg--sm" />
+                <IconStar className="icon-svg" />
               </button>
               <span className="favorite-toggle-text">{selectedCategory.is_favorite ? "Добавлен в избранное" : "Сделать избранным"}</span>
             </div>
           ) : null}
-          <button type="button" onClick={onDeleteCategory} disabled={selectedCategory.is_system}>Удалить</button>
+          <button type="button" className="category-delete-btn" onClick={onDeleteCategory} disabled={selectedCategory.is_system}>Удалить</button>
         </div>
         {selectedCategory.is_system ? <p className="muted">Данная категория системная, ее нельзя удалить.</p> : null}
       </div>
@@ -158,7 +159,7 @@ export function AdminCategoryEditorPanel(props: Props) {
         </>
       ) : !selectedCategory.is_system ? (
         <>
-          <p className="muted">Ключевые слова по локальным категориям <HelpHint text="Срабатывают по бренду и типу товара. Товар может попасть сразу в несколько категорий." /></p>
+          <h4 className="category-section-title">Ключевые слова по локальным категориям <HelpHint text="Срабатывают по бренду и типу товара. Товар может попасть сразу в несколько категорий." /></h4>
           <div className="chip-list">
             {selectedCategory.keywords.map((keyword: string) => (
               <span key={keyword} className={selectedCategory.keywords_editable ? "tag tag--with-action" : "tag tag--muted"}>
@@ -186,7 +187,7 @@ export function AdminCategoryEditorPanel(props: Props) {
             />
             <button type="button" onClick={() => void onAddKeyword("local")} disabled={!selectedCategory.keywords_editable}>Добавить ключ</button>
           </div>
-          <p className="muted">Ключевые слова по названию товара <HelpHint text="Срабатывают только по title товара. Удобно для точных слов, которые не должны матчиться по бренду или URL." /></p>
+          <h4 className="category-section-title">Ключевые слова по названию товара <HelpHint text="Срабатывают только по title товара. Удобно для точных слов, которые не должны матчиться по бренду или URL." /></h4>
           <div className="chip-list">
             {selectedCategory.title_keywords.map((keyword: string) => (
               <span key={keyword} className={selectedCategory.keywords_editable ? "tag tag--with-action" : "tag tag--muted"}>
@@ -214,7 +215,7 @@ export function AdminCategoryEditorPanel(props: Props) {
             />
             <button type="button" onClick={() => void onAddKeyword("title")} disabled={!selectedCategory.keywords_editable}>Добавить ключ</button>
           </div>
-          <p className="muted">Фильтр по статусу товара</p>
+          <h4 className="category-section-title">Фильтр по статусу товара</h4>
           <div className="chip-list">
             {(selectedCategory.status_keywords || []).map((statusValue: string) => (
               <span key={statusValue} className={selectedCategory.keywords_editable ? "tag tag--with-action" : "tag tag--muted"}>
@@ -269,10 +270,12 @@ export function AdminCategoryEditorPanel(props: Props) {
               disabled={!selectedCategory.keywords_editable}
             />
           ) : (
-            <p className="muted">Добавление ключевых слов и товаров доступно только для конечных категорий.</p>
+            <p className="muted">{leafOnlyHint}</p>
           )}
 
-          {!selectedCategory.keywords_editable && selectedCategory.keywords_locked_reason ? <p className="muted">{selectedCategory.keywords_locked_reason}</p> : null}
+          {!selectedCategory.keywords_editable && selectedCategory.keywords_locked_reason && selectedCategory.keywords_locked_reason !== leafOnlyHint ? (
+            <p className="muted">{selectedCategory.keywords_locked_reason}</p>
+          ) : null}
         </>
       ) : null}
     </>

@@ -41,7 +41,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const syncMockEnabled = true;
+  const syncMockEnabled = String(import.meta.env.VITE_SYNC_MOCK || "").toLowerCase() === "true";
   const mockJobRef = useRef<JobsLatest>(null);
   const mockTickTimerRef = useRef<number | null>(null);
   const loadingMoreLockRef = useRef<boolean>(false);
@@ -522,7 +522,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   useLiveJobPolling({
     latestJob,
-    setLatestJob: (payload) => setLatestJob(payload as JobsLatest),
+    setLatestJob,
     refresh,
     syncMockEnabled,
     readMockJob: () => mockJobRef.current,

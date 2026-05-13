@@ -7,10 +7,10 @@ type JobsLatest = {
 
 type Params = {
   latestJob: JobsLatest;
-  setLatestJob: (payload: any) => void;
+  setLatestJob: (payload: JobsLatest) => void;
   refresh: () => Promise<void>;
   syncMockEnabled?: boolean;
-  readMockJob?: () => any;
+  readMockJob?: () => JobsLatest;
 };
 
 export function useLiveJobPolling({ latestJob, setLatestJob, refresh, syncMockEnabled = false, readMockJob }: Params) {
