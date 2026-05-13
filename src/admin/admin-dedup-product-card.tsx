@@ -51,7 +51,7 @@ export function AdminDedupProductCard({
         alt={title}
         className="dedup-card-media"
         placeholderClassName="dedup-card-media dedup-card-media--placeholder"
-        placeholderText={imageCount > 0 ? "Фото" : "Нет фото"}
+        placeholderText={imageCount > 0 ? `${imageCount} фото` : "Нет фото"}
       />
       <div className="dedup-card-body">
         <strong className="dedup-card-title">{title}</strong>

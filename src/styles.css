@@ -285,6 +285,14 @@
 
 .dedup-card-media--placeholder {
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafc;
+  color: #637085;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .dedup-card-body {
@@ -3434,6 +3442,8 @@ textarea {
 .source-currency-priority {
   display: grid;
   gap: 6px;
+  width: 100%;
+  min-width: 0;
 }
 
 .source-currency-priority__label {
@@ -3444,18 +3454,26 @@ textarea {
 
 .source-currency-priority__field {
   position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
 .source-currency-priority__chips {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
+  align-content: flex-start;
   gap: 6px;
-  min-height: 38px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 74px;
   border: 1px solid #d0d8e6;
   border-radius: 10px;
   background: #fff;
   padding: 6px;
+  overflow-y: auto;
 }
 
 .source-currency-chip {
@@ -3476,7 +3494,11 @@ textarea {
   outline: none;
   min-width: 120px;
   flex: 1 1 120px;
+  width: auto;
+  max-width: 100%;
   padding: 4px 2px;
+  margin: 0;
+  background: transparent;
 }
 
 .source-currency-priority__menu {

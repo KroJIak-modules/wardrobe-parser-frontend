@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { IconClose } from "../shared/mono-icons";
+import { EmptyState } from "../shared/empty-state";
 import { AdminWeightSkeleton } from "../shared/skeleton";
 import type { WeightMissingProduct, WeightRule } from "../shared/live-data-context";
 
@@ -110,7 +111,7 @@ export function AdminWeightTab({
           <section>
             <h2>Товары без определенного веса</h2>
             {weightMissingProducts.length === 0 ? (
-              <p className="muted">Все товары имеют вес (из источника или по ключевым словам).</p>
+              <EmptyState compact title="Все товары имеют вес (из источника или по ключевым словам)." />
             ) : (
               <div className="table-wrap table-wrap--spaced">
                 <table className="products-table">

@@ -120,7 +120,7 @@ export function AdminSourcesTab({
                       <span className="ui-switch-track">
                         <span className="ui-switch-thumb" />
                       </span>
-                      <span className="ui-switch-text">Участие в sync</span>
+                      <span className="ui-switch-text">Участие в синхронизацию</span>
                     </label>
                     <label className="ui-switch ui-switch--compact source-card-switch">
                       <input

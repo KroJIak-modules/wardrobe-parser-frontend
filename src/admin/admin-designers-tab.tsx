@@ -70,12 +70,14 @@ export function AdminDesignersTab({
     <div className="card designers-tab-card">
       <div className="designers-tab-head">
         <h2>Дизайнеры</h2>
-        <input
-          className="input"
-          placeholder="Поиск по бренду"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        {rows.length > 0 || loading ? (
+          <input
+            className="input"
+            placeholder="Поиск по бренду"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        ) : null}
       </div>
 
       {!loading && filteredRows.length > 0 ? (
