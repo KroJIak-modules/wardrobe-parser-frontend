@@ -26,6 +26,8 @@ type Props = {
   toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ message: string }>;
   updateSourceAttributeVisibility: (key: string, payload: { show_description?: boolean; show_images?: boolean }) => Promise<{ message: string }>;
   updateSourceCurrencyPriority: (key: string, currencyPriority: string[]) => Promise<{ message: string }>;
+  autoSyncPeriodMinutes: number;
+  updateAdminUiSettings: (payload: { auto_sync_period_minutes?: number }) => Promise<{ ok: boolean; message: string }>;
   latestJob: {
     job_id?: string;
     status?: string;
@@ -45,6 +47,8 @@ export function AdminSourcesTab({
   toggleSourceAutoHideProducts,
   updateSourceAttributeVisibility,
   updateSourceCurrencyPriority,
+  autoSyncPeriodMinutes,
+  updateAdminUiSettings,
   latestJob,
   runSyncForSource,
   cancelSync,
@@ -55,6 +59,12 @@ export function AdminSourcesTab({
   const [sourceCurrencyPriority, setSourceCurrencyPriority] = useState<Record<string, string[]>>({});
   const [currencyInputBySource, setCurrencyInputBySource] = useState<Record<string, string>>({});
   const [currencyOpenBySource, setCurrencyOpenBySource] = useState<Record<string, boolean>>({});
+  const [dragCurrencyBySource, setDragCurrencyBySource] = useState<Record<string, string | null>>({});
+  const [autoSyncDraft, setAutoSyncDraft] = useState<string>(String(Math.max(60, Number(autoSyncPeriodMinutes || 60))));
+
+  useEffect(() => {
+    setAutoSyncDraft(String(Math.max(60, Number(autoSyncPeriodMinutes || 60))));
+  }, [autoSyncPeriodMinutes]);
 
   useEffect(() => {
     setSourceAttrVisibility((prev) => {
@@ -90,6 +100,52 @@ export function AdminSourcesTab({
 
   return (
     <div className="card">
+      <div className="admin-sources-sync-period">
+        <h3>Автоматическая синхронизация</h3>
+        <label className="admin-settings-field">
+          <span className="muted">Период автосинхронизации (минуты, минимум 60)</span>
+          <div className="admin-settings-inline-row">
+            <input
+              type="number"
+              min={60}
+              step={1}
+              className="input"
+              value={autoSyncDraft}
+              onChange={(event) => {
+                const raw = event.target.value;
+                if (raw === "") {
+                  setAutoSyncDraft("60");
+                  return;
+                }
+                const parsed = Math.trunc(Number(raw));
+                if (!Number.isFinite(parsed)) {
+                  return;
+                }
+                setAutoSyncDraft(String(Math.max(60, parsed)));
+              }}
+              onBlur={() => {
+                const parsed = Math.trunc(Number(autoSyncDraft || "60"));
+                setAutoSyncDraft(String(Number.isFinite(parsed) ? Math.max(60, parsed) : 60));
+              }}
+            />
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => {
+                void (async () => {
+                  const raw = Math.trunc(Number(autoSyncDraft || "0"));
+                  const next = Number.isFinite(raw) ? Math.max(60, raw) : 60;
+                  setAutoSyncDraft(String(next));
+                  const result = await updateAdminUiSettings({ auto_sync_period_minutes: next });
+                  pushToast(result.message);
+                })();
+              }}
+            >
+              Сохранить
+            </button>
+          </div>
+        </label>
+      </div>
       <h2>Источники ({sources.length})</h2>
       {loading ? (
         <AdminSourcesSkeleton rows={5} />
@@ -260,6 +316,37 @@ export function AdminSourcesTab({
                               type="button"
                               className="source-currency-chip"
                               title="Клик: удалить"
+                              draggable
+                              onDragStart={() => {
+                                setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: currency }));
+                              }}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                const dragging = dragCurrencyBySource[source.key];
+                                if (!dragging || dragging === currency) {
+                                  return;
+                                }
+                                setSourceCurrencyPriority((prev) => {
+                                  const list = [...(prev[source.key] || [])];
+                                  const from = list.indexOf(dragging);
+                                  const to = list.indexOf(currency);
+                                  if (from < 0 || to < 0 || from === to) {
+                                    return prev;
+                                  }
+                                  const [moved] = list.splice(from, 1);
+                                  list.splice(to, 0, moved);
+                                  void (async () => {
+                                    const result = await updateSourceCurrencyPriority(source.key, list);
+                                    pushToast(result.message);
+                                  })();
+                                  return { ...prev, [source.key]: list };
+                                });
+                                setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: null }));
+                              }}
+                              onDragEnd={() => {
+                                setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: null }));
+                              }}
                               onClick={(event) => {
                                 setSourceCurrencyPriority((prev) => {
                                   const next = (prev[source.key] || []).filter((item) => item !== currency);

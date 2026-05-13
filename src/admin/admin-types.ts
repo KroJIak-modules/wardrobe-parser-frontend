@@ -120,6 +120,7 @@ export type BrandMappingItem = {
 export type AdminUiSettings = {
   designers_min_products: number;
   designers_exclude_store_vendors: boolean;
+  auto_sync_period_minutes?: number;
   showcase_hero_image_asset_id?: number | null;
   showcase_carousel_image_asset_ids?: number[];
 };

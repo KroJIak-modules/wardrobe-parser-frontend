@@ -14,16 +14,18 @@ type Props = {
   setProductVendor: Dispatch<SetStateAction<string>>;
   productCategory: string;
   setProductCategory: Dispatch<SetStateAction<string>>;
-  productPrice: string;
-  setProductPrice: Dispatch<SetStateAction<string>>;
+  productDescription: string;
+  setProductDescription: Dispatch<SetStateAction<string>>;
   productCurrency: string;
   setProductCurrency: Dispatch<SetStateAction<string>>;
+  productVariants: Array<{ title: string; price: string; available: boolean }>;
+  setProductVariants: Dispatch<SetStateAction<Array<{ title: string; price: string; available: boolean }>>>;
   currencyOptions: CurrencyCode[];
   onDropImage: (event: DragEvent<HTMLDivElement>) => void;
   onPickImage: (event: ChangeEvent<HTMLInputElement>) => void;
   imagePreviews: UploadPreview[];
   setZoomedImageUrl: Dispatch<SetStateAction<string | null>>;
-  removePreviewImage: (index: number) => void;
+  removePreviewImage: (url: string) => void;
   onSaveProduct: () => void;
 };
 
@@ -39,10 +41,12 @@ export function AdminProductCreateModal({
   setProductVendor,
   productCategory,
   setProductCategory,
-  productPrice,
-  setProductPrice,
+  productDescription,
+  setProductDescription,
   productCurrency,
   setProductCurrency,
+  productVariants,
+  setProductVariants,
   currencyOptions,
   onDropImage,
   onPickImage,
@@ -89,7 +93,6 @@ export function AdminProductCreateModal({
           </div>
 
           <div className="row2">
-            <input value={productPrice} onChange={(event) => setProductPrice(event.target.value)} placeholder="Цена" />
             <select value={productCurrency} onChange={(event) => setProductCurrency(event.target.value)}>
               {currencyOptions.map((currency) => (
                 <option key={currency} value={currency}>
@@ -97,6 +100,61 @@ export function AdminProductCreateModal({
                 </option>
               ))}
             </select>
+          </div>
+
+          <textarea
+            value={productDescription}
+            onChange={(event) => setProductDescription(event.target.value)}
+            placeholder="Описание"
+            rows={4}
+          />
+
+          <div className="card card--pad-md">
+            <div className="row-between">
+              <h3>Варианты</h3>
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => setProductVariants((prev) => [...prev, { title: "", price: "", available: true }])}
+              >
+                <IconPlus className="icon-svg icon-svg--sm" /> добавить вариант
+              </button>
+            </div>
+            {productVariants.map((variant, index) => (
+              <div key={`variant-${index}`} className="row3" style={{ marginTop: 8 }}>
+                <input
+                  value={variant.title}
+                  onChange={(event) =>
+                    setProductVariants((prev) => prev.map((item, idx) => (idx === index ? { ...item, title: event.target.value } : item)))
+                  }
+                  placeholder="Название варианта"
+                />
+                <input
+                  value={variant.price}
+                  onChange={(event) =>
+                    setProductVariants((prev) => prev.map((item, idx) => (idx === index ? { ...item, price: event.target.value } : item)))
+                  }
+                  placeholder="Цена"
+                />
+                <label className="switch-row">
+                  <input
+                    type="checkbox"
+                    checked={variant.available}
+                    onChange={(event) =>
+                      setProductVariants((prev) => prev.map((item, idx) => (idx === index ? { ...item, available: event.target.checked } : item)))
+                    }
+                  />
+                  <span>В наличии</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setProductVariants((prev) => prev.filter((_, idx) => idx !== index))}
+                  disabled={productVariants.length <= 1}
+                >
+                  Удалить
+                </button>
+              </div>
+            ))}
           </div>
 
           <div className="dropzone" onDrop={onDropImage} onDragOver={(event) => event.preventDefault()}>
@@ -122,7 +180,7 @@ export function AdminProductCreateModal({
                     <img src={item.url} alt={item.file.name} className="image-preview" />
                   </button>
                   <div className="actions actions--compact-top">
-                    <button type="button" onClick={() => removePreviewImage(index)}>
+                    <button type="button" onClick={() => removePreviewImage(item.url)}>
                       Удалить
                     </button>
                   </div>

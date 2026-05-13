@@ -4,7 +4,7 @@ import { buildPricingExampleView } from "../admin/admin-pricing-view-model";
 import { formatDisplayMoney, renderLegendSymbol } from "../admin/admin-formatters";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { LatexBrand } from "../shared/latex-brand";
-import { IconChevronLeft, IconChevronRight, IconExternalLink, IconEye, IconEyeOff, IconPencil, IconPlus, IconTrash } from "../shared/mono-icons";
+import { IconChevronLeft, IconChevronRight, IconExternalLink, IconPlus } from "../shared/mono-icons";
 import { getProductPrimaryImageUrl } from "../shared/product-image";
 import { ProductPageSkeleton } from "../shared/skeleton";
 import { useLiveData } from "../shared/live-data-context";
@@ -12,6 +12,7 @@ import { ToastStack } from "../shared/toast-stack";
 import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
 import { deriveStatusAfterUnhide, getStatusClass, getStatusLabel, normalizeProductStatus } from "./catalog-helpers";
+import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 
 type VariantInfo = {
   title: string;
@@ -64,6 +65,8 @@ function toThumbUrl(url: string): string {
 type ImageEditState = {
   title_sync_locked: boolean;
   description_sync_locked: boolean;
+  description_visible_effective?: boolean;
+  description_visible_override?: boolean | null;
   images_sync_locked: boolean;
   hidden_source_image_urls: string[];
   manual_image_urls: string[];
@@ -84,12 +87,7 @@ export function ProductPage() {
     uploadProductImage,
   } = useLiveData();
   const fromAdmin = searchParams.get("from") === "admin";
-  const canEdit = (() => {
-    if (fromAdmin) {
-      return true;
-    }
-    return false;
-  })();
+  const canEdit = true;
 
   const productId = Number(id);
   const inlineProduct = Number.isFinite(productId) ? products.find((item) => item.id === productId) || null : null;
@@ -108,6 +106,18 @@ export function ProductPage() {
   const [editPending, setEditPending] = useState<boolean>(false);
   const [draggingToken, setDraggingToken] = useState<string | null>(null);
   const imageUploadInputRef = useRef<HTMLInputElement | null>(null);
+
+  const reloadFullProduct = async () => {
+    if (!Number.isFinite(productId) || productId <= 0) {
+      return null;
+    }
+    const refreshed = await getProductById(productId, { forceFetch: true });
+    if (refreshed) {
+      setProduct(refreshed);
+      return refreshed;
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (inlineProduct) {
@@ -162,14 +172,17 @@ export function ProductPage() {
   const imageEdit = useMemo<ImageEditState>(() => {
     const fallbackSourceUrls = Array.isArray(product?.image_urls) ? product.image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [];
     const raw = product?.product_edit || {};
+    const rawSourceUrls = Array.isArray(raw.source_image_urls) ? raw.source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [];
     return {
       title_sync_locked: Boolean(raw.title_sync_locked),
       description_sync_locked: Boolean(raw.description_sync_locked),
+      description_visible_effective: typeof raw.description_visible_effective === "boolean" ? raw.description_visible_effective : undefined,
+      description_visible_override: typeof raw.description_visible_override === "boolean" ? raw.description_visible_override : null,
       images_sync_locked: Boolean(raw.images_sync_locked),
       hidden_source_image_urls: Array.isArray(raw.hidden_source_image_urls) ? raw.hidden_source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
       manual_image_urls: Array.isArray(raw.manual_image_urls) ? raw.manual_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
       manual_image_order: Array.isArray(raw.manual_image_order) ? raw.manual_image_order.map((x) => String(x)) : [],
-      source_image_urls: fallbackSourceUrls,
+      source_image_urls: rawSourceUrls.length > 0 ? rawSourceUrls : fallbackSourceUrls,
     };
   }, [product?.product_edit, product?.image_urls]);
 
@@ -321,8 +334,8 @@ export function ProductPage() {
     setEditPending(true);
     const result = await updateProductOverrides(product.id, { images: next });
     pushToast(result.message);
-    if (result.ok && result.product) {
-      setProduct(result.product);
+    if (result.ok) {
+      await reloadFullProduct();
     }
     setEditPending(false);
   };
@@ -392,18 +405,21 @@ export function ProductPage() {
       },
     });
     pushToast(result.message);
-    if (result.ok && result.product) {
-      setProduct(result.product);
+    if (result.ok) {
+      await reloadFullProduct();
     }
     setEditPending(false);
   };
 
   const onResetFieldToDefault = async (field: "title" | "description" | "images") => {
     setEditPending(true);
-    const result = await updateProductOverrides(product.id, { reset_to_default: [field] });
+    const resetFields = field === "description"
+      ? (["description", "description_visibility"] as const)
+      : ([field] as const);
+    const result = await updateProductOverrides(product.id, { reset_to_default: [...resetFields] });
     pushToast(result.message);
-    if (result.ok && result.product) {
-      setProduct(result.product);
+    if (result.ok) {
+      await reloadFullProduct();
     }
     setEditPending(false);
   };
@@ -417,8 +433,8 @@ export function ProductPage() {
     setEditPending(true);
     const result = await updateProductOverrides(product.id, { title: next });
     pushToast(result.message);
-    if (result.ok && result.product) {
-      setProduct(result.product);
+    if (result.ok) {
+      await reloadFullProduct();
       setEditingTitle(false);
     }
     setEditPending(false);
@@ -428,8 +444,8 @@ export function ProductPage() {
     setEditPending(true);
     const result = await updateProductOverrides(product.id, { description: descriptionDraft });
     pushToast(result.message);
-    if (result.ok && result.product) {
-      setProduct(result.product);
+    if (result.ok) {
+      await reloadFullProduct();
       setEditingDescription(false);
     }
     setEditPending(false);
@@ -441,8 +457,9 @@ export function ProductPage() {
       description_visible: !descriptionVisibleEffective,
     });
     pushToast(result.message);
-    if (result.ok && result.product) {
-      setProduct(result.product);
+    if (result.ok) {
+      await reloadFullProduct();
+      // Visibility toggle should always exit edit mode to avoid editing hidden text.
       setEditingDescription(false);
     }
     setEditPending(false);
@@ -454,8 +471,8 @@ export function ProductPage() {
       reset_to_default: ["description_visibility"],
     });
     pushToast(result.message);
-    if (result.ok && result.product) {
-      setProduct(result.product);
+    if (result.ok) {
+      await reloadFullProduct();
       setEditingDescription(false);
     }
     setEditPending(false);
@@ -537,11 +554,11 @@ export function ProductPage() {
                       </button>
                       {item.isSource ? (
                         <button type="button" className="product-image-edit-action" onClick={() => void toggleSourceImageVisibility(item.imageUrl)} title={item.hidden ? "Показать фото" : "Скрыть фото"}>
-                          {item.hidden ? <IconEyeOff className="icon-svg" /> : <IconEye className="icon-svg" />}
+                          {item.hidden ? <EyeOff className="icon-svg" /> : <Eye className="icon-svg" />}
                         </button>
                       ) : (
                         <button type="button" className="product-image-edit-action product-image-edit-action--danger" onClick={() => void removeManualImage(item.imageUrl)} title="Удалить фото">
-                          <IconTrash className="icon-svg" />
+                          <Trash2 className="icon-svg" />
                         </button>
                       )}
                     </div>
@@ -583,7 +600,7 @@ export function ProductPage() {
                 {product.title}
                 {canEdit ? (
                   <button type="button" className="product-edit-icon-btn" onClick={() => setEditingTitle(true)} title="Редактировать название">
-                    <IconPencil className="icon-svg" />
+                    <Pencil className="icon-svg" />
                   </button>
                 ) : null}
               </h1>
@@ -603,12 +620,23 @@ export function ProductPage() {
                   onClick={() => void onToggleDescriptionVisibility()}
                   title={descriptionVisibleEffective ? "Скрыть описание в API" : "Показывать описание в API"}
                 >
-                  {descriptionVisibleEffective ? <IconEye className="icon-svg" /> : <IconEyeOff className="icon-svg" />}
+                  {descriptionVisibleEffective ? <Eye className="icon-svg" /> : <EyeOff className="icon-svg" />}
                 </button>
               ) : null}
               {canEdit ? (
-                <button type="button" className="product-edit-icon-btn" onClick={() => setEditingDescription(true)} title="Редактировать описание">
-                  <IconPencil className="icon-svg" />
+                <button
+                  type="button"
+                  className="product-edit-icon-btn"
+                  onClick={() => {
+                    if (!descriptionVisibleEffective) {
+                      return;
+                    }
+                    setEditingDescription(true);
+                  }}
+                  title={descriptionVisibleEffective ? "Редактировать описание" : "Редактирование недоступно: описание скрыто"}
+                  disabled={!descriptionVisibleEffective}
+                >
+                  <Pencil className="icon-svg" />
                 </button>
               ) : null}
             </h3>
@@ -617,7 +645,13 @@ export function ProductPage() {
             ) : null}
             {editingDescription ? (
               <div className="product-inline-edit">
-                <textarea value={descriptionDraft} onChange={(event) => setDescriptionDraft(event.target.value)} className="product-inline-textarea" rows={5} disabled={editPending} />
+                <textarea
+                  value={descriptionDraft}
+                  onChange={(event) => setDescriptionDraft(event.target.value)}
+                  className="product-inline-textarea"
+                  rows={5}
+                  disabled={editPending || !descriptionVisibleEffective}
+                />
                 <div className="product-inline-actions">
                   <button type="button" className="btn-link" onClick={() => void onSaveDescription()} disabled={editPending}>Сохранить</button>
                   <button type="button" className="btn-link" onClick={() => { setEditingDescription(false); setDescriptionDraft(description); }} disabled={editPending}>Отмена</button>
@@ -632,7 +666,7 @@ export function ProductPage() {
             ) : (
               <p
                 className={`product-description-text ${descriptionVisibleEffective ? "" : "product-description-text--dimmed"}`}
-                onDoubleClick={() => canEdit && setEditingDescription(true)}
+                onDoubleClick={() => canEdit && descriptionVisibleEffective && setEditingDescription(true)}
               >
                 {description || "Описание отсутствует"}
               </p>
@@ -718,7 +752,7 @@ export function ProductPage() {
           <div className="product-main-actions">
             <a className="btn-link product-action-btn" href={product.url} target="_blank" rel="noreferrer" title={`Открыть ${sourceName || "источник"}`}><IconExternalLink className="icon-svg" />Открыть источник</a>
             <button type="button" className="btn-link product-action-btn" onClick={() => void toggleHidden()} disabled={statusPending}>
-              {normalizedStatus === "hidden" ? <IconEyeOff className="icon-svg" /> : <IconEye className="icon-svg" />}
+              {normalizedStatus === "hidden" ? <EyeOff className="icon-svg" /> : <Eye className="icon-svg" />}
               {normalizedStatus === "hidden" ? "Показать товар" : "Скрыть товар"}
             </button>
           </div>

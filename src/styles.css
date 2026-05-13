@@ -1814,27 +1814,26 @@ button {
 
 .product-edit-icon-btn {
   margin: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid #d5dceb;
-  background: #f7f9ff;
+  width: 28px;
+  height: 28px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
   color: #3a4d6a;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+  transition: color 0.16s ease, transform 0.16s ease;
 }
 
 .product-edit-icon-btn:hover {
-  background: #ecf2ff;
-  border-color: #bac8e2;
+  color: #1f3f78;
   transform: translateY(-1px);
 }
 
 .product-edit-icon-btn .icon-svg {
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
 }
 
 .product-main-status {
@@ -1863,7 +1862,6 @@ button {
 }
 
 .product-edit-icon-btn--off {
-  background: #f1f4fa;
   color: #6f7f95;
 }
 
@@ -2059,31 +2057,30 @@ button {
   position: absolute;
   right: 6px;
   bottom: 6px;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  border: 1px solid rgba(30, 44, 64, 0.2);
-  background: rgba(255, 255, 255, 0.92);
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
   color: #2c3e57;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.15s ease, color 0.15s ease;
 }
 
 .product-image-edit-action:hover {
   transform: translateY(-1px);
-  background: #ffffff;
+  color: #1f3f78;
 }
 
 .product-image-edit-action--danger {
   color: #962f2f;
-  border-color: rgba(150, 47, 47, 0.32);
 }
 
 .product-image-edit-action .icon-svg {
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
 }
 
 .product-image-add-tile {
@@ -3492,6 +3489,25 @@ textarea {
 .source-card-actions {
   display: flex;
   justify-content: flex-start;
+}
+
+.admin-sources-sync-period {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #e2e8f2;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin-settings-inline-row {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-settings-inline-row .input {
+  max-width: 220px;
 }
 
 .source-card-switches {

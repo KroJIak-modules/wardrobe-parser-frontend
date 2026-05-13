@@ -21,10 +21,12 @@ type UseAdminProductCreateParams = {
   }) => Promise<{ ok: boolean; message: string }>;
   createManualProduct: (payload: {
     title: string;
-    price: number | null;
+    description?: string | null;
+    vendor?: string | null;
     currency: string;
     product_type: string | null;
-    image_count?: number;
+    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    manual_image_asset_ids: number[];
   }) => Promise<{ ok: boolean; message: string }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   pushToast: (message: string) => void;
@@ -38,8 +40,11 @@ export function useAdminProductCreate(params: UseAdminProductCreateParams) {
   const [productTitle, setProductTitle] = useState<string>("");
   const [productVendor, setProductVendor] = useState<string>("");
   const [productCategory, setProductCategory] = useState<string>("");
-  const [productPrice, setProductPrice] = useState<string>("");
+  const [productDescription, setProductDescription] = useState<string>("");
   const [productCurrency, setProductCurrency] = useState<string>("USD");
+  const [productVariants, setProductVariants] = useState<Array<{ title: string; price: string; available: boolean }>>([
+    { title: "", price: "", available: true },
+  ]);
   const [imagePreviews, setImagePreviews] = useState<UploadPreview[]>([]);
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
 
@@ -59,8 +64,9 @@ export function useAdminProductCreate(params: UseAdminProductCreateParams) {
     setProductTitle("");
     setProductVendor("");
     setProductCategory("");
-    setProductPrice("");
+    setProductDescription("");
     setProductCurrency("USD");
+    setProductVariants([{ title: "", price: "", available: true }]);
     setImagePreviews([]);
     setZoomedImageUrl(null);
   };
@@ -90,27 +96,27 @@ export function useAdminProductCreate(params: UseAdminProductCreateParams) {
     event.target.value = "";
   };
 
-  const removePreviewImage = (index: number) => {
+  const removePreviewImage = (url: string) => {
     setImagePreviews((prev) => {
-      const target = prev[index];
+      const target = prev.find((item) => item.url === url);
       if (target) {
         URL.revokeObjectURL(target.url);
       }
-      return prev.filter((_, idx) => idx !== index);
+      return prev.filter((item) => item.url !== url);
     });
   };
 
   const uploadSelectedImages = async () => {
-    let uploadedCount = 0;
+    const imageAssetIds: number[] = [];
     for (const item of imagePreviews) {
       const uploadResult = await uploadProductImage(item.file);
-      if (!uploadResult.ok) {
+      if (!uploadResult.ok || !uploadResult.imageAssetId) {
         pushToast(uploadResult.message);
-        return { ok: false, count: uploadedCount };
+        return { ok: false, imageAssetIds };
       }
-      uploadedCount += 1;
+      imageAssetIds.push(uploadResult.imageAssetId);
     }
-    return { ok: true, count: uploadedCount };
+    return { ok: true, imageAssetIds };
   };
 
   const onFetchPreview = async () => {
@@ -125,8 +131,21 @@ export function useAdminProductCreate(params: UseAdminProductCreateParams) {
       setProductTitle(result.preview.title || "");
       setProductVendor(result.preview.vendor || "");
       setProductCategory(result.preview.product_type || "");
-      setProductPrice(result.preview.price !== null ? String(result.preview.price) : "");
       setProductCurrency((result.preview.currency || "USD").toUpperCase());
+      setProductVariants((prev) => {
+        const next = [...prev];
+        if (next.length === 0) {
+          return [{ title: "Default", price: result.preview.price !== null ? String(result.preview.price) : "", available: true }];
+        }
+        if (!next[0].title.trim()) {
+          next[0] = {
+            ...next[0],
+            title: "Default",
+            price: result.preview.price !== null ? String(result.preview.price) : next[0].price,
+          };
+        }
+        return next;
+      });
     }
   };
 
@@ -136,9 +155,19 @@ export function useAdminProductCreate(params: UseAdminProductCreateParams) {
       return;
     }
 
-    const parsedPrice = productPrice.trim() ? Number(productPrice) : null;
-    if (parsedPrice !== null && Number.isNaN(parsedPrice)) {
-      pushToast("Цена должна быть числом");
+    const normalizedVariants = productVariants
+      .map((item) => ({
+        title: item.title.trim(),
+        price: item.price.trim() ? Number(item.price) : null,
+        available: item.available,
+      }))
+      .filter((item) => item.title.length > 0);
+    if (normalizedVariants.length === 0) {
+      pushToast("Добавь минимум один вариант");
+      return;
+    }
+    if (normalizedVariants.some((item) => item.price !== null && Number.isNaN(item.price))) {
+      pushToast("Цена варианта должна быть числом");
       return;
     }
 
@@ -154,16 +183,18 @@ export function useAdminProductCreate(params: UseAdminProductCreateParams) {
           title: productTitle.trim(),
           vendor: productVendor.trim() || null,
           product_type: productCategory.trim() || null,
-          price: parsedPrice,
+          price: normalizedVariants[0]?.price ?? null,
           currency,
-          image_count: uploaded.count,
+          image_count: uploaded.imageAssetIds.length,
         })
       : await createManualProduct({
           title: productTitle.trim(),
-          price: parsedPrice,
+          description: productDescription.trim() || null,
+          vendor: productVendor.trim() || null,
           currency,
           product_type: productCategory.trim() || null,
-          image_count: uploaded.count,
+          variants: normalizedVariants,
+          manual_image_asset_ids: uploaded.imageAssetIds,
         });
 
     pushToast(result.message);
@@ -183,10 +214,12 @@ export function useAdminProductCreate(params: UseAdminProductCreateParams) {
     setProductVendor,
     productCategory,
     setProductCategory,
-    productPrice,
-    setProductPrice,
+    productDescription,
+    setProductDescription,
     productCurrency,
     setProductCurrency,
+    productVariants,
+    setProductVariants,
     imagePreviews,
     setImagePreviews,
     zoomedImageUrl,

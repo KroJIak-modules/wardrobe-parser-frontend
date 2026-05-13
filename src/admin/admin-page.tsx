@@ -170,10 +170,12 @@ export function AdminPage() {
     setProductVendor,
     productCategory,
     setProductCategory,
-    productPrice,
-    setProductPrice,
+    productDescription,
+    setProductDescription,
     productCurrency,
     setProductCurrency,
+    productVariants,
+    setProductVariants,
     imagePreviews,
     zoomedImageUrl,
     setZoomedImageUrl,
@@ -564,6 +566,8 @@ export function AdminPage() {
       toggleSourceAutoHideProducts,
       updateSourceAttributeVisibility,
       updateSourceCurrencyPriority,
+      autoSyncPeriodMinutes: Math.max(60, Number(adminUiSettings?.auto_sync_period_minutes || 60)),
+      updateAdminUiSettings,
       pushToast,
     },
     pricingTabProps: {
@@ -674,7 +678,6 @@ export function AdminPage() {
             latestJob={latestJob}
             onRunSync={onRunSync}
             onCancelSync={onCancelSync}
-            onOpenCreateProduct={() => setOpenModal(true)}
             formatDateTime={formatDateTime}
             formatSyncStatusRu={formatSyncStatusRu}
             formatSyncStageRu={formatSyncStageRu}
@@ -694,10 +697,12 @@ export function AdminPage() {
             setProductVendor={setProductVendor}
             productCategory={productCategory}
             setProductCategory={setProductCategory}
-            productPrice={productPrice}
-            setProductPrice={setProductPrice}
+            productDescription={productDescription}
+            setProductDescription={setProductDescription}
             productCurrency={productCurrency}
             setProductCurrency={setProductCurrency}
+            productVariants={productVariants}
+            setProductVariants={setProductVariants}
             currencyOptions={currencyOptions}
             onDropImage={onDropImage}
             onPickImage={onPickImage}

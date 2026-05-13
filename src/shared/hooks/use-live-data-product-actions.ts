@@ -41,7 +41,13 @@ export function useLiveDataProductActions(params: {
   }, [refresh]);
 
   const createManualProduct = useCallback(async (payload: {
-    title: string; price: number | null; currency: string; product_type: string | null; image_count: number;
+    title: string;
+    description?: string | null;
+    vendor?: string | null;
+    currency: string;
+    product_type: string | null;
+    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    manual_image_asset_ids: number[];
   }) => {
     try {
       await apiJson(`${API_BASE}/products/manual`, {
@@ -72,8 +78,8 @@ export function useLiveDataProductActions(params: {
   }, []);
 
   const updateProductOverrides = useCallback(async (productId: number, payload: {
-    title?: string; description?: string; images?: { hidden_source_image_urls?: string[]; manual_image_urls?: string[]; manual_image_order?: string[] };
-    reset_to_default?: Array<"title" | "description" | "images">;
+    title?: string; description?: string; description_visible?: boolean | null; images?: { hidden_source_image_urls?: string[]; manual_image_urls?: string[]; manual_image_order?: string[] };
+    reset_to_default?: Array<"title" | "description" | "images" | "description_visibility">;
   }) => {
     try {
       const nextProduct = await apiJson<ServiceProduct>(`${API_BASE}/products/${productId}`, {

@@ -1,4 +1,4 @@
-import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+import type { ChangeEvent, Dispatch, DragEvent, SetStateAction } from "react";
 import { ToastStack } from "../shared/toast-stack";
 import type { ToastItem } from "../shared/use-toasts";
 import { AdminProductCreateModal } from "./admin-product-create-modal";
@@ -20,12 +20,14 @@ type Props = {
   setProductVendor: Dispatch<SetStateAction<string>>;
   productCategory: string;
   setProductCategory: Dispatch<SetStateAction<string>>;
-  productPrice: string;
-  setProductPrice: Dispatch<SetStateAction<string>>;
+  productDescription: string;
+  setProductDescription: Dispatch<SetStateAction<string>>;
   productCurrency: "RUB" | "USD" | "EUR" | "GBP";
   setProductCurrency: Dispatch<SetStateAction<"RUB" | "USD" | "EUR" | "GBP">>;
+  productVariants: Array<{ title: string; price: string; available: boolean }>;
+  setProductVariants: Dispatch<SetStateAction<Array<{ title: string; price: string; available: boolean }>>>;
   currencyOptions: Array<{ value: string; label: string }>;
-  onDropImage: (files: File[]) => void;
+  onDropImage: (event: DragEvent<HTMLDivElement>) => void;
   onPickImage: (event: ChangeEvent<HTMLInputElement>) => void;
   imagePreviews: ImagePreview[];
   setZoomedImageUrl: Dispatch<SetStateAction<string | null>>;
@@ -50,10 +52,12 @@ export function AdminOverlays({
   setProductVendor,
   productCategory,
   setProductCategory,
-  productPrice,
-  setProductPrice,
+  productDescription,
+  setProductDescription,
   productCurrency,
   setProductCurrency,
+  productVariants,
+  setProductVariants,
   currencyOptions,
   onDropImage,
   onPickImage,
@@ -81,10 +85,12 @@ export function AdminOverlays({
         setProductVendor={setProductVendor}
         productCategory={productCategory}
         setProductCategory={setProductCategory}
-        productPrice={productPrice}
-        setProductPrice={setProductPrice}
+        productDescription={productDescription}
+        setProductDescription={setProductDescription}
         productCurrency={productCurrency}
         setProductCurrency={setProductCurrency}
+        productVariants={productVariants}
+        setProductVariants={setProductVariants}
         currencyOptions={currencyOptions}
         onDropImage={onDropImage}
         onPickImage={onPickImage}
