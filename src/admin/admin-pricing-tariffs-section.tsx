@@ -1,12 +1,16 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { PricingSupplier } from "../shared/live-data-context";
 import { HelpHint } from "./help-hint";
+import { AdminPricingAthSection } from "./admin-pricing-ath-section";
+import type { PricingSettings } from "../shared/live-data-context";
+import type { PricingFieldKey } from "./admin-types";
 
 type Props = {
+  pricingSettings: PricingSettings;
+  pricingDrafts: Record<PricingFieldKey, string>;
+  setPricingDrafts: Dispatch<SetStateAction<Record<PricingFieldKey, string>>>;
   mainPricingSuppliers: PricingSupplier[];
   altSuppliersByMainId: Map<number, PricingSupplier[]>;
-  newAltByMainId: Record<number, { name: string }>;
-  setNewAltByMainId: Dispatch<SetStateAction<Record<number, { name: string }>>>;
   tariffRangesDrafts: Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>>;
   setTariffRangesDrafts: Dispatch<SetStateAction<Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>>>>;
   tariffNameDrafts: Record<number, string>;
@@ -21,10 +25,11 @@ type Props = {
 };
 
 export function AdminPricingTariffsSection({
+  pricingSettings,
+  pricingDrafts,
+  setPricingDrafts,
   mainPricingSuppliers,
   altSuppliersByMainId,
-  newAltByMainId,
-  setNewAltByMainId,
   tariffRangesDrafts,
   setTariffRangesDrafts,
   tariffNameDrafts,
@@ -41,93 +46,103 @@ export function AdminPricingTariffsSection({
     <>
       <h3 className="with-help">
         Тарифы SSR
-        <HelpHint text="Создавай базовые тарифы и до 3 ALT-тарифов для каждого. Внутри тарифа настраиваются диапазоны веса и цена за диапазон." />
+        <HelpHint text="Для каждого базового тарифа можно создать только 1 альтернативу. ALT применяется автоматически при превышении ATH порога alt-доставки." />
       </h3>
+      <AdminPricingAthSection
+        pricingSettings={pricingSettings}
+        pricingDrafts={pricingDrafts}
+        setPricingDrafts={setPricingDrafts}
+      />
       <div className="pricing-source-map-list">
         {mainPricingSuppliers.map((supplier) => {
           const altItems = altSuppliersByMainId.get(supplier.id) || [];
-          const altDraft = newAltByMainId[supplier.id] || { name: "" };
-          const renderTariffCard = (item: PricingSupplier, title: string) => {
+          const altItem = altItems[0] || null;
+          const renderTariffCard = (item: PricingSupplier, title: string, isAltCard: boolean) => {
             const rows = tariffRangesDrafts[item.id] || [];
             return (
               <div key={`tariff-card-${item.id}`} className="card pricing-tariff-card">
                 <div className="pricing-tariff-card-head">
                   <input
                     type="text"
-                    value={tariffNameDrafts[item.id] ?? title}
-                    onChange={(event) => setTariffNameDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))}
+                    value={isAltCard ? title : (tariffNameDrafts[item.id] ?? title)}
+                    onChange={
+                      isAltCard
+                        ? undefined
+                        : (event) => setTariffNameDrafts((prev) => ({ ...prev, [item.id]: event.target.value }))
+                    }
                     placeholder="Название тарифа"
+                    readOnly={isAltCard}
                   />
                   <div className="pricing-tariff-card-head-actions">
-                    <button type="button" onClick={() => void onDeleteSupplier(item.id)}>Удалить</button>
+                    <button
+                      type="button"
+                      className={isAltCard ? "btn-danger-soft" : undefined}
+                      onClick={() => void onDeleteSupplier(item.id)}
+                    >
+                      Удалить
+                    </button>
                   </div>
                 </div>
-                <div className="pricing-source-map-head">
+                <div className="pricing-tariff-head">
                   <span>Мин. вес (кг)</span>
                   <span>Макс. вес (кг)</span>
                   <span>Цена (RUB)</span>
                   <span></span>
                 </div>
-                {rows.map((row) => (
-                  <div key={row.id} className="pricing-source-map-row">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={row.min_kg}
-                      onChange={(event) => setTariffRangesDrafts((prev) => ({
-                        ...prev,
-                        [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, min_kg: event.target.value } : entry)),
-                      }))}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="пусто = бесконечность"
-                      value={row.max_kg}
-                      onChange={(event) => setTariffRangesDrafts((prev) => ({
-                        ...prev,
-                        [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, max_kg: event.target.value } : entry)),
-                      }))}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={row.rub}
-                      onChange={(event) => setTariffRangesDrafts((prev) => ({
-                        ...prev,
-                        [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, rub: event.target.value } : entry)),
-                      }))}
-                    />
-                    <button type="button" onClick={() => onRemoveTariffRange(item.id, row.id)}>Удалить</button>
-                  </div>
-                ))}
-                <button type="button" onClick={() => onAddTariffRange(item.id)}>Добавить диапазон</button>
+                <div className="pricing-tariff-ranges-block">
+                  {rows.map((row) => (
+                    <div key={row.id} className="pricing-tariff-row">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={row.min_kg}
+                        onChange={(event) => setTariffRangesDrafts((prev) => ({
+                          ...prev,
+                          [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, min_kg: event.target.value } : entry)),
+                        }))}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="пусто = бесконечность"
+                        value={row.max_kg}
+                        onChange={(event) => setTariffRangesDrafts((prev) => ({
+                          ...prev,
+                          [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, max_kg: event.target.value } : entry)),
+                        }))}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={row.rub}
+                        onChange={(event) => setTariffRangesDrafts((prev) => ({
+                          ...prev,
+                          [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, rub: event.target.value } : entry)),
+                        }))}
+                      />
+                      <button type="button" onClick={() => onRemoveTariffRange(item.id, row.id)}>Удалить</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => onAddTariffRange(item.id)}>Добавить диапазон</button>
+                </div>
               </div>
             );
           };
           return (
             <div key={`tariff-main-${supplier.id}`} className="pricing-tariff-main">
-              {renderTariffCard(supplier, supplier.name)}
-              {altItems.map((alt, idx) => renderTariffCard(alt, `ALT ${idx + 1} ${supplier.name}`))}
-              <div className="pricing-source-map-row">
-                <input
-                  type="text"
-                  placeholder={`ALT ${altItems.length + 1} ${supplier.name}`}
-                  value={altDraft.name}
-                  onChange={(event) =>
-                    setNewAltByMainId((prev) => ({
-                      ...prev,
-                      [supplier.id]: { ...altDraft, name: event.target.value },
-                    }))
-                  }
-                />
-                <button type="button" disabled={altItems.length >= 3} onClick={() => void onCreateAltSupplier(supplier.id)}>
-                  {altItems.length >= 3 ? "Лимит 3" : "Создать ALT"}
-                </button>
-              </div>
+              {renderTariffCard(supplier, supplier.name, false)}
+              {altItem ? (
+                renderTariffCard(altItem, `ALT ${tariffNameDrafts[supplier.id] ?? supplier.name}`, true)
+              ) : (
+                <div className="card pricing-tariff-card pricing-tariff-card--alt-empty">
+                  <button type="button" className="pricing-tariff-alt-create" onClick={() => void onCreateAltSupplier(supplier.id)}>
+                    Создать альтернативный тариф
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}

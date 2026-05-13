@@ -19,10 +19,11 @@ export type PricingFieldKey =
   | "shipping_alt_threshold_eur"
   | "bybit_extra_rub"
   | "eur_to_usd_rate"
-  | "gbp_to_usd_rate";
+  | "gbp_to_usd_rate"
+  | "jpy_to_usd_rate";
 
 export type FinalRoundingMode = "none" | "unit" | "ten" | "hundred" | "thousand";
-export type CurrencyCode = "RUB" | "USD" | "EUR" | "GBP";
+export type CurrencyCode = "RUB" | "USD" | "EUR" | "GBP" | "JPY";
 export type SupplierCategory = "main" | "alt";
 
 export type TriCurrencyDraft = {

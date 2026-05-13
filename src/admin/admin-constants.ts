@@ -14,7 +14,7 @@ const tabs: { key: AdminTab; label: string }[] = [
 const tabKeys = new Set<AdminTab>(tabs.map((item) => item.key));
 const DEFAULT_ADMIN_TAB: AdminTab = tabs[0]?.key ?? "products";
 
-const currencyOptions = ["RUB", "EUR", "USD"];
+const currencyOptions = ["RUB", "EUR", "USD", "GBP"];
 const PAGE_SIZE = 100;
 
 const pricingNumericKeys: PricingFieldKey[] = [
@@ -24,10 +24,10 @@ const pricingNumericKeys: PricingFieldKey[] = [
   "customs_fixed_rub",
   "payment_fee_rate",
   "tax_rate",
-  "shipping_alt_threshold_eur",
   "bybit_extra_rub",
   "eur_to_usd_rate",
   "gbp_to_usd_rate",
+  "jpy_to_usd_rate",
 ];
 
 const finalRoundingOptions: Array<{ value: FinalRoundingMode; label: string }> = [
@@ -48,6 +48,7 @@ const legendKeyToLatex: Record<string, string> = {
   BFX: "BFX",
   E2U: "E2U",
   G2U: "G2U",
+  J2U: "J2U",
   PRM: "PRM",
   BSC: "BSC",
   BUY: "BUY",
@@ -84,6 +85,7 @@ const legendKeyToLatex: Record<string, string> = {
   FX_USDT_RUB: "BFX",
   EUR2USD: "E2U",
   GBP2USD: "G2U",
+  JPY2USD: "J2U",
   PROMO: "PRM",
   BSC_RUB: "BSC",
   BUYOUT_RUB: "BUY",
@@ -107,10 +109,10 @@ const pricingFieldMeta: Array<{ key: PricingFieldKey; symbolLatex: string; label
   { key: "customs_fixed_rub", symbolLatex: "CFX", label: "Фикс таможни (RUB)", hint: "Фиксированная добавка к таможне в рублях, если пошлина срабатывает.", step: "0.01" },
   { key: "payment_fee_rate", symbolLatex: "PFRP", label: "Комиссия платёжки", hint: "Комиссия платежной системы с суммы выкупа товара. Пример: 0.02 = 2%.", step: "0.001" },
   { key: "tax_rate", symbolLatex: "TXR", label: "Налог", hint: "Налог на полную итоговую сумму. Пример: 0.06 = 6%.", step: "0.001" },
-  { key: "shipping_alt_threshold_eur", symbolLatex: "ATH", label: "Порог alt-доставки", hint: "Если цена товара выше этого порога, для US/EU применяется альтернативный тариф доставки.", step: "0.01" },
   { key: "bybit_extra_rub", symbolLatex: "BEX", label: "Надбавка к курсу", hint: "Надбавка к курсу Bybit в рублях.", step: "0.01" },
   { key: "eur_to_usd_rate", symbolLatex: "E2U", label: "EUR -> USD", hint: "Коэффициент перевода цены товара из EUR в USD.", step: "0.0001" },
   { key: "gbp_to_usd_rate", symbolLatex: "G2U", label: "GBP -> USD", hint: "Коэффициент перевода цены товара из GBP в USD.", step: "0.0001" },
+  { key: "jpy_to_usd_rate", symbolLatex: "J2U", label: "JPY -> USD", hint: "Коэффициент перевода цены товара из JPY в USD.", step: "0.000001" },
 ];
 
 const dedupReasonLabelMap: Record<string, string> = {
@@ -140,7 +142,7 @@ const normalizeAdminTab = (raw: string | undefined): AdminTab => {
 
 const normalizeCurrencyCode = (value: string | null | undefined, fallback: CurrencyCode = "RUB"): CurrencyCode => {
   const upper = (value || "").trim().toUpperCase();
-  if (upper === "RUB" || upper === "USD" || upper === "EUR" || upper === "GBP") {
+  if (upper === "RUB" || upper === "USD" || upper === "EUR" || upper === "GBP" || upper === "JPY") {
     return upper;
   }
   return fallback;

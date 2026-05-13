@@ -51,8 +51,6 @@ type Props = {
   onAddSvcRule: () => void;
   mainPricingSuppliers: PricingSupplier[];
   altSuppliersByMainId: Map<number, PricingSupplier[]>;
-  newAltByMainId: Record<number, { name: string }>;
-  setNewAltByMainId: Dispatch<SetStateAction<Record<number, { name: string }>>>;
   tariffRangesDrafts: Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>>;
   setTariffRangesDrafts: Dispatch<SetStateAction<Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>>>>;
   tariffNameDrafts: Record<number, string>;
@@ -97,8 +95,6 @@ export function AdminPricingTab({
   onAddSvcRule,
   mainPricingSuppliers,
   altSuppliersByMainId,
-  newAltByMainId,
-  setNewAltByMainId,
   tariffRangesDrafts,
   setTariffRangesDrafts,
   tariffNameDrafts,
@@ -159,10 +155,11 @@ export function AdminPricingTab({
           />
 
           <AdminPricingTariffsSection
+            pricingSettings={pricingSettings}
+            pricingDrafts={pricingDrafts}
+            setPricingDrafts={setPricingDrafts}
             mainPricingSuppliers={mainPricingSuppliers}
             altSuppliersByMainId={altSuppliersByMainId}
-            newAltByMainId={newAltByMainId}
-            setNewAltByMainId={setNewAltByMainId}
             tariffRangesDrafts={tariffRangesDrafts}
             setTariffRangesDrafts={setTariffRangesDrafts}
             tariffNameDrafts={tariffNameDrafts}

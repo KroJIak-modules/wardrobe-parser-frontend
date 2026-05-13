@@ -30,16 +30,14 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
   const [tariffRangesDrafts, setTariffRangesDrafts] = useState<Record<number, TariffRangeDraft[]>>({});
   const [tariffNameDrafts, setTariffNameDrafts] = useState<Record<number, string>>({});
   const [newSupplierName, setNewSupplierName] = useState<string>("");
-  const [newAltByMainId, setNewAltByMainId] = useState<Record<number, { name: string }>>({});
-
   const pricingSuppliers = useMemo(() => {
-    return (pricingSettings?.suppliers || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+    return (pricingSettings?.suppliers || []).slice().sort((a, b) => Number(a.id) - Number(b.id));
   }, [pricingSettings]);
 
   const mainPricingSuppliers = useMemo(() => {
     return pricingSuppliers
       .filter((item) => item.parent_supplier_id === null || item.parent_supplier_id === undefined)
-      .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+      .sort((a, b) => Number(a.id) - Number(b.id));
   }, [pricingSuppliers]);
 
   const altSuppliersByMainId = useMemo(() => {
@@ -54,7 +52,7 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
       grouped.set(parentId, list);
     }
     for (const [mainId, list] of grouped.entries()) {
-      list.sort((a, b) => (Number(a.alt_position || 0) - Number(b.alt_position || 0)) || a.name.localeCompare(b.name, "ru"));
+      list.sort((a, b) => (Number(a.alt_position || 0) - Number(b.alt_position || 0)) || (Number(a.id) - Number(b.id)));
       grouped.set(mainId, list);
     }
     return grouped;
@@ -183,26 +181,20 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
   };
 
   const onCreateAltSupplier = async (mainSupplierId: number) => {
-    const draft = newAltByMainId[mainSupplierId] || { name: "" };
-    const name = draft.name.trim();
-    if (!name) {
-      pushToast("Укажи название альтернативы");
+    const main = mainPricingSuppliers.find((item) => item.id === mainSupplierId);
+    if (!main) {
+      pushToast("Базовый тариф не найден");
       return;
     }
+    const name = `ALT ${main.name}`.trim();
     const result = await createPricingSupplier({
       name,
       parent_supplier_id: mainSupplierId,
       category: "alt",
       rate_currency: "RUB",
-      alt_position: (altSuppliersByMainId.get(mainSupplierId)?.length || 0) + 1,
+      alt_position: 1,
     });
     pushToast(result.message);
-    if (result.ok) {
-      setNewAltByMainId((prev) => ({
-        ...prev,
-        [mainSupplierId]: { name: "" },
-      }));
-    }
   };
 
   const onDeleteSupplier = async (supplierId: number) => {
@@ -239,8 +231,6 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
     altSuppliersByMainId,
     newSupplierName,
     setNewSupplierName,
-    newAltByMainId,
-    setNewAltByMainId,
     tariffRangesDrafts,
     setTariffRangesDrafts,
     tariffNameDrafts,

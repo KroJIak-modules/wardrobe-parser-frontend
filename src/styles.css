@@ -3023,10 +3023,36 @@ textarea {
 
 .pricing-tariff-main {
   margin-bottom: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
 }
 
 .pricing-tariff-card {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
+  height: 100%;
+}
+
+.pricing-tariff-card--alt-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pricing-tariff-alt-create {
+  min-width: 240px;
+}
+
+.btn-danger-soft {
+  color: #a02525;
+  border-color: #e8b4b4;
+  background: #fff7f7;
+}
+
+.btn-danger-soft:hover {
+  border-color: #d48989;
+  background: #ffefef;
 }
 
 .pricing-tariff-card-head {
@@ -3040,6 +3066,56 @@ textarea {
 .pricing-tariff-card-head-actions {
   display: flex;
   gap: 8px;
+}
+
+.pricing-tariff-ranges-block {
+  border: 1px solid #e7ecf5;
+  border-radius: 10px;
+  padding: 8px;
+  background: #fcfdff;
+}
+
+.pricing-tariff-head,
+.pricing-tariff-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 4px;
+}
+
+.pricing-tariff-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: #454b57;
+  border-bottom: 1px solid #e8edf6;
+}
+
+.pricing-tariff-row {
+  border-bottom: 1px solid #eef2f8;
+}
+
+.pricing-tariff-row:last-of-type {
+  border-bottom: 0;
+}
+
+.pricing-ath-section {
+  margin: 10px 0 14px;
+}
+
+.pricing-ath-field {
+  max-width: 220px;
+}
+
+.pricing-ath-input {
+  width: 100%;
+}
+
+.pricing-ath-description {
+  margin: 8px 2px 0;
+  color: #556070;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .pricing-source-map-head,

@@ -264,6 +264,7 @@ export type PricingSettings = {
   bybit_extra_rub: number;
   eur_to_usd_rate: number;
   gbp_to_usd_rate: number;
+  jpy_to_usd_rate: number;
   final_rounding_mode: string;
   payment_fee_rate: number;
   customs_processing_rate: number;
@@ -383,6 +384,7 @@ export type SettingsTransferPricingSettings = {
   bybit_extra_rub: number;
   eur_to_usd_rate: number;
   gbp_to_usd_rate: number;
+  jpy_to_usd_rate: number;
   final_rounding_mode: string;
   payment_fee_rate: number;
   customs_processing_rate: number;
