@@ -75,6 +75,7 @@ export function AdminPage() {
     ensureCategoriesLoaded,
     refreshSourcesOnly,
     runSync,
+    runSyncForSource,
     cancelSync,
     previewProductByUrl,
     addProductByUrl,
@@ -553,7 +554,9 @@ export function AdminPage() {
     sourcesTabProps: {
       sources,
       loading,
-      formatDateTime,
+      latestJob,
+      runSyncForSource,
+      cancelSync,
       toggleSourceEnabled,
       toggleSourceSyncEnabled,
       toggleSourceAutoHideProducts,

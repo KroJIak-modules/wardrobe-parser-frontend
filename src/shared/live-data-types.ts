@@ -451,6 +451,7 @@ export type LiveDataContextValue = {
   loadMoreProducts: () => Promise<void>;
   getProductById: (id: number, opts?: { forceFetch?: boolean }) => Promise<ServiceProduct | null>;
   runSync: () => Promise<{ ok: boolean; message: string }>;
+  runSyncForSource: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
   cancelSync: (jobId: string) => Promise<{ ok: boolean; message: string }>;
   previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   addProductByUrl: (

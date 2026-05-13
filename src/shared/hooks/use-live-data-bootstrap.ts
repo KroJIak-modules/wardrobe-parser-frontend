@@ -23,6 +23,7 @@ export function useLiveDataBootstrap({
     let cancelled = false;
     const currentPath = routePath ?? (typeof window !== "undefined" ? window.location.pathname : "/");
     const isManagementRoute = currentPath.startsWith("/control");
+    const isProductRoute = /^\/product\/\d+/.test(currentPath);
     const routeKind: RouteKind = isManagementRoute ? "admin" : "site";
     const shouldBootstrap = lastRouteKindRef.current !== routeKind;
     if (!shouldBootstrap) {
@@ -44,6 +45,11 @@ export function useLiveDataBootstrap({
           if (!cancelled) {
             setLoading(false);
           }
+          return;
+        }
+        if (isProductRoute) {
+          // Product page loads a single product by id and does not need global sources bootstrap.
+          setLoading(false);
           return;
         }
         setLoading(true);

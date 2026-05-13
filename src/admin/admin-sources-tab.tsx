@@ -21,6 +21,14 @@ type Props = {
   toggleSourceEnabled: (key: string, enabled: boolean) => Promise<{ message: string }>;
   toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ message: string }>;
   toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ message: string }>;
+  latestJob: {
+    job_id?: string;
+    status?: string;
+    current_source_name?: string | null;
+    can_cancel?: boolean;
+  } | null;
+  runSyncForSource: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
+  cancelSync: (jobId: string) => Promise<{ ok: boolean; message: string }>;
   pushToast: (message: string) => void;
 };
 
@@ -30,6 +38,9 @@ export function AdminSourcesTab({
   toggleSourceEnabled,
   toggleSourceSyncEnabled,
   toggleSourceAutoHideProducts,
+  latestJob,
+  runSyncForSource,
+  cancelSync,
   pushToast,
 }: Props) {
   const currencyOptions = ["USD", "EUR", "GBP", "JPY"] as const;
@@ -62,6 +73,9 @@ export function AdminSourcesTab({
     });
   }, [sources]);
 
+  const isAnySyncRunning = Boolean(latestJob && ["pending", "in_progress"].includes(String(latestJob.status || "")));
+  const activeSourceKey = String(latestJob?.current_source_name || "").trim().toLowerCase();
+
   return (
     <div className="card">
       <h2>Источники ({sources.length})</h2>
@@ -72,6 +86,8 @@ export function AdminSourcesTab({
           {sources.map((source) => {
             const href = /^https?:\/\//i.test(source.base_url) ? source.base_url : `https://${source.base_url}`;
             const label = source.base_url.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+            const thisSourceActive = isAnySyncRunning && activeSourceKey === source.key.trim().toLowerCase();
+            const thisSourceDisabled = isAnySyncRunning && !thisSourceActive;
             return (
               <article key={source.key} className="list-row source-card">
                 <div className="source-card-head">
@@ -87,6 +103,38 @@ export function AdminSourcesTab({
                   <div className="source-card-meta">
                     <span className="source-pill">Товаров: {source.products_count}</span>
                     <span className="source-pill">Прогон: {source.last_sync_duration_sec ?? 0}с</span>
+                  </div>
+                  <div className="source-card-actions">
+                    {thisSourceActive ? (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        disabled={!latestJob?.job_id || !latestJob?.can_cancel}
+                        onClick={() => {
+                          if (!latestJob?.job_id) return;
+                          void (async () => {
+                            const result = await cancelSync(latestJob.job_id as string);
+                            pushToast(result.message);
+                          })();
+                        }}
+                      >
+                        Отменить синхронизацию
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={thisSourceDisabled}
+                        onClick={() => {
+                          void (async () => {
+                            const result = await runSyncForSource(source.key);
+                            pushToast(result.message);
+                          })();
+                        }}
+                      >
+                        Синхронизовать
+                      </button>
+                    )}
                   </div>
                   <div className="source-card-switches">
                     <label className="ui-switch ui-switch--compact source-card-switch">

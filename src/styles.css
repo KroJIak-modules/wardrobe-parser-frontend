@@ -3489,6 +3489,11 @@ textarea {
   gap: 8px;
 }
 
+.source-card-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .source-card-switches {
   display: flex;
   flex-direction: column;

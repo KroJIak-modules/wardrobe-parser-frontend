@@ -41,9 +41,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const syncMockEnabled = String(import.meta.env.VITE_SYNC_MOCK || "").toLowerCase() === "true";
-  const mockJobRef = useRef<JobsLatest>(null);
-  const mockTickTimerRef = useRef<number | null>(null);
   const loadingMoreLockRef = useRef<boolean>(false);
   const productsRef = useRef<ServiceProduct[]>([]);
 
@@ -183,72 +180,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     }
   }, []);
 
-  const stopMockTicker = useCallback(() => {
-    if (mockTickTimerRef.current !== null) {
-      window.clearInterval(mockTickTimerRef.current);
-      mockTickTimerRef.current = null;
-    }
-  }, []);
-
-  const getSyncEnabledSourcesSnapshot = useCallback((): Source[] => {
-    const syncSources = sources.filter((source) => source.enabled && source.sync_enabled);
-    return syncSources;
-  }, [sources]);
-
-  const startMockTicker = useCallback((enabledSources: Source[]) => {
-    stopMockTicker();
-    mockTickTimerRef.current = window.setInterval(() => {
-      const current = mockJobRef.current;
-      if (!current || current.status !== "in_progress") {
-        stopMockTicker();
-        return;
-      }
-      const totalSources = Math.max(1, current.total_sources || enabledSources.length || 1);
-      const expectedProducts = Math.max(1000, current.expected_products || 5000);
-      const sourceSize = Math.max(1, Math.floor(expectedProducts / totalSources));
-      const nextProcessedProducts = Math.min(
-        expectedProducts,
-        (current.processed_products || 0) + 100 + Math.floor(Math.random() * 100)
-      );
-      const nextFailed = (current.failed_products || 0) + (Math.random() < 0.2 ? 1 : 0);
-      const nextProcessedSources = Math.min(totalSources, Math.floor(nextProcessedProducts / sourceSize));
-      const currentSourceIndex = Math.min(totalSources, Math.max(1, nextProcessedSources + 1));
-      const currentSource = enabledSources[currentSourceIndex - 1] || enabledSources[enabledSources.length - 1];
-      const currentSourceProcessed = Math.max(0, nextProcessedProducts - nextProcessedSources * sourceSize);
-      const isDone = nextProcessedProducts >= expectedProducts;
-      const stage = currentSourceProcessed < sourceSize * 0.3
-        ? "discovering_urls"
-        : currentSourceProcessed < sourceSize * 0.95
-          ? "syncing_products"
-          : "source_finished";
-      const progressPercent = Math.round((nextProcessedProducts / expectedProducts) * 1000) / 10;
-      const nextJob: JobsLatest = {
-        ...current,
-        status: isDone ? "completed" : "in_progress",
-        completed_at: isDone ? new Date().toISOString() : null,
-        can_cancel: !isDone,
-        processed_products: nextProcessedProducts,
-        failed_products: nextFailed,
-        processed_sources: isDone ? totalSources : nextProcessedSources,
-        current_source_index: currentSourceIndex,
-        current_source_name: currentSource?.name || currentSource?.key || current.current_source_name,
-        current_source_parser_type: "mock_strategy",
-        current_stage: isDone ? "source_finished" : stage,
-        current_source_processed_products: Math.min(sourceSize, currentSourceProcessed),
-        current_source_total_products: sourceSize,
-        progress_percent: isDone ? 100 : progressPercent,
-        products_progress_percent: isDone ? 100 : progressPercent,
-        updated_products: Math.floor(nextProcessedProducts * 0.52),
-        new_products: Math.floor(nextProcessedProducts * 0.48),
-      };
-      mockJobRef.current = nextJob;
-      setLatestJob(nextJob);
-      if (isDone) {
-        stopMockTicker();
-      }
-    }, 1200);
-  }, [stopMockTicker]);
-
   const {
     previewProductByUrl,
     addProductByUrl,
@@ -366,50 +297,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   }, []);
 
   const runSync = useCallback(async () => {
-    const startMock = () => {
-      const enabledSources = getSyncEnabledSourcesSnapshot();
-      const now = new Date().toISOString();
-      const sourceCount = Math.max(1, enabledSources.length);
-      const expectedProducts = sourceCount * 1500;
-      const first = enabledSources[0];
-      const mockJob: JobsLatest = {
-        job_id: `mock-${Date.now()}`,
-        status: "in_progress",
-        created_at: now,
-        started_at: now,
-        completed_at: null,
-        next_scheduled_at: null,
-        total_products: null,
-        new_products: 0,
-        updated_products: 0,
-        new_images: 0,
-        total_sources: sourceCount,
-        processed_sources: 0,
-        progress_percent: 0,
-        processed_products: 0,
-        expected_products: expectedProducts,
-        failed_products: 0,
-        products_progress_percent: 0,
-        current_source_name: first?.name || first?.key || "Источник 1",
-        current_source_parser_type: "mock_strategy",
-        current_source_index: 1,
-        current_stage: "discovering_urls",
-        current_source_processed_products: 0,
-        current_source_total_products: Math.max(1, Math.floor(expectedProducts / sourceCount)),
-        current_product_title: null,
-        site_products_total: 0,
-        can_cancel: true,
-        sync_period_minutes: 0,
-      };
-      mockJobRef.current = mockJob;
-      setLatestJob(mockJob);
-      startMockTicker(enabledSources);
-      return { ok: true, message: "Синхронизация запущена (mock)" };
-    };
-
-    if (syncMockEnabled) {
-      return startMock();
-    }
     try {
       // Guard against stale UI when another admin has already started sync.
       const latestRes = await authFetch(`${API_BASE}/jobs/latest`);
@@ -439,23 +326,43 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       await refresh();
       return { ok: true, message: "Синхронизация запущена" };
     } catch (e) {
-      return startMock();
+      return { ok: false, message: e instanceof Error ? e.message : "Ошибка запуска синхронизации" };
     }
-  }, [getSyncEnabledSourcesSnapshot, refresh, startMockTicker, syncMockEnabled]);
+  }, [refresh]);
+
+  const runSyncForSource = useCallback(async (sourceKey: string) => {
+    try {
+      const normalized = String(sourceKey || "").trim();
+      if (!normalized) {
+        return { ok: false, message: "Не указан источник" };
+      }
+      const latestRes = await authFetch(`${API_BASE}/jobs/latest`);
+      if (latestRes.ok) {
+        const latestPayload = (await latestRes.json()) as JobsLatest;
+        if (latestPayload && ["pending", "in_progress"].includes(String(latestPayload.status || ""))) {
+          setLatestJob(latestPayload);
+          return { ok: false, message: "Синхронизация уже запущена другим админом" };
+        }
+      }
+      const res = await authFetch(`${API_BASE}/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triggered_by: "manual", sources: [normalized] }),
+      });
+      if (res.status === 409) {
+        return { ok: false, message: "Синхронизация уже запущена" };
+      }
+      if (!res.ok) {
+        return { ok: false, message: `Ошибка запуска: ${res.status}` };
+      }
+      await refresh();
+      return { ok: true, message: `Синхронизация запущена: ${normalized}` };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Ошибка запуска синхронизации" };
+    }
+  }, [refresh]);
 
   const cancelSync = useCallback(async (jobId: string) => {
-    if (syncMockEnabled && mockJobRef.current && mockJobRef.current.job_id === jobId) {
-      stopMockTicker();
-      const cancelled: JobsLatest = {
-        ...mockJobRef.current,
-        status: "cancelled",
-        can_cancel: false,
-        completed_at: new Date().toISOString(),
-      };
-      mockJobRef.current = cancelled;
-      setLatestJob(cancelled);
-      return { ok: true, message: "Синхронизация отменена" };
-    }
     try {
       const res = await authFetch(`${API_BASE}/jobs/${jobId}/cancel`, {
         method: "POST",
@@ -470,7 +377,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
     }
-  }, [refresh, stopMockTicker, syncMockEnabled]);
+  }, [refresh]);
 
 
   const uploadShowcaseImage = useCallback(async (file: File) => {
@@ -548,13 +455,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     latestJob,
     setLatestJob,
     refresh,
-    syncMockEnabled,
-    readMockJob: () => mockJobRef.current,
+    enabled: Boolean((routePath ?? (typeof window !== "undefined" ? window.location.pathname : "/")).startsWith("/control")),
   });
-
-  useEffect(() => {
-    return () => stopMockTicker();
-  }, [stopMockTicker]);
 
   const value = useMemo(
     () => ({
@@ -589,6 +491,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       loadMoreProducts,
       getProductById,
       runSync,
+      runSyncForSource,
       cancelSync,
       previewProductByUrl,
       addProductByUrl,
@@ -665,6 +568,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       loadMoreProducts,
       getProductById,
       runSync,
+      runSyncForSource,
       cancelSync,
       previewProductByUrl,
       addProductByUrl,

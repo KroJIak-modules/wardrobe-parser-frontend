@@ -11,7 +11,7 @@ import { useLiveData } from "../shared/live-data-context";
 import { ToastStack } from "../shared/toast-stack";
 import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
-import { deriveStatusAfterUnhide, getSourceNameById, getStatusClass, getStatusLabel, normalizeProductStatus } from "./catalog-helpers";
+import { deriveStatusAfterUnhide, getStatusClass, getStatusLabel, normalizeProductStatus } from "./catalog-helpers";
 
 type VariantInfo = {
   title: string;
@@ -76,7 +76,6 @@ export function ProductPage() {
   const [searchParams] = useSearchParams();
   const {
     products,
-    sources,
     getProductById,
     setProductStatus,
     pricingSettings,
@@ -194,8 +193,7 @@ export function ProductPage() {
     }
   }, [canEdit, imageEdit.source_image_urls.length, imageEdit.manual_image_urls.length, images.length, activeImageIndex]);
 
-  const sourceNameById = useMemo(() => getSourceNameById(sources), [sources]);
-  const sourceName = product ? (sourceNameById.get(product.source_id) || `Источник #${product.source_id}`) : null;
+  const sourceName = product ? (String(product.source_name || "").trim() || `Источник #${product.source_id}`) : null;
   const pricingExample = useMemo(() => {
     if (!pricingSettings || !product || !sourceName) {
       return null;
