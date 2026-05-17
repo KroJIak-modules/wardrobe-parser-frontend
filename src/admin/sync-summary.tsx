@@ -44,6 +44,10 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
   const strategyIndex = Math.max(1, Number(latestJob.current_strategy_index || 1));
   const strategyTotal = Math.max(strategyIndex, Number(latestJob.current_strategy_total || 1));
   const lastAtRaw = latestJob.completed_at || latestJob.started_at || latestJob.created_at;
+  const processedProducts = Number(latestJob.processed_products ?? 0);
+  const currentSourceProcessed = Number(latestJob.current_source_processed_products ?? 0);
+  const successCount = Math.max(processedProducts, currentSourceProcessed, 0);
+  const failCount = Number(latestJob.failed_products ?? 0);
 
   const formatElapsedRu = (iso: string | null | undefined): string => {
     if (!iso) {
@@ -83,21 +87,23 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
               Стратегия: {latestJob.current_source_parser_type || "—"} ({strategyIndex}/{strategyTotal})
             </span>
             <span className="sync-pill">Этап: {formatSyncStageRu(latestJob.current_stage)}</span>
-            <span className="sync-pill">Успешно: {latestJob.processed_products || 0}</span>
-            <span className="sync-pill">Ошибки: {latestJob.failed_products || 0}</span>
+            <span className="sync-pill">Успешно: {successCount}</span>
+            <span className="sync-pill">Ошибки: {failCount}</span>
             <span className="sync-pill">{clampPercent(latestJob.progress_percent)}%</span>
           </div>
         </>
-      ) : latestJob.status === "completed" ? (
-        <div className="sync-last-run">
-          Синхронизация завершена! Дата последней синхронизиации: {formatDateTime(latestJob.completed_at)}
-        </div>
       ) : (
         <div className="sync-last-run">
           Статус последнего запуска: {formatSyncStatusRu(latestJob.status)}. Дата: {formatDateTime(lastAtRaw)}
           {formatElapsedRu(lastAtRaw) ? `, ${formatElapsedRu(lastAtRaw)} назад` : ""}
         </div>
       )}
+      {!isSyncInProgress ? (
+        <div className="sync-stats">
+          <span className="sync-pill">Успешно: {successCount}</span>
+          <span className="sync-pill">Ошибки: {failCount}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

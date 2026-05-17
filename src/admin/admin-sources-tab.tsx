@@ -10,6 +10,9 @@ type SourceItem = {
   products_count: number;
   last_sync_duration_sec?: number | null;
   last_sync_at?: string | null;
+  last_sync_status?: string | null;
+  is_password_protected?: boolean;
+  is_auto_ingest?: boolean;
   enabled: boolean;
   sync_enabled: boolean;
   hide_auto_added_products?: boolean;
@@ -159,6 +162,14 @@ export function AdminSourcesTab({
             return (
               <article key={source.key} className="list-row source-card">
                 <div className="source-card-head">
+                  <div className="source-card-badges" aria-label="Метки источника">
+                    <span className={`source-badge ${source.is_auto_ingest ? "source-badge--ready" : "source-badge--muted"}`}>
+                      {source.is_auto_ingest ? "Авто" : "Ручной"}
+                    </span>
+                    <span className={`source-badge ${source.is_password_protected ? "source-badge--danger" : "source-badge--ok"}`}>
+                      {source.is_password_protected ? "Пароль" : "Открыт"}
+                    </span>
+                  </div>
                   <strong className="source-card-title">
                     {source.name}
                     {source.status_label ? ` · ${source.status_label}` : ""}

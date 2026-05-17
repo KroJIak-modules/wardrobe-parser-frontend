@@ -36,7 +36,7 @@ export function useLiveDataBootstrap({
       try {
         if (routeKind === "admin") {
           const adminTab = currentPath.split("/")[2] || "";
-          const shouldPrefetchSources = adminTab === "sources" || adminTab === "pricing" || adminTab === "products";
+          const shouldPrefetchSources = adminTab === "sources" || adminTab === "pricing";
           setLoading(true);
           await refreshAdminCoreOnly();
           if (shouldPrefetchSources) {

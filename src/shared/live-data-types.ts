@@ -17,6 +17,8 @@ export type Source = {
   last_sync_at?: string | null;
   last_sync_duration_sec?: number | null;
   last_sync_status?: string | null;
+  is_password_protected?: boolean;
+  is_auto_ingest?: boolean;
   supplier_id: number | null;
   supplier_key: string | null;
   supplier_name: string | null;

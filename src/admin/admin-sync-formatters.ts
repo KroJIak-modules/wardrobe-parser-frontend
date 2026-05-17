@@ -38,6 +38,9 @@ export function formatSyncStatusRu(status: string | null | undefined): string {
   if (value === "failed") {
     return "Ошибка";
   }
+  if (value === "password_protected") {
+    return "Сайт запаролен";
+  }
   return "Неизвестно";
 }
 

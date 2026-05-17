@@ -3437,6 +3437,53 @@ textarea {
 .source-card-head {
   display: grid;
   gap: 5px;
+  position: relative;
+  padding-right: 146px;
+}
+
+.source-card-badges {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.source-badge--ready {
+  color: #14532d;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.source-badge--muted {
+  color: #334155;
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.source-badge--ok {
+  color: #1e3a8a;
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.source-badge--danger {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #fca5a5;
 }
 
 .source-card-title {

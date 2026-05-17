@@ -85,7 +85,7 @@ export function useAdminTabPreload({
         await ensureCategoriesLoadedRef.current();
         return;
       }
-      if (tab === "sources" || tab === "products") {
+      if (tab === "sources") {
         await refreshSourcesOnlyRef.current();
       }
     };
