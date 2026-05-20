@@ -28,6 +28,7 @@ export function AdminDedupProductCard({
   url,
   onOpen,
 }: Props) {
+  const hasExternalProductUrl = Boolean(url && !String(url).startsWith("manual://"));
   return (
     <article
       className="dedup-col dedup-card dedup-card--clickable"
@@ -59,17 +60,19 @@ export function AdminDedupProductCard({
         <p className="muted dedup-card-meta">
           {price ?? "-"} {currency}
         </p>
-        <button
-          type="button"
-          className="icon-btn dedup-source-btn"
-          title="Открыть источник"
-          onClick={(event) => {
-            event.stopPropagation();
-            window.open(url, "_blank", "noreferrer");
-          }}
-        >
-          <IconExternalLink className="icon-svg" />
-        </button>
+        {hasExternalProductUrl ? (
+          <button
+            type="button"
+            className="icon-btn dedup-source-btn"
+            title="Открыть источник"
+            onClick={(event) => {
+              event.stopPropagation();
+              window.open(url, "_blank", "noreferrer");
+            }}
+          >
+            <IconExternalLink className="icon-svg" />
+          </button>
+        ) : null}
       </div>
     </article>
   );

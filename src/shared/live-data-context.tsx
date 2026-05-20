@@ -56,6 +56,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     loadingDedupDecisions,
     weightRules,
     weightMissingProducts,
+    hasMoreWeightMissing,
+    loadingMoreWeightMissing,
     pricingSettings,
     adminUiSettings,
     refreshDedupOnly,
@@ -67,6 +69,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     ensurePricingLoaded,
     ensureAdminUiLoaded,
     ensureWeightLoaded,
+    loadMoreWeightMissingProducts,
     ensureDedupLoaded,
     ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
@@ -184,11 +187,14 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     previewProductByUrl,
     addProductByUrl,
     createManualProduct,
+    updateManualProduct,
     uploadProductImage,
+    uploadProductImageByUrl,
     updateProductOverrides,
     setProductStatus,
     getProductStarredCategories,
     setProductStarredCategories,
+    getStarredCategoryOptions,
   } = useLiveDataProductActions({
     setProducts,
     refresh,
@@ -453,10 +459,27 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     refreshSourcesOnly,
   });
 
+  const refreshAfterTerminal = useCallback(async () => {
+    const path = routePath ?? (typeof window !== "undefined" ? window.location.pathname : "/");
+    if (path.startsWith("/control/sources")) {
+      await refreshSourcesOnly();
+      return;
+    }
+    if (path.startsWith("/control/products")) {
+      await refreshProductsOnly();
+      return;
+    }
+    if (path.startsWith("/control")) {
+      await refreshAdminCoreOnly();
+      return;
+    }
+    await refreshAdminCoreOnly();
+  }, [routePath, refreshSourcesOnly, refreshProductsOnly, refreshAdminCoreOnly]);
+
   useLiveJobPolling({
     latestJob,
     setLatestJob,
-    refresh,
+    refreshAfterTerminal,
     enabled: Boolean((routePath ?? (typeof window !== "undefined" ? window.location.pathname : "/")).startsWith("/control")),
   });
 
@@ -473,6 +496,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       loadingDedupDecisions,
       weightRules,
       weightMissingProducts,
+      hasMoreWeightMissing,
+      loadingMoreWeightMissing,
       pricingSettings,
       adminUiSettings,
       sources,
@@ -486,6 +511,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensurePricingLoaded,
       ensureAdminUiLoaded,
       ensureWeightLoaded,
+      loadMoreWeightMissingProducts,
       ensureDedupLoaded,
       ensureDedupDecisionsLoaded,
       ensureCategoriesLoaded,
@@ -498,7 +524,9 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       previewProductByUrl,
       addProductByUrl,
       createManualProduct,
+      updateManualProduct,
       uploadProductImage,
+      uploadProductImageByUrl,
       uploadShowcaseImage,
       createCategory,
       updateCategory,
@@ -517,6 +545,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       updateProductOverrides,
       getProductStarredCategories,
       setProductStarredCategories,
+      getStarredCategoryOptions,
       ensureAllProductsLoaded,
       toggleSourceEnabled,
       toggleSourceSyncEnabled,
@@ -552,6 +581,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       loadingDedupDecisions,
       weightRules,
       weightMissingProducts,
+      hasMoreWeightMissing,
+      loadingMoreWeightMissing,
       pricingSettings,
       adminUiSettings,
       sources,
@@ -565,6 +596,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensurePricingLoaded,
       ensureAdminUiLoaded,
       ensureWeightLoaded,
+      loadMoreWeightMissingProducts,
       ensureDedupLoaded,
       ensureDedupDecisionsLoaded,
       ensureCategoriesLoaded,
@@ -577,7 +609,9 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       previewProductByUrl,
       addProductByUrl,
       createManualProduct,
+      updateManualProduct,
       uploadProductImage,
+      uploadProductImageByUrl,
       uploadShowcaseImage,
       createCategory,
       updateCategory,

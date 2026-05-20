@@ -5,7 +5,6 @@ import { useLiveData } from "../shared/live-data-context";
 import { useToasts } from "../shared/use-toasts";
 import { logoutAdminSession } from "../shared/admin-auth";
 import {
-  currencyOptions,
   normalizeAdminTab,
   tabs,
 } from "./admin-constants";
@@ -14,7 +13,6 @@ import { formatDateTime, formatSyncStageRu, formatSyncStatusRu } from "./admin-s
 import { useAdminProductsTable } from "./hooks/use-admin-products-table";
 import { useAdminProductFilters } from "./hooks/use-admin-product-filters";
 import { readProductsQuery } from "./products-query";
-import { useAdminProductCreate } from "./hooks/use-admin-product-create";
 import { useAdminCategories } from "./hooks/use-admin-categories";
 import { useAdminDedupActions } from "./hooks/use-admin-dedup-actions";
 import { useAdminPricingSettingsSync } from "./hooks/use-admin-pricing-settings-sync";
@@ -40,6 +38,7 @@ import { useAdminErrorToast } from "./hooks/use-admin-error-toast";
 import { useAdminTabContentProps } from "./hooks/use-admin-tab-content-props";
 import { useAdminPricingLocalState } from "./hooks/use-admin-pricing-local-state";
 import { AdminOverlays } from "./admin-overlays";
+import { useAdminProductCreateMock } from "./hooks/use-admin-product-create-mock";
 import type {
   AdminTab,
   SupplierCategory,
@@ -77,10 +76,6 @@ export function AdminPage() {
     runSync,
     runSyncForSource,
     cancelSync,
-    previewProductByUrl,
-    addProductByUrl,
-    createManualProduct,
-    uploadProductImage,
     uploadShowcaseImage,
     adminCategories,
     createCategory,
@@ -108,6 +103,9 @@ export function AdminPage() {
     updateSourceCurrencyPriority,
     weightRules,
     weightMissingProducts,
+    hasMoreWeightMissing,
+    loadingMoreWeightMissing,
+    loadMoreWeightMissingProducts,
     pricingSettings,
     adminUiSettings,
     createWeightRule,
@@ -126,6 +124,16 @@ export function AdminPage() {
     assignSourceSupplier,
     fetchPricingExampleProduct,
     updateShowcaseMediaSettings,
+    previewProductByUrl,
+    createManualProduct,
+    updateManualProduct,
+    uploadProductImage,
+    uploadProductImageByUrl,
+    getProductById,
+    setProductStatus,
+    getProductStarredCategories,
+    setProductStarredCategories,
+    getStarredCategoryOptions,
   } = useLiveData();
 
   const { toasts, pushToast, closeToast, pauseToast, resumeToast } = useToasts();
@@ -159,38 +167,45 @@ export function AdminPage() {
     resetSettings,
     pushToast,
   });
+  const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
   const {
-    openModal,
-    setOpenModal,
-    productUrl,
-    setProductUrl,
-    productTitle,
-    setProductTitle,
-    productVendor,
-    setProductVendor,
-    productCategory,
-    setProductCategory,
-    productDescription,
-    setProductDescription,
-    productCurrency,
-    setProductCurrency,
-    productVariants,
-    setProductVariants,
-    imagePreviews,
-    zoomedImageUrl,
-    setZoomedImageUrl,
-    closeProductModal,
-    onDropImage,
-    onPickImage,
-    removePreviewImage,
-    onFetchPreview,
-    onSaveProduct,
-  } = useAdminProductCreate({
+    isOpen: productCreateOpen,
+    setIsOpen: setProductCreateOpen,
+    draft: productCreateDraft,
+    setDraftField: setProductCreateField,
+    lookup: productCreateLookup,
+    sourceDomainError: productCreateSourceError,
+    matchedSourceDomain: productCreateMatchedDomain,
+    canRunLookup: productCreateCanRunLookup,
+    isHydrating: productCreateHydrating,
+    isCreating: productCreateCreating,
+    hiddenProductIds: productCreateHiddenIds,
+    knownBrandOptions: productCreateKnownBrands,
+    favoriteCategoryOptions: productCreateFavoriteOptions,
+    favoriteCategoryIds: productCreateFavoriteIds,
+    setFavoriteCategoryIds: setProductCreateFavoriteIds,
+    boundFromSourceLookup: productCreateBoundFromSourceLookup,
+    hydrateFromSourceUrl,
+    hydrateFromExistingProduct,
+    hideExistingProductMock,
+    addManualImage: addProductCreateImage,
+    removeImage: removeProductCreateImage,
+    onCancel: onCloseProductCreate,
+    onCreateMock: onCreateProductMock,
+  } = useAdminProductCreateMock({
+    sources,
+    products,
+    onToast: (message, type = "success") => pushToast(message, type),
     previewProductByUrl,
-    addProductByUrl,
     createManualProduct,
+    updateManualProduct,
     uploadProductImage,
-    pushToast,
+    uploadProductImageByUrl,
+    getProductById,
+    setProductStatus,
+    getProductStarredCategories,
+    setProductStarredCategories,
+    getStarredCategoryOptions,
   });
 
   const {
@@ -569,6 +584,7 @@ export function AdminPage() {
       autoSyncPeriodMinutes: Math.max(60, Number(adminUiSettings?.auto_sync_period_minutes || 60)),
       updateAdminUiSettings,
       pushToast,
+      onZoomImage: (url: string) => setZoomedImageUrl(url),
     },
     pricingTabProps: {
       pricingTabLoading,
@@ -627,6 +643,9 @@ export function AdminPage() {
       onRemoveWeightKeyword,
       onAddWeightKeyword,
       weightMissingProducts,
+      hasMoreWeightMissing,
+      loadingMoreWeightMissing,
+      onLoadMoreWeightMissing: loadMoreWeightMissingProducts,
     },
     settingsTabProps: {
       pricingTabLoading,
@@ -678,6 +697,7 @@ export function AdminPage() {
             latestJob={latestJob}
             onRunSync={onRunSync}
             onCancelSync={onCancelSync}
+            onOpenCreateProduct={() => setProductCreateOpen(true)}
             formatDateTime={formatDateTime}
             formatSyncStatusRu={formatSyncStatusRu}
             formatSyncStageRu={formatSyncStageRu}
@@ -686,35 +706,35 @@ export function AdminPage() {
           <AdminTabs tabs={tabs} activeTab={tab} onSelectTab={(nextTab) => navigate(`/control/${nextTab}`)} />
           <AdminTabContent {...tabContentProps} />
           <AdminOverlays
-            openModal={openModal}
-            closeProductModal={closeProductModal}
-            productUrl={productUrl}
-            setProductUrl={setProductUrl}
-            onFetchPreview={onFetchPreview}
-            productTitle={productTitle}
-            setProductTitle={setProductTitle}
-            productVendor={productVendor}
-            setProductVendor={setProductVendor}
-            productCategory={productCategory}
-            setProductCategory={setProductCategory}
-            productDescription={productDescription}
-            setProductDescription={setProductDescription}
-            productCurrency={productCurrency}
-            setProductCurrency={setProductCurrency}
-            productVariants={productVariants}
-            setProductVariants={setProductVariants}
-            currencyOptions={currencyOptions}
-            onDropImage={onDropImage}
-            onPickImage={onPickImage}
-            imagePreviews={imagePreviews}
             setZoomedImageUrl={setZoomedImageUrl}
-            removePreviewImage={removePreviewImage}
-            onSaveProduct={onSaveProduct}
             toasts={toasts}
             closeToast={closeToast}
             pauseToast={pauseToast}
             resumeToast={resumeToast}
             zoomedImageUrl={zoomedImageUrl}
+            productCreateOpen={productCreateOpen}
+            productCreateDraft={productCreateDraft}
+            productCreateLookup={productCreateLookup}
+            productCreateSourceError={productCreateSourceError}
+            productCreateMatchedDomain={productCreateMatchedDomain}
+            productCreateCanRunLookup={productCreateCanRunLookup}
+            productCreateHydrating={productCreateHydrating}
+            productCreateCreating={productCreateCreating}
+            productCreateHiddenIds={productCreateHiddenIds}
+            productCreateKnownBrands={productCreateKnownBrands}
+            productCreateFavoriteOptions={productCreateFavoriteOptions}
+            productCreateFavoriteIds={productCreateFavoriteIds}
+            productCreateBoundFromSourceLookup={productCreateBoundFromSourceLookup}
+            onSetProductCreateFavoriteIds={setProductCreateFavoriteIds}
+            onCloseProductCreate={onCloseProductCreate}
+            onSetProductCreateField={setProductCreateField}
+            onHydrateFromSourceUrl={hydrateFromSourceUrl}
+            onHydrateFromExisting={hydrateFromExistingProduct}
+            onToggleHideExisting={hideExistingProductMock}
+            onAddProductImage={addProductCreateImage}
+            onRemoveProductImage={removeProductCreateImage}
+            onCreateProductMock={onCreateProductMock}
+            onZoomProductImage={(url) => setZoomedImageUrl(url)}
           />
         </section>
       </main>

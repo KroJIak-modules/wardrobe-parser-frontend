@@ -48,25 +48,83 @@ export function useLiveDataProductActions(params: {
     product_type: string | null;
     variants: Array<{ title: string; price: number | null; available: boolean }>;
     manual_image_asset_ids: number[];
+    weight_grams?: number | null;
+    status?: "available" | "out_of_stock" | "hidden";
+    bind_sync?: boolean;
+    bind_source_id?: number | null;
+    bind_source_product_url?: string | null;
   }) => {
     try {
-      await apiJson(`${API_BASE}/products/manual`, {
+      const out = await apiJson<{ id?: number }>(`${API_BASE}/products/manual`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       await refresh();
-      return okResult("Ручной товар сохранен");
+      return { ...okResult("Ручной товар сохранен"), id: Number(out?.id || 0) || null };
     } catch (e) {
-      return errResult(e instanceof Error ? e.message : "Unknown error");
+      return { ...errResult(e instanceof Error ? e.message : "Unknown error"), id: null };
     }
   }, [refresh]);
+
+  const updateManualProduct = useCallback(async (productId: number, payload: {
+    title: string;
+    description?: string | null;
+    vendor?: string | null;
+    currency: string;
+    product_type: string | null;
+    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    manual_image_asset_ids: number[];
+    weight_grams?: number | null;
+    status?: "available" | "out_of_stock" | "hidden";
+    bind_sync?: boolean;
+    bind_source_id?: number | null;
+    bind_source_product_url?: string | null;
+  }) => {
+    try {
+      const out = await apiJson<{ id?: number }>(`${API_BASE}/products/manual/${productId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      await refresh();
+      return { ...okResult("Ручной товар обновлен"), id: Number(out?.id || 0) || null };
+    } catch (e) {
+      return { ...errResult(e instanceof Error ? e.message : "Unknown error"), id: null };
+    }
+  }, [refresh]);
+
+  const getStarredCategoryOptions = useCallback(async () => {
+    try {
+      const payload = await apiJson<{ items?: Array<{ id: number; name: string; slug: string }> }>(`${API_BASE}/products/starred-categories/options`);
+      return { ok: true, items: Array.isArray(payload.items) ? payload.items : [] };
+    } catch {
+      return { ok: false, items: [] as Array<{ id: number; name: string; slug: string }> };
+    }
+  }, []);
 
   const uploadProductImage = useCallback(async (file: File) => {
     try {
       const formData = new FormData();
       formData.append("file", file);
       const payload = await apiJson<{ image_asset_id?: number }>(`${API_BASE}/products/upload-image`, { method: "POST", body: formData });
+      const imageAssetId = Number(payload?.image_asset_id);
+      if (!Number.isFinite(imageAssetId) || imageAssetId <= 0) {
+        return { ok: false, message: "Сервер вернул некорректный id изображения", imageAssetId: null };
+      }
+      return { ok: true, message: "Изображение загружено", imageAssetId };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", imageAssetId: null };
+    }
+  }, []);
+
+  const uploadProductImageByUrl = useCallback(async (url: string) => {
+    try {
+      const payload = await apiJson<{ image_asset_id?: number }>(`${API_BASE}/products/upload-image-by-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
       const imageAssetId = Number(payload?.image_asset_id);
       if (!Number.isFinite(imageAssetId) || imageAssetId <= 0) {
         return { ok: false, message: "Сервер вернул некорректный id изображения", imageAssetId: null };
@@ -151,10 +209,13 @@ export function useLiveDataProductActions(params: {
     previewProductByUrl,
     addProductByUrl,
     createManualProduct,
+    updateManualProduct,
     uploadProductImage,
+    uploadProductImageByUrl,
     updateProductOverrides,
     setProductStatus,
     getProductStarredCategories,
     setProductStarredCategories,
+    getStarredCategoryOptions,
   };
 }

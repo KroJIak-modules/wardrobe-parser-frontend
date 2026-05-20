@@ -182,7 +182,7 @@ export function ProductPage() {
       hidden_source_image_urls: Array.isArray(raw.hidden_source_image_urls) ? raw.hidden_source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
       manual_image_urls: Array.isArray(raw.manual_image_urls) ? raw.manual_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
       manual_image_order: Array.isArray(raw.manual_image_order) ? raw.manual_image_order.map((x) => String(x)) : [],
-      source_image_urls: rawSourceUrls.length > 0 ? rawSourceUrls : fallbackSourceUrls,
+      source_image_urls: rawSourceUrls.length > 0 ? rawSourceUrls : [],
     };
   }, [product?.product_edit, product?.image_urls]);
 
@@ -277,6 +277,7 @@ export function ProductPage() {
   const normalizedVendor = vendorMapped.toLowerCase();
   const categoryChips = categoryNames.filter((name) => String(name).trim().toLowerCase() !== normalizedVendor);
   const hasBrand = Boolean(vendorOriginal || vendorMapped);
+  const hasExternalProductUrl = Boolean(product.url && !String(product.url).startsWith("manual://"));
   const descriptionVisibleEffective = (
     typeof imageEdit.description_visible_effective === "boolean"
       ? imageEdit.description_visible_effective
@@ -750,7 +751,9 @@ export function ProductPage() {
           ) : null}
 
           <div className="product-main-actions">
-            <a className="btn-link product-action-btn" href={product.url} target="_blank" rel="noreferrer" title={`Открыть ${sourceName || "источник"}`}><IconExternalLink className="icon-svg" />Открыть источник</a>
+            {hasExternalProductUrl ? (
+              <a className="btn-link product-action-btn" href={product.url} target="_blank" rel="noreferrer" title={`Открыть ${sourceName || "источник"}`}><IconExternalLink className="icon-svg" />Открыть источник</a>
+            ) : null}
             <button type="button" className="btn-link product-action-btn" onClick={() => void toggleHidden()} disabled={statusPending}>
               {normalizedStatus === "hidden" ? <EyeOff className="icon-svg" /> : <Eye className="icon-svg" />}
               {normalizedStatus === "hidden" ? "Показать товар" : "Скрыть товар"}

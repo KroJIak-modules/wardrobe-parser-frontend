@@ -43,7 +43,7 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
               <Link className="btn-link pricing-example-title-link" to={`/product/${pricingExample.productId}?from=admin`}>
                 {pricingExample.title}
               </Link>
-              {pricingExample.url ? (
+              {pricingExample.url && !String(pricingExample.url).startsWith("manual://") ? (
                 <a className="btn-link pricing-example-source-link" href={pricingExample.url} target="_blank" rel="noreferrer">
                   {pricingExample.sourceName || "Источник"}
                 </a>

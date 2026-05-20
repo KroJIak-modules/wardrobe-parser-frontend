@@ -612,6 +612,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
             {products.map((product) => {
               const sourceName = sourceNameById.get(product.source_id) || `Источник #${product.source_id}`;
               const sourceUrl = sourceOptions.find((item) => item.id === product.source_id)?.url || null;
+              const hasExternalProductUrl = Boolean(product.url && !String(product.url).startsWith("manual://"));
               const status = getStatusLabel(product.status);
               const statusClass = getStatusClass(product.status);
               const buyoutRub = resolveBuyoutPrice(product);
@@ -643,7 +644,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
 
                   <div className="catalog-card-meta">
                     <span className={statusClass}>{status}</span>
-                    {sourceUrl ? (
+                    {sourceUrl && !String(sourceUrl).startsWith("manual://") ? (
                       <a
                         className="catalog-source-link"
                         href={sourceUrl}
@@ -670,19 +671,19 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                   </p>
 
                   <div className="catalog-card-actions">
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="Открыть источник"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (product.url) {
+                    {hasExternalProductUrl ? (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        title="Открыть источник"
+                        onClick={(event) => {
+                          event.stopPropagation();
                           window.open(product.url, "_blank", "noreferrer");
-                        }
-                      }}
-                    >
-                      <IconExternalLink className="icon-svg" />
-                    </button>
+                        }}
+                      >
+                        <IconExternalLink className="icon-svg" />
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="icon-btn"

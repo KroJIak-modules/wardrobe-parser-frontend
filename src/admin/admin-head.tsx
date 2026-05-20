@@ -8,6 +8,7 @@ type AdminHeadProps = {
   latestJob: SyncJobSummary | null;
   onRunSync: () => void;
   onCancelSync: () => void;
+  onOpenCreateProduct: () => void;
   formatDateTime: (value: string | null | undefined) => string;
   formatSyncStatusRu: (status?: string | null) => string;
   formatSyncStageRu: (stage?: string | null) => string;
@@ -20,6 +21,7 @@ export function AdminHead({
   latestJob,
   onRunSync,
   onCancelSync,
+  onOpenCreateProduct,
   formatDateTime,
   formatSyncStatusRu,
   formatSyncStageRu,
@@ -33,6 +35,9 @@ export function AdminHead({
         </button>
         <button type="button" onClick={onCancelSync} disabled={!canCancelSync}>
           Отменить синхронизацию
+        </button>
+        <button type="button" onClick={onOpenCreateProduct}>
+          Добавить товар
         </button>
       </div>
       <SyncSummary

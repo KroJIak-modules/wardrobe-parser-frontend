@@ -141,12 +141,21 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [patchSource]);
 
-  const updateSourceCurrencyPriority = useCallback(async (sourceKey: string, currencyPriority: string[]) => {
+  const updateSourceCurrencyPriority = useCallback(
+    async (
+      sourceKey: string,
+      currencyPriority: string[],
+      options?: { currencyMethod?: "priority_list" | "locked_param_currency" | "locked_no_currency"; lockedCurrency?: string }
+    ) => {
     try {
       const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/currency-priority`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currency_priority: currencyPriority }),
+        body: JSON.stringify({
+          currency_priority: currencyPriority,
+          currency_method: options?.currencyMethod,
+          locked_currency: options?.lockedCurrency,
+        }),
       });
       patchSource(sourceKey, updated);
       return okResult("Приоритет валют обновлен");

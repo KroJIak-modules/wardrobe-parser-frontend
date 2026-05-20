@@ -10,6 +10,9 @@ export type Source = {
   show_description?: boolean;
   show_images?: boolean;
   currency_priority?: string[];
+  currency_method?: "priority_list" | "locked_param_currency" | "locked_no_currency";
+  locked_currency?: string;
+  currency_priority_editable?: boolean;
   notes: string | null;
   status_label: string | null;
   products_count: number;
@@ -19,6 +22,7 @@ export type Source = {
   last_sync_status?: string | null;
   is_password_protected?: boolean;
   is_auto_ingest?: boolean;
+  is_personal?: boolean;
   supplier_id: number | null;
   supplier_key: string | null;
   supplier_name: string | null;
@@ -87,6 +91,8 @@ export type ServiceProduct = {
   internal_category_names?: string[];
   internal_category_slugs?: string[];
   description?: string | null;
+  source_name?: string | null;
+  weight_grams?: number | null;
   product_edit?: ProductEditState;
   created_at: string;
   updated_at: string;
@@ -234,14 +240,21 @@ export type DedupDecision = {
 };
 
 export type ProductUrlPreview = {
+  id?: number;
+  source_id?: number;
+  source_name?: string;
+  status?: string;
   handle: string;
   title: string;
+  description?: string | null;
+  weight_grams?: number | null;
   vendor: string | null;
   product_type: string | null;
   product_url: string;
   price: number | null;
   currency: string;
   image_urls: string[];
+  variants?: ProductVariant[];
 };
 
 export type WeightRule = {
@@ -437,6 +450,8 @@ export type LiveDataContextValue = {
   loadingDedupDecisions: boolean;
   weightRules: WeightRule[];
   weightMissingProducts: WeightMissingProduct[];
+  hasMoreWeightMissing: boolean;
+  loadingMoreWeightMissing: boolean;
   pricingSettings: PricingSettings | null;
   adminUiSettings: AdminUiSettings | null;
   sources: Source[];
@@ -450,6 +465,7 @@ export type LiveDataContextValue = {
   ensurePricingLoaded: (force?: boolean) => Promise<void>;
   ensureAdminUiLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: (force?: boolean) => Promise<void>;
+  loadMoreWeightMissingProducts: () => Promise<void>;
   ensureDedupLoaded: (force?: boolean) => Promise<void>;
   ensureDedupDecisionsLoaded: () => Promise<void>;
   ensureCategoriesLoaded: (force?: boolean) => Promise<void>;
@@ -473,12 +489,34 @@ export type LiveDataContextValue = {
   ) => Promise<{ ok: boolean; message: string }>;
   createManualProduct: (payload: {
     title: string;
-    price: number | null;
+    description?: string | null;
+    vendor?: string | null;
     currency: string;
     product_type: string | null;
-    image_count: number;
-  }) => Promise<{ ok: boolean; message: string }>;
+    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    manual_image_asset_ids: number[];
+    weight_grams?: number | null;
+    status?: "available" | "out_of_stock" | "hidden";
+    bind_sync?: boolean;
+    bind_source_id?: number | null;
+    bind_source_product_url?: string | null;
+  }) => Promise<{ ok: boolean; message: string; id: number | null }>;
+  updateManualProduct: (productId: number, payload: {
+    title: string;
+    description?: string | null;
+    vendor?: string | null;
+    currency: string;
+    product_type: string | null;
+    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    manual_image_asset_ids: number[];
+    weight_grams?: number | null;
+    status?: "available" | "out_of_stock" | "hidden";
+    bind_sync?: boolean;
+    bind_source_id?: number | null;
+    bind_source_product_url?: string | null;
+  }) => Promise<{ ok: boolean; message: string; id: number | null }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
+  uploadProductImageByUrl: (url: string) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadShowcaseImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string; categoryId?: number }>;
   updateCategory: (
@@ -518,6 +556,7 @@ export type LiveDataContextValue = {
     productId: number,
     categoryIds: number[]
   ) => Promise<{ ok: boolean; message: string; assignedCategoryIds: number[] }>;
+  getStarredCategoryOptions: () => Promise<{ ok: boolean; items: Array<{ id: number; name: string; slug: string }> }>;
   ensureAllProductsLoaded: () => Promise<void>;
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceSyncEnabled: (sourceKey: string, syncEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
@@ -526,7 +565,11 @@ export type LiveDataContextValue = {
     sourceKey: string,
     payload: { show_description?: boolean; show_images?: boolean }
   ) => Promise<{ ok: boolean; message: string }>;
-  updateSourceCurrencyPriority: (sourceKey: string, currencyPriority: string[]) => Promise<{ ok: boolean; message: string }>;
+  updateSourceCurrencyPriority: (
+    sourceKey: string,
+    currencyPriority: string[],
+    options?: { currencyMethod?: "priority_list" | "locked_param_currency" | "locked_no_currency"; lockedCurrency?: string }
+  ) => Promise<{ ok: boolean; message: string }>;
   createWeightRule: (weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   updateWeightRule: (id: number, weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   deleteWeightRule: (id: number) => Promise<{ ok: boolean; message: string }>;

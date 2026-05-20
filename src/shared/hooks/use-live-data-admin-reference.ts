@@ -12,6 +12,7 @@ import type {
 } from "../live-data-types";
 
 export function useLiveDataAdminReference(onError: (message: string) => void) {
+  const MISSING_WEIGHT_PAGE_SIZE = 100;
   const [adminCategories, setAdminCategories] = useState<AdminCategoryNode[]>([]);
   const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
   const [loadingDedupCandidates, setLoadingDedupCandidates] = useState<boolean>(false);
@@ -24,6 +25,9 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const [pricingLoaded, setPricingLoaded] = useState<boolean>(false);
   const [adminUiLoaded, setAdminUiLoaded] = useState<boolean>(false);
   const [weightLoaded, setWeightLoaded] = useState<boolean>(false);
+  const [weightMissingOffset, setWeightMissingOffset] = useState<number>(0);
+  const [loadingMoreWeightMissing, setLoadingMoreWeightMissing] = useState<boolean>(false);
+  const [hasMoreWeightMissing, setHasMoreWeightMissing] = useState<boolean>(true);
   const [dedupLoaded, setDedupLoaded] = useState<boolean>(false);
   const [categoriesLoaded, setCategoriesLoaded] = useState<boolean>(false);
   const [loadingCategoriesTree, setLoadingCategoriesTree] = useState<boolean>(false);
@@ -97,12 +101,31 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const refreshWeightOnly = useCallback(async () => {
     const [rulesPayload, missingPayload] = await Promise.all([
       apiJson<WeightRule[]>(`${API_BASE}/settings/weight-rules`),
-      apiJson<WeightMissingProduct[]>(`${API_BASE}/settings/weight-rules/missing-products?limit=100`),
+      apiJson<WeightMissingProduct[]>(`${API_BASE}/settings/weight-rules/missing-products?limit=${MISSING_WEIGHT_PAGE_SIZE}&offset=0`),
     ]);
     setWeightRules(rulesPayload || []);
-    setWeightMissingProducts(missingPayload || []);
+    const chunk = missingPayload || [];
+    setWeightMissingProducts(chunk);
+    setWeightMissingOffset(chunk.length);
+    setHasMoreWeightMissing(chunk.length >= MISSING_WEIGHT_PAGE_SIZE);
     setWeightLoaded(true);
   }, []);
+
+  const loadMoreWeightMissingProducts = useCallback(async () => {
+    if (loadingMoreWeightMissing || !hasMoreWeightMissing) return;
+    setLoadingMoreWeightMissing(true);
+    try {
+      const chunk = await apiJson<WeightMissingProduct[]>(
+        `${API_BASE}/settings/weight-rules/missing-products?limit=${MISSING_WEIGHT_PAGE_SIZE}&offset=${weightMissingOffset}`
+      );
+      const nextChunk = chunk || [];
+      setWeightMissingProducts((prev) => [...prev, ...nextChunk]);
+      setWeightMissingOffset((prev) => prev + nextChunk.length);
+      setHasMoreWeightMissing(nextChunk.length >= MISSING_WEIGHT_PAGE_SIZE);
+    } finally {
+      setLoadingMoreWeightMissing(false);
+    }
+  }, [hasMoreWeightMissing, loadingMoreWeightMissing, weightMissingOffset]);
 
   const ensurePricingLoaded = useCallback(async (force = false) => {
     if (!force && pricingLoaded) return;
@@ -149,6 +172,8 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     categoriesLoaded,
     loadingCategoriesTree,
     loadingCategoryCounts,
+    hasMoreWeightMissing,
+    loadingMoreWeightMissing,
     refreshDedupOnly,
     refreshDedupDecisionsOnly,
     refreshPricingOnly,
@@ -161,6 +186,7 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     ensureDedupLoaded,
     ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
+    loadMoreWeightMissingProducts,
     setAdminCategories,
     setAdminUiSettings,
   };

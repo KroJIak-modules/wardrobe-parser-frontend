@@ -87,6 +87,7 @@ export type BybitWorkerInfo = {
 export type AdminProductsTableItem = {
   id: number;
   source_id: number;
+  source_name?: string | null;
   title: string;
   vendor?: string | null;
   vendor_original?: string | null;

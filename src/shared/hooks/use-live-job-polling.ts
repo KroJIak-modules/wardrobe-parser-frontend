@@ -10,11 +10,11 @@ type JobsLatest = {
 type Params = {
   latestJob: JobsLatest;
   setLatestJob: (payload: JobsLatest) => void;
-  refresh: () => Promise<void>;
+  refreshAfterTerminal: () => Promise<void>;
   enabled?: boolean;
 };
 
-export function useLiveJobPolling({ latestJob, setLatestJob, refresh, enabled = true }: Params) {
+export function useLiveJobPolling({ latestJob, setLatestJob, refreshAfterTerminal, enabled = true }: Params) {
   const prevStatusRef = useRef<string | null>(latestJob?.status ?? null);
   const prevJobIdRef = useRef<string | null>(latestJob?.job_id ? String(latestJob.job_id) : null);
   const prevCompletedAtRef = useRef<string | null>(latestJob?.completed_at ? String(latestJob.completed_at) : null);
@@ -50,7 +50,7 @@ export function useLiveJobPolling({ latestJob, setLatestJob, refresh, enabled = 
           nextCompletedAt !== null &&
           nextCompletedAt !== prevCompletedAt;
         if ((prevWasRunning && nowTerminal) || isNewCompletedJob || terminalCompletedAtChanged) {
-          await refresh();
+          await refreshAfterTerminal();
         }
         prevStatusRef.current = nextStatus;
         prevJobIdRef.current = nextJobId;
@@ -61,5 +61,5 @@ export function useLiveJobPolling({ latestJob, setLatestJob, refresh, enabled = 
     }, inProgress ? 1500 : 7000);
 
     return () => window.clearInterval(timer);
-  }, [enabled, latestJob, refresh, setLatestJob]);
+  }, [enabled, latestJob, refreshAfterTerminal, setLatestJob]);
 }

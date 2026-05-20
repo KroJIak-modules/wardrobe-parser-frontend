@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { IconClose } from "../shared/mono-icons";
 import { EmptyState } from "../shared/empty-state";
@@ -18,6 +19,9 @@ type Props = {
   onRemoveWeightKeyword: (ruleId: number, keyword: string) => Promise<void>;
   onAddWeightKeyword: (ruleId: number) => Promise<void>;
   weightMissingProducts: WeightMissingProduct[];
+  hasMoreWeightMissing: boolean;
+  loadingMoreWeightMissing: boolean;
+  onLoadMoreWeightMissing: () => Promise<void>;
 };
 
 export function AdminWeightTab({
@@ -34,7 +38,24 @@ export function AdminWeightTab({
   onRemoveWeightKeyword,
   onAddWeightKeyword,
   weightMissingProducts,
+  hasMoreWeightMissing,
+  loadingMoreWeightMissing,
+  onLoadMoreWeightMissing,
 }: Props) {
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!hasMoreWeightMissing) return;
+    const node = loadMoreRef.current;
+    if (!node) return;
+    const io = new IntersectionObserver((entries) => {
+      const first = entries[0];
+      if (!first?.isIntersecting || loadingMoreWeightMissing) return;
+      void onLoadMoreWeightMissing();
+    }, { root: null, rootMargin: "320px 0px 320px 0px", threshold: 0.01 });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [hasMoreWeightMissing, loadingMoreWeightMissing, onLoadMoreWeightMissing]);
+
   return (
     <div className="card">
       {weightTabLoading ? (
@@ -132,14 +153,23 @@ export function AdminWeightTab({
                         </td>
                         <td>{item.source_name}</td>
                         <td>
-                          <a className="btn-link" href={item.url} target="_blank" rel="noreferrer">
-                            Открыть товар
-                          </a>
+                          {item.url && !String(item.url).startsWith("manual://") ? (
+                            <a className="btn-link" href={item.url} target="_blank" rel="noreferrer">
+                              Открыть товар
+                            </a>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {hasMoreWeightMissing ? (
+                  <div ref={loadMoreRef} className="weight-missing-loadmore muted">
+                    {loadingMoreWeightMissing ? "Загрузка..." : "Прокрутите ниже для подгрузки"}
+                  </div>
+                ) : null}
               </div>
             )}
           </section>

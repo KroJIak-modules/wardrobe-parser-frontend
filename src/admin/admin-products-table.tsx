@@ -55,7 +55,9 @@ export function AdminProductsTable({
             const finalPrice = product.final_price ?? null;
             const finalCurrency = product.final_currency ?? "RUB";
             const source = sourceById.get(product.source_id);
+            const sourceLabel = String(product.source_name || "").trim() || source?.name || `#${product.source_id}`;
             const adminProductHref = `/product/${product.id}?from=admin`;
+            const hasExternalProductUrl = Boolean(product.url && !String(product.url).startsWith("manual://"));
             return (
               <tr key={product.id}>
                 <td>
@@ -76,12 +78,12 @@ export function AdminProductsTable({
                   </Link>
                 </td>
                 <td>
-                  {product.url ? (
+                  {hasExternalProductUrl ? (
                     <a className="btn-link" href={product.url} target="_blank" rel="noreferrer">
-                      {source?.name || `#${product.source_id}`}
+                      {sourceLabel}
                     </a>
                   ) : (
-                    source?.name || `#${product.source_id}`
+                    sourceLabel
                   )}
                 </td>
                 <td>{product.product_type || "-"}</td>
