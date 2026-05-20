@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { AdminSourcesSkeleton } from "../shared/skeleton";
 import { IconClose } from "../shared/mono-icons";
+import { ImageWithFallback } from "../shared/image-with-fallback";
+import { optimizeImageUrl } from "../shared/product-image";
 import { API_BASE, authFetch } from "./auth-fetch";
 import { AdminManualProductEditModal, type ManualProductEditDraft, type ManualEditVariant } from "./admin-manual-product-edit-modal";
 
@@ -11,6 +13,8 @@ type SourceItem = {
   base_url: string;
   status_label: string | null;
   products_count: number;
+  manual_products_count?: number;
+  bound_sync_products_count?: number;
   last_sync_duration_sec?: number | null;
   last_sync_at?: string | null;
   last_sync_status?: string | null;
@@ -99,7 +103,6 @@ export function AdminSourcesTab({
   toggleSourceSyncEnabled,
   toggleSourceAutoHideProducts,
   updateSourceAttributeVisibility,
-  updateSourceCurrencyPriority,
   autoSyncPeriodMinutes,
   updateAdminUiSettings,
   latestJob,
@@ -110,12 +113,8 @@ export function AdminSourcesTab({
 }: Props) {
   const deriveStatusFromVariants = (variants: ManualEditVariant[]): "available" | "out_of_stock" =>
     variants.some((item) => Boolean(item.available)) ? "available" : "out_of_stock";
-  const currencyOptions = ["USD", "EUR", "GBP", "JPY"] as const;
   const [sourceAttrVisibility, setSourceAttrVisibility] = useState<Record<string, { description: boolean; images: boolean }>>({});
   const [sourceCurrencyPriority, setSourceCurrencyPriority] = useState<Record<string, string[]>>({});
-  const [currencyInputBySource, setCurrencyInputBySource] = useState<Record<string, string>>({});
-  const [currencyOpenBySource, setCurrencyOpenBySource] = useState<Record<string, boolean>>({});
-  const [dragCurrencyBySource, setDragCurrencyBySource] = useState<Record<string, string | null>>({});
   const [autoSyncDraft, setAutoSyncDraft] = useState<string>(String(Math.max(60, Number(autoSyncPeriodMinutes || 60))));
 
   const [sourceProductsOpen, setSourceProductsOpen] = useState<boolean>(false);
@@ -323,14 +322,12 @@ export function AdminSourcesTab({
 
       const weightRaw = Number(String(manualEditDraft.weightGrams || "").replace(",", "."));
       const weight = Number.isFinite(weightRaw) && weightRaw > 0 ? weightRaw : null;
-      const currency = validVariants[0].currency;
       const payload = {
         title,
         description: String(manualEditDraft.description || "").trim() || null,
         vendor: String(manualEditDraft.brand || "").trim() || null,
-        currency,
         product_type: null,
-        variants: validVariants.map((x) => ({ title: x.title, price: x.price, available: x.available })),
+        variants: validVariants.map((x) => ({ title: x.title, price: x.price, currency: x.currency, available: x.available })),
         manual_image_asset_ids: manualImageAssetIds,
         weight_grams: weight,
         status: deriveStatusFromVariants(validVariants as ManualEditVariant[]),
@@ -444,6 +441,10 @@ export function AdminSourcesTab({
             const thisSourceActive = isAnySyncRunning && activeSourceKey === source.key.trim().toLowerCase();
             const thisSourceDisabled = isAnySyncRunning && !thisSourceActive;
             const isPersonal = Boolean(source.is_personal);
+            const personalTotal = Number(source.products_count || 0);
+            const personalManual = Number(source.manual_products_count || 0);
+            const personalBound = Number(source.bound_sync_products_count || 0);
+            const showPersonalBreakdown = personalTotal > 0 && personalManual > 0 && personalBound > 0;
             return (
               <article key={source.key} className={`list-row source-card${isPersonal ? " source-card--personal" : ""}`}>
                 <div className="source-card-head">
@@ -473,7 +474,13 @@ export function AdminSourcesTab({
                 </div>
                 <div className="source-card-foot">
                   <div className="source-card-meta">
-                    <span className="source-pill">Товаров: {source.products_count}</span>
+                    <span className="source-pill">
+                      {isPersonal
+                        ? (showPersonalBreakdown
+                          ? `Товаров: ${personalTotal} (${personalManual} + ${personalBound})`
+                          : `Товаров: ${personalTotal}`)
+                        : `Товаров: ${source.products_count}`}
+                    </span>
                     {isPersonal ? null : <span className="source-pill">Прогон: {source.last_sync_duration_sec ?? 0}с</span>}
                   </div>
                   <div className="source-card-actions">
@@ -583,7 +590,7 @@ export function AdminSourcesTab({
                       <span className="ui-switch-track">
                         <span className="ui-switch-thumb" />
                       </span>
-                      <span className="ui-switch-text">Участие в синхронизацию</span>
+                      <span className="ui-switch-text">Участие в синхронизации</span>
                     </label>
                     <label className="ui-switch ui-switch--compact source-card-switch">
                       <input
@@ -655,186 +662,24 @@ export function AdminSourcesTab({
                       </div>
                     </details>
                     {isPersonal ? null : (
-                      <div className="source-currency-priority" tabIndex={0} onBlur={() => setCurrencyOpenBySource((prev) => ({ ...prev, [source.key]: false }))}>
+                      <div className="source-currency-priority">
                         <label className="source-currency-priority__label">Приоритет валют</label>
-                        <div className="source-currency-priority__method-row">
-                          <select
-                            className="source-currency-priority__method-select"
-                            value={source.currency_method || "priority_list"}
-                            onChange={(event) => {
-                              const method = event.target.value as "priority_list" | "locked_param_currency" | "locked_no_currency";
-                              const locked = String(source.locked_currency || sourceCurrencyPriority[source.key]?.[0] || "USD").toUpperCase();
-                              const current = sourceCurrencyPriority[source.key] || [];
-                              void (async () => {
-                                const result = await updateSourceCurrencyPriority(source.key, current.length > 0 ? current : [locked], {
-                                  currencyMethod: method,
-                                  lockedCurrency: locked,
-                                });
-                                pushToast(result.message);
-                              })();
-                            }}
-                          >
-                            <option value="priority_list">Приоритетный список</option>
-                            <option value="locked_param_currency">Фикс. через currency=</option>
-                            <option value="locked_no_currency">Фикс. без currency</option>
-                          </select>
-                          {(source.currency_method || "priority_list") === "priority_list" ? null : (
-                            <select
-                              className="source-currency-priority__method-select"
-                              value={String(source.locked_currency || sourceCurrencyPriority[source.key]?.[0] || "USD").toUpperCase()}
-                              onChange={(event) => {
-                                const locked = String(event.target.value || "USD").toUpperCase();
-                                const method = (source.currency_method || "locked_param_currency") as
-                                  | "priority_list"
-                                  | "locked_param_currency"
-                                  | "locked_no_currency";
-                                const current = sourceCurrencyPriority[source.key] || [];
-                                void (async () => {
-                                  const result = await updateSourceCurrencyPriority(source.key, current.length > 0 ? current : [locked], {
-                                    currencyMethod: method,
-                                    lockedCurrency: locked,
-                                  });
-                                  pushToast(result.message);
-                                })();
-                              }}
-                            >
-                              {currencyOptions.map((item) => (
-                                <option key={`${source.key}-locked-${item}`} value={item}>
-                                  {item}
-                                </option>
+                        {(source.currency_method || "priority_list") === "priority_list" ? (
+                          <div className="source-currency-priority__field">
+                            <div className="source-currency-priority__chips">
+                              {(sourceCurrencyPriority[source.key] || []).map((currency) => (
+                                <span key={`${source.key}-${currency}`} className="source-currency-chip" aria-label={`Валюта ${currency}`}>
+                                  <span>{currency}</span>
+                                </span>
                               ))}
-                            </select>
-                          )}
-                        </div>
-                        <div className="source-currency-priority__field">
-                          <div className="source-currency-priority__chips">
-                            {(sourceCurrencyPriority[source.key] || []).map((currency) => (
-                              <button
-                                key={`${source.key}-${currency}`}
-                                type="button"
-                                className="source-currency-chip"
-                                title="Клик: удалить"
-                                draggable={Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list"))}
-                                disabled={!Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list"))}
-                                onDragStart={() => {
-                                  if (!Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list"))) return;
-                                  setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: currency }));
-                                }}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => {
-                                  if (!Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list"))) return;
-                                  event.preventDefault();
-                                  const dragging = dragCurrencyBySource[source.key];
-                                  if (!dragging || dragging === currency) {
-                                    return;
-                                  }
-                                  setSourceCurrencyPriority((prev) => {
-                                    const list = [...(prev[source.key] || [])];
-                                    const from = list.indexOf(dragging);
-                                    const to = list.indexOf(currency);
-                                    if (from < 0 || to < 0 || from === to) {
-                                      return prev;
-                                    }
-                                    const [moved] = list.splice(from, 1);
-                                    list.splice(to, 0, moved);
-                                    void (async () => {
-                                      const result = await updateSourceCurrencyPriority(source.key, list);
-                                      pushToast(result.message);
-                                    })();
-                                    return { ...prev, [source.key]: list };
-                                  });
-                                  setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: null }));
-                                }}
-                                onDragEnd={() => {
-                                  setDragCurrencyBySource((prev) => ({ ...prev, [source.key]: null }));
-                                }}
-                                onClick={() => {
-                                  if (!Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list"))) return;
-                                  setSourceCurrencyPriority((prev) => {
-                                    const next = (prev[source.key] || []).filter((item) => item !== currency);
-                                    void (async () => {
-                                      const result = await updateSourceCurrencyPriority(source.key, next);
-                                      pushToast(result.message);
-                                    })();
-                                    return { ...prev, [source.key]: next };
-                                  });
-                                }}
-                              >
-                                <span>{currency}</span>
-                                <IconClose className="icon-svg icon-svg--sm" />
-                              </button>
-                            ))}
-                          </div>
-                          <div className="source-currency-priority__input-wrap">
-                            <input
-                              className="source-currency-priority__input"
-                              value={currencyInputBySource[source.key] || ""}
-                              placeholder="Добавить валюту"
-                              disabled={!Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list"))}
-                              onFocus={() => setCurrencyOpenBySource((prev) => ({ ...prev, [source.key]: true }))}
-                              onChange={(event) => {
-                                if (!Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list"))) return;
-                                setCurrencyInputBySource((prev) => ({ ...prev, [source.key]: event.target.value.toUpperCase() }));
-                                setCurrencyOpenBySource((prev) => ({ ...prev, [source.key]: true }));
-                              }}
-                              onKeyDown={(event) => {
-                                if (!Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list"))) return;
-                                if (event.key !== "Enter") {
-                                  return;
-                                }
-                                event.preventDefault();
-                                const value = String(currencyInputBySource[source.key] || "").trim().toUpperCase();
-                                if (!currencyOptions.includes(value as (typeof currencyOptions)[number])) {
-                                  return;
-                                }
-                                setSourceCurrencyPriority((prev) => {
-                                  const list = prev[source.key] || [];
-                                  if (list.includes(value)) {
-                                    return prev;
-                                  }
-                                  const next = [...list, value];
-                                  void (async () => {
-                                    const result = await updateSourceCurrencyPriority(source.key, next);
-                                    pushToast(result.message);
-                                  })();
-                                  return { ...prev, [source.key]: next };
-                                });
-                                setCurrencyInputBySource((prev) => ({ ...prev, [source.key]: "" }));
-                              }}
-                            />
-                          </div>
-                          {currencyOpenBySource[source.key] ? (
-                            <div className="source-currency-priority__menu">
-                              {currencyOptions
-                                .filter((item) => !(sourceCurrencyPriority[source.key] || []).includes(item))
-                                .filter((item) => item.includes(String(currencyInputBySource[source.key] || "").trim().toUpperCase()))
-                                .map((item) => (
-                                  <button
-                                    key={`${source.key}-opt-${item}`}
-                                    type="button"
-                                    className="source-currency-priority__option"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onClick={() => {
-                                      setSourceCurrencyPriority((prev) => {
-                                        const next = [...(prev[source.key] || []), item];
-                                        void (async () => {
-                                          const result = await updateSourceCurrencyPriority(source.key, next);
-                                          pushToast(result.message);
-                                        })();
-                                        return { ...prev, [source.key]: next };
-                                      });
-                                      setCurrencyInputBySource((prev) => ({ ...prev, [source.key]: "" }));
-                                    }}
-                                  >
-                                    {item}
-                                  </button>
-                                ))}
                             </div>
-                          ) : null}
-                        </div>
-                        {Boolean(source.currency_priority_editable ?? ((source.currency_method || "priority_list") === "priority_list")) ? null : (
+                          </div>
+                        ) : (
                           <div className="source-currency-priority__lock-hint">
-                            Для этого источника метод валюты зафиксирован.
+                            Валюта фиксирована системой:
+                            <span className="source-currency-chip source-currency-chip--locked">
+                              <span>{String(source.locked_currency || sourceCurrencyPriority[source.key]?.[0] || "USD").toUpperCase()}</span>
+                            </span>
                           </div>
                         )}
                       </div>
@@ -868,7 +713,13 @@ export function AdminSourcesTab({
                   <article key={item.id} className="source-products-card">
                     <button type="button" className="source-products-thumb-link" onClick={() => { void openManualEdit(item.id); }} disabled={manualEditLoading}>
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.title} className="source-products-thumb" />
+                        <ImageWithFallback
+                          src={optimizeImageUrl(item.imageUrl, { width: 220, height: 220, quality: 55 })}
+                          alt={item.title}
+                          className="source-products-thumb"
+                          placeholderClassName="thumb-mini photo-placeholder source-products-thumb source-products-thumb--empty"
+                          placeholderText="Нет фото"
+                        />
                       ) : (
                         <span className="thumb-mini photo-placeholder source-products-thumb source-products-thumb--empty">Нет фото</span>
                       )}

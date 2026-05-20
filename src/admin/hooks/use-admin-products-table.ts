@@ -9,7 +9,8 @@ type ProductsTablePayload = {
   items: AdminProductsTableItem[];
   total: number;
   overall_total?: number;
-  next_cursor?: string | null;
+  next_offset?: number | null;
+  offset?: number;
   has_more?: boolean;
 };
 
@@ -27,6 +28,47 @@ type UseAdminProductsTableParams = {
   pushToast: (message: string) => void;
 };
 
+function getStatusRank(rawStatus: string | null | undefined): number {
+  const value = String(rawStatus || "").trim().toLowerCase();
+  if (value === "available") {
+    return 0;
+  }
+  if (value === "hidden") {
+    return 1;
+  }
+  if (value === "out_of_stock") {
+    return 2;
+  }
+  if (value === "unavailable") {
+    return 3;
+  }
+  return 4;
+}
+
+function getVendorSortValue(item: AdminProductsTableItem): string {
+  return String(item.vendor_display || item.vendor_mapped || item.vendor || item.vendor_original || "")
+    .trim()
+    .toLocaleLowerCase("ru");
+}
+
+function sortProductsForAdminTable(items: AdminProductsTableItem[]): AdminProductsTableItem[] {
+  return [...items].sort((a, b) => {
+    const byVendor = getVendorSortValue(a).localeCompare(getVendorSortValue(b), "ru");
+    if (byVendor !== 0) {
+      return byVendor;
+    }
+    const byStatus = getStatusRank(a.status) - getStatusRank(b.status);
+    if (byStatus !== 0) {
+      return byStatus;
+    }
+    const byTitle = String(a.title || "").localeCompare(String(b.title || ""), "ru");
+    if (byTitle !== 0) {
+      return byTitle;
+    }
+    return Number(a.id || 0) - Number(b.id || 0);
+  });
+}
+
 export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const { tab, latestJobStatus, query, pushToast } = params;
   const debouncedQuery = useDebouncedValue(query, 220);
@@ -36,7 +78,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [tableTotal, setTableTotal] = useState<number>(0);
   const [tableOverallTotal, setTableOverallTotal] = useState<number>(0);
   const [tableHasMore, setTableHasMore] = useState<boolean>(false);
-  const [tableCursor, setTableCursor] = useState<string | null>(null);
+  const [tableOffset, setTableOffset] = useState<number>(0);
   const [tableLoading, setTableLoading] = useState<boolean>(false);
   const [tableLoadingMore, setTableLoadingMore] = useState<boolean>(false);
   const [productVendors, setProductVendors] = useState<AdminFilterFacetOption[]>([]);
@@ -44,12 +86,13 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const requestSeqRef = useRef(0);
 
   const loadMoreTableProducts = useCallback(async () => {
-    if (!tableHasMore || tableLoadingMore || !tableCursor) {
+    if (!tableHasMore || tableLoadingMore) {
       return;
     }
     try {
       setTableLoadingMore(true);
-      const queryParams = buildProductsApiQuery(debouncedQuery, { includeLimit: true, limit: PAGE_SIZE, cursor: tableCursor });
+      const queryParams = buildProductsApiQuery(debouncedQuery, { includeLimit: true, limit: PAGE_SIZE });
+      queryParams.set("offset", String(tableOffset));
       const response = await authFetch(`${API_BASE}/admin/products/table?${queryParams.toString()}`);
       if (!response.ok) {
         throw new Error(`Products table API error: ${response.status}`);
@@ -59,18 +102,19 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       setTableProducts((previous) => {
         const known = new Set(previous.map((item) => item.id));
         const toAdd = nextItems.filter((item) => !known.has(item.id));
-        return [...previous, ...toAdd];
+        return sortProductsForAdminTable([...previous, ...toAdd]);
       });
       setTableTotal(payload.total || 0);
       setTableOverallTotal(payload.overall_total || 0);
-      setTableCursor(payload.next_cursor || null);
-      setTableHasMore(Boolean(payload.has_more && payload.next_cursor));
+      const nextOffset = Number(payload.next_offset ?? tableOffset + nextItems.length);
+      setTableOffset(Number.isFinite(nextOffset) ? nextOffset : tableOffset + nextItems.length);
+      setTableHasMore(Boolean(payload.has_more));
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Ошибка догрузки");
     } finally {
       setTableLoadingMore(false);
     }
-  }, [tableHasMore, tableLoadingMore, tableCursor, debouncedQuery, pushToast]);
+  }, [tableHasMore, tableLoadingMore, tableOffset, debouncedQuery, pushToast]);
 
   const reloadTableData = useCallback(async (signal?: AbortSignal) => {
     const requestSeq = ++requestSeqRef.current;
@@ -97,11 +141,13 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
         return;
       }
 
-      setTableProducts(payload.items || []);
+      setTableProducts(sortProductsForAdminTable(payload.items || []));
       setTableTotal(payload.total || facetsPayload.total || 0);
       setTableOverallTotal(payload.overall_total || facetsPayload.overall_total || 0);
-      setTableCursor(payload.next_cursor || null);
-      setTableHasMore(Boolean(payload.has_more && payload.next_cursor));
+      const loadedCount = (payload.items || []).length;
+      const nextOffset = Number(payload.next_offset ?? loadedCount);
+      setTableOffset(Number.isFinite(nextOffset) ? nextOffset : loadedCount);
+      setTableHasMore(Boolean(payload.has_more));
       setProductVendors(facetsPayload.vendors || []);
       setProductTypes(facetsPayload.local_categories || []);
     } finally {

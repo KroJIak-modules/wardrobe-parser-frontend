@@ -2311,6 +2311,13 @@ button {
 .products-filters {
   position: sticky;
   top: 70px;
+  z-index: 60;
+  overflow: visible;
+}
+
+.products-filters select {
+  position: relative;
+  z-index: 61;
 }
 
 .categories-layout {
@@ -3788,6 +3795,16 @@ textarea {
 .source-currency-priority__lock-hint {
   font-size: 12px;
   color: #59657a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.source-currency-chip--locked {
+  background: #eef2fb;
+  border-color: #c9d6ef;
+  color: #1e2d45;
 }
 
 .source-products-modal {
@@ -4022,6 +4039,10 @@ textarea {
   width: fit-content;
 }
 
+.ui-switch:has(input:disabled) {
+  cursor: not-allowed;
+}
+
 .ui-switch input {
   position: absolute;
   opacity: 0;
@@ -4047,6 +4068,11 @@ textarea {
   background: #d2dbea;
 }
 
+.ui-switch:hover input:disabled + .ui-switch-track {
+  border-color: #c7cfde;
+  background: #dbe2f0;
+}
+
 .ui-switch-thumb {
   width: 16px;
   height: 16px;
@@ -4067,6 +4093,11 @@ textarea {
   border-color: #4a914a;
 }
 
+.ui-switch:hover input:checked:disabled + .ui-switch-track {
+  background: #66b15f;
+  border-color: #4e9850;
+}
+
 .ui-switch input:checked + .ui-switch-track .ui-switch-thumb {
   transform: translateX(18px);
 }
@@ -4074,6 +4105,10 @@ textarea {
 .ui-switch-text {
   font-size: 13px;
   color: #505a68;
+}
+
+.ui-switch input:disabled ~ .ui-switch-text {
+  opacity: 0.65;
 }
 
 .ui-switch--compact .ui-switch-text {
@@ -4384,7 +4419,7 @@ button:disabled {
 
 .product-create__editor-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.8fr);
   gap: 12px;
   align-items: stretch;
 }
@@ -4415,6 +4450,9 @@ button:disabled {
 }
 
 .product-create__favorite {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   position: relative;
   width: fit-content;
 }

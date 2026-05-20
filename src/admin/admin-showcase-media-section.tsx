@@ -90,7 +90,7 @@ export function AdminShowcaseMediaSection({
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => void onReorderCarouselImage(item.id)}
             >
-              <img src={toShowcaseImageUrl(item.id)} alt="Слайд карусели" loading="lazy" />
+              <img src={toShowcaseImageUrl(item.id)} alt="Слайд карусели" loading="lazy" decoding="async" />
               <button type="button" className="showcase-remove-btn" onClick={() => void onRemoveCarouselImage(item.id)}>
                 <IconClose className="icon-svg icon-svg--sm" />
               </button>

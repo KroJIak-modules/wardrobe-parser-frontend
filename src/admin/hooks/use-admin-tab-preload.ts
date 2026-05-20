@@ -87,6 +87,10 @@ export function useAdminTabPreload({
       }
       if (tab === "sources") {
         await refreshSourcesOnlyRef.current();
+        return;
+      }
+      if (tab === "products") {
+        await refreshSourcesOnlyRef.current();
       }
     };
     void run();

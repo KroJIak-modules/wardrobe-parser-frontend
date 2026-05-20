@@ -128,7 +128,7 @@ export function AdminOverlays({
       {zoomedImageUrl ? (
         <div className="modal-backdrop" onClick={() => setZoomedImageUrl(null)}>
           <div className="zoom-modal" onClick={(event) => event.stopPropagation()}>
-            <img src={zoomedImageUrl} alt="preview" className="zoom-image" />
+            <img src={zoomedImageUrl} alt="preview" className="zoom-image" loading="eager" decoding="async" />
           </div>
         </div>
       ) : null}

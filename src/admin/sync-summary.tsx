@@ -48,6 +48,11 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
   const currentSourceProcessed = Number(latestJob.current_source_processed_products ?? 0);
   const successCount = Math.max(processedProducts, currentSourceProcessed, 0);
   const failCount = Number(latestJob.failed_products ?? 0);
+  const failedStageText = String(latestJob.current_stage || "").trim();
+  const failedStatusText =
+    String(latestJob.status || "").trim().toLowerCase() === "failed" && failedStageText.toLowerCase().startsWith("ошибки на источниках:")
+      ? failedStageText
+      : formatSyncStatusRu(latestJob.status);
 
   const formatElapsedRu = (iso: string | null | undefined): string => {
     if (!iso) {
@@ -94,7 +99,7 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
         </>
       ) : (
         <div className="sync-last-run">
-          Статус последнего запуска: {formatSyncStatusRu(latestJob.status)}. Дата: {formatDateTime(lastAtRaw)}
+          Статус последнего запуска: {failedStatusText}. Дата: {formatDateTime(lastAtRaw)}
           {formatElapsedRu(lastAtRaw) ? `, ${formatElapsedRu(lastAtRaw)} назад` : ""}
         </div>
       )}

@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { EmptyState } from "../shared/empty-state";
+import { ImageWithFallback } from "../shared/image-with-fallback";
+import { optimizeImageUrl } from "../shared/product-image";
 import { SkeletonBlock } from "../shared/skeleton";
 import { IconClose, IconExternalLink, IconEye, IconEyeOff, IconPencil, IconPlus, IconStar } from "../shared/mono-icons";
 import type { ServiceProduct } from "../shared/live-data-types";
@@ -92,11 +94,20 @@ function formatRub(value: number | null | undefined): string {
 }
 
 function resolveProductRubPrice(product: ServiceProduct): number | null {
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+  let variantCurrency = "";
+  for (const variant of variants) {
+    const raw = String((variant as { currency?: unknown }).currency || "").toUpperCase();
+    if (raw.length === 3) {
+      variantCurrency = raw;
+      break;
+    }
+  }
   if (product.final_price !== null && product.final_price !== undefined && Number.isFinite(Number(product.final_price))) {
     return Number(product.final_price);
   }
   if (product.price !== null && product.price !== undefined && Number.isFinite(Number(product.price))) {
-    const currency = String(product.currency || "").toUpperCase();
+    const currency = variantCurrency || "USD";
     if (currency === "RUB") return Number(product.price);
     if (currency === "USD") return Number(product.price) * 92;
     if (currency === "EUR") return Number(product.price) * 103;
@@ -107,26 +118,14 @@ function resolveProductRubPrice(product: ServiceProduct): number | null {
 }
 
 function ProductThumb({ src, alt }: { src: string; alt: string }) {
-  const [loaded, setLoaded] = useState<boolean>(false);
-  const [failed, setFailed] = useState<boolean>(false);
-
-  if (failed) {
-    return (
-      <div className="manual-product-media product-create__thumb-fallback">
-        <span className="photo-placeholder">Нет фото</span>
-      </div>
-    );
-  }
-
   return (
     <div className="manual-product-media product-create__thumb">
-      {!loaded ? <SkeletonBlock className="product-create__thumb-skeleton" /> : null}
-      <img
-        src={src}
+      <ImageWithFallback
+        src={optimizeImageUrl(src, { width: 220, height: 220, quality: 55 })}
         alt={alt}
-        style={{ display: loaded ? "block" : "none" }}
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
+        className="product-create__thumb-image"
+        placeholderClassName="manual-product-media product-create__thumb-fallback"
+        placeholderText="Нет фото"
       />
     </div>
   );
@@ -179,7 +178,16 @@ export function AdminProductCreateModal({
   const [showValidation, setShowValidation] = useState<boolean>(false);
   const originalPrice = useMemo(() => {
     if (!lookup.product) return "—";
-    return formatPrice(lookup.product.price, lookup.product.currency);
+    const variants = Array.isArray(lookup.product.variants) ? lookup.product.variants : [];
+    let currency = "";
+    for (const variant of variants) {
+      const raw = String((variant as { currency?: unknown }).currency || "").toUpperCase();
+      if (raw.length === 3) {
+        currency = raw;
+        break;
+      }
+    }
+    return formatPrice(lookup.product.price, currency || "USD");
   }, [lookup.product]);
 
   const rubPrice = useMemo(() => {
@@ -404,15 +412,6 @@ export function AdminProductCreateModal({
               </div>
 
               <div className="product-create__favorite">
-                <button
-                  type="button"
-                  className={draft.favorite ? "icon-btn icon-btn--active" : "icon-btn"}
-                  title="Выбрать избранные категории"
-                  onClick={() => setFavoritePickerOpen((prev) => !prev)}
-                  disabled={isHydrating || isCreating}
-                >
-                  <IconStar className="icon-svg" />
-                </button>
                 <label className="ui-switch ui-switch--compact product-create__bind-sync">
                   <input
                     type="checkbox"
@@ -423,6 +422,15 @@ export function AdminProductCreateModal({
                   <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
                   <span className="ui-switch-text">Привязать синхронизацию</span>
                 </label>
+                <button
+                  type="button"
+                  className={draft.favorite ? "icon-btn icon-btn--active" : "icon-btn"}
+                  title="Выбрать избранные категории"
+                  onClick={() => setFavoritePickerOpen((prev) => !prev)}
+                  disabled={isHydrating || isCreating}
+                >
+                  <IconStar className="icon-svg" />
+                </button>
                 {favoritePickerOpen ? (
                   <div className="star-picker" role="dialog" aria-label="Выбор избранных категорий">
                     <div className="star-picker-head">
@@ -476,7 +484,13 @@ export function AdminProductCreateModal({
                   aria-label="Открыть фото"
                   onClick={() => onZoomImage(image.url)}
                 >
-                  <img src={image.url} alt="product" />
+                  <ImageWithFallback
+                    src={optimizeImageUrl(image.url, { width: 240, height: 240, quality: 55 })}
+                    alt="product"
+                    className="product-create__image-preview"
+                    placeholderClassName="manual-product-media product-create__thumb-fallback"
+                    placeholderText="Нет фото"
+                  />
                 </button>
                 <button
                   type="button"

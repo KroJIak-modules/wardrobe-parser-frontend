@@ -38,7 +38,7 @@ export function AdminProductsFilters(props: Props) {
       <h3>Фильтры</h3>
       <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Поиск" />
       <select value={productSourceFilter} onChange={(event) => setProductSourceFilter(event.target.value)}>
-        <option value="">Все сайты</option>
+        <option value="">Все источники</option>
         {sourceSelectOptions
           .filter((source) => source.source_id !== null)
           .map((source) => (

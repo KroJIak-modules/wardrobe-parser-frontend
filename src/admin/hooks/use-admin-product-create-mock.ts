@@ -50,13 +50,13 @@ type Params = {
   products: ServiceProduct[];
   onToast: (message: string, type?: "success" | "error") => void;
   previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
+  probeProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   createManualProduct: (payload: {
     title: string;
     description?: string | null;
     vendor?: string | null;
-    currency: string;
     product_type: string | null;
-    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
     weight_grams?: number | null;
     status?: ProductCreateStatus;
@@ -68,9 +68,8 @@ type Params = {
     title: string;
     description?: string | null;
     vendor?: string | null;
-    currency: string;
     product_type: string | null;
-    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
     weight_grams?: number | null;
     status?: ProductCreateStatus;
@@ -168,13 +167,21 @@ function makeMockImages(seed: string, amount = 4): ProductCreateImage[] {
   }));
 }
 
+function productCurrencyFromVariants(product: ServiceProduct): ProductCreateVariant["currency"] {
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+  for (const variant of variants) {
+    const raw = String((variant as { currency?: unknown }).currency || "").toUpperCase();
+    if (raw === "EUR" || raw === "GBP" || raw === "JPY") return raw;
+    if (raw === "USD") return "USD";
+  }
+  return "USD";
+}
+
 function productToDraft(product: ServiceProduct): Omit<ProductCreateDraft, "sourceUrl"> {
-  const rawCurrency = String(product.currency || "").toUpperCase();
-  const currency: ProductCreateVariant["currency"] =
-    rawCurrency === "EUR" || rawCurrency === "GBP" || rawCurrency === "JPY" ? rawCurrency : "USD";
+  const currency = productCurrencyFromVariants(product);
   const mappedVariants: ProductCreateVariant[] = Array.isArray(product.variants) && product.variants.length > 0
     ? product.variants.map((variant, idx) => {
-        const vCurrencyRaw = String((variant as { currency?: unknown }).currency || rawCurrency || "USD").toUpperCase();
+        const vCurrencyRaw = String((variant as { currency?: unknown }).currency || currency || "USD").toUpperCase();
         const vCurrency: ProductCreateVariant["currency"] =
           vCurrencyRaw === "EUR" || vCurrencyRaw === "GBP" || vCurrencyRaw === "JPY" ? vCurrencyRaw : "USD";
         return {
@@ -223,6 +230,7 @@ export function useAdminProductCreateMock({
   products,
   onToast,
   previewProductByUrl,
+  probeProductByUrl,
   createManualProduct,
   updateManualProduct,
   uploadProductImage,
@@ -256,6 +264,7 @@ export function useAdminProductCreateMock({
   const [boundFromSourceLookup, setBoundFromSourceLookup] = useState<boolean>(false);
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const lookupTimerRef = useRef<number | null>(null);
+  const lastLookupKeyRef = useRef<string>("");
 
   const allowedDomains = useMemo<AllowedSourceDomain[]>(() => {
     const map = new Map<string, AllowedSourceDomain>();
@@ -315,9 +324,17 @@ export function useAdminProductCreateMock({
     if (!canRunLookup) {
       setLookup({ state: draft.sourceUrl.trim() ? "idle" : "idle", product: null, error: null });
       setBoundFromSourceLookup(false);
+      lastLookupKeyRef.current = "";
+      return;
+    }
+    if (
+      lastLookupKeyRef.current === sourceLookupKey
+      && (lookup.state === "not_found" || lookup.state === "found")
+    ) {
       return;
     }
     if (lookup.state === "found" && lookup.product && normalizeUrlLoose(lookup.product.url) === sourceLookupKey) {
+      lastLookupKeyRef.current = sourceLookupKey;
       return;
     }
 
@@ -336,11 +353,13 @@ export function useAdminProductCreateMock({
           }) ||
           null;
         if (localFound) {
+          lastLookupKeyRef.current = sourceLookupKey;
           setLookup({ state: "found", product: localFound, error: null });
           return;
         }
         const remote = await previewProductByUrl(sourceLookupKey);
         if (!remote.ok || !remote.preview) {
+          lastLookupKeyRef.current = sourceLookupKey;
           setLookup({ state: "not_found", product: null, error: null });
           return;
         }
@@ -365,6 +384,7 @@ export function useAdminProductCreateMock({
           created_at: "",
           updated_at: "",
         };
+        lastLookupKeyRef.current = sourceLookupKey;
         setLookup({ state: "found", product: synthetic, error: null });
       })();
     }, 720);
@@ -398,7 +418,7 @@ export function useAdminProductCreateMock({
     if (!canRunLookup || isHydrating) return;
     setIsHydrating(true);
     try {
-      const result = await previewProductByUrl(sourceLookupKey);
+      const result = await probeProductByUrl(sourceLookupKey);
       if (!result.ok || !result.preview) {
         onToast(`Не удалось выгрузить товар: ${result.message}`, "error");
         return;
@@ -451,11 +471,18 @@ export function useAdminProductCreateMock({
         variants: previewVariants.map((item) => ({ ...item })),
       });
       setBoundFromSourceLookup(true);
-      onToast("Данные товара выгружены из ссылки", "success");
+      const basePrice = Number(preview.price);
+      const buyerTotal = Number(preview.buyer_total_price);
+      if (Number.isFinite(basePrice) && Number.isFinite(buyerTotal) && buyerTotal > basePrice) {
+        const fee = buyerTotal - basePrice;
+        onToast(`Данные товара выгружены из ссылки. Надбавка покупателя: +${fee.toFixed(2)}`, "success");
+      } else {
+        onToast("Данные товара выгружены из ссылки", "success");
+      }
     } finally {
       setIsHydrating(false);
     }
-  }, [canRunLookup, isHydrating, previewProductByUrl, sourceLookupKey, onToast]);
+  }, [canRunLookup, isHydrating, probeProductByUrl, sourceLookupKey, onToast]);
 
   const hydrateFromExistingProduct = useCallback(async () => {
     if (!hasFoundProduct || !lookup.product || isHydrating) return;
@@ -606,11 +633,11 @@ export function useAdminProductCreateMock({
         title,
         description: String(draft.description || "").trim() || null,
         vendor: String(draft.brand || "").trim() || null,
-        currency: normalizedVariants[0].currency,
         product_type: null,
         variants: normalizedVariants.map((variant) => ({
           title: variant.title,
           price: variant.price,
+          currency: variant.currency,
           available: variant.available,
         })),
         manual_image_asset_ids: manualImageAssetIds,

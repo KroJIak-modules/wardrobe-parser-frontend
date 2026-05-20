@@ -24,6 +24,17 @@ export function useLiveDataProductActions(params: {
     }
   }, []);
 
+  const probeProductByUrl = useCallback(async (url: string) => {
+    try {
+      const payload = await apiJson<ProductUrlPreview>(`${API_BASE}/products/probe-by-url`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+      });
+      return { ...okResult("Данные товара получены из источника", payload), preview: payload };
+    } catch (e) {
+      return { ...errResult(e instanceof Error ? e.message : "Unknown error", null), preview: null };
+    }
+  }, []);
+
   const addProductByUrl = useCallback(async (url: string, payload?: {
     title?: string; vendor?: string | null; product_type?: string | null; price?: number | null; currency?: string; image_count?: number;
   }) => {
@@ -44,9 +55,8 @@ export function useLiveDataProductActions(params: {
     title: string;
     description?: string | null;
     vendor?: string | null;
-    currency: string;
     product_type: string | null;
-    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
     weight_grams?: number | null;
     status?: "available" | "out_of_stock" | "hidden";
@@ -71,9 +81,8 @@ export function useLiveDataProductActions(params: {
     title: string;
     description?: string | null;
     vendor?: string | null;
-    currency: string;
     product_type: string | null;
-    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
     weight_grams?: number | null;
     status?: "available" | "out_of_stock" | "hidden";
@@ -207,6 +216,7 @@ export function useLiveDataProductActions(params: {
 
   return {
     previewProductByUrl,
+    probeProductByUrl,
     addProductByUrl,
     createManualProduct,
     updateManualProduct,

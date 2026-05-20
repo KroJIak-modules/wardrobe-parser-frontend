@@ -1,5 +1,7 @@
 import { useMemo, useRef } from "react";
+import { ImageWithFallback } from "../shared/image-with-fallback";
 import { IconClose, IconPlus, IconStar } from "../shared/mono-icons";
+import { optimizeImageUrl } from "../shared/product-image";
 
 export type ManualEditVariant = {
   id: string;
@@ -111,6 +113,13 @@ export function AdminManualProductEditModal({
               </div>
 
               <div className="product-create__favorite">
+                {showBindSync ? (
+                  <label className="ui-switch ui-switch--compact product-create__bind-sync">
+                    <input type="checkbox" checked={Boolean(draft.bindSync)} disabled={saving} onChange={(event) => onSetField("bindSync", event.target.checked)} />
+                    <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
+                    <span className="ui-switch-text">Привязать синхронизацию</span>
+                  </label>
+                ) : null}
                 <button
                   type="button"
                   className={draft.favorite ? "icon-btn icon-btn--active" : "icon-btn"}
@@ -124,13 +133,6 @@ export function AdminManualProductEditModal({
                 >
                   <IconStar className="icon-svg" />
                 </button>
-                {showBindSync ? (
-                  <label className="ui-switch ui-switch--compact product-create__bind-sync">
-                    <input type="checkbox" checked={Boolean(draft.bindSync)} disabled={saving} onChange={(event) => onSetField("bindSync", event.target.checked)} />
-                    <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
-                    <span className="ui-switch-text">Привязать синхронизацию</span>
-                  </label>
-                ) : null}
               </div>
 
               {knownBrandOptions.length > 0 ? (
@@ -179,7 +181,13 @@ export function AdminManualProductEditModal({
             {draft.images.map((image) => (
               <div key={image.id} className="product-create__image-tile">
                 <button type="button" className="product-create__image-open" aria-label="Открыть фото" onClick={() => onZoomImage(image.url)}>
-                  <img src={image.url} alt="product" />
+                  <ImageWithFallback
+                    src={optimizeImageUrl(image.url, { width: 240, height: 240, quality: 55 })}
+                    alt="product"
+                    className="product-create__image-preview"
+                    placeholderClassName="manual-product-media product-create__thumb-fallback"
+                    placeholderText="Нет фото"
+                  />
                 </button>
                 <button type="button" className="product-create__image-remove" aria-label="Удалить фото" onClick={() => onRemoveImage(image.id)} disabled={saving || draft.bindSync}>
                   <IconClose className="icon-svg" />

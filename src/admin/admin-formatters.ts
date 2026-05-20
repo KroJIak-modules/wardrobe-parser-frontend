@@ -1,4 +1,5 @@
 import { renderToString } from "katex";
+import { optimizeImageUrl } from "../shared/product-image";
 import { dedupActionLabelMap, dedupReasonLabelMap, legendKeyToLatex } from "./admin-constants";
 import type { CurrencyCode, FinalRoundingMode, SupplierCategory, SvcRuleDraft, SvcRulePayload, TriCurrencyAmountKey, TriCurrencyDraft } from "./admin-types";
 
@@ -80,11 +81,7 @@ const formatDisplayMoney = (value: number | null, currency?: string): string => 
 };
 
 const toCompressedThumbUrl = (url: string | null | undefined, width = 240, height = 240, quality = 55): string | null => {
-  const raw = String(url || "").trim();
-  if (!raw) {
-    return null;
-  }
-  return raw;
+  return optimizeImageUrl(url, { width, height, quality });
 };
 
 const toTitleCaseRu = (value: string): string => {

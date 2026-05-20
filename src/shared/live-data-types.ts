@@ -16,6 +16,8 @@ export type Source = {
   notes: string | null;
   status_label: string | null;
   products_count: number;
+  manual_products_count?: number;
+  bound_sync_products_count?: number;
   categories_count: number;
   last_sync_at?: string | null;
   last_sync_duration_sec?: number | null;
@@ -253,6 +255,8 @@ export type ProductUrlPreview = {
   product_url: string;
   price: number | null;
   currency: string;
+  buyer_total_price?: number | null;
+  buyer_service_fee?: number | null;
   image_urls: string[];
   variants?: ProductVariant[];
 };
@@ -476,6 +480,7 @@ export type LiveDataContextValue = {
   runSyncForSource: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
   cancelSync: (jobId: string) => Promise<{ ok: boolean; message: string }>;
   previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
+  probeProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   addProductByUrl: (
     url: string,
     payload?: {
@@ -491,9 +496,8 @@ export type LiveDataContextValue = {
     title: string;
     description?: string | null;
     vendor?: string | null;
-    currency: string;
     product_type: string | null;
-    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
     weight_grams?: number | null;
     status?: "available" | "out_of_stock" | "hidden";
@@ -505,9 +509,8 @@ export type LiveDataContextValue = {
     title: string;
     description?: string | null;
     vendor?: string | null;
-    currency: string;
     product_type: string | null;
-    variants: Array<{ title: string; price: number | null; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
     weight_grams?: number | null;
     status?: "available" | "out_of_stock" | "hidden";

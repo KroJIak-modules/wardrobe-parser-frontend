@@ -57,6 +57,7 @@ export function AdminProductsTable({
             const source = sourceById.get(product.source_id);
             const sourceLabel = String(product.source_name || "").trim() || source?.name || `#${product.source_id}`;
             const adminProductHref = `/product/${product.id}?from=admin`;
+            const isUnavailable = String(product.status || "").trim().toLowerCase() === "unavailable";
             const hasExternalProductUrl = Boolean(product.url && !String(product.url).startsWith("manual://"));
             return (
               <tr key={product.id}>
@@ -73,9 +74,13 @@ export function AdminProductsTable({
                   </Link>
                 </td>
                 <td>
-                  <Link className="btn-link" to={adminProductHref}>
-                    {product.title}
-                  </Link>
+                  {isUnavailable ? (
+                    <span>{product.title}</span>
+                  ) : (
+                    <Link className="btn-link" to={adminProductHref}>
+                      {product.title}
+                    </Link>
+                  )}
                 </td>
                 <td>
                   {hasExternalProductUrl ? (

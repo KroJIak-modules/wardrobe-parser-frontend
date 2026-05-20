@@ -35,35 +35,6 @@ function ImageWithFallbackBase({
     setFailed(false);
   }, [normalizedSrc]);
 
-  useEffect(() => {
-    if (!normalizedSrc) {
-      return;
-    }
-    let active = true;
-    const probe = new Image();
-    probe.decoding = "async";
-    probe.onload = () => {
-      if (!active) return;
-      setLoaded(true);
-      setFailed(false);
-    };
-    probe.onerror = () => {
-      if (!active) return;
-      setLoaded(true);
-      setFailed(true);
-    };
-    probe.src = normalizedSrc;
-    if (probe.complete) {
-      setLoaded(true);
-      setFailed(false);
-    }
-    return () => {
-      active = false;
-      probe.onload = null;
-      probe.onerror = null;
-    };
-  }, [normalizedSrc]);
-
   const loadingLabel = loadingText ?? placeholderText;
   const fallbackLabel = fallbackText ?? placeholderText;
   const resolvedFetchPriority = fetchPriority === "auto" && loading === "lazy" ? "low" : fetchPriority;

@@ -185,6 +185,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
   const {
     previewProductByUrl,
+    probeProductByUrl,
     addProductByUrl,
     createManualProduct,
     updateManualProduct,
@@ -522,6 +523,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       runSyncForSource,
       cancelSync,
       previewProductByUrl,
+      probeProductByUrl,
       addProductByUrl,
       createManualProduct,
       updateManualProduct,
@@ -607,6 +609,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       runSyncForSource,
       cancelSync,
       previewProductByUrl,
+      probeProductByUrl,
       addProductByUrl,
       createManualProduct,
       updateManualProduct,
