@@ -7,6 +7,7 @@ import { CatalogCardSkeletonGrid } from "../shared/skeleton";
 import { ToastStack } from "../shared/toast-stack";
 import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
+import { useShowcaseEditPermission } from "../shared/use-showcase-edit-permission";
 import { getProductPrimaryImageUrl } from "../shared/product-image";
 import {
   type CategoryView,
@@ -81,6 +82,7 @@ function fillSlugRootMap(node: CategoryView, rootSlug: string) {
 export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
   const { sources, loading, error, getProductStarredCategories, setProductStarredCategories, setProductStatus } = useLiveData();
   const navigate = useNavigate();
+  const canEditShowcase = useShowcaseEditPermission();
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestIdRef = useRef(0);
@@ -684,34 +686,38 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                         <IconExternalLink className="icon-svg" />
                       </button>
                     ) : null}
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title={normalizedStatus === "hidden" ? "Показать товар" : "Скрыть товар"}
-                      disabled={pendingStatusIds.has(product.id)}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void onToggleHidden(product, normalizedStatus);
-                      }}
-                    >
-                      {normalizedStatus === "hidden" ? <IconEyeOff className="icon-svg" /> : <IconEye className="icon-svg" />}
-                    </button>
-                    <button
-                      type="button"
-                      className={product.is_favorite ? "icon-btn icon-btn--active" : "icon-btn"}
-                      title="Выбрать избранные категории"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (starPicker && starPicker.productId === product.id) {
-                          setStarPicker(null);
-                        } else {
-                          void onOpenStarPicker(product.id);
-                        }
-                      }}
-                    >
-                      <IconStar className="icon-svg" />
-                    </button>
-                    {starPicker && starPicker.productId === product.id ? (
+                    {canEditShowcase ? (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        title={normalizedStatus === "hidden" ? "Показать товар" : "Скрыть товар"}
+                        disabled={pendingStatusIds.has(product.id)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void onToggleHidden(product, normalizedStatus);
+                        }}
+                      >
+                        {normalizedStatus === "hidden" ? <IconEyeOff className="icon-svg" /> : <IconEye className="icon-svg" />}
+                      </button>
+                    ) : null}
+                    {canEditShowcase ? (
+                      <button
+                        type="button"
+                        className={product.is_favorite ? "icon-btn icon-btn--active" : "icon-btn"}
+                        title="Выбрать избранные категории"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (starPicker && starPicker.productId === product.id) {
+                            setStarPicker(null);
+                          } else {
+                            void onOpenStarPicker(product.id);
+                          }
+                        }}
+                      >
+                        <IconStar className="icon-svg" />
+                      </button>
+                    ) : null}
+                    {canEditShowcase && starPicker && starPicker.productId === product.id ? (
                       <div
                         className="star-picker"
                         onClick={(event) => event.stopPropagation()}

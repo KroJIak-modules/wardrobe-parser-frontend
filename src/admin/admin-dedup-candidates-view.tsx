@@ -8,6 +8,8 @@ import { AdminDedupProductCard } from "./admin-dedup-product-card";
 type Props = {
   dedupCandidates: DedupCandidate[];
   loadingDedupCandidates: boolean;
+  dedupCandidatesHasMore: boolean;
+  loadingMoreDedupCandidates: boolean;
   dedupBusyPairKeys: Set<string>;
   dedupChoosingPairKey: string | null;
   setDedupChoosingPairKey: (key: string | null | ((prev: string | null) => string | null)) => void;
@@ -15,11 +17,14 @@ type Props = {
   onCombinePair: (pairKey: string, leftId: number, rightId: number) => Promise<void>;
   onMergePair: (pairKey: string, primaryId: number, duplicateId: number) => Promise<void>;
   onRejectPair: (pairKey: string, leftId: number, rightId: number) => Promise<void>;
+  onLoadMore: () => Promise<void>;
 };
 
 export function AdminDedupCandidatesView({
   dedupCandidates,
   loadingDedupCandidates,
+  dedupCandidatesHasMore,
+  loadingMoreDedupCandidates,
   dedupBusyPairKeys,
   dedupChoosingPairKey,
   setDedupChoosingPairKey,
@@ -27,6 +32,7 @@ export function AdminDedupCandidatesView({
   onCombinePair,
   onMergePair,
   onRejectPair,
+  onLoadMore,
 }: Props) {
   return (
     <>
@@ -115,6 +121,13 @@ export function AdminDedupCandidatesView({
           </div>
         ))}
         {loadingDedupCandidates ? <AdminDedupSkeleton rows={1} /> : null}
+        {!loadingDedupCandidates && dedupCandidatesHasMore ? (
+          <div className="actions">
+            <button type="button" disabled={loadingMoreDedupCandidates} onClick={() => void onLoadMore()}>
+              {loadingMoreDedupCandidates ? "Загрузка..." : "Загрузить еще"}
+            </button>
+          </div>
+        ) : null}
         {!loadingDedupCandidates && dedupCandidates.length === 0 ? <EmptyState compact title="Дубликатов пока нет" /> : null}
       </div>
     </>

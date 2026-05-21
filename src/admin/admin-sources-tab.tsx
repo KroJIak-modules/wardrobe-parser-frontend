@@ -49,16 +49,19 @@ type SourceProductsTablePayload = {
 type Props = {
   sources: SourceItem[];
   loading: boolean;
-  toggleSourceEnabled: (key: string, enabled: boolean) => Promise<{ message: string }>;
-  toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ message: string }>;
-  toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ message: string }>;
-  updateSourceAttributeVisibility: (key: string, payload: { show_description?: boolean; show_images?: boolean }) => Promise<{ message: string }>;
+  toggleSourceEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  updateSourceAttributeVisibility: (key: string, payload: { show_description?: boolean; show_images?: boolean }) => Promise<{ ok: boolean; message: string }>;
   updateSourceCurrencyPriority: (
     key: string,
     currencyPriority: string[],
     options?: { currencyMethod?: "priority_list" | "locked_param_currency" | "locked_no_currency"; lockedCurrency?: string }
-  ) => Promise<{ message: string }>;
+  ) => Promise<{ ok: boolean; message: string }>;
   autoSyncPeriodMinutes: number;
+  autoSyncNextRunAt: string | null;
+  autoSyncLastStatus: string | null;
+  autoSyncLastError: string | null;
   updateAdminUiSettings: (payload: { auto_sync_period_minutes?: number }) => Promise<{ ok: boolean; message: string }>;
   latestJob: {
     job_id?: string;
@@ -80,6 +83,11 @@ type SourceProduct = {
   imageUrl: string | null;
   sourcePrice: string;
   finalPrice: string;
+};
+
+type AuthMePayload = {
+  is_superuser?: boolean;
+  permissions?: string[];
 };
 
 function formatMoney(value: number | null | undefined, currency: string | null | undefined): string {
@@ -104,6 +112,9 @@ export function AdminSourcesTab({
   toggleSourceAutoHideProducts,
   updateSourceAttributeVisibility,
   autoSyncPeriodMinutes,
+  autoSyncNextRunAt,
+  autoSyncLastStatus,
+  autoSyncLastError,
   updateAdminUiSettings,
   latestJob,
   runSyncForSource,
@@ -116,6 +127,8 @@ export function AdminSourcesTab({
   const [sourceAttrVisibility, setSourceAttrVisibility] = useState<Record<string, { description: boolean; images: boolean }>>({});
   const [sourceCurrencyPriority, setSourceCurrencyPriority] = useState<Record<string, string[]>>({});
   const [autoSyncDraft, setAutoSyncDraft] = useState<string>(String(Math.max(60, Number(autoSyncPeriodMinutes || 60))));
+  const [autoSyncValidationError, setAutoSyncValidationError] = useState<string>("");
+  const [autoSyncNowMs, setAutoSyncNowMs] = useState<number>(() => Date.now());
 
   const [sourceProductsOpen, setSourceProductsOpen] = useState<boolean>(false);
   const [sourceProductsLoading, setSourceProductsLoading] = useState<boolean>(false);
@@ -147,10 +160,65 @@ export function AdminSourcesTab({
     images: ManualProductEditDraft["images"];
     variants: ManualProductEditDraft["variants"];
   } | null>(null);
+  const [canEditSources, setCanEditSources] = useState<boolean>(false);
+  const [canEditAutoSyncPeriod, setCanEditAutoSyncPeriod] = useState<boolean>(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await authFetch(`${API_BASE}/auth/me`);
+        if (!res.ok) {
+          setCanEditSources(false);
+          return;
+        }
+        const me = (await res.json()) as AuthMePayload;
+        if (me?.is_superuser) {
+          setCanEditSources(true);
+          setCanEditAutoSyncPeriod(true);
+          return;
+        }
+        const perms = Array.isArray(me?.permissions) ? me.permissions : [];
+        setCanEditSources(perms.includes("control.sources.edit"));
+        setCanEditAutoSyncPeriod(perms.includes("control.settings.edit"));
+      } catch {
+        setCanEditSources(false);
+        setCanEditAutoSyncPeriod(false);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     setAutoSyncDraft(String(Math.max(60, Number(autoSyncPeriodMinutes || 60))));
   }, [autoSyncPeriodMinutes]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setAutoSyncNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const nextRunAt = autoSyncNextRunAt ? new Date(autoSyncNextRunAt) : null;
+  const nextRunMs = nextRunAt && !Number.isNaN(nextRunAt.getTime()) ? nextRunAt.getTime() : null;
+  const secondsToNextRun = nextRunMs === null ? null : Math.max(0, Math.floor((nextRunMs - autoSyncNowMs) / 1000));
+  const formatCountdown = (totalSeconds: number | null): string => {
+    if (totalSeconds === null) return "—";
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) return `${hours}ч ${minutes}м ${seconds}с`;
+    if (minutes > 0) return `${minutes}м ${seconds}с`;
+    return `${seconds}с`;
+  };
+  const autoSyncStatusLabelMap: Record<string, string> = {
+    scheduled: "Запланировано",
+    started: "Запущено",
+    busy: "Ожидание: идет другая синхронизация",
+    error: "Ошибка",
+  };
+  const normalizedAutoSyncStatus = (() => {
+    const raw = String(autoSyncLastStatus || "").trim().toLowerCase();
+    return raw === "rescheduled" ? "scheduled" : raw;
+  })();
+  const autoSyncStatusLabel = autoSyncStatusLabelMap[normalizedAutoSyncStatus] || "—";
 
   useEffect(() => {
     setSourceAttrVisibility((prev) => {
@@ -388,37 +456,53 @@ export function AdminSourcesTab({
         <h3>Автоматическая синхронизация</h3>
         <label className="admin-settings-field">
           <span className="muted">Период автосинхронизации (минуты, минимум 60)</span>
+          <div className="admin-sync-period-presets" role="group" aria-label="Быстрый выбор периода">
+            {[60, 120, 180, 360, 720].map((value) => {
+              const selected = Number(autoSyncDraft) === value;
+              return (
+                <button
+                  key={`preset-${value}`}
+                  type="button"
+                  className={`btn ${selected ? "btn-primary" : "btn-outline"} btn-compact`}
+                  onClick={() => setAutoSyncDraft(String(value))}
+                >
+                  {value} мин
+                </button>
+              );
+            })}
+          </div>
           <div className="admin-settings-inline-row">
             <input
               type="number"
-              min={60}
               step={1}
               className="input"
               value={autoSyncDraft}
+              disabled={!canEditAutoSyncPeriod}
               onChange={(event) => {
-                const raw = event.target.value;
-                if (raw === "") {
-                  setAutoSyncDraft("60");
-                  return;
+                setAutoSyncDraft(event.target.value);
+                if (autoSyncValidationError) {
+                  setAutoSyncValidationError("");
                 }
-                const parsed = Math.trunc(Number(raw));
-                if (!Number.isFinite(parsed)) {
-                  return;
-                }
-                setAutoSyncDraft(String(Math.max(60, parsed)));
-              }}
-              onBlur={() => {
-                const parsed = Math.trunc(Number(autoSyncDraft || "60"));
-                setAutoSyncDraft(String(Number.isFinite(parsed) ? Math.max(60, parsed) : 60));
               }}
             />
             <button
               type="button"
               className="btn btn-outline"
+              disabled={!canEditAutoSyncPeriod}
               onClick={() => {
                 void (async () => {
-                  const raw = Math.trunc(Number(autoSyncDraft || "0"));
-                  const next = Number.isFinite(raw) ? Math.max(60, raw) : 60;
+                  if (!canEditAutoSyncPeriod) {
+                    pushToast("Недостаточно прав для изменения периода автосинхронизации");
+                    return;
+                  }
+                  const rawValue = String(autoSyncDraft || "").trim();
+                  const raw = Math.trunc(Number(rawValue));
+                  if (!rawValue || !Number.isFinite(raw) || raw < 60) {
+                    setAutoSyncValidationError("Минимум 60 минут");
+                    return;
+                  }
+                  const next = raw;
+                  setAutoSyncValidationError("");
                   setAutoSyncDraft(String(next));
                   const result = await updateAdminUiSettings({ auto_sync_period_minutes: next });
                   pushToast(result.message);
@@ -427,8 +511,25 @@ export function AdminSourcesTab({
             >
               Сохранить
             </button>
+            {autoSyncValidationError ? <span className="admin-sync-period-error">{autoSyncValidationError}</span> : null}
           </div>
         </label>
+        <div className="admin-sync-next-run">
+          <div className="admin-sync-next-run__item">
+            <span className="muted">Следующая синхронизация через</span>
+            <strong>{formatCountdown(secondsToNextRun)}</strong>
+          </div>
+          <div className="admin-sync-next-run__item">
+            <span className="muted">Статус</span>
+            <strong>{autoSyncStatusLabel}</strong>
+          </div>
+          {autoSyncLastError ? (
+            <div className="admin-sync-next-run__item admin-sync-next-run__item--error">
+              <span className="muted">Последняя ошибка</span>
+              <strong>{autoSyncLastError}</strong>
+            </div>
+          ) : null}
+        </div>
       </div>
       <h2>Источники ({sources.length})</h2>
       {loading ? (
@@ -532,7 +633,7 @@ export function AdminSourcesTab({
                       <button
                         type="button"
                         className="btn btn-outline"
-                        disabled={!latestJob?.job_id || !latestJob?.can_cancel}
+                        disabled={!latestJob?.job_id || !latestJob?.can_cancel || !canEditSources}
                         onClick={() => {
                           if (!latestJob?.job_id) return;
                           void (async () => {
@@ -547,7 +648,7 @@ export function AdminSourcesTab({
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={thisSourceDisabled}
+                        disabled={thisSourceDisabled || !canEditSources}
                         onClick={() => {
                           void (async () => {
                             const result = await runSyncForSource(source.key);
@@ -564,6 +665,7 @@ export function AdminSourcesTab({
                       <input
                         type="checkbox"
                         checked={source.enabled}
+                        disabled={!canEditSources}
                         onChange={(event) => {
                           void (async () => {
                             const result = await toggleSourceEnabled(source.key, event.target.checked);
@@ -576,26 +678,30 @@ export function AdminSourcesTab({
                       </span>
                       <span className="ui-switch-text">Источник включен</span>
                     </label>
-                    <label className="ui-switch ui-switch--compact source-card-switch">
-                      <input
-                        type="checkbox"
-                        checked={source.sync_enabled}
-                        onChange={(event) => {
-                          void (async () => {
-                            const result = await toggleSourceSyncEnabled(source.key, event.target.checked);
-                            pushToast(result.message);
-                          })();
-                        }}
-                      />
-                      <span className="ui-switch-track">
-                        <span className="ui-switch-thumb" />
-                      </span>
-                      <span className="ui-switch-text">Участие в синхронизации</span>
-                    </label>
+                    {isPersonal ? null : (
+                      <label className="ui-switch ui-switch--compact source-card-switch">
+                        <input
+                          type="checkbox"
+                          checked={source.sync_enabled}
+                          disabled={!canEditSources}
+                          onChange={(event) => {
+                            void (async () => {
+                              const result = await toggleSourceSyncEnabled(source.key, event.target.checked);
+                              pushToast(result.message);
+                            })();
+                          }}
+                        />
+                        <span className="ui-switch-track">
+                          <span className="ui-switch-thumb" />
+                        </span>
+                        <span className="ui-switch-text">Участие в синхронизации</span>
+                      </label>
+                    )}
                     <label className="ui-switch ui-switch--compact source-card-switch">
                       <input
                         type="checkbox"
                         checked={!Boolean(source.hide_auto_added_products)}
+                        disabled={!canEditSources}
                         onChange={(event) => {
                           void (async () => {
                             const result = await toggleSourceAutoHideProducts(source.key, !event.target.checked);
@@ -615,17 +721,20 @@ export function AdminSourcesTab({
                           <input
                             type="checkbox"
                             checked={sourceAttrVisibility[source.key]?.description ?? true}
+                            disabled={!canEditSources}
                             onChange={(event) => {
                               const checked = event.target.checked;
-                              setSourceAttrVisibility((prev) => ({
-                                ...prev,
-                                [source.key]: {
-                                  description: checked,
-                                  images: prev[source.key]?.images ?? true,
-                                },
-                              }));
                               void (async () => {
                                 const result = await updateSourceAttributeVisibility(source.key, { show_description: checked });
+                                if (result.ok) {
+                                  setSourceAttrVisibility((prev) => ({
+                                    ...prev,
+                                    [source.key]: {
+                                      description: checked,
+                                      images: prev[source.key]?.images ?? true,
+                                    },
+                                  }));
+                                }
                                 pushToast(result.message);
                               })();
                             }}
@@ -639,17 +748,20 @@ export function AdminSourcesTab({
                           <input
                             type="checkbox"
                             checked={sourceAttrVisibility[source.key]?.images ?? true}
+                            disabled={!canEditSources}
                             onChange={(event) => {
                               const checked = event.target.checked;
-                              setSourceAttrVisibility((prev) => ({
-                                ...prev,
-                                [source.key]: {
-                                  description: prev[source.key]?.description ?? true,
-                                  images: checked,
-                                },
-                              }));
                               void (async () => {
                                 const result = await updateSourceAttributeVisibility(source.key, { show_images: checked });
+                                if (result.ok) {
+                                  setSourceAttrVisibility((prev) => ({
+                                    ...prev,
+                                    [source.key]: {
+                                      description: prev[source.key]?.description ?? true,
+                                      images: checked,
+                                    },
+                                  }));
+                                }
                                 pushToast(result.message);
                               })();
                             }}

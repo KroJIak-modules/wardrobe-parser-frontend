@@ -318,6 +318,11 @@ export type AdminUiSettings = {
   designers_min_products: number;
   designers_exclude_store_vendors: boolean;
   auto_sync_period_minutes?: number;
+  auto_sync_next_run_at?: string | null;
+  auto_sync_last_started_at?: string | null;
+  auto_sync_last_finished_at?: string | null;
+  auto_sync_last_status?: string | null;
+  auto_sync_last_error?: string | null;
   showcase_hero_image_asset_id?: number | null;
   showcase_carousel_image_asset_ids?: number[];
 };
@@ -369,6 +374,13 @@ export type SettingsTransferSourceEntry = {
   name: string;
   url: string;
   enabled: boolean;
+  sync_enabled: boolean;
+  hide_auto_added_products: boolean;
+  show_description: boolean;
+  show_images: boolean;
+  currency_priority: string[];
+  currency_method: "priority_list" | "locked_param_currency" | "locked_no_currency";
+  locked_currency: string | null;
   supplier_key: string | null;
   promo_factor: number;
   promo_only_no_discount: boolean;
@@ -395,6 +407,13 @@ export type SettingsTransferCategoryKeywordEntry = {
   category_slug: string;
   keyword: string;
   scope: "local" | "title" | "status";
+};
+
+export type SettingsTransferBrandMappingEntry = {
+  source_brand: string;
+  source_brand_key: string;
+  target_brand: string;
+  include_in_designers: boolean;
 };
 
 export type SettingsTransferPricingSettings = {
@@ -440,6 +459,7 @@ export type SettingsTransferPayload = {
   weight_rules: SettingsTransferWeightRuleEntry[];
   categories: SettingsTransferCategoryEntry[];
   category_keywords: SettingsTransferCategoryKeywordEntry[];
+  brand_mappings: SettingsTransferBrandMappingEntry[];
 };
 
 export type LiveDataContextValue = {
@@ -450,8 +470,12 @@ export type LiveDataContextValue = {
   adminCategories: AdminCategoryNode[];
   dedupCandidates: DedupCandidate[];
   loadingDedupCandidates: boolean;
+  dedupCandidatesHasMore: boolean;
+  loadingMoreDedupCandidates: boolean;
   dedupDecisions: DedupDecision[];
   loadingDedupDecisions: boolean;
+  dedupDecisionsHasMore: boolean;
+  loadingMoreDedupDecisions: boolean;
   weightRules: WeightRule[];
   weightMissingProducts: WeightMissingProduct[];
   hasMoreWeightMissing: boolean;
@@ -470,6 +494,8 @@ export type LiveDataContextValue = {
   ensureAdminUiLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: (force?: boolean) => Promise<void>;
   loadMoreWeightMissingProducts: () => Promise<void>;
+  loadMoreDedupCandidates: () => Promise<void>;
+  loadMoreDedupDecisions: () => Promise<void>;
   ensureDedupLoaded: (force?: boolean) => Promise<void>;
   ensureDedupDecisionsLoaded: () => Promise<void>;
   ensureCategoriesLoaded: (force?: boolean) => Promise<void>;

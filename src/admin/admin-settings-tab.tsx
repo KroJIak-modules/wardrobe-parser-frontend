@@ -4,6 +4,7 @@ import { AdminSettingsSkeleton } from "../shared/skeleton";
 import { AdminSettingsGeneralSection } from "./admin-settings-general-section";
 import { AdminShowcaseMediaSection } from "./admin-showcase-media-section";
 import { AdminSettingsTransferSection } from "./admin-settings-transfer-section";
+import { AdminSettingsAccountsSection } from "./admin-settings-accounts-section";
 
 type CarouselItem = { id: number };
 
@@ -114,6 +115,11 @@ export function AdminSettingsTab({
           onCancelResetSettings={onCancelResetSettings}
           onConfirmResetSettings={onConfirmResetSettings}
         />
+      </section>
+
+      <section className="card admin-settings-section">
+        <h2>Аккаунты и роли</h2>
+        <AdminSettingsAccountsSection pushToast={pushToast} />
       </section>
     </div>
   );

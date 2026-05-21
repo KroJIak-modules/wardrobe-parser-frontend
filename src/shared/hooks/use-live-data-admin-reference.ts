@@ -13,6 +13,7 @@ import type {
 
 export function useLiveDataAdminReference(onError: (message: string) => void) {
   const MISSING_WEIGHT_PAGE_SIZE = 100;
+  const DEDUP_PAGE_SIZE = 20;
   const [adminCategories, setAdminCategories] = useState<AdminCategoryNode[]>([]);
   const [dedupCandidates, setDedupCandidates] = useState<DedupCandidate[]>([]);
   const [loadingDedupCandidates, setLoadingDedupCandidates] = useState<boolean>(false);
@@ -29,6 +30,12 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const [loadingMoreWeightMissing, setLoadingMoreWeightMissing] = useState<boolean>(false);
   const [hasMoreWeightMissing, setHasMoreWeightMissing] = useState<boolean>(true);
   const [dedupLoaded, setDedupLoaded] = useState<boolean>(false);
+  const [dedupCandidatesOffset, setDedupCandidatesOffset] = useState<number>(0);
+  const [dedupCandidatesHasMore, setDedupCandidatesHasMore] = useState<boolean>(true);
+  const [loadingMoreDedupCandidates, setLoadingMoreDedupCandidates] = useState<boolean>(false);
+  const [dedupDecisionsOffset, setDedupDecisionsOffset] = useState<number>(0);
+  const [dedupDecisionsHasMore, setDedupDecisionsHasMore] = useState<boolean>(true);
+  const [loadingMoreDedupDecisions, setLoadingMoreDedupDecisions] = useState<boolean>(false);
   const [categoriesLoaded, setCategoriesLoaded] = useState<boolean>(false);
   const [loadingCategoriesTree, setLoadingCategoriesTree] = useState<boolean>(false);
   const [loadingCategoryCounts, setLoadingCategoryCounts] = useState<boolean>(false);
@@ -36,8 +43,14 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const fetchDedupCandidates = useCallback(async () => {
     setLoadingDedupCandidates(true);
     try {
-      const dedupPayload = await apiJson<{ items: DedupCandidate[] }>(`${API_BASE}/dedup/candidates?limit=20`);
-      setDedupCandidates(dedupPayload.items || []);
+      const dedupPayload = await apiJson<{ items: DedupCandidate[]; total?: number; limit?: number; offset?: number }>(
+        `${API_BASE}/dedup/candidates?limit=${DEDUP_PAGE_SIZE}&offset=0`
+      );
+      const items = dedupPayload.items || [];
+      const total = Number(dedupPayload.total || 0);
+      setDedupCandidates(items);
+      setDedupCandidatesOffset(items.length);
+      setDedupCandidatesHasMore(items.length < total);
       setDedupLoaded(true);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Unknown error");
@@ -49,14 +62,62 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const fetchDedupDecisions = useCallback(async () => {
     setLoadingDedupDecisions(true);
     try {
-      const payload = await apiJson<{ items: DedupDecision[] }>(`${API_BASE}/dedup/decisions?limit=20`);
-      setDedupDecisions(payload.items || []);
+      const payload = await apiJson<{ items: DedupDecision[]; total?: number; limit?: number; offset?: number }>(
+        `${API_BASE}/dedup/decisions?limit=${DEDUP_PAGE_SIZE}&offset=0`
+      );
+      const items = payload.items || [];
+      const total = Number(payload.total || 0);
+      setDedupDecisions(items);
+      setDedupDecisionsOffset(items.length);
+      setDedupDecisionsHasMore(items.length < total);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoadingDedupDecisions(false);
     }
   }, [onError]);
+
+  const loadMoreDedupCandidates = useCallback(async () => {
+    if (loadingMoreDedupCandidates || !dedupCandidatesHasMore) return;
+    setLoadingMoreDedupCandidates(true);
+    try {
+      const payload = await apiJson<{ items: DedupCandidate[]; total?: number; limit?: number; offset?: number }>(
+        `${API_BASE}/dedup/candidates?limit=${DEDUP_PAGE_SIZE}&offset=${dedupCandidatesOffset}`
+      );
+      const nextItems = payload.items || [];
+      const total = Number(payload.total || 0);
+      setDedupCandidates((prev) => {
+        const known = new Set(prev.map((item) => item.pair_key));
+        const toAdd = nextItems.filter((item) => !known.has(item.pair_key));
+        return [...prev, ...toAdd];
+      });
+      setDedupCandidatesOffset((prev) => prev + nextItems.length);
+      setDedupCandidatesHasMore(dedupCandidatesOffset + nextItems.length < total);
+    } finally {
+      setLoadingMoreDedupCandidates(false);
+    }
+  }, [dedupCandidatesHasMore, dedupCandidatesOffset, loadingMoreDedupCandidates]);
+
+  const loadMoreDedupDecisions = useCallback(async () => {
+    if (loadingMoreDedupDecisions || !dedupDecisionsHasMore) return;
+    setLoadingMoreDedupDecisions(true);
+    try {
+      const payload = await apiJson<{ items: DedupDecision[]; total?: number; limit?: number; offset?: number }>(
+        `${API_BASE}/dedup/decisions?limit=${DEDUP_PAGE_SIZE}&offset=${dedupDecisionsOffset}`
+      );
+      const nextItems = payload.items || [];
+      const total = Number(payload.total || 0);
+      setDedupDecisions((prev) => {
+        const known = new Set(prev.map((item) => item.pair_key));
+        const toAdd = nextItems.filter((item) => !known.has(item.pair_key));
+        return [...prev, ...toAdd];
+      });
+      setDedupDecisionsOffset((prev) => prev + nextItems.length);
+      setDedupDecisionsHasMore(dedupDecisionsOffset + nextItems.length < total);
+    } finally {
+      setLoadingMoreDedupDecisions(false);
+    }
+  }, [dedupDecisionsHasMore, dedupDecisionsOffset, loadingMoreDedupDecisions]);
 
   const refreshDedupOnly = useCallback(async () => {
     await fetchDedupCandidates();
@@ -174,6 +235,10 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     loadingCategoryCounts,
     hasMoreWeightMissing,
     loadingMoreWeightMissing,
+    dedupCandidatesHasMore,
+    loadingMoreDedupCandidates,
+    dedupDecisionsHasMore,
+    loadingMoreDedupDecisions,
     refreshDedupOnly,
     refreshDedupDecisionsOnly,
     refreshPricingOnly,
@@ -187,6 +252,8 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
     loadMoreWeightMissingProducts,
+    loadMoreDedupCandidates,
+    loadMoreDedupDecisions,
     setAdminCategories,
     setAdminUiSettings,
   };

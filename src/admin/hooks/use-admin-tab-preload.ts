@@ -86,7 +86,10 @@ export function useAdminTabPreload({
         return;
       }
       if (tab === "sources") {
-        await refreshSourcesOnlyRef.current();
+        await Promise.all([
+          refreshSourcesOnlyRef.current(),
+          ensureAdminUiLoadedRef.current(true),
+        ]);
         return;
       }
       if (tab === "products") {

@@ -8,17 +8,23 @@ import { AdminDedupProductCard } from "./admin-dedup-product-card";
 type Props = {
   dedupDecisions: DedupDecision[];
   loadingDedupDecisions: boolean;
+  dedupDecisionsHasMore: boolean;
+  loadingMoreDedupDecisions: boolean;
   dedupBusyPairKeys: Set<string>;
   openProductCard: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => void;
   onUndoDecision: (pairKey: string) => Promise<void>;
+  onLoadMore: () => Promise<void>;
 };
 
 export function AdminDedupDecisionsView({
   dedupDecisions,
   loadingDedupDecisions,
+  dedupDecisionsHasMore,
+  loadingMoreDedupDecisions,
   dedupBusyPairKeys,
   openProductCard,
   onUndoDecision,
+  onLoadMore,
 }: Props) {
   return (
     <>
@@ -72,6 +78,13 @@ export function AdminDedupDecisionsView({
           </div>
         ))}
         {loadingDedupDecisions ? <AdminDedupSkeleton rows={1} /> : null}
+        {!loadingDedupDecisions && dedupDecisionsHasMore ? (
+          <div className="actions">
+            <button type="button" disabled={loadingMoreDedupDecisions} onClick={() => void onLoadMore()}>
+              {loadingMoreDedupDecisions ? "Загрузка..." : "Загрузить еще"}
+            </button>
+          </div>
+        ) : null}
         {!loadingDedupDecisions && dedupDecisions.length === 0 ? <EmptyState compact title="Решений пока нет" /> : null}
       </div>
     </>

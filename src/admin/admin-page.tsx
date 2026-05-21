@@ -89,8 +89,12 @@ export function AdminPage() {
     removeCategoryManualProduct,
     dedupCandidates,
     loadingDedupCandidates,
+    dedupCandidatesHasMore,
+    loadingMoreDedupCandidates,
     dedupDecisions,
     loadingDedupDecisions,
+    dedupDecisionsHasMore,
+    loadingMoreDedupDecisions,
     mergeDedupPair,
     rejectDedupPair,
     combineDedupPair,
@@ -106,6 +110,8 @@ export function AdminPage() {
     hasMoreWeightMissing,
     loadingMoreWeightMissing,
     loadMoreWeightMissingProducts,
+    loadMoreDedupCandidates,
+    loadMoreDedupDecisions,
     pricingSettings,
     adminUiSettings,
     createWeightRule,
@@ -334,6 +340,30 @@ export function AdminPage() {
     refreshSourcesOnly,
   });
 
+  useEffect(() => {
+    if (tab !== "pricing") {
+      return undefined;
+    }
+    let cancelled = false;
+    const run = async () => {
+      try {
+        await ensurePricingLoaded(true);
+      } catch {
+        // keep silent: next tick will retry
+      }
+    };
+    void run();
+    const timer = window.setInterval(() => {
+      if (!cancelled) {
+        void run();
+      }
+    }, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [tab, ensurePricingLoaded]);
+
   const {
     newWeightRuleGrams,
     setNewWeightRuleGrams,
@@ -508,8 +538,12 @@ export function AdminPage() {
       setDedupView,
       dedupCandidates,
       loadingDedupCandidates,
+      dedupCandidatesHasMore,
+      loadingMoreDedupCandidates,
       dedupDecisions,
       loadingDedupDecisions,
+      dedupDecisionsHasMore,
+      loadingMoreDedupDecisions,
       dedupBusyPairKeys,
       dedupChoosingPairKey,
       setDedupChoosingPairKey,
@@ -518,6 +552,8 @@ export function AdminPage() {
       onMergePair,
       onRejectPair,
       onUndoDecision,
+      onLoadMoreCandidates: loadMoreDedupCandidates,
+      onLoadMoreDecisions: loadMoreDedupDecisions,
     },
     categoriesPropsTree: {
       adminCategories,
@@ -584,6 +620,9 @@ export function AdminPage() {
       updateSourceAttributeVisibility,
       updateSourceCurrencyPriority,
       autoSyncPeriodMinutes: Math.max(60, Number(adminUiSettings?.auto_sync_period_minutes || 60)),
+      autoSyncNextRunAt: adminUiSettings?.auto_sync_next_run_at || null,
+      autoSyncLastStatus: adminUiSettings?.auto_sync_last_status || null,
+      autoSyncLastError: adminUiSettings?.auto_sync_last_error || null,
       updateAdminUiSettings,
       pushToast,
       onZoomImage: (url: string) => setZoomedImageUrl(url),

@@ -11,6 +11,7 @@ import { useLiveData } from "../shared/live-data-context";
 import { ToastStack } from "../shared/toast-stack";
 import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
+import { useShowcaseEditPermission } from "../shared/use-showcase-edit-permission";
 import { deriveStatusAfterUnhide, getStatusClass, getStatusLabel, normalizeProductStatus } from "./catalog-helpers";
 import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 
@@ -87,7 +88,7 @@ export function ProductPage() {
     uploadProductImage,
   } = useLiveData();
   const fromAdmin = searchParams.get("from") === "admin";
-  const canEdit = true;
+  const canEdit = useShowcaseEditPermission();
 
   const productId = Number(id);
   const inlineProduct = Number.isFinite(productId) ? products.find((item) => item.id === productId) || null : null;
@@ -220,7 +221,7 @@ export function ProductPage() {
         image_url: images[0] || null,
         source_price: product.source_price ?? product.price ?? null,
         source_currency: product.source_currency ?? product.currency ?? null,
-        final_price: product.final_price ?? product.price ?? null,
+        final_price: product.final_price ?? null,
         components: (product.pricing_components || {}) as Record<string, unknown>,
       },
       pricingSettings
@@ -259,7 +260,7 @@ export function ProductPage() {
   ) ? (product.variants[selectedVariantIndex] as VariantInfo) : null;
   const selectedVariantPrice = toFiniteNumber(selectedVariant?.price);
   const sourcePriceBase = toFiniteNumber(product.source_price ?? product.price);
-  const finalPriceBase = toFiniteNumber(product.final_price ?? product.price);
+  const finalPriceBase = toFiniteNumber(product.final_price);
   const sourceToFinalRate = sourcePriceBase !== null && finalPriceBase !== null && sourcePriceBase > 0 ? (finalPriceBase / sourcePriceBase) : null;
   const effectiveSourcePrice = selectedVariantPrice ?? sourcePriceBase;
   const effectiveFinalPrice = selectedVariantPrice === null
@@ -754,10 +755,12 @@ export function ProductPage() {
             {hasExternalProductUrl ? (
               <a className="btn-link product-action-btn" href={product.url} target="_blank" rel="noreferrer" title={`Открыть ${sourceName || "источник"}`}><IconExternalLink className="icon-svg" />Открыть источник</a>
             ) : null}
-            <button type="button" className="btn-link product-action-btn" onClick={() => void toggleHidden()} disabled={statusPending}>
-              {normalizedStatus === "hidden" ? <EyeOff className="icon-svg" /> : <Eye className="icon-svg" />}
-              {normalizedStatus === "hidden" ? "Показать товар" : "Скрыть товар"}
-            </button>
+            {canEdit ? (
+              <button type="button" className="btn-link product-action-btn" onClick={() => void toggleHidden()} disabled={statusPending}>
+                {normalizedStatus === "hidden" ? <EyeOff className="icon-svg" /> : <Eye className="icon-svg" />}
+                {normalizedStatus === "hidden" ? "Показать товар" : "Скрыть товар"}
+              </button>
+            ) : null}
           </div>
         </section>
       </div>
