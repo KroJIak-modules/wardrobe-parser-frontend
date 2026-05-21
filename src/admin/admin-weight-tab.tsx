@@ -56,6 +56,20 @@ export function AdminWeightTab({
     return () => io.disconnect();
   }, [hasMoreWeightMissing, loadingMoreWeightMissing, onLoadMoreWeightMissing]);
 
+  useEffect(() => {
+    if (!hasMoreWeightMissing) return;
+    const onScroll = () => {
+      if (loadingMoreWeightMissing) return;
+      const scrolled = window.innerHeight + window.scrollY;
+      const threshold = document.documentElement.scrollHeight - 520;
+      if (scrolled >= threshold) {
+        void onLoadMoreWeightMissing();
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [hasMoreWeightMissing, loadingMoreWeightMissing, onLoadMoreWeightMissing]);
+
   return (
     <div className="card">
       {weightTabLoading ? (
@@ -167,7 +181,7 @@ export function AdminWeightTab({
                 </table>
                 {hasMoreWeightMissing ? (
                   <div ref={loadMoreRef} className="weight-missing-loadmore muted">
-                    {loadingMoreWeightMissing ? "Загрузка..." : "Прокрутите ниже для подгрузки"}
+                    {loadingMoreWeightMissing ? "Загрузка..." : ""}
                   </div>
                 ) : null}
               </div>

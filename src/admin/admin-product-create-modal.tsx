@@ -205,6 +205,16 @@ export function AdminProductCreateModal({
     [draft.variants]
   );
   const canCreate = Boolean(draft.title.trim() && validVariantsCount > 0) && !isHydrating && !isCreating;
+  const hasExistingLookupProduct = lookup.state === "found" && Number(lookup.product?.id || 0) > 0;
+  const isExistingProductHidden = Boolean(
+    lookup.product
+    && (hiddenProductIds.has(lookup.product.id) || String(lookup.product.status || "").trim().toLowerCase() === "hidden")
+  );
+  const bindSyncDisabledReason = useMemo(() => {
+    if (hasExistingLookupProduct) return "Товар уже есть в базе";
+    if (!boundFromSourceLookup) return "Нельзя включить без ссылки источника";
+    return "";
+  }, [hasExistingLookupProduct, boundFromSourceLookup]);
   const brandSuggestions = useMemo(() => {
     const query = String(draft.brand || "").trim().toLowerCase();
     const raw = knownBrandOptions.filter((item) => {
@@ -310,11 +320,11 @@ export function AdminProductCreateModal({
                   <div className="product-create__found-actions">
                     <button
                       type="button"
-                      className={`icon-btn ${hiddenProductIds.has(lookup.product.id) ? "icon-btn--danger" : ""}`}
+                      className={`icon-btn ${isExistingProductHidden ? "icon-btn--danger" : ""}`}
                       aria-label="Скрыть существующий товар"
                       onClick={onToggleHideExisting}
                     >
-                      {hiddenProductIds.has(lookup.product.id) ? (
+                      {isExistingProductHidden ? (
                         <IconEyeOff className="icon-svg" />
                       ) : (
                         <IconEye className="icon-svg" />
@@ -412,11 +422,14 @@ export function AdminProductCreateModal({
               </div>
 
               <div className="product-create__favorite">
-                <label className="ui-switch ui-switch--compact product-create__bind-sync">
+                <label
+                  className="ui-switch ui-switch--compact product-create__bind-sync"
+                  title={bindSyncDisabledReason || undefined}
+                >
                   <input
                     type="checkbox"
                     checked={Boolean(draft.bindSync)}
-                    disabled={!boundFromSourceLookup || isHydrating || isCreating}
+                    disabled={!boundFromSourceLookup || hasExistingLookupProduct || isHydrating || isCreating}
                     onChange={(event) => onSetField("bindSync", event.target.checked)}
                   />
                   <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>

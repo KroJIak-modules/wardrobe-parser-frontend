@@ -140,6 +140,13 @@ function normalizeUrlLoose(rawUrl: string): string {
   }
 }
 
+function normalizeImageUrl(rawUrl: string): string {
+  const clean = String(rawUrl || "").trim();
+  if (!clean) return "";
+  if (clean.startsWith("//")) return `https:${clean}`;
+  return clean;
+}
+
 function slugToTitle(rawUrl: string): string {
   const normalized = normalizeUrlLoose(rawUrl);
   try {
@@ -315,6 +322,7 @@ export function useAdminProductCreateMock({
   const canRunLookup = Boolean(draft.sourceUrl.trim()) && !sourceDomainError;
   const sourceLookupKey = useMemo(() => normalizeUrlLoose(draft.sourceUrl), [draft.sourceUrl]);
   const hasFoundProduct = lookup.state === "found" && Boolean(lookup.product);
+  const hasExistingLookupProduct = hasFoundProduct && Number(lookup.product?.id || 0) > 0;
 
   useEffect(() => {
     if (lookupTimerRef.current !== null) {
@@ -414,6 +422,11 @@ export function useAdminProductCreateMock({
     });
   }, [syncBaseline]);
 
+  useEffect(() => {
+    if (!hasExistingLookupProduct) return;
+    setDraft((prev) => (prev.bindSync ? { ...prev, bindSync: false } : prev));
+  }, [hasExistingLookupProduct]);
+
   const hydrateFromSourceUrl = useCallback(async () => {
     if (!canRunLookup || isHydrating) return;
     setIsHydrating(true);
@@ -458,14 +471,14 @@ export function useAdminProductCreateMock({
         variants: previewVariants,
         images: (preview.image_urls || []).map((url, idx) => ({
           id: `preview-${Date.now()}-${idx + 1}`,
-          url: String(url),
+          url: normalizeImageUrl(String(url)),
           isManual: false,
         })),
       }));
       setSyncBaseline({
         images: (preview.image_urls || []).map((url, idx) => ({
           id: `preview-baseline-${Date.now()}-${idx + 1}`,
-          url: String(url),
+          url: normalizeImageUrl(String(url)),
           isManual: false,
         })),
         variants: previewVariants.map((item) => ({ ...item })),
@@ -510,10 +523,10 @@ export function useAdminProductCreateMock({
     if (!lookup.product) return;
     const currentStatus = String(lookup.product.status || "").trim().toLowerCase();
     const productId = lookup.product.id;
-    const fallbackRestore: ProductCreateStatus =
-      currentStatus === "out_of_stock" ? "out_of_stock" : "available";
+    const isCurrentlyHidden = hiddenProductIds.has(productId) || currentStatus === "hidden";
+    const fallbackRestore: ProductCreateStatus = currentStatus === "out_of_stock" ? "out_of_stock" : "available";
     const restoreStatus = statusBeforeHide[productId] || fallbackRestore;
-    const nextStatus: ProductCreateStatus = currentStatus === "hidden" ? restoreStatus : "hidden";
+    const nextStatus: ProductCreateStatus = isCurrentlyHidden ? restoreStatus : "hidden";
     const result = await setProductStatus(lookup.product.id, nextStatus);
     if (!result.ok) {
       onToast(`Не удалось изменить статус: ${result.message}`, "error");
@@ -536,7 +549,7 @@ export function useAdminProductCreateMock({
       return next;
     });
     onToast(nextStatus === "hidden" ? "Товар скрыт" : "Товар открыт", "success");
-  }, [lookup.product, statusBeforeHide, setProductStatus, onToast]);
+  }, [lookup.product, hiddenProductIds, statusBeforeHide, setProductStatus, onToast]);
 
   const addManualImage = useCallback(async (file: File) => {
     if (draft.bindSync) {
@@ -597,18 +610,26 @@ export function useAdminProductCreateMock({
         })
         .filter((value): value is number => Number.isFinite(Number(value)) && Number(value) > 0);
       // Ensure ALL images become backend-stored assets (manual or hydrated/external).
+      const failedImageUploads: string[] = [];
       for (const image of draft.images) {
         const m = /^manual-(\d+)-/.exec(String(image.id || ""));
         if (m && Number(m[1]) > 0) {
           if (!manualImageAssetIds.includes(Number(m[1]))) manualImageAssetIds.push(Number(m[1]));
           continue;
         }
-        const src = String(image.url || "").trim();
+        const src = normalizeImageUrl(String(image.url || "").trim());
         if (!src) continue;
         const uploaded = await uploadProductImageByUrl(src);
         if (uploaded.ok && uploaded.imageAssetId && !manualImageAssetIds.includes(uploaded.imageAssetId)) {
           manualImageAssetIds.push(uploaded.imageAssetId);
+        } else if (!uploaded.ok) {
+          failedImageUploads.push(src);
         }
+      }
+      if (failedImageUploads.length > 0) {
+        onToast(`Не удалось загрузить ${failedImageUploads.length} фото. Проверь ссылки изображений и попробуй снова.`, "error");
+        setIsCreating(false);
+        return;
       }
       const normalizedVariants = draft.variants
         .map((variant) => {
@@ -643,7 +664,13 @@ export function useAdminProductCreateMock({
         manual_image_asset_ids: manualImageAssetIds,
         weight_grams: weight,
         status: normalizedVariants.some((variant) => Boolean(variant.available)) ? "available" : "out_of_stock",
-        bind_sync: Boolean(draft.bindSync && boundFromSourceLookup && lookup.product?.source_id && lookup.product?.url),
+        bind_sync: Boolean(
+          draft.bindSync
+          && boundFromSourceLookup
+          && !hasExistingLookupProduct
+          && lookup.product?.source_id
+          && lookup.product?.url
+        ),
         bind_source_id: lookup.product?.source_id ?? null,
         bind_source_product_url: lookup.product?.url ?? null,
       };
@@ -664,7 +691,7 @@ export function useAdminProductCreateMock({
     })().catch(() => {
       setIsCreating(false);
     })();
-  }, [draft, manualImageAssetIdsById, createManualProduct, updateManualProduct, favoriteCategoryIds, _setProductStarredCategories, onToast, boundFromSourceLookup, lookup.product, uploadProductImageByUrl, isCreating, mode, editingProductId]);
+  }, [draft, manualImageAssetIdsById, createManualProduct, updateManualProduct, favoriteCategoryIds, _setProductStarredCategories, onToast, boundFromSourceLookup, lookup.product, uploadProductImageByUrl, isCreating, mode, editingProductId, hasExistingLookupProduct]);
 
   const openCreate = useCallback(() => {
     setMode("create");
