@@ -30,20 +30,6 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
     [pricingSettings, pricingDrafts]
   );
 
-  const pricingSuppliers = useMemo(() => {
-    return (pricingSettings?.suppliers || []).slice().sort((a, b) => a.name.localeCompare(b.name));
-  }, [pricingSettings]);
-
-  const mainSupplierIdByAnySupplierId = useMemo(() => {
-    const result = new Map<number, number>();
-    for (const supplier of pricingSuppliers) {
-      const id = Number(supplier.id);
-      const parentId = Number(supplier.parent_supplier_id || 0);
-      result.set(id, parentId > 0 ? parentId : id);
-    }
-    return result;
-  }, [pricingSuppliers]);
-
   const setThresholdField = (field: TriCurrencyAmountKey, raw: string) => {
     setThresholdDraft((previous) => {
       if (!previous) {
@@ -112,11 +98,11 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
     setSourcePricingDrafts((previous) => {
       const next = { ...previous };
       for (const source of sources) {
-        next[source.key] = buildSourceDraft(source, mainSupplierIdByAnySupplierId, pricingRates);
+        next[source.key] = buildSourceDraft(source, pricingRates);
       }
       return next;
     });
-  }, [sources, mainSupplierIdByAnySupplierId, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
+  }, [sources, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!sources || sources.length === 0) {
@@ -149,7 +135,6 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
 
   return {
     pricingRates,
-    mainSupplierIdByAnySupplierId,
     thresholdDraft,
     setThresholdDraft,
     setThresholdField,

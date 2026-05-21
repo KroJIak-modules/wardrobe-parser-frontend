@@ -9,9 +9,10 @@ type SetProducts = Dispatch<SetStateAction<ServiceProduct[]>>;
 
 export function useLiveDataProductActions(params: {
   setProducts: SetProducts;
-  refresh: () => Promise<void>;
+  refreshProductsOnly: () => Promise<void>;
+  refreshSourcesOnly: () => Promise<void>;
 }) {
-  const { setProducts, refresh } = params;
+  const { setProducts, refreshProductsOnly, refreshSourcesOnly } = params;
 
   const previewProductByUrl = useCallback(async (url: string) => {
     try {
@@ -44,12 +45,12 @@ export function useLiveDataProductActions(params: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, ...(payload || {}) }),
       });
-      await refresh();
+      await Promise.all([refreshProductsOnly(), refreshSourcesOnly()]);
       return okResult("Товар добавлен по URL");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
-  }, [refresh]);
+  }, [refreshProductsOnly, refreshSourcesOnly]);
 
   const createManualProduct = useCallback(async (payload: {
     title: string;
@@ -70,12 +71,12 @@ export function useLiveDataProductActions(params: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      await refresh();
+      await Promise.all([refreshProductsOnly(), refreshSourcesOnly()]);
       return { ...okResult("Ручной товар сохранен"), id: Number(out?.id || 0) || null };
     } catch (e) {
       return { ...errResult(e instanceof Error ? e.message : "Unknown error"), id: null };
     }
-  }, [refresh]);
+  }, [refreshProductsOnly, refreshSourcesOnly]);
 
   const updateManualProduct = useCallback(async (productId: number, payload: {
     title: string;
@@ -96,12 +97,12 @@ export function useLiveDataProductActions(params: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      await refresh();
+      await Promise.all([refreshProductsOnly(), refreshSourcesOnly()]);
       return { ...okResult("Ручной товар обновлен"), id: Number(out?.id || 0) || null };
     } catch (e) {
       return { ...errResult(e instanceof Error ? e.message : "Unknown error"), id: null };
     }
-  }, [refresh]);
+  }, [refreshProductsOnly, refreshSourcesOnly]);
 
   const getStarredCategoryOptions = useCallback(async () => {
     try {

@@ -479,7 +479,7 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
                 value={createRoleName}
                 onChange={(event) => setCreateRoleName(event.target.value)}
                 disabled={busy}
-                placeholder="Например, Контент-менеджер"
+                placeholder="Название роли"
               />
             </label>
             <div className="admin-accounts-permissions-grid">

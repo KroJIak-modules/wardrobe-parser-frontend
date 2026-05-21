@@ -433,7 +433,6 @@ export function AdminPage() {
   });
   const {
     pricingRates,
-    mainSupplierIdByAnySupplierId,
     thresholdDraft,
     setThresholdField,
     sourcePricingDrafts,
@@ -667,7 +666,7 @@ export function AdminPage() {
       sources,
       sourcePricingDrafts,
       setSourcePricingDrafts,
-      mainSupplierIdByAnySupplierId,
+      sourcePricingSuppliers: mainPricingSuppliers,
       setSourceBuyoutField,
     },
     weightTabProps: {

@@ -65,7 +65,7 @@ type Props = {
   sources: SourceItem[];
   sourcePricingDrafts: Record<string, SourcePricingDraft>;
   setSourcePricingDrafts: Dispatch<SetStateAction<Record<string, SourcePricingDraft>>>;
-  mainSupplierIdByAnySupplierId: Map<number, number>;
+  sourcePricingSuppliers: PricingSupplier[];
   setSourceBuyoutField: (sourceKey: string, field: TriCurrencyAmountKey, raw: string) => void;
 };
 
@@ -109,7 +109,7 @@ export function AdminPricingTab({
   sources,
   sourcePricingDrafts,
   setSourcePricingDrafts,
-  mainSupplierIdByAnySupplierId,
+  sourcePricingSuppliers,
   setSourceBuyoutField,
 }: Props) {
   return (
@@ -177,8 +177,7 @@ export function AdminPricingTab({
             sources={sources}
             sourcePricingDrafts={sourcePricingDrafts}
             setSourcePricingDrafts={setSourcePricingDrafts}
-            mainSupplierIdByAnySupplierId={mainSupplierIdByAnySupplierId}
-            mainPricingSuppliers={mainPricingSuppliers}
+            pricingSuppliers={sourcePricingSuppliers}
             setSourceBuyoutField={setSourceBuyoutField}
           />
         </>

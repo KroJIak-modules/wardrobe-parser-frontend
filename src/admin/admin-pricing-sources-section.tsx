@@ -27,8 +27,7 @@ type Props = {
   sources: SourceItem[];
   sourcePricingDrafts: Record<string, SourcePricingDraft>;
   setSourcePricingDrafts: Dispatch<SetStateAction<Record<string, SourcePricingDraft>>>;
-  mainSupplierIdByAnySupplierId: Map<number, number>;
-  mainPricingSuppliers: SupplierItem[];
+  pricingSuppliers: SupplierItem[];
   setSourceBuyoutField: (sourceKey: string, field: TriCurrencyAmountKey, raw: string) => void;
 };
 
@@ -45,8 +44,7 @@ export function AdminPricingSourcesSection({
   sources,
   sourcePricingDrafts,
   setSourcePricingDrafts,
-  mainSupplierIdByAnySupplierId,
-  mainPricingSuppliers,
+  pricingSuppliers,
   setSourceBuyoutField,
 }: Props) {
   return (
@@ -68,24 +66,23 @@ export function AdminPricingSourcesSection({
         {sources.map((source) => {
           const draft = sourcePricingDrafts[source.key];
           const sourceSupplierRaw = Number(source.supplier_id ?? 0);
-          const resolvedMainSupplierId = sourceSupplierRaw > 0 ? (mainSupplierIdByAnySupplierId.get(sourceSupplierRaw) || sourceSupplierRaw) : 0;
           return (
             <div key={source.key} className="pricing-source-map-row">
               <span className="muted">{source.name}</span>
               <select
-                value={draft?.supplierId ?? String(resolvedMainSupplierId || "")}
+                value={draft?.supplierId ?? String(sourceSupplierRaw || "")}
                 onChange={(event) => {
                   const nextValue = event.target.value;
                   setSourcePricingDrafts((prev) => ({
                     ...prev,
                     [source.key]: {
-                      ...ensureDraft(source.key, resolvedMainSupplierId, prev),
+                      ...ensureDraft(source.key, sourceSupplierRaw, prev),
                       supplierId: nextValue,
                     },
                   }));
                 }}
               >
-                {mainPricingSuppliers.map((supplier) => (
+                {pricingSuppliers.map((supplier) => (
                   <option key={`source-${source.key}-supplier-${supplier.id}`} value={supplier.id}>
                     {supplier.name}
                   </option>
@@ -106,7 +103,7 @@ export function AdminPricingSourcesSection({
                     setSourcePricingDrafts((prev) => ({
                       ...prev,
                       [source.key]: {
-                        ...ensureDraft(source.key, resolvedMainSupplierId, prev),
+                        ...ensureDraft(source.key, sourceSupplierRaw, prev),
                         promoPercent: nextValue,
                       },
                     }));
@@ -123,7 +120,7 @@ export function AdminPricingSourcesSection({
                     setSourcePricingDrafts((prev) => ({
                       ...prev,
                       [source.key]: {
-                        ...ensureDraft(source.key, resolvedMainSupplierId, prev),
+                        ...ensureDraft(source.key, sourceSupplierRaw, prev),
                         promoOnlyNoDiscount: nextValue,
                       },
                     }));

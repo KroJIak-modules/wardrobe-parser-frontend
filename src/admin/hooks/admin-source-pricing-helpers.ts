@@ -61,9 +61,8 @@ export function rebuildTriCurrencyDraft(current: TriCurrencyDraft, field: TriCur
   return buildTriCurrencyDraft(field.toUpperCase() as CurrencyCode, parsed, rates.usdToRub, rates.eurToRub, rates.gbpToRub);
 }
 
-export function buildSourceDraft(source: SourceEntry, mainSupplierIdByAnySupplierId: Map<number, number>, rates: PricingRates): SourcePricingDraft {
+export function buildSourceDraft(source: SourceEntry, rates: PricingRates): SourcePricingDraft {
   const sourceSupplierRaw = Number(source.supplier_id ?? 0);
-  const resolvedMainSupplierId = sourceSupplierRaw > 0 ? (mainSupplierIdByAnySupplierId.get(sourceSupplierRaw) || sourceSupplierRaw) : 0;
   const rawBuyoutCurrency = normalizeCurrencyCode(source.buyout_surcharge_currency || "USD", "USD");
   const buyoutCurrency: CurrencyCode = rawBuyoutCurrency === "RUB" ? "USD" : rawBuyoutCurrency;
   const buyoutValue = Number(source.buyout_surcharge_value || 0);
@@ -77,7 +76,7 @@ export function buildSourceDraft(source: SourceEntry, mainSupplierIdByAnySupplie
   const promoFactor = Number(source.promo_factor ?? 1);
   const promoPercent = Math.max(0, Math.min(100, (1 - promoFactor) * 100));
   return {
-    supplierId: String(resolvedMainSupplierId || ""),
+    supplierId: String(sourceSupplierRaw || ""),
     promoPercent: formatCompactNumber(promoPercent, 4),
     promoOnlyNoDiscount: Boolean(source.promo_only_no_discount),
     buyout: {

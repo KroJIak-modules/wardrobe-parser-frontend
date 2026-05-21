@@ -204,7 +204,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     getStarredCategoryOptions,
   } = useLiveDataProductActions({
     setProducts,
-    refresh,
+    refreshProductsOnly,
+    refreshSourcesOnly,
   });
 
   const {
