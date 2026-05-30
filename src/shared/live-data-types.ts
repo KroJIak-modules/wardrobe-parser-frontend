@@ -546,7 +546,8 @@ export type LiveDataContextValue = {
   }) => Promise<{ ok: boolean; message: string; id: number | null }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadProductImageByUrl: (url: string) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
-  uploadShowcaseImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
+  uploadShowcaseHeroImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
+  uploadShowcaseCarouselImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string; categoryId?: number }>;
   updateCategory: (
     id: number,

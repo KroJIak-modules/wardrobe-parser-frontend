@@ -4,7 +4,8 @@ import { SHOWCASE_CAROUSEL_LIMIT } from "../admin-showcase-constants";
 
 type UseAdminShowcaseParams = {
   adminUiSettings: AdminUiSettings | null;
-  uploadShowcaseImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId?: number }>;
+  uploadShowcaseHeroImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId?: number }>;
+  uploadShowcaseCarouselImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId?: number }>;
   updateShowcaseMediaSettings: (patch: {
     showcase_hero_image_asset_id?: number | null;
     showcase_carousel_image_asset_ids?: number[];
@@ -13,7 +14,7 @@ type UseAdminShowcaseParams = {
 };
 
 export function useAdminShowcase(params: UseAdminShowcaseParams) {
-  const { adminUiSettings, uploadShowcaseImage, updateShowcaseMediaSettings, pushToast } = params;
+  const { adminUiSettings, uploadShowcaseHeroImage, uploadShowcaseCarouselImage, updateShowcaseMediaSettings, pushToast } = params;
 
   const [showcaseHeroImageId, setShowcaseHeroImageId] = useState<number | null>(null);
   const [showcaseCarousel, setShowcaseCarousel] = useState<ShowcaseImageItem[]>([]);
@@ -60,7 +61,7 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
     if (!file) {
       return;
     }
-    const uploaded = await uploadShowcaseImage(file);
+    const uploaded = await uploadShowcaseHeroImage(file);
     if (!uploaded.ok || !uploaded.imageAssetId) {
       pushToast(uploaded.message || "Не удалось загрузить hero-картинку");
       return;
@@ -94,7 +95,7 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
     const toUpload = files.slice(0, remaining);
     const uploadedIds: number[] = [];
     for (const file of toUpload) {
-      const uploaded = await uploadShowcaseImage(file);
+      const uploaded = await uploadShowcaseCarouselImage(file);
       if (!uploaded.ok || !uploaded.imageAssetId) {
         pushToast(uploaded.message || "Не удалось загрузить изображение карусели");
         continue;

@@ -76,7 +76,8 @@ export function AdminPage() {
     runSync,
     runSyncForSource,
     cancelSync,
-    uploadShowcaseImage,
+    uploadShowcaseHeroImage,
+    uploadShowcaseCarouselImage,
     adminCategories,
     createCategory,
     updateCategory,
@@ -459,7 +460,8 @@ export function AdminPage() {
     onEndCarouselDrag,
   } = useAdminShowcase({
     adminUiSettings,
-    uploadShowcaseImage,
+    uploadShowcaseHeroImage,
+    uploadShowcaseCarouselImage,
     updateShowcaseMediaSettings,
     pushToast,
   });

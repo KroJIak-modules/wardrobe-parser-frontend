@@ -396,11 +396,11 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   }, [refresh]);
 
 
-  const uploadShowcaseImage = useCallback(async (file: File) => {
+  const uploadShowcaseImageTo = useCallback(async (file: File, endpoint: "hero" | "carousel") => {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await authFetch(`${API_BASE}/showcase/carousel/upload`, {
+      const res = await authFetch(`${API_BASE}/showcase/${endpoint}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -418,6 +418,16 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       return { ok: false, message: e instanceof Error ? e.message : "Unknown error", imageAssetId: null };
     }
   }, []);
+
+  const uploadShowcaseHeroImage = useCallback(
+    async (file: File) => uploadShowcaseImageTo(file, "hero"),
+    [uploadShowcaseImageTo]
+  );
+
+  const uploadShowcaseCarouselImage = useCallback(
+    async (file: File) => uploadShowcaseImageTo(file, "carousel"),
+    [uploadShowcaseImageTo]
+  );
 
   const ensureAllProductsLoaded = useCallback(async () => {
     try {
@@ -542,7 +552,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       updateManualProduct,
       uploadProductImage,
       uploadProductImageByUrl,
-      uploadShowcaseImage,
+      uploadShowcaseHeroImage,
+      uploadShowcaseCarouselImage,
       createCategory,
       updateCategory,
       deleteCategory,
@@ -634,7 +645,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       updateManualProduct,
       uploadProductImage,
       uploadProductImageByUrl,
-      uploadShowcaseImage,
+      uploadShowcaseHeroImage,
+      uploadShowcaseCarouselImage,
       createCategory,
       updateCategory,
       deleteCategory,
