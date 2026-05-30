@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import type { DedupCandidate } from "../shared/live-data-context";
 import { AdminDedupSkeleton } from "../shared/skeleton";
@@ -34,6 +35,25 @@ export function AdminDedupCandidatesView({
   onRejectPair,
   onLoadMore,
 }: Props) {
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!dedupCandidatesHasMore || loadingMoreDedupCandidates) return;
+    const target = loadMoreRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          void onLoadMore();
+        }
+      },
+      { root: null, rootMargin: "300px 0px", threshold: 0.01 }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [dedupCandidatesHasMore, loadingMoreDedupCandidates, onLoadMore]);
+
   return (
     <>
       {loadingDedupCandidates && dedupCandidates.length === 0 ? <AdminDedupSkeleton rows={3} /> : null}
@@ -121,11 +141,10 @@ export function AdminDedupCandidatesView({
           </div>
         ))}
         {loadingDedupCandidates ? <AdminDedupSkeleton rows={1} /> : null}
-        {!loadingDedupCandidates && dedupCandidatesHasMore ? (
+        {!loadingDedupCandidates && dedupCandidatesHasMore ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
+        {loadingMoreDedupCandidates ? (
           <div className="actions">
-            <button type="button" disabled={loadingMoreDedupCandidates} onClick={() => void onLoadMore()}>
-              {loadingMoreDedupCandidates ? "Загрузка..." : "Загрузить еще"}
-            </button>
+            <span className="muted">Загрузка...</span>
           </div>
         ) : null}
         {!loadingDedupCandidates && dedupCandidates.length === 0 ? <EmptyState compact title="Дубликатов пока нет" /> : null}

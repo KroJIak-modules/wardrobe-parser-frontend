@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import type { DedupDecision } from "../shared/live-data-context";
 import { AdminDedupSkeleton } from "../shared/skeleton";
@@ -26,6 +27,25 @@ export function AdminDedupDecisionsView({
   onUndoDecision,
   onLoadMore,
 }: Props) {
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!dedupDecisionsHasMore || loadingMoreDedupDecisions) return;
+    const target = loadMoreRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          void onLoadMore();
+        }
+      },
+      { root: null, rootMargin: "300px 0px", threshold: 0.01 }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [dedupDecisionsHasMore, loadingMoreDedupDecisions, onLoadMore]);
+
   return (
     <>
       {loadingDedupDecisions && dedupDecisions.length === 0 ? <AdminDedupSkeleton rows={3} /> : null}
@@ -78,11 +98,10 @@ export function AdminDedupDecisionsView({
           </div>
         ))}
         {loadingDedupDecisions ? <AdminDedupSkeleton rows={1} /> : null}
-        {!loadingDedupDecisions && dedupDecisionsHasMore ? (
+        {!loadingDedupDecisions && dedupDecisionsHasMore ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
+        {loadingMoreDedupDecisions ? (
           <div className="actions">
-            <button type="button" disabled={loadingMoreDedupDecisions} onClick={() => void onLoadMore()}>
-              {loadingMoreDedupDecisions ? "Загрузка..." : "Загрузить еще"}
-            </button>
+            <span className="muted">Загрузка...</span>
           </div>
         ) : null}
         {!loadingDedupDecisions && dedupDecisions.length === 0 ? <EmptyState compact title="Решений пока нет" /> : null}
