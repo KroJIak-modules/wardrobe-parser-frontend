@@ -1,12 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "katex/dist/katex.min.css";
-import "./styles.css";
+import "../../src/styles.css";
 
-import { App } from "./App";
+import { SiteApp } from "../../src/site/site-app";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <SiteApp />
   </React.StrictMode>
 );

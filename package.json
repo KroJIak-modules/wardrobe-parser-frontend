@@ -4,8 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vite --mode admin",
+    "dev:admin": "vite --mode admin",
+    "dev:site": "vite --mode site",
+    "build": "vite build --mode admin",
+    "build:admin": "vite build --mode admin",
+    "build:site": "vite build --mode site",
     "preview": "vite preview"
   },
   "dependencies": {

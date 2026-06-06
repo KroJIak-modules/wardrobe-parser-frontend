@@ -1,6 +1,6 @@
-# Reverse proxy (same-origin)
+# Reverse proxy (same-origin per app)
 
-Фронт и API под одним доменом. Nginx в одном контейнере с фронтом:
+Каждый frontend-контейнер работает same-origin со своим API proxy. Nginx в контейнере:
 - раздаёт статику SPA;
 - проксирует `/api/` и `/health` на backend.
 

@@ -1,21 +1,17 @@
 import { Component, type ErrorInfo, type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { LiveDataProvider } from "./shared/live-data-context";
-import { SiteLayout } from "./site/layout";
-import { HomePage } from "./site/home-page";
-import { CategoryPage } from "./site/category-page";
-import { ProductPage } from "./site/product-page";
-import { AdminPage } from "./admin/admin-page";
-import { DEFAULT_ADMIN_TAB } from "./admin/admin-constants";
-import { ToastStack } from "./shared/toast-stack";
-import { useToasts } from "./shared/use-toasts";
+import { LiveDataProvider } from "../shared/live-data-context";
+import { ToastStack } from "../shared/toast-stack";
+import { useToasts } from "../shared/use-toasts";
 import {
   ADMIN_AUTH_EXPIRED_EVENT,
   ADMIN_AUTH_EXPIRED_FLAG,
   API_BASE,
   checkAdminSessionSilently,
   clearAdminSessionHints,
-} from "./shared/admin-auth";
+} from "../shared/admin-auth";
+import { DEFAULT_ADMIN_TAB } from "./admin-constants";
+import { AdminPage } from "./admin-page";
 
 const MANAGEMENT_PATH = "/control";
 const LOGIN_PATH = "/login";
@@ -38,7 +34,7 @@ class AdminErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
           <section className="section admin">
             <div className="card">
               <h2>Не удалось загрузить панель управления</h2>
-              <p className="muted">Произошла ошибка интерфейса. Обнови страницу, чтобы продолжить работу.</p>
+              <p className="muted">Произошла ошибка интерфейса. Обновите страницу, чтобы продолжить работу.</p>
             </div>
           </section>
         </div>
@@ -52,11 +48,7 @@ function RouteTitleSync() {
   const location = useLocation();
 
   useEffect(() => {
-    if (location.pathname.startsWith(MANAGEMENT_PATH)) {
-      document.title = "Панель управления | Anton Shell";
-      return;
-    }
-    document.title = "Anton Shell";
+    document.title = location.pathname === LOGIN_PATH ? "Вход | Anton Shell Admin" : "Anton Shell Admin";
   }, [location.pathname]);
 
   return null;
@@ -97,9 +89,9 @@ function AdminLoginRoute() {
     if (expired && reason === "expired") {
       pushToast("Ваша сессия истекла. Войдите снова.");
       window.sessionStorage.removeItem(ADMIN_AUTH_EXPIRED_FLAG);
-    } else {
-      window.sessionStorage.removeItem(ADMIN_AUTH_EXPIRED_FLAG);
+      return;
     }
+    window.sessionStorage.removeItem(ADMIN_AUTH_EXPIRED_FLAG);
   }, [pushToast, searchParams]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -120,7 +112,7 @@ function AdminLoginRoute() {
             message = payload.detail.trim();
           }
         } catch {
-          // keep fallback text
+          // Keep fallback text when the backend does not return JSON.
         }
         throw new Error(message);
       }
@@ -167,12 +159,13 @@ function AdminProtectedRoute() {
   );
 }
 
-function AppRoutes() {
+function AdminRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isAuthRoute = location.pathname === LOGIN_PATH;
+  const isLoginRoute = location.pathname === LOGIN_PATH;
   const [authChecking, setAuthChecking] = useState(true);
   const [authOk, setAuthOk] = useState(false);
+  const defaultAdminPath = `${MANAGEMENT_PATH}/${DEFAULT_ADMIN_TAB}`;
 
   useEffect(() => {
     setAuthChecking(true);
@@ -188,7 +181,7 @@ function AppRoutes() {
     return () => {
       alive = false;
     };
-  }, [isAuthRoute]);
+  }, [isLoginRoute]);
 
   useEffect(() => {
     const onExpired = () => {
@@ -204,36 +197,30 @@ function AppRoutes() {
     return null;
   }
 
-  if (!authOk && !isAuthRoute) {
+  if (!authOk && !isLoginRoute) {
     return <Navigate to={LOGIN_PATH} replace />;
   }
-  if (authOk && isAuthRoute) {
-    return <Navigate to={`${MANAGEMENT_PATH}/${DEFAULT_ADMIN_TAB}`} replace />;
+
+  if (authOk && (isLoginRoute || location.pathname === "/")) {
+    return <Navigate to={defaultAdminPath} replace />;
   }
 
-  const appRoutes = (
+  const routes = (
     <Routes>
-      <Route path="/" element={<SiteLayout />}>
-        <Route index element={<HomePage />} />
-        <Route path="category/:slug" element={<CategoryPage />} />
-        <Route path="product/:id" element={<ProductPage />} />
-      </Route>
-      <Route path={MANAGEMENT_PATH} element={<Navigate to={`${MANAGEMENT_PATH}/${DEFAULT_ADMIN_TAB}`} replace />} />
+      <Route path="/" element={<Navigate to={authOk ? defaultAdminPath : LOGIN_PATH} replace />} />
       <Route path={LOGIN_PATH} element={<AdminLoginRoute />} />
-      <Route
-        path={`${MANAGEMENT_PATH}/:tab`}
-        element={<AdminProtectedRoute />}
-      />
+      <Route path={MANAGEMENT_PATH} element={<Navigate to={defaultAdminPath} replace />} />
+      <Route path={`${MANAGEMENT_PATH}/:tab`} element={<AdminProtectedRoute />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 
-  if (isAuthRoute) {
+  if (isLoginRoute) {
     return (
       <>
         <RouteTitleSync />
         <RouteTransitionIndicator />
-        {appRoutes}
+        {routes}
       </>
     );
   }
@@ -242,15 +229,15 @@ function AppRoutes() {
     <LiveDataProvider routePath={location.pathname}>
       <RouteTitleSync />
       <RouteTransitionIndicator />
-      {appRoutes}
+      {routes}
     </LiveDataProvider>
   );
 }
 
-export function App() {
+export function AdminApp() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <AdminRoutes />
     </BrowserRouter>
   );
 }
