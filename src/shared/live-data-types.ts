@@ -298,7 +298,6 @@ export type PricingSettings = {
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
-  shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
   bybit_rate_status?: string;
   bybit_rate_warning?: string | null;
   bybit_bucket_step_usdt?: number;
@@ -438,7 +437,6 @@ export type SettingsTransferPricingSettings = {
   svc_rules: Array<Record<string, unknown>>;
   insurance_rules: Array<Record<string, unknown>>;
   service_fee_rules: Array<Record<string, unknown>>;
-  shipping_rules: Record<string, Record<string, Array<Record<string, unknown>>>>;
 };
 
 export type SettingsTransferAdminUiSettings = {
