@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { toExternalHttpUrl } from "../shared/external-links";
 import { IconClose } from "../shared/mono-icons";
 import { EmptyState } from "../shared/empty-state";
 import { AdminWeightSkeleton } from "../shared/skeleton";
@@ -158,25 +159,28 @@ export function AdminWeightTab({
                     </tr>
                   </thead>
                   <tbody>
-                    {weightMissingProducts.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <Link className="btn-link" to={`/product/${item.id}`}>
-                            {item.title}
-                          </Link>
-                        </td>
-                        <td>{item.source_name}</td>
-                        <td>
-                          {item.url && !String(item.url).startsWith("manual://") ? (
-                            <a className="btn-link" href={item.url} target="_blank" rel="noreferrer">
-                              Открыть товар
-                            </a>
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {weightMissingProducts.map((item) => {
+                      const sourceHref = toExternalHttpUrl(item.url);
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <Link className="btn-link" to={`/product/${item.id}?from=admin`}>
+                              {item.title}
+                            </Link>
+                          </td>
+                          <td>{item.source_name}</td>
+                          <td>
+                            {sourceHref ? (
+                              <a className="btn-link" href={sourceHref} target="_blank" rel="noreferrer">
+                                Открыть товар
+                              </a>
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 {hasMoreWeightMissing ? (

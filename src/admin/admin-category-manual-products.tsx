@@ -1,6 +1,7 @@
 import { IconPlus } from "../shared/mono-icons";
 import { AdminSectionSkeleton } from "../shared/skeleton";
 import type { CategoryManualProduct } from "../shared/live-data-context";
+import { toExternalHttpUrl } from "../shared/external-links";
 import { toCompressedThumbUrl } from "./admin-formatters";
 import { EmptyState } from "../shared/empty-state";
 
@@ -28,6 +29,7 @@ function ManualProductRow({
   icon?: boolean;
 }) {
   const categoryLabel = item.category_names.length > 0 ? item.category_names.join(", ") : "Прочее";
+  const sourceHref = toExternalHttpUrl(item.url);
   return (
     <div className="manual-product-row">
       <div className="manual-product-media">
@@ -44,13 +46,17 @@ function ManualProductRow({
         )}
       </div>
       <div className="manual-product-main">
-        <a href={`/product/${item.product_id}`} target="_blank" rel="noreferrer">
+        <a href={`/product/${item.product_id}?from=admin`} target="_blank" rel="noreferrer">
           {item.title}
         </a>
         <p className="muted">
-          <a href={item.url} target="_blank" rel="noreferrer">
-            {item.source_name || `Source #${item.source_id}`}
-          </a>
+          {sourceHref ? (
+            <a href={sourceHref} target="_blank" rel="noreferrer">
+              {item.source_name || `Source #${item.source_id}`}
+            </a>
+          ) : (
+            <span>{item.source_name || `Source #${item.source_id}`}</span>
+          )}
         </p>
         <p className="muted">{categoryLabel}</p>
       </div>

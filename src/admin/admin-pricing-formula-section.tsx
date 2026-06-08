@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { toExternalHttpUrl } from "../shared/external-links";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import type { PricingSettings } from "../shared/live-data-context";
 import { AdminPricingSkeleton } from "../shared/skeleton";
@@ -15,6 +16,9 @@ type Props = {
 };
 
 export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml, pricingExample, pricingExampleLoading, pricingExampleError }: Props) {
+  const pricingExampleHref = pricingExample ? `/product/${pricingExample.productId}?from=admin` : null;
+  const pricingExampleSourceHref = toExternalHttpUrl(pricingExample?.url);
+
   return (
     <div className="pricing-formula-box">
       <h3 className="with-help">
@@ -29,7 +33,7 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
             <HelpHint text="Это реальный товар из базы. Пример показывает, как числа подставляются в формулу." />
           </p>
           <div className="pricing-example-head">
-            <Link className="pricing-example-thumb-link" to={`/product/${pricingExample.productId}?from=admin`}>
+            <Link className="pricing-example-thumb-link" to={pricingExampleHref || "#"}>
               <ImageWithFallback
                 src={toCompressedThumbUrl(pricingExample.imageUrl, 240, 240, 55)}
                 alt={pricingExample.title}
@@ -40,11 +44,11 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
               />
             </Link>
             <div className="pricing-example-title-row">
-              <Link className="btn-link pricing-example-title-link" to={`/product/${pricingExample.productId}?from=admin`}>
+              <Link className="btn-link pricing-example-title-link" to={pricingExampleHref || "#"}>
                 {pricingExample.title}
               </Link>
-              {pricingExample.url && !String(pricingExample.url).startsWith("manual://") ? (
-                <a className="btn-link pricing-example-source-link" href={pricingExample.url} target="_blank" rel="noreferrer">
+              {pricingExampleSourceHref ? (
+                <a className="btn-link pricing-example-source-link" href={pricingExampleSourceHref} target="_blank" rel="noreferrer">
                   {pricingExample.sourceName || "Источник"}
                 </a>
               ) : (

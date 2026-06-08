@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { buildPricingExampleView } from "../admin/admin-pricing-view-model";
-import { formatDisplayMoney, renderLegendSymbol } from "../admin/admin-formatters";
+import { buildPricingExampleView } from "./admin-pricing-view-model";
+import { formatDisplayMoney, renderLegendSymbol } from "./admin-formatters";
+import { toExternalHttpUrl } from "../shared/external-links";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { LatexBrand } from "../shared/latex-brand";
 import { IconChevronLeft, IconChevronRight, IconExternalLink, IconPlus } from "../shared/mono-icons";
@@ -12,7 +13,7 @@ import { ToastStack } from "../shared/toast-stack";
 import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
 import { useShowcaseEditPermission } from "../shared/use-showcase-edit-permission";
-import { deriveStatusAfterUnhide, getStatusClass, getStatusLabel, normalizeProductStatus } from "./catalog-helpers";
+import { deriveStatusAfterUnhide, getStatusClass, getStatusLabel, normalizeProductStatus } from "./showcase-catalog-helpers";
 import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 
 type VariantInfo = {
@@ -75,7 +76,7 @@ type ImageEditState = {
   source_image_urls: string[];
 };
 
-export function ProductPage() {
+export function ShowcaseProductPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const {
@@ -237,11 +238,17 @@ export function ProductPage() {
         <div className="catalog-empty card">
           <EmptyState
             title="Товар не найден"
-            action={(
-              <Link className="btn-link" to={fromAdmin ? "/control/products" : "/"}>
-                {fromAdmin ? "Вернуться в панель управления" : "Вернуться к каталогу"}
-              </Link>
-            )}
+            action={
+              fromAdmin ? (
+                <a className="btn-link" href="/control/products">
+                  Вернуться в панель управления
+                </a>
+              ) : (
+                <Link className="btn-link" to="/catalog">
+                  Вернуться к каталогу
+                </Link>
+              )
+            }
           />
         </div>
         <ToastStack toasts={toasts} onClose={closeToast} />
@@ -278,7 +285,7 @@ export function ProductPage() {
   const normalizedVendor = vendorMapped.toLowerCase();
   const categoryChips = categoryNames.filter((name) => String(name).trim().toLowerCase() !== normalizedVendor);
   const hasBrand = Boolean(vendorOriginal || vendorMapped);
-  const hasExternalProductUrl = Boolean(product.url && !String(product.url).startsWith("manual://"));
+  const externalProductUrl = toExternalHttpUrl(product.url);
   const descriptionVisibleEffective = (
     typeof imageEdit.description_visible_effective === "boolean"
       ? imageEdit.description_visible_effective
@@ -517,9 +524,15 @@ export function ProductPage() {
   return (
     <article className="section product-view">
       <div className="product-view-back">
-        <Link className="btn-link" to={fromAdmin ? "/control/products" : "/"}>
-          {fromAdmin ? "← Назад в панель управления" : "← Назад к каталогу"}
-        </Link>
+        {fromAdmin ? (
+          <a className="btn-link" href="/control/products">
+            ← Назад в панель управления
+          </a>
+        ) : (
+          <Link className="btn-link" to="/catalog">
+            ← Назад к каталогу
+          </Link>
+        )}
       </div>
 
       <div className="product-view-grid">
@@ -752,8 +765,8 @@ export function ProductPage() {
           ) : null}
 
           <div className="product-main-actions">
-            {hasExternalProductUrl ? (
-              <a className="btn-link product-action-btn" href={product.url} target="_blank" rel="noreferrer" title={`Открыть ${sourceName || "источник"}`}><IconExternalLink className="icon-svg" />Открыть источник</a>
+            {externalProductUrl ? (
+              <a className="btn-link product-action-btn" href={externalProductUrl} target="_blank" rel="noreferrer" title={`Открыть ${sourceName || "источник"}`}><IconExternalLink className="icon-svg" />Открыть источник</a>
             ) : null}
             {canEdit ? (
               <button type="button" className="btn-link product-action-btn" onClick={() => void toggleHidden()} disabled={statusPending}>

@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import { Link } from "react-router-dom";
+import { toExternalHttpUrl } from "../shared/external-links";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { getProductPrimaryImageUrl } from "../shared/product-image";
 import { AdminTableSkeleton } from "../shared/skeleton";
@@ -58,7 +59,7 @@ export function AdminProductsTable({
             const sourceLabel = String(product.source_name || "").trim() || source?.name || `#${product.source_id}`;
             const adminProductHref = `/product/${product.id}?from=admin`;
             const isUnavailable = String(product.status || "").trim().toLowerCase() === "unavailable";
-            const hasExternalProductUrl = Boolean(product.url && !String(product.url).startsWith("manual://"));
+            const externalProductUrl = toExternalHttpUrl(product.url);
             return (
               <tr key={product.id}>
                 <td>
@@ -83,8 +84,8 @@ export function AdminProductsTable({
                   )}
                 </td>
                 <td>
-                  {hasExternalProductUrl ? (
-                    <a className="btn-link" href={product.url} target="_blank" rel="noreferrer">
+                  {externalProductUrl ? (
+                    <a className="btn-link" href={externalProductUrl} target="_blank" rel="noreferrer">
                       {sourceLabel}
                     </a>
                   ) : (

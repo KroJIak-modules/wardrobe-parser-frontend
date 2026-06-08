@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { LazyLatexBrand } from "../shared/lazy-latex-brand";
 import type { CategoryView } from "../shared/live-data-context";
 import { CatalogPanelSkeleton, CatalogRootsSkeleton } from "../shared/skeleton";
-import { ALL_PRODUCTS_ROOT_SLUG } from "./catalog-helpers";
+import { ALL_PRODUCTS_ROOT_SLUG } from "./showcase-catalog-helpers";
 
 type CatalogHoverMenuProps = {
   roots: CategoryView[];

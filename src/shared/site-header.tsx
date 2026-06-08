@@ -25,6 +25,21 @@ export function SiteHeader({ actions = [] }: SiteHeaderProps) {
           {actions.map((action, index) => {
             const cls = `topbar-cta topbar-cta--${action.variant || "default"}`;
             if (action.to) {
+              const isExternal = /^https?:\/\//i.test(action.to);
+              if (isExternal) {
+                return (
+                  <a
+                    key={`${action.ariaLabel || action.label || "action"}-${index}`}
+                    href={action.to}
+                    className={cls}
+                    aria-label={action.ariaLabel}
+                    title={action.ariaLabel || action.label}
+                  >
+                    {action.icon ? <span className="topbar-cta-icon">{action.icon}</span> : null}
+                    {action.label}
+                  </a>
+                );
+              }
               return (
                 <Link
                   key={`${action.ariaLabel || action.label || "action"}-${index}`}

@@ -12,6 +12,10 @@ import {
 } from "../shared/admin-auth";
 import { DEFAULT_ADMIN_TAB } from "./admin-constants";
 import { AdminPage } from "./admin-page";
+import { AdminShowcaseLayout } from "./admin-showcase-layout";
+import { ShowcaseCategoryPage } from "./showcase-category-page";
+import { ShowcaseHomePage } from "./showcase-home-page";
+import { ShowcaseProductPage } from "./showcase-product-page";
 
 const MANAGEMENT_PATH = "/control";
 const LOGIN_PATH = "/login";
@@ -201,13 +205,19 @@ function AdminRoutes() {
     return <Navigate to={LOGIN_PATH} replace />;
   }
 
-  if (authOk && (isLoginRoute || location.pathname === "/")) {
+  if (authOk && isLoginRoute) {
     return <Navigate to={defaultAdminPath} replace />;
   }
 
   const routes = (
     <Routes>
-      <Route path="/" element={<Navigate to={authOk ? defaultAdminPath : LOGIN_PATH} replace />} />
+      <Route path="/" element={<AdminShowcaseLayout />}>
+        <Route index element={<ShowcaseHomePage />} />
+        <Route path="catalog" element={<ShowcaseHomePage />} />
+        <Route path="catalog/:slug" element={<ShowcaseCategoryPage />} />
+        <Route path="category/:slug" element={<ShowcaseCategoryPage />} />
+        <Route path="product/:id" element={<ShowcaseProductPage />} />
+      </Route>
       <Route path={LOGIN_PATH} element={<AdminLoginRoute />} />
       <Route path={MANAGEMENT_PATH} element={<Navigate to={defaultAdminPath} replace />} />
       <Route path={`${MANAGEMENT_PATH}/:tab`} element={<AdminProtectedRoute />} />

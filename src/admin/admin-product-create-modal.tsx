@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { EmptyState } from "../shared/empty-state";
+import { toExternalHttpUrl } from "../shared/external-links";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { optimizeImageUrl } from "../shared/product-image";
 import { SkeletonBlock } from "../shared/skeleton";
@@ -206,6 +207,7 @@ export function AdminProductCreateModal({
   );
   const canCreate = Boolean(draft.title.trim() && validVariantsCount > 0) && !isHydrating && !isCreating;
   const hasExistingLookupProduct = lookup.state === "found" && Number(lookup.product?.id || 0) > 0;
+  const lookupSourceHref = toExternalHttpUrl(lookup.product?.url);
   const isExistingProductHidden = Boolean(
     lookup.product
     && (hiddenProductIds.has(lookup.product.id) || String(lookup.product.status || "").trim().toLowerCase() === "hidden")
@@ -302,14 +304,20 @@ export function AdminProductCreateModal({
                     >
                       {lookup.product.title || `Товар #${lookup.product.id}`}
                     </a>
-                    <a
-                      className="product-create__found-link"
-                      href={lookup.product.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {String(lookup.product.source_name || "").trim() || matchedSourceDomain?.sourceName || prettyHostLabel(String(lookup.product.url || ""))}
-                    </a>
+                    {lookupSourceHref ? (
+                      <a
+                        className="product-create__found-link"
+                        href={lookupSourceHref}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {String(lookup.product.source_name || "").trim() || matchedSourceDomain?.sourceName || prettyHostLabel(String(lookup.product.url || ""))}
+                      </a>
+                    ) : (
+                      <span className="product-create__found-link">
+                        {String(lookup.product.source_name || "").trim() || matchedSourceDomain?.sourceName || "Ручной товар"}
+                      </span>
+                    )}
                   </div>
 
                   <div className="product-create__found-prices">

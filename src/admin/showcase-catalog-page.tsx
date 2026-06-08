@@ -9,13 +9,14 @@ import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
 import { useShowcaseEditPermission } from "../shared/use-showcase-edit-permission";
 import { getProductPrimaryImageUrl } from "../shared/product-image";
+import { toExternalHttpUrl } from "../shared/external-links";
 import {
   type CategoryView,
   type ProductStarredCategoryOption,
   type ServiceProduct,
   useLiveData,
 } from "../shared/live-data-context";
-import { CatalogHoverMenu } from "./catalog-hover-menu";
+import { CatalogHoverMenu } from "./showcase-catalog-hover-menu";
 import {
   ALL_PRODUCTS_ROOT_SLUG,
   DEFAULT_CATALOG_FILTERS,
@@ -28,9 +29,9 @@ import {
   sortCatalogRoots,
   type CatalogFilters,
   type ProductUiStatus,
-} from "./catalog-helpers";
+} from "./showcase-catalog-helpers";
 
-type CatalogPageProps = {
+type ShowcaseCatalogPageProps = {
   forcedCategorySlug?: string | null;
 };
 
@@ -79,7 +80,7 @@ function fillSlugRootMap(node: CategoryView, rootSlug: string) {
   }
 }
 
-export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
+export function ShowcaseCatalogPage({ forcedCategorySlug = null }: ShowcaseCatalogPageProps) {
   const { sources, loading, error, getProductStarredCategories, setProductStarredCategories, setProductStatus } = useLiveData();
   const navigate = useNavigate();
   const canEditShowcase = useShowcaseEditPermission();
@@ -451,10 +452,10 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
     setSelectedCategorySlug(slug);
     setSelectedRootSlug(rootSlug);
     if (slug === ALL_PRODUCTS_ROOT_SLUG) {
-      navigate("/");
+      navigate("/catalog");
       return;
     }
-    navigate(`/category/${slug}`);
+    navigate(`/catalog/${slug}`);
   };
 
   const onQueryChange = (value: string) => {
@@ -613,8 +614,8 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
           <div className="product-grid catalog-grid">
             {products.map((product) => {
               const sourceName = sourceNameById.get(product.source_id) || `Источник #${product.source_id}`;
-              const sourceUrl = sourceOptions.find((item) => item.id === product.source_id)?.url || null;
-              const hasExternalProductUrl = Boolean(product.url && !String(product.url).startsWith("manual://"));
+              const sourceUrl = toExternalHttpUrl(sourceOptions.find((item) => item.id === product.source_id)?.url || null);
+              const externalProductUrl = toExternalHttpUrl(product.url);
               const status = getStatusLabel(product.status);
               const statusClass = getStatusClass(product.status);
               const buyoutRub = resolveBuyoutPrice(product);
@@ -646,7 +647,7 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
 
                   <div className="catalog-card-meta">
                     <span className={statusClass}>{status}</span>
-                    {sourceUrl && !String(sourceUrl).startsWith("manual://") ? (
+                    {sourceUrl ? (
                       <a
                         className="catalog-source-link"
                         href={sourceUrl}
@@ -673,14 +674,14 @@ export function CatalogPage({ forcedCategorySlug = null }: CatalogPageProps) {
                   </p>
 
                   <div className="catalog-card-actions">
-                    {hasExternalProductUrl ? (
+                    {externalProductUrl ? (
                       <button
                         type="button"
                         className="icon-btn"
                         title="Открыть источник"
                         onClick={(event) => {
                           event.stopPropagation();
-                          window.open(product.url, "_blank", "noreferrer");
+                          window.open(externalProductUrl, "_blank", "noreferrer");
                         }}
                       >
                         <IconExternalLink className="icon-svg" />

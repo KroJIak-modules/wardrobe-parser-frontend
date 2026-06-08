@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "../../src/styles.css";
+import "../../src/site/site.css";
 
 import { SiteApp } from "../../src/site/site-app";
 
