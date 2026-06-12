@@ -12,6 +12,8 @@ type Props = {
   onToggleIncludeInDesigners: (sourceBrand: string, includeInDesigners: boolean) => void;
   onChangeCatalogPageTitle: (pageId: string, titleRef: string) => void;
   onChangeCatalogPageDescription: (pageId: string, catalogDescription: string) => void;
+  onCreateCatalogPage: (titleRef: string) => void;
+  onDeleteCatalogPage: (pageId: string) => void;
 };
 
 function normalizeText(value: string | null | undefined) {
@@ -46,9 +48,11 @@ export function AdminDesignersTab({
   onToggleIncludeInDesigners,
   onChangeCatalogPageTitle,
   onChangeCatalogPageDescription,
+  onCreateCatalogPage,
+  onDeleteCatalogPage,
 }: Props) {
   const [search, setSearch] = useState<string>("");
-  const [viewMode, setViewMode] = useState<DesignersViewMode>("pages");
+  const [viewMode, setViewMode] = useState<DesignersViewMode>("sources");
 
   const catalogTitleOptions = useMemo(
     () =>
@@ -100,57 +104,39 @@ export function AdminDesignersTab({
         .filter((entry) => entry[1])
     );
 
-    return pages
-      .map((page) => {
-        const rawTitleRef = normalizeText(page.title_ref);
-        const titleKey = rawTitleRef.toLowerCase();
-        const hasValidTitle = Boolean(rawTitleRef) && validTitleSet.has(titleKey);
-        const linkedRows = hasValidTitle ? [...(rowsByCatalogTitle.get(titleKey) ?? [])] : [];
-        linkedRows.sort((left, right) =>
-          normalizeText(left.source_brand).localeCompare(normalizeText(right.source_brand), "en", {
-            numeric: true,
-            sensitivity: "base",
-          })
-        );
+    return pages.map((page) => {
+      const rawTitleRef = normalizeText(page.title_ref);
+      const titleKey = rawTitleRef.toLowerCase();
+      const hasValidTitle = Boolean(rawTitleRef) && validTitleSet.has(titleKey);
+      const linkedRows = hasValidTitle ? [...(rowsByCatalogTitle.get(titleKey) ?? [])] : [];
+      linkedRows.sort((left, right) =>
+        normalizeText(left.source_brand).localeCompare(normalizeText(right.source_brand), "en", {
+          numeric: true,
+          sensitivity: "base",
+        })
+      );
 
-        const selectedByOthers = new Set(
-          [...selectedTitleByPageId.entries()]
-            .filter(([pageId, selectedKey]) => pageId !== page.id && selectedKey)
-            .map(([, selectedKey]) => selectedKey)
-        );
-        const selectableTitles = catalogTitleOptions.filter((title) => {
-          const candidateKey = title.toLowerCase();
-          return candidateKey === titleKey || !selectedByOthers.has(candidateKey);
-        });
-        const enabledSourceCount = linkedRows.filter((row) => row.include_in_designers).length;
-        const allIncluded = linkedRows.length > 0 && enabledSourceCount === linkedRows.length;
-        const partiallyIncluded = enabledSourceCount > 0 && enabledSourceCount < linkedRows.length;
+      const selectedByOthers = new Set(
+        [...selectedTitleByPageId.entries()]
+          .filter(([pageId, selectedKey]) => pageId !== page.id && selectedKey)
+          .map(([, selectedKey]) => selectedKey)
+      );
+      const enabledSourceCount = linkedRows.filter((row) => row.include_in_designers).length;
+      const allIncluded = linkedRows.length > 0 && enabledSourceCount === linkedRows.length;
+      const partiallyIncluded = enabledSourceCount > 0 && enabledSourceCount < linkedRows.length;
 
-        return {
-          page,
-          hasValidTitle,
-          linkedRows,
-          selectableTitles,
-          totalProductCount: linkedRows.reduce((sum, row) => sum + row.source_product_count, 0),
-          enabledSourceCount,
-          allIncluded,
-          partiallyIncluded,
-        };
-      })
-      .sort((left, right) => {
-        const leftTitle = left.hasValidTitle ? normalizeText(left.page.title_ref) : "";
-        const rightTitle = right.hasValidTitle ? normalizeText(right.page.title_ref) : "";
-        if (!leftTitle && !rightTitle) {
-          return left.page.id.localeCompare(right.page.id, "en", { numeric: true, sensitivity: "base" });
-        }
-        if (!leftTitle) {
-          return 1;
-        }
-        if (!rightTitle) {
-          return -1;
-        }
-        return leftTitle.localeCompare(rightTitle, "en", { numeric: true, sensitivity: "base" });
-      });
+      return {
+        page,
+        hasValidTitle,
+        linkedRows,
+        selectedByOthers,
+        selectableTitles: catalogTitleOptions,
+        totalProductCount: linkedRows.reduce((sum, row) => sum + row.source_product_count, 0),
+        enabledSourceCount,
+        allIncluded,
+        partiallyIncluded,
+      };
+    });
   }, [catalogTitleOptions, pages, rowsByCatalogTitle]);
 
   const filteredRows = useMemo(() => {
@@ -192,14 +178,14 @@ export function AdminDesignersTab({
                 className={viewMode === "sources" ? "tab tab--active" : "tab"}
                 onClick={() => setViewMode("sources")}
               >
-                Исходные бренды
+                {`Исходные бренды (${rows.length})`}
               </button>
               <button
                 type="button"
                 className={viewMode === "pages" ? "tab tab--active" : "tab"}
                 onClick={() => setViewMode("pages")}
               >
-                Страницы каталога
+                {`Страницы каталога (${pages.length})`}
               </button>
             </div>
             <input
@@ -212,8 +198,14 @@ export function AdminDesignersTab({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-            <span className="designers-tab-pill">{rows.length} исходных брендов</span>
-            <span className="designers-tab-pill">{pages.length} страниц каталога</span>
+            <button
+              type="button"
+              className="designers-tab-create"
+              disabled={catalogTitleOptions.length === 0}
+              onClick={() => onCreateCatalogPage("")}
+            >
+              Создать страницу каталога
+            </button>
           </div>
         </div>
       </div>
@@ -298,12 +290,12 @@ export function AdminDesignersTab({
         {!loading && viewMode === "pages"
           ? filteredPageItems.map((item) => {
               const stateLabel = item.linkedRows.length === 0
-                ? "Выключена"
+                ? "Выключено"
                 : item.allIncluded
-                  ? "Включена"
+                  ? "Включено"
                   : item.partiallyIncluded
-                    ? "Частично включена"
-                    : "Выключена";
+                    ? "Частично включено"
+                    : "Выключено";
 
               return (
                 <article
@@ -311,25 +303,34 @@ export function AdminDesignersTab({
                   className={item.allIncluded ? "designers-item designers-item--enabled" : "designers-item designers-item--catalog"}
                 >
                   <div className="designers-item__header designers-item__header--between">
-                    <div className="designers-item__state">
+                    <div className="designers-item__actions">
                       <span className="designers-item__count-pill">{formatProductCount(item.totalProductCount)}</span>
                     </div>
-                    <label className="ui-switch designers-item__toggle">
-                      <input
-                        type="checkbox"
-                        checked={item.allIncluded}
-                        disabled={item.linkedRows.length === 0}
-                        onChange={(event) => {
-                          for (const row of item.linkedRows) {
-                            onToggleIncludeInDesigners(row.source_brand, event.target.checked);
-                          }
-                        }}
-                      />
-                      <span className="ui-switch-track">
-                        <span className="ui-switch-thumb" />
-                      </span>
-                      <span className="ui-switch-text">{stateLabel}</span>
-                    </label>
+                    <div className="designers-item__actions">
+                      <label className="ui-switch designers-item__toggle">
+                        <input
+                          type="checkbox"
+                          checked={item.allIncluded}
+                          disabled={item.linkedRows.length === 0}
+                          onChange={(event) => {
+                            for (const row of item.linkedRows) {
+                              onToggleIncludeInDesigners(row.source_brand, event.target.checked);
+                            }
+                          }}
+                        />
+                        <span className="ui-switch-track">
+                          <span className="ui-switch-thumb" />
+                        </span>
+                        <span className="ui-switch-text">{stateLabel}</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="designers-item__delete"
+                        onClick={() => onDeleteCatalogPage(item.page.id)}
+                      >
+                        Удалить
+                      </button>
+                    </div>
                   </div>
 
                   <div className="designers-item__fields">
@@ -338,15 +339,19 @@ export function AdminDesignersTab({
                       <div className="designers-item__field-body">
                         <select
                           className="input"
-                          value={item.hasValidTitle ? item.page.title_ref : ""}
-                          disabled={!item.hasValidTitle}
+                          value={item.hasValidTitle || !normalizeText(item.page.title_ref) ? item.page.title_ref : ""}
+                          disabled={!item.hasValidTitle && Boolean(normalizeText(item.page.title_ref))}
                           onChange={(event) => onChangeCatalogPageTitle(item.page.id, event.target.value)}
                         >
                           <option value="" disabled={item.hasValidTitle}>
-                            {item.hasValidTitle ? "Выберите название" : "Название больше недоступно"}
+                            {!normalizeText(item.page.title_ref) ? "Выберите название" : "Название больше недоступно"}
                           </option>
                           {item.selectableTitles.map((title) => (
-                            <option key={`${item.page.id}-${title}`} value={title}>
+                            <option
+                              key={`${item.page.id}-${title}`}
+                              value={title}
+                              disabled={item.selectedByOthers.has(title.toLowerCase())}
+                            >
                               {title}
                             </option>
                           ))}

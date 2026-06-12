@@ -445,6 +445,8 @@ export function AdminPage() {
     onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
     onChangeCatalogPageTitle: onChangeDesignerCatalogPageTitle,
     onChangeCatalogPageDescription: onChangeDesignerCatalogPageDescription,
+    onCreateCatalogPage: onCreateDesignerCatalogPage,
+    onDeleteCatalogPage: onDeleteDesignerCatalogPage,
   } = useAdminDesignerMappings(tab, pushToast);
 
   useAdminSvcValidationToast(svcRulesValidationError, pushToast);
@@ -504,6 +506,8 @@ export function AdminPage() {
       onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
       onChangeCatalogPageTitle: onChangeDesignerCatalogPageTitle,
       onChangeCatalogPageDescription: onChangeDesignerCatalogPageDescription,
+      onCreateCatalogPage: onCreateDesignerCatalogPage,
+      onDeleteCatalogPage: onDeleteDesignerCatalogPage,
     },
     sourcesTabProps: {
       sources,

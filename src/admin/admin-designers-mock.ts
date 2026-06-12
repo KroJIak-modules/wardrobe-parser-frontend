@@ -202,23 +202,6 @@ function normalizeDesignerStore(nextStore: InternalDesignerStore): InternalDesig
       id: normalizedId,
     };
   });
-  const pageTitleKeys = new Set(preparedPages.filter((page) => page.title_ref).map((page) => page.title_ref.toLowerCase()));
-  for (const row of rows) {
-    const title = normalizeText(row.catalog_title);
-    if (!title) {
-      continue;
-    }
-    const titleKey = title.toLowerCase();
-    if (pageTitleKeys.has(titleKey)) {
-      continue;
-    }
-    preparedPages.push({
-      id: createUniquePageId(title, usedPageIds),
-      title_ref: title,
-      catalog_description: seedPageDescriptions[titleKey] || "",
-    });
-    pageTitleKeys.add(titleKey);
-  }
   const pageDescriptionByTitle = new Map(
     preparedPages.filter((page) => page.title_ref).map((page) => [page.title_ref.toLowerCase(), page.catalog_description])
   );

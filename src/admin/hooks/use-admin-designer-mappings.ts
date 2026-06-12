@@ -44,6 +44,27 @@ function normalizePage(page: AdminDesignerCatalogPage): AdminDesignerCatalogPage
   };
 }
 
+function sortPagesForLoad(pages: readonly AdminDesignerCatalogPage[]) {
+  return [...pages].sort((left, right) => {
+    const leftTitle = String(left.title_ref || "").trim();
+    const rightTitle = String(right.title_ref || "").trim();
+    if (!leftTitle && !rightTitle) {
+      return String(left.id || "").localeCompare(String(right.id || ""), "en", { numeric: true, sensitivity: "base" });
+    }
+    if (!leftTitle) {
+      return 1;
+    }
+    if (!rightTitle) {
+      return -1;
+    }
+    return leftTitle.localeCompare(rightTitle, "en", { numeric: true, sensitivity: "base" });
+  });
+}
+
+function createPageId() {
+  return `designer-page-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function useAdminDesignerMappings(tab: string, pushToast: (message: string) => void) {
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
@@ -58,7 +79,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
       setLoading(true);
       const payload = await fetchAdminDesignerMappings();
       const nextRows = payload.rows.map(normalizeRow);
-      const nextPages = payload.pages.map(normalizePage);
+      const nextPages = sortPagesForLoad(payload.pages.map(normalizePage));
       setRows(nextRows);
       setPages(nextPages);
       setBaselineRows(nextRows);
@@ -99,6 +120,22 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     setPages((prev) =>
       prev.map((page) => (page.id === pageId ? { ...page, catalog_description: catalogDescription } : page))
     );
+  }, []);
+
+  const onCreateCatalogPage = useCallback((titleRef: string) => {
+    const normalizedTitleRef = String(titleRef || "").trim();
+    setPages((prev) => [
+      ...prev,
+      {
+        id: createPageId(),
+        title_ref: normalizedTitleRef,
+        catalog_description: "",
+      },
+    ]);
+  }, []);
+
+  const onDeleteCatalogPage = useCallback((pageId: string) => {
+    setPages((prev) => prev.filter((page) => page.id !== pageId));
   }, []);
 
   const persistState = useCallback(async (nextDraftRows: readonly AdminDesignerMappingRow[], nextDraftPages: readonly AdminDesignerCatalogPage[]) => {
@@ -169,5 +206,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     onToggleIncludeInDesigners,
     onChangeCatalogPageTitle,
     onChangeCatalogPageDescription,
+    onCreateCatalogPage,
+    onDeleteCatalogPage,
   };
 }

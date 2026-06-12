@@ -6065,17 +6065,29 @@ button:disabled {
   font-size: 13px;
 }
 
-.designers-tab-pill {
+.designers-tab-create {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
+  margin-left: auto;
   padding: 0 12px;
   border: 1px solid #d8dee8;
-  border-radius: 999px;
-  background: #f8fafc;
-  color: #516074;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #334155;
   font-size: 13px;
   font-weight: 600;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.designers-tab-create:hover:not(:disabled) {
+  border-color: #bfc9d8;
+  background: #f8fafc;
+}
+
+.designers-tab-create:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .designers-tab-search {
@@ -6125,6 +6137,12 @@ button:disabled {
 .designers-item__state {
   display: inline-flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.designers-item__actions {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
 }
@@ -6199,6 +6217,26 @@ button:disabled {
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.designers-item__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #ebc0c0;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #a02525;
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.designers-item__delete:hover {
+  border-color: #d79595;
+  background: #ffefef;
 }
 
 .designers-item__related-list {
