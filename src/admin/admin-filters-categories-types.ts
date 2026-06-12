@@ -1,16 +1,10 @@
 export type AdminRuleManualProduct = {
   product_id: number;
-  source_id: number;
   source_name: string;
   vendor: string;
   title: string;
-  url: string;
-  status: "active" | "draft" | "archived";
   image_url: string | null;
   matched_local_categories: string[];
-  price_label: string;
-  inventory_hint: string;
-  last_seen_at: string;
 };
 
 export type AdminRuleSet = {

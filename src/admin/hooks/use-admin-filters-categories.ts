@@ -141,8 +141,6 @@ export function useAdminFiltersCategories() {
           item.vendor,
           item.title,
           item.source_name,
-          item.price_label,
-          item.inventory_hint,
           item.matched_local_categories.join(" "),
         ]
           .join(" ")

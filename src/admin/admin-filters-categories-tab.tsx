@@ -158,7 +158,7 @@ function ManualProductList({
             <a href={`/product/${item.product_id}?from=admin`} target="_blank" rel="noreferrer">
               {item.vendor} {item.title}
             </a>
-            <p className="muted">{item.source_name} • {item.price_label}</p>
+            <p className="muted">{item.source_name}</p>
             <p className="muted">{item.matched_local_categories.join(", ")}</p>
           </div>
           <button type="button" onClick={() => onAction(item.product_id)}>
