@@ -81,7 +81,7 @@ export function useAdminTabPreload({
         await ensureDedupLoadedRef.current();
         return;
       }
-      if (tab === "categories") {
+      if (tab === "filters-categories") {
         await ensureCategoriesLoadedRef.current();
         return;
       }

@@ -3,7 +3,7 @@ import type { AdminTab, CurrencyCode, FinalRoundingMode, PricingFieldKey } from 
 const tabs: { key: AdminTab; label: string }[] = [
   { key: "products", label: "Все товары" },
   { key: "dedup", label: "Дедубликация" },
-  { key: "categories", label: "Категории" },
+  { key: "filters-categories", label: "Фильтры и Категории" },
   { key: "designers", label: "Дизайнеры" },
   { key: "sources", label: "Источники" },
   { key: "pricing", label: "Ценообразование" },

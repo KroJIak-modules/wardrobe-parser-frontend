@@ -1,4 +1,4 @@
-export type AdminTab = "products" | "dedup" | "categories" | "designers" | "sources" | "pricing" | "weight" | "settings";
+export type AdminTab = "products" | "dedup" | "filters-categories" | "designers" | "sources" | "pricing" | "weight" | "settings";
 
 export type UploadPreview = {
   file: File;

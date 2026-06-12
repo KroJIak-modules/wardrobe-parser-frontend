@@ -204,36 +204,6 @@ export function AdminDedupSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
-export function AdminCategoriesSkeleton() {
-  return (
-    <div className="categories-layout" aria-hidden="true">
-      <div>
-        <div className="actions" style={{ marginBottom: "0.5rem" }}>
-          <SkeletonBlock className="admin-categories-skeleton-root-btn" />
-        </div>
-        <div className="cat-tree-wrap admin-categories-skeleton-tree">
-          {Array.from({ length: 8 }).map((_, idx) => (
-            <div key={`admin-cat-tree-skeleton-${idx}`} className="admin-categories-skeleton-tree-row" style={{ marginLeft: `${(idx % 3) * 12}px` }}>
-              <SkeletonBlock className="admin-categories-skeleton-tree-node" />
-              <SkeletonBlock className="admin-categories-skeleton-tree-meta" />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="card">
-        <SkeletonBlock className="admin-categories-skeleton-panel-title" />
-        <div className="form">
-          <SkeletonBlock className="admin-categories-skeleton-input" />
-          <SkeletonBlock className="admin-categories-skeleton-switch" />
-          <SkeletonBlock className="admin-categories-skeleton-switch" />
-          <SkeletonBlock className="admin-categories-skeleton-btn" />
-        </div>
-        <SkeletonBlock className="admin-categories-skeleton-hint" />
-      </div>
-    </div>
-  );
-}
-
 export function AdminSourcesSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <div className="sources-grid" aria-hidden="true">
