@@ -15,7 +15,7 @@ import type {
   ShowcaseNavigationResponse,
   ShowcaseRouteTarget,
 } from "./showcase-contracts";
-import { readAdminDesignerMappingsSeed } from "./admin-designers-mock";
+import { readCanonicalAdminDesignersSeed } from "./admin-designers-mock";
 import {
   resolveCatalogPageHeader,
   type CatalogHeaderDesignerEntry,
@@ -568,121 +568,64 @@ const categories: AdminCategoryTreeNode[] = [
   },
 ];
 
-function buildDesignerId(label: string) {
-  return label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+const SHOWCASE_DESIGNER_MENU_LIMIT = 14;
+
+function readShowcaseDesignersSortedByLabel() {
+  return readCanonicalAdminDesignersSeed();
 }
 
-const showcaseDesignerCatalog = [
-  { label: "1017 ALYX 9SM", product_count: 27 },
-  { label: "14th Addiction", product_count: 12 },
-  { label: "424", product_count: 9 },
-  { label: "A-COLD-WALL*", product_count: 18 },
-  { label: "A.P.C.", product_count: 34 },
-  { label: "Acne Studios", product_count: 41 },
-  { label: "Alice Hollywood", product_count: 24 },
-  { label: "Ann Demeulemeester", product_count: 52 },
-  { label: "Balenciaga", product_count: 88 },
-  { label: "Boris Bidjan Saberi", product_count: 17 },
-  { label: "Bottega Veneta", product_count: 36 },
-  { label: "Carol Christian Poell", product_count: 13 },
-  { label: "Comme des Garcons", product_count: 29 },
-  { label: "Craig Green", product_count: 22 },
-  { label: "Diesel", product_count: 31 },
-  { label: "Dries Van Noten", product_count: 38 },
-  { label: "Enfants Riches Deprimes", product_count: 19 },
-  { label: "Fear of God", product_count: 26 },
-  { label: "Guidi", product_count: 64 },
-  { label: "Haider Ackermann", product_count: 21 },
-  { label: "Helmut Lang", product_count: 25 },
-  { label: "Issey Miyake", product_count: 33 },
-  { label: "Jaded London", product_count: 47 },
-  { label: "Jil Sander", product_count: 39 },
-  { label: "Julius", product_count: 28 },
-  { label: "Junya Watanabe", product_count: 24 },
-  { label: "Kiko Kostadinov", product_count: 23 },
-  { label: "Lanvin", product_count: 18 },
-  { label: "Lemaire", product_count: 27 },
-  { label: "Maison Margiela", product_count: 44 },
-  { label: "Marine Serre", product_count: 22 },
-  { label: "Namacheko", product_count: 16 },
-  { label: "Needles", product_count: 20 },
-  { label: "Ottolinger", product_count: 15 },
-  { label: "Our Legacy", product_count: 35 },
-  { label: "Prada", product_count: 49 },
-  { label: "Protocol Index", product_count: 38 },
-  { label: "Racer Worldwide", product_count: 31 },
-  { label: "Raf Simons", product_count: 46 },
-  { label: "Rick Owens", product_count: 61 },
-  { label: "Sacai", product_count: 29 },
-  { label: "Saint Laurent", product_count: 57 },
-  { label: "Takahiromiyashita TheSoloist.", product_count: 14 },
-  { label: "The Row", product_count: 22 },
-  { label: "Undercover", product_count: 27 },
-  { label: "Valentino", product_count: 33 },
-  { label: "Vetements", product_count: 18 },
-  { label: "Visvim", product_count: 21 },
-  { label: "Wales Bonner", product_count: 24 },
-  { label: "Y-3", product_count: 16 },
-  { label: "Yohji Yamamoto", product_count: 43 },
-  { label: "Ziggy Chen", product_count: 11 },
-]
-  .map((designer) => ({
-    id: buildDesignerId(designer.label),
-    ...designer,
-  }))
-  .sort((left, right) => left.label.localeCompare(right.label, "en", { numeric: true, sensitivity: "base" }));
+function readShowcaseDesignersSortedByCount() {
+  return [...readCanonicalAdminDesignersSeed()].sort((left, right) => {
+    if (right.product_count !== left.product_count) {
+      return right.product_count - left.product_count;
+    }
+    return left.label.localeCompare(right.label, "en", { numeric: true, sensitivity: "base" });
+  });
+}
 
-const featuredShowcaseDesignerIds = [
-  "14th-addiction",
-  "424",
-  "alice-hollywood",
-  "ann-demeulemeester",
-  "balenciaga",
-  "enfants-riches-deprimes",
-  "guidi",
-  "jaded-london",
-  "protocol-index",
-  "racer-worldwide",
-  "raf-simons",
-  "rick-owens",
-];
-
-const designerDirectory: AdminDesignerDirectoryItem[] = showcaseDesignerCatalog.map((designer) => ({
-  id: designer.id,
-  label: designer.label,
-  product_count: designer.product_count,
-}));
-
-const designersDirectoryIndex = showcaseDesignerCatalog.map((designer) => {
-  const firstChar = designer.label.charAt(0).toUpperCase();
-  const letter = /[A-Z]/.test(firstChar) ? firstChar : "#";
-  return {
+function buildDesignerDirectory(): AdminDesignerDirectoryItem[] {
+  return readShowcaseDesignersSortedByLabel().map((designer) => ({
     id: designer.id,
     label: designer.label,
-    letter,
-  };
-});
+    product_count: designer.product_count,
+  }));
+}
 
-const previewMetricsByView: Record<CatalogViewKey, CatalogMetricTemplate[]> = {
-  default: [
+function buildDesignersDirectoryIndex() {
+  return readShowcaseDesignersSortedByLabel().map((designer) => {
+    const firstChar = designer.label.charAt(0).toUpperCase();
+    const letter = /[A-Z]/.test(firstChar) ? firstChar : "#";
+    return {
+      id: designer.id,
+      label: designer.label,
+      letter,
+    };
+  });
+}
+
+function buildPreviewMetrics(viewKey: CatalogViewKey): CatalogMetricTemplate[] {
+  if (viewKey === "designers") {
+    return [
+      { id: "featured-designers", label: "В фокусе", value: `${Math.min(SHOWCASE_DESIGNER_MENU_LIMIT, readShowcaseDesignersSortedByCount().length)} брендов` },
+      { id: "assortment", label: "Ассортимент", value: "1 096 SKU" },
+      { id: "refresh-window", label: "Обновление", value: "каждые 30 минут" },
+    ];
+  }
+
+  if (viewKey === "sale") {
+    return [
+      { id: "discounted-items", label: "Товаров со скидкой", value: "386 SKU" },
+      { id: "average-discount", label: "Средняя скидка", value: "27%" },
+      { id: "refresh-window", label: "Обновление", value: "раз в час" },
+    ];
+  }
+
+  return [
     { id: "assortment", label: "Ассортимент", value: "2 184 SKU" },
-    { id: "active-designers", label: "Дизайнеров", value: String(showcaseDesignerCatalog.length) },
+    { id: "active-designers", label: "Дизайнеров", value: String(readShowcaseDesignersSortedByLabel().length) },
     { id: "refresh-window", label: "Обновление", value: "каждые 15 минут" },
-  ],
-  designers: [
-    { id: "featured-designers", label: "В фокусе", value: `${featuredShowcaseDesignerIds.length} брендов` },
-    { id: "assortment", label: "Ассортимент", value: "1 096 SKU" },
-    { id: "refresh-window", label: "Обновление", value: "каждые 30 минут" },
-  ],
-  sale: [
-    { id: "discounted-items", label: "Товаров со скидкой", value: "386 SKU" },
-    { id: "average-discount", label: "Средняя скидка", value: "27%" },
-    { id: "refresh-window", label: "Обновление", value: "раз в час" },
-  ],
-};
+  ];
+}
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -884,22 +827,20 @@ function buildNewCategoryMenuBlocks(): ShowcaseNavigationMenuBlock[] {
 }
 
 function buildDesignersMenuBlocks(): ShowcaseNavigationMenuBlock[] {
-  const catalogById = new Map(showcaseDesignerCatalog.map((designer) => [designer.id, designer]));
-  const items = featuredShowcaseDesignerIds
-    .map((designerId) => catalogById.get(designerId))
-    .filter((designer): designer is (typeof showcaseDesignerCatalog)[number] => Boolean(designer))
+  const items = readShowcaseDesignersSortedByCount()
+    .slice(0, SHOWCASE_DESIGNER_MENU_LIMIT)
     .map((designer) => ({
       id: `designer-${designer.id}`,
       kind: "filter_link" as const,
       label: designer.label,
-        target: {
-          pathname: "/catalog/designers" as const,
-          query: {
-            ctx: "designer",
-            ctx_ref: designer.id,
-            designer: designer.id,
-          },
+      target: {
+        pathname: "/catalog/designers" as const,
+        query: {
+          ctx: "designer",
+          ctx_ref: designer.id,
+          designer: designer.id,
         },
+      },
     }));
   const middleIndex = Math.ceil(items.length / 2);
 
@@ -1031,7 +972,7 @@ function buildSectionFilterOptions() {
 }
 
 function buildDesignerOptions() {
-  return showcaseDesignerCatalog.map((designer) => ({
+  return readShowcaseDesignersSortedByCount().map((designer) => ({
     id: designer.id,
     label: designer.label,
     value: designer.id,
@@ -1098,7 +1039,7 @@ export function readAdminFiltersCategoriesSeed(): AdminFiltersCategoriesPayload 
     filters,
     categories,
     custom_catalogs: customCatalogs,
-    designer_directory: designerDirectory,
+    designer_directory: buildDesignerDirectory(),
     product_library: productLibrary,
   });
 }
@@ -1179,19 +1120,12 @@ export function buildShowcaseNavigationSeed(): ShowcaseNavigationResponse {
 }
 
 function buildCatalogHeaderDesignerRegistry(): CatalogHeaderDesignerEntry[] {
-  const designerMappingsBySourceBrand = new Map(
-    readAdminDesignerMappingsSeed().map((row) => [row.source_brand.trim().toLowerCase(), row])
-  );
-
-  return showcaseDesignerCatalog.map((designer) => {
-    const mapping = designerMappingsBySourceBrand.get(designer.label.trim().toLowerCase());
-    return {
-      id: designer.id,
-      label: designer.label,
-      catalogTitle: String(mapping?.catalog_title || designer.label).trim() || designer.label,
-      catalogDescription: String(mapping?.catalog_description || "").trim() || null,
-    };
-  });
+  return readShowcaseDesignersSortedByLabel().map((designer) => ({
+    id: designer.id,
+    label: designer.label,
+    catalogTitle: designer.label,
+    catalogDescription: designer.catalog_description,
+  }));
 }
 
 function buildCatalogHeaderMenuFilterRegistry(): CatalogHeaderMenuFilterEntry[] {
@@ -1236,13 +1170,13 @@ export function buildCatalogExperienceSeed(viewKey: CatalogViewKey, searchParams
       globalConstraints: viewKey === "sale" ? ["Только товары с активной скидкой"] : undefined,
     },
     filterGroups: buildCatalogFilterGroups(),
-    previewMetrics: previewMetricsByView[viewKey],
+    previewMetrics: buildPreviewMetrics(viewKey),
   });
 }
 
 export function buildShowcaseDesignersDirectorySeed(): ShowcaseDesignersDirectoryResponse {
   return cloneJson({
     alphabet: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "#"],
-    entries: designersDirectoryIndex,
+    entries: buildDesignersDirectoryIndex(),
   });
 }

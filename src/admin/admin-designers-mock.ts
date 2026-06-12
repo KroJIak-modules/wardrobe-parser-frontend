@@ -2,6 +2,13 @@ import type { AdminDesignerMappingRow } from "./admin-types";
 
 const MOCK_LATENCY_MS = 180;
 
+export type AdminCanonicalDesigner = {
+  id: string;
+  label: string;
+  product_count: number;
+  catalog_description: string | null;
+};
+
 const seedRows: AdminDesignerMappingRow[] = [
   { source_brand: "0-Hide", source_product_count: 7, catalog_title: "0-Hide", catalog_description: "", include_in_designers: false },
   { source_brand: "07A", source_product_count: 4, catalog_title: "07A", catalog_description: "Небольшая выборка 07A с редкими архивными позициями и акцентом на фактурные материалы.", include_in_designers: false },
@@ -84,6 +91,33 @@ function cloneRows(rows: readonly AdminDesignerMappingRow[]) {
   return rows.map((row) => ({ ...row }));
 }
 
+function buildDesignerId(label: string) {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizeText(value: string | null | undefined) {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function pickCatalogDescription(rows: readonly AdminDesignerMappingRow[], label: string) {
+  const exactMatch = rows.find((row) => normalizeText(row.source_brand).toLowerCase() === label.toLowerCase());
+  if (exactMatch) {
+    const exactDescription = normalizeText(exactMatch.catalog_description);
+    if (exactDescription) {
+      return exactDescription;
+    }
+  }
+
+  const firstNonEmpty = rows
+    .map((row) => normalizeText(row.catalog_description))
+    .find((description) => description.length > 0);
+
+  return firstNonEmpty || null;
+}
+
 function simulateResponse<T>(value: T, latency = MOCK_LATENCY_MS): Promise<T> {
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(value), latency);
@@ -101,4 +135,49 @@ export async function saveAdminDesignerMappings(rows: readonly AdminDesignerMapp
 
 export function readAdminDesignerMappingsSeed(): AdminDesignerMappingRow[] {
   return cloneRows(store);
+}
+
+export function readCanonicalAdminDesignersSeed(): AdminCanonicalDesigner[] {
+  const aggregated = new Map<
+    string,
+    {
+      label: string;
+      product_count: number;
+      rows: AdminDesignerMappingRow[];
+    }
+  >();
+
+  for (const row of store) {
+    if (!row.include_in_designers) {
+      continue;
+    }
+
+    const label = normalizeText(row.catalog_title) || normalizeText(row.source_brand);
+    if (!label) {
+      continue;
+    }
+
+    const key = label.toLowerCase();
+    const current = aggregated.get(key);
+    if (current) {
+      current.product_count += Math.max(0, Math.trunc(Number(row.source_product_count) || 0));
+      current.rows.push({ ...row });
+      continue;
+    }
+
+    aggregated.set(key, {
+      label,
+      product_count: Math.max(0, Math.trunc(Number(row.source_product_count) || 0)),
+      rows: [{ ...row }],
+    });
+  }
+
+  return [...aggregated.values()]
+    .map((entry) => ({
+      id: buildDesignerId(entry.label),
+      label: entry.label,
+      product_count: entry.product_count,
+      catalog_description: pickCatalogDescription(entry.rows, entry.label),
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label, "en", { numeric: true, sensitivity: "base" }));
 }
