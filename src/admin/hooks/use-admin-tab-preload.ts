@@ -81,7 +81,7 @@ export function useAdminTabPreload({
         await ensureDedupLoadedRef.current();
         return;
       }
-      if (tab === "filters-categories") {
+      if (tab === "showcase-structure") {
         await ensureCategoriesLoadedRef.current();
         return;
       }

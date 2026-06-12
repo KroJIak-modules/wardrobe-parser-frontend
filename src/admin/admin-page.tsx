@@ -31,7 +31,7 @@ import { useAdminTabPreload } from "./hooks/use-admin-tab-preload";
 import { useAdminPricingRuntime } from "./hooks/use-admin-pricing-runtime";
 import { useAdminSvcValidationToast } from "./hooks/use-admin-svc-validation-toast";
 import { useAdminSourceMap } from "./hooks/use-admin-source-map";
-import { useAdminBrandMapping } from "./hooks/use-admin-brand-mapping";
+import { useAdminDesignerMappings } from "./hooks/use-admin-designer-mappings";
 import { useAdminPageLifecycle } from "./hooks/use-admin-page-lifecycle";
 import { useAdminErrorToast } from "./hooks/use-admin-error-toast";
 import { useAdminTabContentProps } from "./hooks/use-admin-tab-content-props";
@@ -439,14 +439,11 @@ export function AdminPage() {
   const sourceById = useAdminSourceMap(sources);
   const {
     loading: designersLoading,
-    saving: designersSaving,
-    hasUnsavedChanges: designersHasUnsavedChanges,
     rows: designersRows,
-    knownTargets: designerKnownTargets,
-    onChangeTarget: onChangeDesignerTarget,
+    onChangeCatalogTitle: onChangeDesignerCatalogTitle,
+    onChangeCatalogDescription: onChangeDesignerCatalogDescription,
     onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
-    save: saveDesignerMapping,
-  } = useAdminBrandMapping(tab, pushToast);
+  } = useAdminDesignerMappings(tab, pushToast);
 
   useAdminSvcValidationToast(svcRulesValidationError, pushToast);
 
@@ -499,13 +496,10 @@ export function AdminPage() {
     filtersCategoriesTabProps: {},
     designersTabProps: {
       loading: designersLoading,
-      saving: designersSaving,
-      hasUnsavedChanges: designersHasUnsavedChanges,
       rows: designersRows,
-      knownTargets: designerKnownTargets,
-      onChangeTarget: onChangeDesignerTarget,
+      onChangeCatalogTitle: onChangeDesignerCatalogTitle,
+      onChangeCatalogDescription: onChangeDesignerCatalogDescription,
       onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
-      onSave: saveDesignerMapping,
     },
     sourcesTabProps: {
       sources,

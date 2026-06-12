@@ -1,4 +1,4 @@
-export type AdminTab = "products" | "dedup" | "filters-categories" | "designers" | "sources" | "pricing" | "weight" | "settings";
+export type AdminTab = "products" | "dedup" | "showcase-structure" | "designers" | "sources" | "pricing" | "weight" | "settings";
 
 export type UploadPreview = {
   file: File;
@@ -112,9 +112,11 @@ export type AdminFilterFacetOption = {
   count: number;
 };
 
-export type BrandMappingItem = {
+export type AdminDesignerMappingRow = {
   source_brand: string;
-  target_brand: string;
+  source_product_count: number;
+  catalog_title: string;
+  catalog_description: string;
   include_in_designers: boolean;
 };
 

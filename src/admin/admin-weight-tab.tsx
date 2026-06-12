@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { toExternalHttpUrl } from "../shared/external-links";
-import { IconClose } from "../shared/mono-icons";
 import { EmptyState } from "../shared/empty-state";
 import { AdminWeightSkeleton } from "../shared/skeleton";
+import { TagRemoveButton } from "../shared/tag-remove-button";
 import type { WeightMissingProduct, WeightRule } from "../shared/live-data-context";
 
 type Props = {
@@ -118,9 +118,7 @@ export function AdminWeightTab({
                       {rule.keywords.map((keyword) => (
                         <span key={`${rule.id}-${keyword}`} className="tag tag--with-action">
                           <span>{keyword}</span>
-                          <button type="button" className="tag-x" onClick={() => void onRemoveWeightKeyword(rule.id, keyword)}>
-                            <IconClose className="icon-svg icon-svg--sm" />
-                          </button>
+                          <TagRemoveButton onClick={() => void onRemoveWeightKeyword(rule.id, keyword)} />
                         </span>
                       ))}
                     </div>

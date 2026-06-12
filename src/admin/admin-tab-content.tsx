@@ -38,7 +38,7 @@ export function AdminTabContent({
   if (tab === "dedup") {
     return <AdminDedupTab {...dedupTabProps} />;
   }
-  if (tab === "filters-categories") {
+  if (tab === "showcase-structure") {
     return <AdminFiltersCategoriesTab {...filtersCategoriesTabProps} />;
   }
   if (tab === "sources") {

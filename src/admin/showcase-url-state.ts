@@ -37,6 +37,33 @@ export function buildRouteTargetHref(target: ShowcaseRouteTarget): string {
   return search ? `${target.pathname}?${search}` : target.pathname;
 }
 
+export function buildRouteTargetHrefWithCarry(
+  target: ShowcaseRouteTarget,
+  currentSearchParams: URLSearchParams,
+  carryKeys: readonly string[]
+): string {
+  const next = new URLSearchParams();
+
+  for (const key of carryKeys) {
+    const value = currentSearchParams.get(key);
+    if (value) {
+      next.set(key, value);
+    }
+  }
+
+  for (const [key, value] of Object.entries(target.query ?? {})) {
+    if (value === null || value === undefined) {
+      next.delete(key);
+      continue;
+    }
+    const normalizedValues = normalizeValues(value);
+    replaceParamValues(next, key, normalizedValues);
+  }
+
+  const search = next.toString();
+  return search ? `${target.pathname}?${search}` : target.pathname;
+}
+
 export function getGroupSelection(searchParams: URLSearchParams, group: Pick<CatalogFilterGroup, "queryParam">): string[] {
   const value = searchParams.get(group.queryParam);
   return value ? normalizeValues(value) : [];

@@ -1,37 +1,16 @@
-import { useEffect, useState } from "react";
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, BadgeCheck, Clock3 } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { CatalogFilterGroup, CatalogFilterOption, CatalogViewKey, ShowcaseIconToken } from "./showcase-contracts";
+import type { CatalogExperienceResponse, CatalogFilterGroup, CatalogFilterOption, CatalogViewKey } from "./showcase-contracts";
 import { fetchCatalogExperience, readCatalogExperienceSeed } from "./showcase-mock-api";
 import { clearGroupSelection, getGroupSelection, toggleGroupOption } from "./showcase-url-state";
 import "./admin-showcase-catalog-page.css";
 
-const ICON_BY_TOKEN = {
-  "sort-desc": ArrowDownWideNarrow,
-  "sort-asc": ArrowUpNarrowWide,
-  preorder: Clock3,
-  "in-stock": BadgeCheck,
-} as const satisfies Record<ShowcaseIconToken, typeof ArrowDownWideNarrow>;
-
-function getIndicator(group: CatalogFilterGroup, selectedValues: readonly string[]) {
-  if (selectedValues.length === 0) {
-    return null;
+function getTriggerLabel(group: CatalogFilterGroup, selectedValues: readonly string[]) {
+  if (group.selectionMode === "single" && selectedValues.length > 0) {
+    return (group.options.find((option) => option.value === selectedValues[0])?.label ?? group.label).toUpperCase();
   }
 
-  if (group.indicatorMode === "count") {
-    return { text: String(selectedValues.length) };
-  }
-
-  if (group.indicatorMode === "gender_short") {
-    return { text: selectedValues[0] === "women" ? "Ж" : "М" };
-  }
-
-  const selectedOption = group.options.find((option) => option.value === selectedValues[0]);
-  if (!selectedOption?.icon) {
-    return null;
-  }
-
-  return { icon: selectedOption.icon };
+  return group.label.toUpperCase();
 }
 
 function ShowcaseFilterFlyout({
@@ -48,15 +27,28 @@ function ShowcaseFilterFlyout({
   const hasSelection = selectedValues.length > 0;
   const panelClassName =
     group.panelWidth === "wide" ? "showcase-filters__panel showcase-filters__panel--wide" : "showcase-filters__panel";
+  const flyoutClassName =
+    group.panelWidth === "wide" ? "showcase-filters__flyout showcase-filters__flyout--wide" : "showcase-filters__flyout";
+  const selectedSet = new Set(selectedValues);
+  const orderedOptions =
+    group.prioritizeSelected && selectedSet.size > 0
+      ? [...group.options.filter((option) => selectedSet.has(option.value)), ...group.options.filter((option) => !selectedSet.has(option.value))]
+      : group.options;
+  const shouldScroll = Boolean(group.maxVisibleOptions && orderedOptions.length > group.maxVisibleOptions);
+  const listClassName = shouldScroll ? "showcase-filters__list showcase-filters__list--scrollable" : "showcase-filters__list";
+  const listStyle = shouldScroll
+    ? ({
+        "--showcase-filter-visible-options": String(group.maxVisibleOptions),
+      } as CSSProperties)
+    : undefined;
 
   return (
-    <div className="showcase-filters__flyout">
+    <div className={flyoutClassName}>
       <div className={panelClassName}>
-        {group.options.length > 0 ? (
-          <ul className="showcase-filters__list">
-            {group.options.map((option) => {
+        {orderedOptions.length > 0 ? (
+          <ul className={listClassName} style={listStyle}>
+            {orderedOptions.map((option) => {
               const isSelected = selectedValues.includes(option.value);
-              const Icon = option.icon ? ICON_BY_TOKEN[option.icon] : null;
               return (
                 <li key={option.id}>
                   <button
@@ -64,7 +56,6 @@ function ShowcaseFilterFlyout({
                     className={isSelected ? "showcase-filters__item showcase-filters__item--selected" : "showcase-filters__item"}
                     onClick={() => onToggle(option)}
                   >
-                    {Icon ? <Icon size={12} className="showcase-filters__item-icon" aria-hidden="true" /> : null}
                     <span>{option.label}</span>
                   </button>
                 </li>
@@ -84,14 +75,16 @@ function ShowcaseFilterFlyout({
 
 export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [experience, setExperience] = useState<CatalogExperienceResponse | null>(() => readCatalogExperienceSeed(viewKey));
+  const [experience, setExperience] = useState<CatalogExperienceResponse | null>(() =>
+    readCatalogExperienceSeed({ viewKey, searchParams })
+  );
   const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setExperience(readCatalogExperienceSeed(viewKey));
+    setExperience(readCatalogExperienceSeed({ viewKey, searchParams }));
     void (async () => {
-      const response = await fetchCatalogExperience(viewKey);
+      const response = await fetchCatalogExperience({ viewKey, searchParams });
       if (!cancelled) {
         setExperience(response);
       }
@@ -99,54 +92,61 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
     return () => {
       cancelled = true;
     };
-  }, [viewKey]);
+  }, [searchParams, viewKey]);
 
   const filterGroups = experience?.filterGroups ?? [];
 
   return (
     <section className="showcase-catalog-page" aria-label="Страница листинга витрины">
       {experience ? (
-        <div className="showcase-filters" onMouseLeave={() => setActiveGroupKey(null)}>
-          {filterGroups.map((group) => {
-            const isActive = activeGroupKey === group.key;
-            const selectedValues = getGroupSelection(searchParams, group);
-            const indicator = getIndicator(group, selectedValues);
-            const IndicatorIcon = indicator?.icon ? ICON_BY_TOKEN[indicator.icon] : null;
+        <>
+          <header className="showcase-catalog-page__header">
+            <h1 className="showcase-catalog-page__title">{experience.view.header.title}</h1>
+            {experience.view.header.description ? (
+              <p className="showcase-catalog-page__description">{experience.view.header.description}</p>
+            ) : null}
+          </header>
 
-            return (
-              <section
-                key={group.key}
-                className="showcase-filters__group"
-                onMouseEnter={() => setActiveGroupKey(group.key)}
-                onFocus={() => setActiveGroupKey(group.key)}
-              >
-                <button
-                  type="button"
-                  className={isActive ? "showcase-filters__trigger showcase-filters__trigger--active" : "showcase-filters__trigger"}
-                  aria-expanded={isActive}
+          <div className="showcase-filters" onMouseLeave={() => setActiveGroupKey(null)}>
+            {filterGroups.map((group) => {
+              const isActive = activeGroupKey === group.key;
+              const selectedValues = getGroupSelection(searchParams, group);
+              const triggerLabel = getTriggerLabel(group, selectedValues);
+              const shouldShowCount = group.selectionMode === "multiple" && selectedValues.length > 0;
+
+              return (
+                <section
+                  key={group.key}
+                  className="showcase-filters__group"
+                  onMouseEnter={() => setActiveGroupKey(group.key)}
+                  onFocus={() => setActiveGroupKey(group.key)}
                 >
-                  <span>{group.label}</span>
-                  {indicator ? (
-                    <span className="showcase-filters__trigger-note">
-                      (
-                      {IndicatorIcon ? <IndicatorIcon size={11} className="showcase-filters__trigger-note-icon" aria-hidden="true" /> : indicator.text}
-                      )
-                    </span>
+                  <button
+                    type="button"
+                    className={isActive ? "showcase-filters__trigger showcase-filters__trigger--active" : "showcase-filters__trigger"}
+                    aria-expanded={isActive}
+                  >
+                    <span>{triggerLabel}</span>
+                    {shouldShowCount ? (
+                      <span className="showcase-filters__trigger-note">
+                        ({selectedValues.length})
+                      </span>
+                    ) : null}
+                  </button>
+                  <div className="showcase-filters__safe-zone" aria-hidden="true" />
+                  {isActive ? (
+                    <ShowcaseFilterFlyout
+                      group={group}
+                      selectedValues={selectedValues}
+                      onToggle={(option) => setSearchParams(toggleGroupOption(searchParams, group, option.value))}
+                      onReset={() => setSearchParams(clearGroupSelection(searchParams, group))}
+                    />
                   ) : null}
-                </button>
-                <div className="showcase-filters__safe-zone" aria-hidden="true" />
-                {isActive ? (
-                  <ShowcaseFilterFlyout
-                    group={group}
-                    selectedValues={selectedValues}
-                    onToggle={(option) => setSearchParams(toggleGroupOption(searchParams, group, option.value))}
-                    onReset={() => setSearchParams(clearGroupSelection(searchParams, group))}
-                  />
-                ) : null}
-              </section>
-            );
-          })}
-        </div>
+                </section>
+              );
+            })}
+          </div>
+        </>
       ) : (
         <div className="showcase-catalog-page__loading" aria-hidden="true" />
       )}

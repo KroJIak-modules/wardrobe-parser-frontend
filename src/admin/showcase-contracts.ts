@@ -2,14 +2,12 @@ export type ShowcaseTopSectionKey = "new" | "designers" | "men" | "women" | "sal
 
 export type CatalogViewKey = "default" | "designers" | "sale";
 
-export type ShowcaseIconToken = "sort-desc" | "sort-asc" | "preorder" | "in-stock";
-
 export type ShowcaseQueryValue = string | readonly string[];
 
 export type ShowcaseQueryPatch = Record<string, ShowcaseQueryValue | null | undefined>;
 
 export type ShowcaseRouteTarget = {
-  pathname: "/" | "/catalog" | "/catalog/designers" | "/catalog/sale";
+  pathname: "/" | "/catalog" | "/catalog/designers" | "/catalog/sale" | "/designers";
   query?: ShowcaseQueryPatch;
 };
 
@@ -20,17 +18,26 @@ export type ShowcaseNavigationMenuItem = {
   kind: ShowcaseNavigationMenuItemKind;
   label: string;
   target: ShowcaseRouteTarget;
+  presentation?: "default" | "heading";
 };
 
 export type ShowcaseNavigationMenuBlock = {
   id: string;
-  title: string;
+  title?: string;
+  titleTarget?: ShowcaseRouteTarget | null;
   items: readonly ShowcaseNavigationMenuItem[];
 };
 
+export type ShowcaseNavigationMenuLayout = "new" | "designers" | "category_columns";
+
 export type ShowcaseNavigationMenu = {
   id: string;
+  layout: ShowcaseNavigationMenuLayout;
   blocks: readonly ShowcaseNavigationMenuBlock[];
+  footerLink?: {
+    label: string;
+    target: ShowcaseRouteTarget;
+  };
 };
 
 export type ShowcaseNavigationSection = {
@@ -46,13 +53,10 @@ export type ShowcaseNavigationResponse = {
 
 export type CatalogFilterSelectionMode = "single" | "multiple";
 
-export type CatalogFilterIndicatorMode = "count" | "gender_short" | "selected_icon";
-
 export type CatalogFilterOption = {
   id: string;
   label: string;
   value: string;
-  icon?: ShowcaseIconToken;
 };
 
 export type CatalogFilterGroup = {
@@ -60,15 +64,31 @@ export type CatalogFilterGroup = {
   label: string;
   queryParam: string;
   selectionMode: CatalogFilterSelectionMode;
-  indicatorMode: CatalogFilterIndicatorMode;
   options: readonly CatalogFilterOption[];
   emptyState?: string;
   panelWidth?: "compact" | "wide";
+  maxVisibleOptions?: number;
+  prioritizeSelected?: boolean;
+};
+
+export type CatalogPageHeaderSource =
+  | "sale"
+  | "custom_catalog"
+  | "designer"
+  | "menu_filter"
+  | "all_products"
+  | "multiple_designers"
+  | "catalog";
+
+export type CatalogPageHeader = {
+  title: string;
+  description: string | null;
+  source: CatalogPageHeaderSource;
 };
 
 export type CatalogViewContext = {
   key: CatalogViewKey;
-  title: string;
+  header: CatalogPageHeader;
   globalConstraints?: readonly string[];
 };
 
@@ -82,4 +102,15 @@ export type CatalogExperienceResponse = {
   view: CatalogViewContext;
   filterGroups: readonly CatalogFilterGroup[];
   previewMetrics: readonly CatalogPreviewMetric[];
+};
+
+export type ShowcaseDesignersDirectoryEntry = {
+  id: string;
+  label: string;
+  letter: string;
+};
+
+export type ShowcaseDesignersDirectoryResponse = {
+  alphabet: readonly string[];
+  entries: readonly ShowcaseDesignersDirectoryEntry[];
 };

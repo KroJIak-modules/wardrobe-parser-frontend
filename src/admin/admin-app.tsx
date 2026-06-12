@@ -12,6 +12,7 @@ import {
 } from "../shared/admin-auth";
 import { DEFAULT_ADMIN_TAB } from "./admin-constants";
 import { AdminShowcaseCatalogPage } from "./admin-showcase-catalog-page";
+import { AdminShowcaseDesignersPage } from "./admin-showcase-designers-page";
 import { AdminPage } from "./admin-page";
 import { AdminShowcaseHomePage } from "./admin-showcase-home-page";
 import { AdminShowcaseLayout } from "./admin-showcase-layout";
@@ -216,6 +217,7 @@ function AdminRoutes() {
         <Route path="catalog" element={<AdminShowcaseCatalogPage viewKey="default" />} />
         <Route path="catalog/designers" element={<AdminShowcaseCatalogPage viewKey="designers" />} />
         <Route path="catalog/sale" element={<AdminShowcaseCatalogPage viewKey="sale" />} />
+        <Route path="designers" element={<AdminShowcaseDesignersPage />} />
         <Route path="product/:id" element={<ShowcaseProductPage />} />
       </Route>
       <Route path={LOGIN_PATH} element={<AdminLoginRoute />} />

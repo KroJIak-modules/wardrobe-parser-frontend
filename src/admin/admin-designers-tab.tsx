@@ -1,158 +1,189 @@
-import { useMemo, useRef, useState } from "react";
-import type { BrandMappingItem } from "./admin-types";
+import { useMemo, useState } from "react";
+import type { AdminDesignerMappingRow } from "./admin-types";
 import { EmptyState } from "../shared/empty-state";
 
 type Props = {
   loading: boolean;
-  saving: boolean;
-  hasUnsavedChanges: boolean;
-  rows: BrandMappingItem[];
-  knownTargets: string[];
-  onChangeTarget: (sourceBrand: string, targetBrand: string) => void;
+  rows: AdminDesignerMappingRow[];
+  onChangeCatalogTitle: (sourceBrand: string, catalogTitle: string) => void;
+  onChangeCatalogDescription: (sourceBrand: string, catalogDescription: string) => void;
   onToggleIncludeInDesigners: (sourceBrand: string, includeInDesigners: boolean) => void;
-  onSave: () => Promise<void>;
 };
 
 export function AdminDesignersTab({
   loading,
-  saving,
-  hasUnsavedChanges,
   rows,
-  knownTargets,
-  onChangeTarget,
+  onChangeCatalogTitle,
+  onChangeCatalogDescription,
   onToggleIncludeInDesigners,
-  onSave,
 }: Props) {
   const [search, setSearch] = useState<string>("");
-  const [openSourceBrand, setOpenSourceBrand] = useState<string | null>(null);
-  const closeTimerRef = useRef<number | null>(null);
+
+  const rowsByCatalogTitle = useMemo(() => {
+    const groups = new Map<string, AdminDesignerMappingRow[]>();
+    for (const row of rows) {
+      const key = String(row.catalog_title || "").trim().toLowerCase();
+      if (!key) {
+        continue;
+      }
+      const bucket = groups.get(key);
+      if (bucket) {
+        bucket.push(row);
+      } else {
+        groups.set(key, [row]);
+      }
+    }
+    return groups;
+  }, [rows]);
+
+  const catalogProductCountByTitle = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const key = String(row.catalog_title || "").trim().toLowerCase();
+      if (!key) {
+        continue;
+      }
+      counts.set(key, (counts.get(key) ?? 0) + row.source_product_count);
+    }
+    return counts;
+  }, [rows]);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) {
       return rows;
     }
+
     return rows.filter((row) => {
       const source = String(row.source_brand || "").toLowerCase();
-      const target = String(row.target_brand || "").toLowerCase();
-      return source.includes(query) || target.includes(query);
+      const title = String(row.catalog_title || "").toLowerCase();
+      const description = String(row.catalog_description || "").toLowerCase();
+      return source.includes(query) || title.includes(query) || description.includes(query);
     });
   }, [rows, search]);
 
-  const hasInvalid = rows.some((row) => !String(row.target_brand || "").trim());
+  const getProductCountLabel = (count: number) => {
+    const absCount = Math.abs(count) % 100;
+    const lastDigit = absCount % 10;
 
-  const getSuggestions = (row: BrandMappingItem): string[] => {
-    const query = String(row.target_brand || "").trim().toLowerCase();
-    const raw = knownTargets.filter((target) => {
-      const normalized = String(target || "").trim();
-      if (!normalized) {
-        return false;
-      }
-      if (!query) {
-        return true;
-      }
-      return normalized.toLowerCase().includes(query);
-    });
-    const dedup = Array.from(new Set(raw));
-    return dedup.slice(0, 14);
-  };
-
-  const scheduleClose = () => {
-    if (closeTimerRef.current !== null) {
-      window.clearTimeout(closeTimerRef.current);
+    if (absCount >= 11 && absCount <= 19) {
+      return "товаров";
     }
-    closeTimerRef.current = window.setTimeout(() => {
-      setOpenSourceBrand(null);
-    }, 120);
+    if (lastDigit === 1) {
+      return "товар";
+    }
+    if (lastDigit >= 2 && lastDigit <= 4) {
+      return "товара";
+    }
+    return "товаров";
   };
+
+  const formatProductCount = (count: number) => `${count} ${getProductCountLabel(count)}`;
 
   return (
     <div className="card designers-tab-card">
       <div className="designers-tab-head">
-        <h2>Дизайнеры</h2>
-        {rows.length > 0 || loading ? (
-          <input
-            className="input"
-            placeholder="Поиск по бренду"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        ) : null}
+        <div className="designers-tab-title-block">
+          <h2>Дизайнеры</h2>
+          <div className="designers-tab-summary">
+            <span className="designers-tab-pill">{rows.length} брендов</span>
+            {rows.length > 0 || loading ? (
+              <input
+                className="input designers-tab-search"
+                placeholder="Поиск по бренду, названию или описанию"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            ) : null}
+          </div>
+        </div>
       </div>
 
-      {!loading && filteredRows.length > 0 ? (
-        <div className="designers-grid designers-grid--head">
-          <div>Исходный бренд</div>
-          <div>Новое название</div>
-          <div>В дизайнеры</div>
-        </div>
-      ) : null}
-
-      <div className="designers-grid-wrap">
-        {loading ? <p className="muted">Загрузка брендов...</p> : null}
-        {!loading && filteredRows.length === 0 ? (
-          <EmptyState compact title="Ничего не найдено" />
-        ) : null}
+      <div className="designers-list">
+        {loading ? <p className="muted">Загрузка дизайнеров...</p> : null}
+        {!loading && filteredRows.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
         {!loading
           ? filteredRows.map((row) => {
-              const suggestions = getSuggestions(row);
-              const isOpen = openSourceBrand === row.source_brand;
+              const catalogTitleKey = String(row.catalog_title || "").trim().toLowerCase();
+              const relatedRows =
+                rowsByCatalogTitle
+                  .get(catalogTitleKey)
+                  ?.filter((candidate) => candidate.source_brand !== row.source_brand)
+                  .map((candidate) => candidate.source_brand) ?? [];
+              const nextCatalogProductCount = catalogProductCountByTitle.get(catalogTitleKey) ?? row.source_product_count;
+              const currentCatalogProductCount = Math.max(0, nextCatalogProductCount - row.source_product_count);
+
               return (
-                <div key={row.source_brand} className="designers-grid">
-                  <div className="designers-source">{row.source_brand}</div>
-                  <div className="designers-combobox-wrap" onBlur={scheduleClose}>
-                    <input
-                      className="input"
-                      value={row.target_brand}
-                      onFocus={() => setOpenSourceBrand(row.source_brand)}
-                      onChange={(event) => {
-                        onChangeTarget(row.source_brand, event.target.value);
-                        setOpenSourceBrand(row.source_brand);
-                      }}
-                    />
-                    {isOpen && suggestions.length > 0 ? (
-                      <div className="designers-combobox-list" role="listbox">
-                        {suggestions.map((value) => (
-                          <button
-                            key={`${row.source_brand}-${value}`}
-                            type="button"
-                            className="designers-combobox-item"
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onChangeTarget(row.source_brand, value);
-                              setOpenSourceBrand(row.source_brand);
-                            }}
-                          >
-                            {value}
-                          </button>
-                        ))}
+                <article
+                  key={row.source_brand}
+                  className={row.include_in_designers ? "designers-item designers-item--enabled" : "designers-item"}
+                >
+                  <div className="designers-item__header">
+                    <label className="ui-switch designers-item__toggle">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(row.include_in_designers)}
+                        onChange={(event) => onToggleIncludeInDesigners(row.source_brand, event.target.checked)}
+                      />
+                      <span className="ui-switch-track">
+                        <span className="ui-switch-thumb" />
+                      </span>
+                      <span className="ui-switch-text">{row.include_in_designers ? "Включен" : "Выключен"}</span>
+                    </label>
+                  </div>
+
+                  <div className="designers-item__fields">
+                    <div className="designers-item__field">
+                      <span className="designers-item__label">Прошлое название</span>
+                      <div className="designers-item__field-body">
+                        <div className="designers-item__readonly">{row.source_brand}</div>
+                        <span className="designers-item__count-pill">{formatProductCount(row.source_product_count)}</span>
+                      </div>
+                    </div>
+
+                    <label className="designers-item__field">
+                      <span className="designers-item__label">Новое название страницы каталога</span>
+                      <div className="designers-item__field-body">
+                        <input
+                          className="input"
+                          value={row.catalog_title}
+                          onChange={(event) => onChangeCatalogTitle(row.source_brand, event.target.value)}
+                          placeholder="Например, Rick Owens"
+                        />
+                        <span className="designers-item__count-pill">
+                          {`${nextCatalogProductCount} ${getProductCountLabel(nextCatalogProductCount)} (${currentCatalogProductCount} + ${row.source_product_count})`}
+                        </span>
+                      </div>
+                    </label>
+
+                    {relatedRows.length > 0 ? (
+                      <div className="designers-item__field designers-item__field--related">
+                        <span className="designers-item__label">Дизайнеры с таким же названием</span>
+                        <div className="designers-item__related-list">
+                          {relatedRows.map((sourceBrand) => (
+                            <span key={`${row.source_brand}-${sourceBrand}`} className="designers-item__related-pill">
+                              {sourceBrand}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     ) : null}
+
+                    <label className="designers-item__field designers-item__field--description">
+                      <span className="designers-item__label">Описание</span>
+                      <textarea
+                        rows={3}
+                        value={row.catalog_description}
+                        onChange={(event) => onChangeCatalogDescription(row.source_brand, event.target.value)}
+                        placeholder="Описание каталога для сценариев, где оно потребуется."
+                      />
+                    </label>
                   </div>
-                  <label className="ui-switch ui-switch--compact designers-toggle">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(row.include_in_designers)}
-                      onChange={(event) => onToggleIncludeInDesigners(row.source_brand, event.target.checked)}
-                    />
-                    <span className="ui-switch-track">
-                      <span className="ui-switch-thumb" />
-                    </span>
-                    <span className="ui-switch-text">В дизайнеры</span>
-                  </label>
-                </div>
+                </article>
               );
             })
           : null}
       </div>
-
-      {filteredRows.length > 0 ? (
-        <div className="designers-save-fab-wrap">
-          <button type="button" className="btn designers-save-fab" disabled={saving || hasInvalid} onClick={() => void onSave()}>
-            {saving ? "Сохраняем..." : hasUnsavedChanges ? "Сохранить изменения" : "Сохранить"}
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }

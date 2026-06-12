@@ -6,7 +6,7 @@ function escapeLatexText(value: string): string {
 }
 
 function buildBrandLatex(value: string): string {
-  return `\\text{${escapeLatexText(value)}}`;
+  return `\\textbf{\\text{${escapeLatexText(value)}}}`;
 }
 
 export function renderBrandLatexHtml(value: string | null | undefined, fallback = "Без бренда"): string {
