@@ -6054,6 +6054,17 @@ button:disabled {
   align-items: center;
 }
 
+.designers-tab-modes {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 4px;
+}
+
+.designers-tab-modes .tab {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
 .designers-tab-pill {
   display: inline-flex;
   align-items: center;
@@ -6103,6 +6114,19 @@ button:disabled {
 .designers-item__header {
   display: flex;
   justify-content: flex-end;
+}
+
+.designers-item__header--between {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.designers-item__state {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .designers-item__label {
@@ -6196,12 +6220,19 @@ button:disabled {
   font-weight: 600;
 }
 
+.designers-item__related-pill--muted {
+  border-color: #e3e8ef;
+  background: #fafbfd;
+  color: #7b8798;
+}
+
 .designers-item__field--description textarea {
   min-height: 88px;
   padding: 12px 14px;
   resize: vertical;
   line-height: 1.45;
 }
+
 
 .product-meta-brand-stack {
   display: inline-flex;

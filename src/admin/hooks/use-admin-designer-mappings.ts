@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAdminDesignerMappings, readAdminDesignerMappingsSeed, saveAdminDesignerMappings } from "../admin-designers-mock";
-import type { AdminDesignerMappingRow } from "../admin-types";
+import type { AdminDesignerCatalogPage, AdminDesignerMappingRow } from "../admin-types";
 
 const AUTO_SAVE_DEBOUNCE_MS = 500;
 
@@ -24,19 +24,45 @@ function createSignature(rows: readonly AdminDesignerMappingRow[]) {
     .join("||");
 }
 
+function createPagesSignature(pages: readonly AdminDesignerCatalogPage[]) {
+  return pages
+    .map((page) => {
+      const id = String(page.id || "").trim();
+      const titleRef = String(page.title_ref || "").trim();
+      const description = String(page.catalog_description || "").trim();
+      return `${id}|${titleRef}|${description}`;
+    })
+    .sort()
+    .join("||");
+}
+
+function normalizePage(page: AdminDesignerCatalogPage): AdminDesignerCatalogPage {
+  return {
+    id: String(page.id || "").trim(),
+    title_ref: String(page.title_ref || "").trim(),
+    catalog_description: String(page.catalog_description || "").trim(),
+  };
+}
+
 export function useAdminDesignerMappings(tab: string, pushToast: (message: string) => void) {
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
-  const [rows, setRows] = useState<AdminDesignerMappingRow[]>(() => readAdminDesignerMappingsSeed());
-  const [baselineRows, setBaselineRows] = useState<AdminDesignerMappingRow[]>(() => readAdminDesignerMappingsSeed());
+  const [rows, setRows] = useState<AdminDesignerMappingRow[]>(() => readAdminDesignerMappingsSeed().rows);
+  const [pages, setPages] = useState<AdminDesignerCatalogPage[]>(() => readAdminDesignerMappingsSeed().pages);
+  const [baselineRows, setBaselineRows] = useState<AdminDesignerMappingRow[]>(() => readAdminDesignerMappingsSeed().rows);
+  const [baselinePages, setBaselinePages] = useState<AdminDesignerCatalogPage[]>(() => readAdminDesignerMappingsSeed().pages);
   const saveTimeoutRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const nextRows = (await fetchAdminDesignerMappings()).map(normalizeRow);
+      const payload = await fetchAdminDesignerMappings();
+      const nextRows = payload.rows.map(normalizeRow);
+      const nextPages = payload.pages.map(normalizePage);
       setRows(nextRows);
+      setPages(nextPages);
       setBaselineRows(nextRows);
+      setBaselinePages(nextPages);
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Ошибка загрузки дизайнеров");
     } finally {
@@ -57,25 +83,37 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     );
   }, []);
 
-  const onChangeCatalogDescription = useCallback((sourceBrand: string, catalogDescription: string) => {
-    setRows((prev) =>
-      prev.map((row) => (row.source_brand === sourceBrand ? { ...row, catalog_description: catalogDescription } : row))
-    );
-  }, []);
-
   const onToggleIncludeInDesigners = useCallback((sourceBrand: string, includeInDesigners: boolean) => {
     setRows((prev) =>
       prev.map((row) => (row.source_brand === sourceBrand ? { ...row, include_in_designers: includeInDesigners } : row))
     );
   }, []);
 
-  const persistRows = useCallback(async (nextDraftRows: readonly AdminDesignerMappingRow[]) => {
+  const onChangeCatalogPageTitle = useCallback((pageId: string, titleRef: string) => {
+    setPages((prev) =>
+      prev.map((page) => (page.id === pageId ? { ...page, title_ref: titleRef } : page))
+    );
+  }, []);
+
+  const onChangeCatalogPageDescription = useCallback((pageId: string, catalogDescription: string) => {
+    setPages((prev) =>
+      prev.map((page) => (page.id === pageId ? { ...page, catalog_description: catalogDescription } : page))
+    );
+  }, []);
+
+  const persistState = useCallback(async (nextDraftRows: readonly AdminDesignerMappingRow[], nextDraftPages: readonly AdminDesignerCatalogPage[]) => {
     try {
       setSaving(true);
       const normalizedRows = nextDraftRows.map(normalizeRow);
-      const nextRows = await saveAdminDesignerMappings(normalizedRows);
-      setRows(nextRows);
-      setBaselineRows(nextRows);
+      const normalizedPages = nextDraftPages.map(normalizePage);
+      const nextPayload = await saveAdminDesignerMappings({
+        rows: normalizedRows,
+        pages: normalizedPages,
+      });
+      setRows(nextPayload.rows);
+      setPages(nextPayload.pages);
+      setBaselineRows(nextPayload.rows);
+      setBaselinePages(nextPayload.pages);
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Ошибка сохранения дизайнеров");
     } finally {
@@ -83,7 +121,10 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     }
   }, [pushToast]);
 
-  const hasUnsavedChanges = useMemo(() => createSignature(rows) !== createSignature(baselineRows), [baselineRows, rows]);
+  const hasUnsavedChanges = useMemo(
+    () => createSignature(rows) !== createSignature(baselineRows) || createPagesSignature(pages) !== createPagesSignature(baselinePages),
+    [baselinePages, baselineRows, pages, rows]
+  );
   const hasInvalidRows = useMemo(
     () => rows.some((row) => row.include_in_designers && !String(row.catalog_title || "").trim()),
     [rows]
@@ -100,7 +141,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
 
     saveTimeoutRef.current = window.setTimeout(() => {
       saveTimeoutRef.current = null;
-      void persistRows(rows);
+      void persistState(rows, pages);
     }, AUTO_SAVE_DEBOUNCE_MS);
 
     return () => {
@@ -109,7 +150,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
         saveTimeoutRef.current = null;
       }
     };
-  }, [hasInvalidRows, hasUnsavedChanges, loading, persistRows, rows, saving, tab]);
+  }, [hasInvalidRows, hasUnsavedChanges, loading, pages, persistState, rows, saving, tab]);
 
   useEffect(() => {
     return () => {
@@ -123,8 +164,10 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     loading,
     saving,
     rows,
+    pages,
     onChangeCatalogTitle,
-    onChangeCatalogDescription,
     onToggleIncludeInDesigners,
+    onChangeCatalogPageTitle,
+    onChangeCatalogPageDescription,
   };
 }

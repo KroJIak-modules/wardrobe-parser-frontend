@@ -440,9 +440,11 @@ export function AdminPage() {
   const {
     loading: designersLoading,
     rows: designersRows,
+    pages: designerPages,
     onChangeCatalogTitle: onChangeDesignerCatalogTitle,
-    onChangeCatalogDescription: onChangeDesignerCatalogDescription,
     onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
+    onChangeCatalogPageTitle: onChangeDesignerCatalogPageTitle,
+    onChangeCatalogPageDescription: onChangeDesignerCatalogPageDescription,
   } = useAdminDesignerMappings(tab, pushToast);
 
   useAdminSvcValidationToast(svcRulesValidationError, pushToast);
@@ -497,9 +499,11 @@ export function AdminPage() {
     designersTabProps: {
       loading: designersLoading,
       rows: designersRows,
+      pages: designerPages,
       onChangeCatalogTitle: onChangeDesignerCatalogTitle,
-      onChangeCatalogDescription: onChangeDesignerCatalogDescription,
       onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
+      onChangeCatalogPageTitle: onChangeDesignerCatalogPageTitle,
+      onChangeCatalogPageDescription: onChangeDesignerCatalogPageDescription,
     },
     sourcesTabProps: {
       sources,

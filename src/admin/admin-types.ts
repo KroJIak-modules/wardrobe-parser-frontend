@@ -120,6 +120,12 @@ export type AdminDesignerMappingRow = {
   include_in_designers: boolean;
 };
 
+export type AdminDesignerCatalogPage = {
+  id: string;
+  title_ref: string;
+  catalog_description: string;
+};
+
 export type AdminUiSettings = {
   designers_min_products: number;
   designers_exclude_store_vendors: boolean;

@@ -1,31 +1,71 @@
 import { useMemo, useState } from "react";
-import type { AdminDesignerMappingRow } from "./admin-types";
+import type { AdminDesignerCatalogPage, AdminDesignerMappingRow } from "./admin-types";
 import { EmptyState } from "../shared/empty-state";
+
+type DesignersViewMode = "pages" | "sources";
 
 type Props = {
   loading: boolean;
   rows: AdminDesignerMappingRow[];
+  pages: AdminDesignerCatalogPage[];
   onChangeCatalogTitle: (sourceBrand: string, catalogTitle: string) => void;
-  onChangeCatalogDescription: (sourceBrand: string, catalogDescription: string) => void;
   onToggleIncludeInDesigners: (sourceBrand: string, includeInDesigners: boolean) => void;
+  onChangeCatalogPageTitle: (pageId: string, titleRef: string) => void;
+  onChangeCatalogPageDescription: (pageId: string, catalogDescription: string) => void;
 };
+
+function normalizeText(value: string | null | undefined) {
+  return String(value || "").trim();
+}
+
+function getProductCountLabel(count: number) {
+  const absCount = Math.abs(count) % 100;
+  const lastDigit = absCount % 10;
+
+  if (absCount >= 11 && absCount <= 19) {
+    return "товаров";
+  }
+  if (lastDigit === 1) {
+    return "товар";
+  }
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return "товара";
+  }
+  return "товаров";
+}
+
+function formatProductCount(count: number) {
+  return `${count} ${getProductCountLabel(count)}`;
+}
 
 export function AdminDesignersTab({
   loading,
   rows,
+  pages,
   onChangeCatalogTitle,
-  onChangeCatalogDescription,
   onToggleIncludeInDesigners,
+  onChangeCatalogPageTitle,
+  onChangeCatalogPageDescription,
 }: Props) {
   const [search, setSearch] = useState<string>("");
+  const [viewMode, setViewMode] = useState<DesignersViewMode>("pages");
+
+  const catalogTitleOptions = useMemo(
+    () =>
+      [...new Set(rows.map((row) => normalizeText(row.catalog_title)).filter(Boolean))].sort((left, right) =>
+        left.localeCompare(right, "en", { numeric: true, sensitivity: "base" })
+      ),
+    [rows]
+  );
 
   const rowsByCatalogTitle = useMemo(() => {
     const groups = new Map<string, AdminDesignerMappingRow[]>();
     for (const row of rows) {
-      const key = String(row.catalog_title || "").trim().toLowerCase();
-      if (!key) {
+      const title = normalizeText(row.catalog_title);
+      if (!title) {
         continue;
       }
+      const key = title.toLowerCase();
       const bucket = groups.get(key);
       if (bucket) {
         bucket.push(row);
@@ -39,14 +79,79 @@ export function AdminDesignersTab({
   const catalogProductCountByTitle = useMemo(() => {
     const counts = new Map<string, number>();
     for (const row of rows) {
-      const key = String(row.catalog_title || "").trim().toLowerCase();
-      if (!key) {
+      const title = normalizeText(row.catalog_title);
+      if (!title) {
         continue;
       }
+      const key = title.toLowerCase();
       counts.set(key, (counts.get(key) ?? 0) + row.source_product_count);
     }
     return counts;
   }, [rows]);
+
+  const pageItems = useMemo(() => {
+    const validTitleSet = new Set(catalogTitleOptions.map((title) => title.toLowerCase()));
+    const selectedTitleByPageId = new Map(
+      pages
+        .map((page) => {
+          const title = normalizeText(page.title_ref);
+          return [page.id, validTitleSet.has(title.toLowerCase()) ? title.toLowerCase() : ""];
+        })
+        .filter((entry) => entry[1])
+    );
+
+    return pages
+      .map((page) => {
+        const rawTitleRef = normalizeText(page.title_ref);
+        const titleKey = rawTitleRef.toLowerCase();
+        const hasValidTitle = Boolean(rawTitleRef) && validTitleSet.has(titleKey);
+        const linkedRows = hasValidTitle ? [...(rowsByCatalogTitle.get(titleKey) ?? [])] : [];
+        linkedRows.sort((left, right) =>
+          normalizeText(left.source_brand).localeCompare(normalizeText(right.source_brand), "en", {
+            numeric: true,
+            sensitivity: "base",
+          })
+        );
+
+        const selectedByOthers = new Set(
+          [...selectedTitleByPageId.entries()]
+            .filter(([pageId, selectedKey]) => pageId !== page.id && selectedKey)
+            .map(([, selectedKey]) => selectedKey)
+        );
+        const selectableTitles = catalogTitleOptions.filter((title) => {
+          const candidateKey = title.toLowerCase();
+          return candidateKey === titleKey || !selectedByOthers.has(candidateKey);
+        });
+        const enabledSourceCount = linkedRows.filter((row) => row.include_in_designers).length;
+        const allIncluded = linkedRows.length > 0 && enabledSourceCount === linkedRows.length;
+        const partiallyIncluded = enabledSourceCount > 0 && enabledSourceCount < linkedRows.length;
+
+        return {
+          page,
+          hasValidTitle,
+          linkedRows,
+          selectableTitles,
+          totalProductCount: linkedRows.reduce((sum, row) => sum + row.source_product_count, 0),
+          enabledSourceCount,
+          allIncluded,
+          partiallyIncluded,
+        };
+      })
+      .sort((left, right) => {
+        const leftTitle = left.hasValidTitle ? normalizeText(left.page.title_ref) : "";
+        const rightTitle = right.hasValidTitle ? normalizeText(right.page.title_ref) : "";
+        if (!leftTitle && !rightTitle) {
+          return left.page.id.localeCompare(right.page.id, "en", { numeric: true, sensitivity: "base" });
+        }
+        if (!leftTitle) {
+          return 1;
+        }
+        if (!rightTitle) {
+          return -1;
+        }
+        return leftTitle.localeCompare(rightTitle, "en", { numeric: true, sensitivity: "base" });
+      });
+  }, [catalogTitleOptions, pages, rowsByCatalogTitle]);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -55,30 +160,25 @@ export function AdminDesignersTab({
     }
 
     return rows.filter((row) => {
-      const source = String(row.source_brand || "").toLowerCase();
-      const title = String(row.catalog_title || "").toLowerCase();
-      const description = String(row.catalog_description || "").toLowerCase();
-      return source.includes(query) || title.includes(query) || description.includes(query);
+      const source = normalizeText(row.source_brand).toLowerCase();
+      const title = normalizeText(row.catalog_title).toLowerCase();
+      return source.includes(query) || title.includes(query);
     });
   }, [rows, search]);
 
-  const getProductCountLabel = (count: number) => {
-    const absCount = Math.abs(count) % 100;
-    const lastDigit = absCount % 10;
+  const filteredPageItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) {
+      return pageItems;
+    }
 
-    if (absCount >= 11 && absCount <= 19) {
-      return "товаров";
-    }
-    if (lastDigit === 1) {
-      return "товар";
-    }
-    if (lastDigit >= 2 && lastDigit <= 4) {
-      return "товара";
-    }
-    return "товаров";
-  };
-
-  const formatProductCount = (count: number) => `${count} ${getProductCountLabel(count)}`;
+    return pageItems.filter((item) => {
+      const title = normalizeText(item.page.title_ref).toLowerCase();
+      const description = normalizeText(item.page.catalog_description).toLowerCase();
+      const sources = item.linkedRows.map((row) => normalizeText(row.source_brand).toLowerCase()).join(" ");
+      return title.includes(query) || description.includes(query) || sources.includes(query);
+    });
+  }, [pageItems, search]);
 
   return (
     <div className="card designers-tab-card">
@@ -86,25 +186,46 @@ export function AdminDesignersTab({
         <div className="designers-tab-title-block">
           <h2>Дизайнеры</h2>
           <div className="designers-tab-summary">
-            <span className="designers-tab-pill">{rows.length} брендов</span>
-            {rows.length > 0 || loading ? (
-              <input
-                className="input designers-tab-search"
-                placeholder="Поиск по бренду, названию или описанию"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            ) : null}
+            <div className="tabs designers-tab-modes" role="tablist" aria-label="Режим просмотра дизайнеров">
+              <button
+                type="button"
+                className={viewMode === "sources" ? "tab tab--active" : "tab"}
+                onClick={() => setViewMode("sources")}
+              >
+                Исходные бренды
+              </button>
+              <button
+                type="button"
+                className={viewMode === "pages" ? "tab tab--active" : "tab"}
+                onClick={() => setViewMode("pages")}
+              >
+                Страницы каталога
+              </button>
+            </div>
+            <input
+              className="input designers-tab-search"
+              placeholder={
+                viewMode === "pages"
+                  ? "Поиск по странице каталога, описанию или исходному бренду"
+                  : "Поиск по бренду или названию страницы каталога"
+              }
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <span className="designers-tab-pill">{rows.length} исходных брендов</span>
+            <span className="designers-tab-pill">{pages.length} страниц каталога</span>
           </div>
         </div>
       </div>
 
       <div className="designers-list">
         {loading ? <p className="muted">Загрузка дизайнеров...</p> : null}
-        {!loading && filteredRows.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
-        {!loading
+        {!loading && viewMode === "sources" && filteredRows.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
+        {!loading && viewMode === "pages" && filteredPageItems.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
+
+        {!loading && viewMode === "sources"
           ? filteredRows.map((row) => {
-              const catalogTitleKey = String(row.catalog_title || "").trim().toLowerCase();
+              const catalogTitleKey = normalizeText(row.catalog_title).toLowerCase();
               const relatedRows =
                 rowsByCatalogTitle
                   .get(catalogTitleKey)
@@ -168,16 +289,99 @@ export function AdminDesignersTab({
                         </div>
                       </div>
                     ) : null}
+                  </div>
+                </article>
+              );
+            })
+          : null}
+
+        {!loading && viewMode === "pages"
+          ? filteredPageItems.map((item) => {
+              const stateLabel = item.linkedRows.length === 0
+                ? "Выключена"
+                : item.allIncluded
+                  ? "Включена"
+                  : item.partiallyIncluded
+                    ? "Частично включена"
+                    : "Выключена";
+
+              return (
+                <article
+                  key={item.page.id}
+                  className={item.allIncluded ? "designers-item designers-item--enabled" : "designers-item designers-item--catalog"}
+                >
+                  <div className="designers-item__header designers-item__header--between">
+                    <div className="designers-item__state">
+                      <span className="designers-item__count-pill">{formatProductCount(item.totalProductCount)}</span>
+                    </div>
+                    <label className="ui-switch designers-item__toggle">
+                      <input
+                        type="checkbox"
+                        checked={item.allIncluded}
+                        disabled={item.linkedRows.length === 0}
+                        onChange={(event) => {
+                          for (const row of item.linkedRows) {
+                            onToggleIncludeInDesigners(row.source_brand, event.target.checked);
+                          }
+                        }}
+                      />
+                      <span className="ui-switch-track">
+                        <span className="ui-switch-thumb" />
+                      </span>
+                      <span className="ui-switch-text">{stateLabel}</span>
+                    </label>
+                  </div>
+
+                  <div className="designers-item__fields">
+                    <label className="designers-item__field">
+                      <span className="designers-item__label">Название страницы каталога</span>
+                      <div className="designers-item__field-body">
+                        <select
+                          className="input"
+                          value={item.hasValidTitle ? item.page.title_ref : ""}
+                          disabled={!item.hasValidTitle}
+                          onChange={(event) => onChangeCatalogPageTitle(item.page.id, event.target.value)}
+                        >
+                          <option value="">
+                            {item.hasValidTitle ? "Выберите название" : "Название больше недоступно"}
+                          </option>
+                          {item.selectableTitles.map((title) => (
+                            <option key={`${item.page.id}-${title}`} value={title}>
+                              {title}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="designers-item__count-pill">{formatProductCount(item.totalProductCount)}</span>
+                      </div>
+                    </label>
 
                     <label className="designers-item__field designers-item__field--description">
                       <span className="designers-item__label">Описание</span>
                       <textarea
-                        rows={3}
-                        value={row.catalog_description}
-                        onChange={(event) => onChangeCatalogDescription(row.source_brand, event.target.value)}
-                        placeholder="Описание каталога для сценариев, где оно потребуется."
+                        rows={4}
+                        value={item.page.catalog_description}
+                        onChange={(event) => onChangeCatalogPageDescription(item.page.id, event.target.value)}
+                        placeholder="Описание страницы каталога."
                       />
                     </label>
+
+                    <div className="designers-item__field designers-item__field--related">
+                      <span className="designers-item__label">Связанные исходные бренды</span>
+                      <div className="designers-item__related-list">
+                        {item.linkedRows.length > 0 ? (
+                          item.linkedRows.map((row) => (
+                            <span
+                              key={`${item.page.id}-${row.source_brand}`}
+                              className={row.include_in_designers ? "designers-item__related-pill" : "designers-item__related-pill designers-item__related-pill--muted"}
+                            >
+                              {`${row.source_brand} · ${formatProductCount(row.source_product_count)}`}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="designers-item__related-pill designers-item__related-pill--muted">Нет связанных брендов</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </article>
               );
