@@ -11,10 +11,10 @@ import {
   clearAdminSessionHints,
 } from "../shared/admin-auth";
 import { DEFAULT_ADMIN_TAB } from "./admin-constants";
+import { AdminShowcaseCatalogPage } from "./admin-showcase-catalog-page";
 import { AdminPage } from "./admin-page";
+import { AdminShowcaseHomePage } from "./admin-showcase-home-page";
 import { AdminShowcaseLayout } from "./admin-showcase-layout";
-import { ShowcaseCategoryPage } from "./showcase-category-page";
-import { ShowcaseHomePage } from "./showcase-home-page";
 import { ShowcaseProductPage } from "./showcase-product-page";
 
 const MANAGEMENT_PATH = "/control";
@@ -212,10 +212,10 @@ function AdminRoutes() {
   const routes = (
     <Routes>
       <Route path="/" element={<AdminShowcaseLayout />}>
-        <Route index element={<ShowcaseHomePage />} />
-        <Route path="catalog" element={<ShowcaseHomePage />} />
-        <Route path="catalog/:slug" element={<ShowcaseCategoryPage />} />
-        <Route path="category/:slug" element={<ShowcaseCategoryPage />} />
+        <Route index element={<AdminShowcaseHomePage />} />
+        <Route path="catalog" element={<AdminShowcaseCatalogPage viewKey="default" />} />
+        <Route path="catalog/designers" element={<AdminShowcaseCatalogPage viewKey="designers" />} />
+        <Route path="catalog/sale" element={<AdminShowcaseCatalogPage viewKey="sale" />} />
         <Route path="product/:id" element={<ShowcaseProductPage />} />
       </Route>
       <Route path={LOGIN_PATH} element={<AdminLoginRoute />} />

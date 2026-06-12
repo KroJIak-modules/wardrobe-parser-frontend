@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { logoutAdminSession } from "../shared/admin-auth";
 import { SiteHeader } from "../shared/site-header";
+import { AdminShowcaseNav } from "./admin-showcase-nav";
 
 export function AdminShowcaseLayout() {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ export function AdminShowcaseLayout() {
   const isAdminOriginProduct = location.pathname.startsWith("/product/") && searchParams.get("from") === "admin";
 
   const ctaTo = isAdminOriginProduct ? "/" : "/control/products";
-  const ctaLabel = isAdminOriginProduct ? "Каталог товаров" : "Панель управления";
+  const ctaLabel = isAdminOriginProduct ? "Витрина" : "Панель управления";
   const actions = [
     { label: ctaLabel, to: ctaTo, variant: "primary" as const },
     {
@@ -30,6 +31,7 @@ export function AdminShowcaseLayout() {
     <div className="shell">
       <SiteHeader actions={actions} />
       <main className="container">
+        <AdminShowcaseNav />
         <Outlet />
       </main>
     </div>

@@ -9,7 +9,7 @@ export function AdminTopbar({ onLogout }: AdminTopbarProps) {
   return (
     <SiteHeader
       actions={[
-        { label: "Каталог товаров", to: "/", variant: "primary" },
+        { label: "Витрина", to: "/", variant: "primary" },
         { ariaLabel: "Выйти", icon: <LogOut size={16} />, onClick: onLogout, variant: "default" },
       ]}
     />

@@ -244,8 +244,8 @@ export function ShowcaseProductPage() {
                   Вернуться в панель управления
                 </a>
               ) : (
-                <Link className="btn-link" to="/catalog">
-                  Вернуться к каталогу
+                <Link className="btn-link" to="/">
+                  Вернуться на витрину
                 </Link>
               )
             }
@@ -529,8 +529,8 @@ export function ShowcaseProductPage() {
             ← Назад в панель управления
           </a>
         ) : (
-          <Link className="btn-link" to="/catalog">
-            ← Назад к каталогу
+          <Link className="btn-link" to="/">
+            ← Назад на витрину
           </Link>
         )}
       </div>
