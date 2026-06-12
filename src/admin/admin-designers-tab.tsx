@@ -342,7 +342,7 @@ export function AdminDesignersTab({
                           disabled={!item.hasValidTitle}
                           onChange={(event) => onChangeCatalogPageTitle(item.page.id, event.target.value)}
                         >
-                          <option value="">
+                          <option value="" disabled={item.hasValidTitle}>
                             {item.hasValidTitle ? "Выберите название" : "Название больше недоступно"}
                           </option>
                           {item.selectableTitles.map((title) => (
