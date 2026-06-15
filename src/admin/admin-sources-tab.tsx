@@ -124,7 +124,7 @@ export function AdminSourcesTab({
 }: Props) {
   const deriveStatusFromVariants = (variants: ManualEditVariant[]): "available" | "out_of_stock" =>
     variants.some((item) => Boolean(item.available)) ? "available" : "out_of_stock";
-  const [sourceAttrVisibility, setSourceAttrVisibility] = useState<Record<string, { description: boolean; images: boolean }>>({});
+  const [sourceAttrVisibility, setSourceAttrVisibility] = useState<Record<string, { description: boolean; images: boolean; rawDescriptionHtml: boolean }>>({});
   const [sourceCurrencyPriority, setSourceCurrencyPriority] = useState<Record<string, string[]>>({});
   const [autoSyncDraft, setAutoSyncDraft] = useState<string>(String(Math.max(60, Number(autoSyncPeriodMinutes || 60))));
   const [autoSyncValidationError, setAutoSyncValidationError] = useState<string>("");
@@ -228,6 +228,7 @@ export function AdminSourcesTab({
           next[source.key] = {
             description: source.show_description ?? true,
             images: source.show_images ?? true,
+            rawDescriptionHtml: false,
           };
         }
       }
@@ -720,6 +721,34 @@ export function AdminSourcesTab({
                         <label className="ui-switch ui-switch--compact source-card-switch">
                           <input
                             type="checkbox"
+                            checked={sourceAttrVisibility[source.key]?.images ?? true}
+                            disabled={!canEditSources}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              void (async () => {
+                                const result = await updateSourceAttributeVisibility(source.key, { show_images: checked });
+                                if (result.ok) {
+                                  setSourceAttrVisibility((prev) => ({
+                                    ...prev,
+                                    [source.key]: {
+                                      description: prev[source.key]?.description ?? true,
+                                      images: checked,
+                                      rawDescriptionHtml: prev[source.key]?.rawDescriptionHtml ?? false,
+                                    },
+                                  }));
+                                }
+                                pushToast(result.message);
+                              })();
+                            }}
+                          />
+                          <span className="ui-switch-track">
+                            <span className="ui-switch-thumb" />
+                          </span>
+                          <span className="ui-switch-text">Показывать фотографии</span>
+                        </label>
+                        <label className="ui-switch ui-switch--compact source-card-switch">
+                          <input
+                            type="checkbox"
                             checked={sourceAttrVisibility[source.key]?.description ?? true}
                             disabled={!canEditSources}
                             onChange={(event) => {
@@ -732,6 +761,7 @@ export function AdminSourcesTab({
                                     [source.key]: {
                                       description: checked,
                                       images: prev[source.key]?.images ?? true,
+                                      rawDescriptionHtml: checked ? (prev[source.key]?.rawDescriptionHtml ?? false) : false,
                                     },
                                   }));
                                 }
@@ -747,29 +777,24 @@ export function AdminSourcesTab({
                         <label className="ui-switch ui-switch--compact source-card-switch">
                           <input
                             type="checkbox"
-                            checked={sourceAttrVisibility[source.key]?.images ?? true}
-                            disabled={!canEditSources}
+                            checked={sourceAttrVisibility[source.key]?.rawDescriptionHtml ?? false}
+                            disabled={!canEditSources || !(sourceAttrVisibility[source.key]?.description ?? true)}
                             onChange={(event) => {
                               const checked = event.target.checked;
-                              void (async () => {
-                                const result = await updateSourceAttributeVisibility(source.key, { show_images: checked });
-                                if (result.ok) {
-                                  setSourceAttrVisibility((prev) => ({
-                                    ...prev,
-                                    [source.key]: {
-                                      description: prev[source.key]?.description ?? true,
-                                      images: checked,
-                                    },
-                                  }));
-                                }
-                                pushToast(result.message);
-                              })();
+                              setSourceAttrVisibility((prev) => ({
+                                ...prev,
+                                [source.key]: {
+                                  description: prev[source.key]?.description ?? true,
+                                  images: prev[source.key]?.images ?? true,
+                                  rawDescriptionHtml: checked,
+                                },
+                              }));
                             }}
                           />
                           <span className="ui-switch-track">
                             <span className="ui-switch-thumb" />
                           </span>
-                          <span className="ui-switch-text">Показывать фотографии</span>
+                          <span className="ui-switch-text">Отображать сырое описание (HTML)</span>
                         </label>
                       </div>
                     </details>

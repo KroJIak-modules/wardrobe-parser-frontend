@@ -28,7 +28,7 @@ type CatalogMetricTemplate = {
   value: string;
 };
 
-const productLibrary: AdminRuleManualProduct[] = [
+let productLibrary: AdminRuleManualProduct[] = [
   {
     product_id: 41021,
     source_name: "LN-CC",
@@ -157,7 +157,7 @@ function pickProducts(...ids: number[]) {
     .filter((item): item is AdminRuleManualProduct => Boolean(item));
 }
 
-const filters: AdminFilterTreeNode[] = [
+let filters: AdminFilterTreeNode[] = [
   {
     id: 102,
     slug: "clothing",
@@ -477,7 +477,7 @@ const filters: AdminFilterTreeNode[] = [
   },
 ];
 
-const customCatalogs: AdminCustomCatalog[] = [
+let customCatalogs: AdminCustomCatalog[] = [
   {
     id: 301,
     slug: "editors-choice",
@@ -501,7 +501,7 @@ const customCatalogs: AdminCustomCatalog[] = [
   },
 ];
 
-const categories: AdminCategoryTreeNode[] = [
+let categories: AdminCategoryTreeNode[] = [
   {
     id: 201,
     slug: "new",
@@ -510,15 +510,6 @@ const categories: AdminCategoryTreeNode[] = [
     system_filter_value: null,
     attachments: [
       { id: "cat-201-catalog-301", kind: "custom_catalog", ref_id: 301, hidden_node_ids: [] },
-      { id: "cat-201-filter-104", kind: "filter", ref_id: 104, hidden_node_ids: [] },
-      { id: "cat-201-filter-116", kind: "filter", ref_id: 116, hidden_node_ids: [] },
-      { id: "cat-201-filter-105", kind: "filter", ref_id: 105, hidden_node_ids: [] },
-      { id: "cat-201-filter-107", kind: "filter", ref_id: 107, hidden_node_ids: [] },
-      { id: "cat-201-filter-111", kind: "filter", ref_id: 111, hidden_node_ids: [] },
-      { id: "cat-201-filter-109", kind: "filter", ref_id: 109, hidden_node_ids: [] },
-      { id: "cat-201-filter-110", kind: "filter", ref_id: 110, hidden_node_ids: [] },
-      { id: "cat-201-filter-127", kind: "filter", ref_id: 127, hidden_node_ids: [] },
-      { id: "cat-201-filter-121", kind: "filter", ref_id: 121, hidden_node_ids: [] },
     ],
     children: [],
   },
@@ -664,6 +655,23 @@ function collectLeafFilters(nodes: readonly AdminFilterTreeNode[]): AdminFilterT
   return result;
 }
 
+function countFilterProducts(filter: AdminFilterTreeNode) {
+  return filter.rules.manual_products.length;
+}
+
+function getTopNewCategoryFilters(limit = 9) {
+  return collectLeafFilters(filters)
+    .filter((filter) => filter.is_enabled)
+    .sort((left, right) => {
+      const countDiff = countFilterProducts(right) - countFilterProducts(left);
+      if (countDiff !== 0) {
+        return countDiff;
+      }
+      return left.display_label.localeCompare(right.display_label, "ru", { sensitivity: "base" });
+    })
+    .slice(0, limit);
+}
+
 function collectVisibleLeafFilterSlugs(filter: AdminFilterTreeNode, hiddenNodeIds: ReadonlySet<number> = new Set()): string[] {
   if (hiddenNodeIds.has(filter.id)) {
     return [];
@@ -746,12 +754,7 @@ function buildNewCategoryMenuBlocks(): ShowcaseNavigationMenuBlock[] {
     return [];
   }
 
-  const filterAttachments = category.attachments
-    .filter((item) => item.kind === "filter" && !item.hidden_node_ids.includes(item.ref_id))
-    .flatMap((item) => {
-      const filter = findFilterById(item.ref_id);
-      return filter ? [filter] : [];
-    });
+  const topFilters = getTopNewCategoryFilters();
 
   const customCatalogItems = category.attachments
     .filter((item) => item.kind === "custom_catalog" && !item.hidden_node_ids.includes(item.ref_id))
@@ -816,7 +819,7 @@ function buildNewCategoryMenuBlocks(): ShowcaseNavigationMenuBlock[] {
     {
       id: "departments",
       title: "Разделы",
-      items: filterAttachments.map((filter) => ({
+      items: topFilters.map((filter) => ({
         id: `filter-${filter.id}`,
         kind: filter.children.length > 0 ? "filter_bundle" as const : "filter_link" as const,
         label: filter.display_label,
@@ -1017,8 +1020,16 @@ function buildCatalogFilterGroups(): CatalogFilterGroup[] {
       queryParam: "designer",
       selectionMode: "multiple",
       options: buildDesignerOptions(),
+      visibleOptionsLimit: 7,
+      actionItem: {
+        label: "Смотреть все",
+        target: {
+          pathname: "/designers",
+        },
+        carryKeys: ["designer"],
+        emphasis: "strong",
+      },
       panelWidth: "wide",
-      maxVisibleOptions: 20,
       prioritizeSelected: true,
     },
     {
@@ -1042,6 +1053,14 @@ export function readAdminFiltersCategoriesSeed(): AdminFiltersCategoriesPayload 
     designer_directory: buildDesignerDirectory(),
     product_library: productLibrary,
   });
+}
+
+export function saveAdminFiltersCategoriesSeed(payload: AdminFiltersCategoriesPayload): AdminFiltersCategoriesPayload {
+  filters = cloneJson(payload.filters);
+  categories = cloneJson(payload.categories);
+  customCatalogs = cloneJson(payload.custom_catalogs);
+  productLibrary = cloneJson(payload.product_library);
+  return readAdminFiltersCategoriesSeed();
 }
 
 export function buildShowcaseNavigationSeed(): ShowcaseNavigationResponse {

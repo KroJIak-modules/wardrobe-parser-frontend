@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { fetchAdminFiltersCategoriesMock } from "../admin-filters-categories-mock-api";
+import { fetchAdminFiltersCategoriesMock, saveAdminFiltersCategoriesMock } from "../admin-filters-categories-mock-api";
 import type {
   AdminCategoryAttachment,
   AdminCategoryTreeNode,
@@ -345,6 +345,20 @@ export function useAdminFiltersCategories() {
     };
   }, []);
 
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    void saveAdminFiltersCategoriesMock({
+      filters,
+      categories,
+      custom_catalogs: customCatalogs,
+      designer_directory: designerDirectory,
+      product_library: productLibrary,
+    });
+  }, [categories, customCatalogs, designerDirectory, filters, loading, productLibrary]);
+
   const flatFilters = useMemo(() => flattenFilters(filters), [filters]);
   const selectedFilter = useMemo(() => findFilterById(filters, selectedFilterId), [filters, selectedFilterId]);
   const selectedCategory = useMemo(() => findCategoryById(categories, selectedCategoryId), [categories, selectedCategoryId]);
@@ -663,6 +677,9 @@ export function useAdminFiltersCategories() {
   const attachFilterToCategory = (categoryId: number, filterId: number) => {
     setCategories((prev) =>
       updateCategoryById(prev, categoryId, (category) => {
+        if (category.behavior === "new") {
+          return category;
+        }
         if (category.attachments.some((attachment) => attachment.kind === "filter" && attachment.ref_id === filterId)) {
           return category;
         }

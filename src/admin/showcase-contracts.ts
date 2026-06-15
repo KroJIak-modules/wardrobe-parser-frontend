@@ -59,12 +59,21 @@ export type CatalogFilterOption = {
   value: string;
 };
 
+export type CatalogFilterActionItem = {
+  label: string;
+  target: ShowcaseRouteTarget;
+  carryKeys?: readonly string[];
+  emphasis?: "default" | "strong";
+};
+
 export type CatalogFilterGroup = {
   key: string;
   label: string;
   queryParam: string;
   selectionMode: CatalogFilterSelectionMode;
   options: readonly CatalogFilterOption[];
+  visibleOptionsLimit?: number;
+  actionItem?: CatalogFilterActionItem;
   emptyState?: string;
   panelWidth?: "compact" | "wide";
   maxVisibleOptions?: number;

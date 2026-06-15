@@ -265,7 +265,6 @@ export function AdminShowcaseDesignersPage() {
             type="button"
             className={hasPendingChanges ? "designers-page__action-btn designers-page__action-btn--primary" : "designers-page__action-btn"}
             onClick={applySelection}
-            disabled={!hasPendingChanges}
           >
             ПРИМЕНИТЬ
           </button>

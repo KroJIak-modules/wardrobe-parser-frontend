@@ -178,22 +178,22 @@ export function AdminDesignersTab({
                 className={viewMode === "sources" ? "tab tab--active" : "tab"}
                 onClick={() => setViewMode("sources")}
               >
-                {`Исходные бренды (${rows.length})`}
+                {`Бренды-источники (${rows.length})`}
               </button>
               <button
                 type="button"
                 className={viewMode === "pages" ? "tab tab--active" : "tab"}
                 onClick={() => setViewMode("pages")}
               >
-                {`Страницы каталога (${pages.length})`}
+                {`Страницы дизайнеров (${pages.length})`}
               </button>
             </div>
             <input
               className="input designers-tab-search"
               placeholder={
                 viewMode === "pages"
-                  ? "Поиск по странице каталога, описанию или исходному бренду"
-                  : "Поиск по бренду или названию страницы каталога"
+                  ? "Поиск по странице дизайнера, описанию или бренду-источнику"
+                  : "Поиск по бренду-источнику или имени страницы"
               }
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -204,7 +204,7 @@ export function AdminDesignersTab({
               disabled={catalogTitleOptions.length === 0}
               onClick={() => onCreateCatalogPage("")}
             >
-              Создать страницу каталога
+              Создать страницу дизайнера
             </button>
           </div>
         </div>
@@ -247,7 +247,7 @@ export function AdminDesignersTab({
 
                   <div className="designers-item__fields">
                     <div className="designers-item__field">
-                      <span className="designers-item__label">Прошлое название</span>
+                      <span className="designers-item__label">Название в источнике</span>
                       <div className="designers-item__field-body">
                         <div className="designers-item__readonly">{row.source_brand}</div>
                         <span className="designers-item__count-pill">{formatProductCount(row.source_product_count)}</span>
@@ -255,7 +255,7 @@ export function AdminDesignersTab({
                     </div>
 
                     <label className="designers-item__field">
-                      <span className="designers-item__label">Новое название страницы каталога</span>
+                      <span className="designers-item__label">Имя страницы</span>
                       <div className="designers-item__field-body">
                         <input
                           className="input"
@@ -271,7 +271,7 @@ export function AdminDesignersTab({
 
                     {relatedRows.length > 0 ? (
                       <div className="designers-item__field designers-item__field--related">
-                        <span className="designers-item__label">Дизайнеры с таким же названием</span>
+                        <span className="designers-item__label">Бренды с этим именем</span>
                         <div className="designers-item__related-list">
                           {relatedRows.map((sourceBrand) => (
                             <span key={`${row.source_brand}-${sourceBrand}`} className="designers-item__related-pill">
@@ -335,12 +335,11 @@ export function AdminDesignersTab({
 
                   <div className="designers-item__fields">
                     <label className="designers-item__field">
-                      <span className="designers-item__label">Название страницы каталога</span>
+                      <span className="designers-item__label">Имя страницы</span>
                       <div className="designers-item__field-body">
                         <select
                           className="input"
                           value={item.hasValidTitle || !normalizeText(item.page.title_ref) ? item.page.title_ref : ""}
-                          disabled={!item.hasValidTitle && Boolean(normalizeText(item.page.title_ref))}
                           onChange={(event) => onChangeCatalogPageTitle(item.page.id, event.target.value)}
                         >
                           <option value="" disabled={item.hasValidTitle}>
@@ -366,12 +365,12 @@ export function AdminDesignersTab({
                         rows={4}
                         value={item.page.catalog_description}
                         onChange={(event) => onChangeCatalogPageDescription(item.page.id, event.target.value)}
-                        placeholder="Описание страницы каталога."
+                        placeholder="Описание страницы дизайнера."
                       />
                     </label>
 
                     <div className="designers-item__field designers-item__field--related">
-                      <span className="designers-item__label">Связанные исходные бренды</span>
+                      <span className="designers-item__label">Связанные бренды</span>
                       <div className="designers-item__related-list">
                         {item.linkedRows.length > 0 ? (
                           item.linkedRows.map((row) => (

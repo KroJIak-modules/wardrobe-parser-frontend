@@ -125,12 +125,12 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
   const onCreateCatalogPage = useCallback((titleRef: string) => {
     const normalizedTitleRef = String(titleRef || "").trim();
     setPages((prev) => [
-      ...prev,
       {
         id: createPageId(),
         title_ref: normalizedTitleRef,
         catalog_description: "",
       },
+      ...prev,
     ]);
   }, []);
 

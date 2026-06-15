@@ -81,6 +81,35 @@ function getCategoryGenderLabel(category: AdminCategoryTreeNode): string {
   return category.system_filter_value === "women" ? "женское" : "мужское";
 }
 
+function collectLeafFilters(nodes: readonly AdminFilterTreeNode[]): AdminFilterTreeNode[] {
+  const result: AdminFilterTreeNode[] = [];
+  for (const node of nodes) {
+    if (node.children.length === 0) {
+      result.push(node);
+      continue;
+    }
+    result.push(...collectLeafFilters(node.children));
+  }
+  return result;
+}
+
+function countFilterProducts(filter: AdminFilterTreeNode) {
+  return filter.rules.manual_products.length;
+}
+
+function getTopNewCategoryFilters(filters: readonly AdminFilterTreeNode[], limit = 9) {
+  return collectLeafFilters(filters)
+    .filter((filter) => filter.is_enabled)
+    .sort((left, right) => {
+      const countDiff = countFilterProducts(right) - countFilterProducts(left);
+      if (countDiff !== 0) {
+        return countDiff;
+      }
+      return left.display_label.localeCompare(right.display_label, "ru", { sensitivity: "base" });
+    })
+    .slice(0, limit);
+}
+
 function getItemOrderMap(items: { id: number }[]): Map<number, number> {
   return new Map(items.map((item, index) => [item.id, index]));
 }
@@ -511,21 +540,23 @@ function CategoryAttachMenu({
           </div>
         </div>
       ) : null}
-      <div className="taxonomy-attach-menu-group">
-        <strong>Фильтры и мультифильтры</strong>
-        <div className="taxonomy-attach-menu-list">
-          {availableFilters.length > 0 ? availableFilters.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              className={`taxonomy-attach-menu-item taxonomy-attach-menu-item--${getNodeKind(filter)}`}
-              onClick={() => onAttachFilter(filter.id)}
-            >
-              {filter.display_label}
-            </button>
-          )) : <p className="muted">Свободных фильтров нет.</p>}
+      {category.behavior !== "new" ? (
+        <div className="taxonomy-attach-menu-group">
+          <strong>Фильтры и мультифильтры</strong>
+          <div className="taxonomy-attach-menu-list">
+            {availableFilters.length > 0 ? availableFilters.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                className={`taxonomy-attach-menu-item taxonomy-attach-menu-item--${getNodeKind(filter)}`}
+                onClick={() => onAttachFilter(filter.id)}
+              >
+                {filter.display_label}
+              </button>
+            )) : <p className="muted">Свободных фильтров нет.</p>}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -1128,9 +1159,11 @@ function FilterEditor({
 function CategoryEditor({
   category,
   designerDirectory,
+  filters,
 }: {
   category: AdminCategoryTreeNode | null;
   designerDirectory: AdminDesignerDirectoryItem[];
+  filters: AdminFilterTreeNode[];
 }) {
   const [designerQuery, setDesignerQuery] = useState<string>("");
   const [designersExpanded, setDesignersExpanded] = useState<boolean>(false);
@@ -1148,6 +1181,7 @@ function CategoryEditor({
   );
   const visibleDesigners = designersExpanded ? filteredDesigners : filteredDesigners.slice(0, 10);
   const hasMoreDesigners = filteredDesigners.length > visibleDesigners.length;
+  const topNewCategoryFilters = getTopNewCategoryFilters(filters);
 
   return (
     <>
@@ -1158,10 +1192,23 @@ function CategoryEditor({
       </label>
 
       {category.behavior === "new" ? (
-        <div className="taxonomy-info-card">
-          <strong>Категория «Новинки»</strong>
-          <p>Эта категория хранит два типа привязок: кастомные каталоги для блока «Коллекции» и фильтры или мультифильтры для блока «Разделы». Все привязки добавляются только через дерево слева.</p>
-        </div>
+        <>
+          <div className="taxonomy-info-card">
+            <strong>Категория «Новинки»</strong>
+            <p>Здесь вручную добавляются только кастомные каталоги для блока «Коллекции». Блок «Разделы» собирается автоматически из топ-9 фильтров по количеству товаров.</p>
+          </div>
+          <div className="taxonomy-panel-block">
+            <h4 className="taxonomy-panel-title">Автоматические фильтры в «Разделах»</h4>
+            <div className="taxonomy-designer-chip-list">
+              {topNewCategoryFilters.map((filter) => (
+                <span key={filter.id} className="taxonomy-designer-chip">
+                  <span>{filter.display_label}</span>
+                  <strong>{countFilterProducts(filter)}</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+        </>
       ) : null}
 
       {category.behavior === "designers" ? (
@@ -1745,6 +1792,7 @@ export function AdminFiltersCategoriesTab() {
                 <CategoryEditor
                   category={selectedCategory}
                   designerDirectory={designerDirectory}
+                  filters={filters}
                 />
               ) : null}
               {activeEditor === "categoryLinked" ? (

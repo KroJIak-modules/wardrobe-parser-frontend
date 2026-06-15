@@ -8,7 +8,9 @@
 .designers-page__alphabet-card {
   position: sticky;
   top: 94px;
-  z-index: 20;
+  z-index: 32;
+  width: 100%;
+  align-self: stretch;
   padding: 12px 14px;
   border: 1px solid rgba(219, 224, 233, 0.95);
   border-radius: 22px;

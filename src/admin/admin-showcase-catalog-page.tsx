@@ -1,8 +1,8 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { CatalogExperienceResponse, CatalogFilterGroup, CatalogFilterOption, CatalogViewKey } from "./showcase-contracts";
 import { fetchCatalogExperience, readCatalogExperienceSeed } from "./showcase-mock-api";
-import { clearGroupSelection, getGroupSelection, toggleGroupOption } from "./showcase-url-state";
+import { buildRouteTargetHref, buildRouteTargetHrefWithCarry, clearGroupSelection, getGroupSelection, toggleGroupOption } from "./showcase-url-state";
 import "./admin-showcase-catalog-page.css";
 
 function getTriggerLabel(group: CatalogFilterGroup, selectedValues: readonly string[]) {
@@ -16,13 +16,17 @@ function getTriggerLabel(group: CatalogFilterGroup, selectedValues: readonly str
 function ShowcaseFilterFlyout({
   group,
   selectedValues,
+  currentSearchParams,
   onToggle,
   onReset,
+  onNavigate,
 }: {
   group: CatalogFilterGroup;
   selectedValues: readonly string[];
+  currentSearchParams: URLSearchParams;
   onToggle: (option: CatalogFilterOption) => void;
   onReset: () => void;
+  onNavigate: (href: string) => void;
 }) {
   const hasSelection = selectedValues.length > 0;
   const panelClassName =
@@ -34,20 +38,26 @@ function ShowcaseFilterFlyout({
     group.prioritizeSelected && selectedSet.size > 0
       ? [...group.options.filter((option) => selectedSet.has(option.value)), ...group.options.filter((option) => !selectedSet.has(option.value))]
       : group.options;
-  const shouldScroll = Boolean(group.maxVisibleOptions && orderedOptions.length > group.maxVisibleOptions);
+  const visibleOptions = group.visibleOptionsLimit ? orderedOptions.slice(0, group.visibleOptionsLimit) : orderedOptions;
+  const shouldScroll = Boolean(group.maxVisibleOptions && visibleOptions.length > group.maxVisibleOptions);
   const listClassName = shouldScroll ? "showcase-filters__list showcase-filters__list--scrollable" : "showcase-filters__list";
   const listStyle = shouldScroll
     ? ({
         "--showcase-filter-visible-options": String(group.maxVisibleOptions),
       } as CSSProperties)
     : undefined;
+  const actionHref = group.actionItem
+    ? (group.actionItem.carryKeys?.length
+        ? buildRouteTargetHrefWithCarry(group.actionItem.target, currentSearchParams, group.actionItem.carryKeys)
+        : buildRouteTargetHref(group.actionItem.target))
+    : null;
 
   return (
     <div className={flyoutClassName}>
       <div className={panelClassName}>
-        {orderedOptions.length > 0 ? (
+        {visibleOptions.length > 0 || group.actionItem ? (
           <ul className={listClassName} style={listStyle}>
-            {orderedOptions.map((option) => {
+            {visibleOptions.map((option) => {
               const isSelected = selectedValues.includes(option.value);
               return (
                 <li key={option.id}>
@@ -61,6 +71,21 @@ function ShowcaseFilterFlyout({
                 </li>
               );
             })}
+            {group.actionItem && actionHref ? (
+              <li key={`${group.key}-action`}>
+                <button
+                  type="button"
+                  className={
+                    group.actionItem.emphasis === "strong"
+                      ? "showcase-filters__item showcase-filters__item--action-strong"
+                      : "showcase-filters__item"
+                  }
+                  onClick={() => onNavigate(actionHref)}
+                >
+                  <span>{group.actionItem.label}</span>
+                </button>
+              </li>
+            ) : null}
           </ul>
         ) : null}
       </div>
@@ -74,6 +99,7 @@ function ShowcaseFilterFlyout({
 }
 
 export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey }) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [experience, setExperience] = useState<CatalogExperienceResponse | null>(() =>
     readCatalogExperienceSeed({ viewKey, searchParams })
@@ -138,8 +164,10 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
                     <ShowcaseFilterFlyout
                       group={group}
                       selectedValues={selectedValues}
+                      currentSearchParams={searchParams}
                       onToggle={(option) => setSearchParams(toggleGroupOption(searchParams, group, option.value))}
                       onReset={() => setSearchParams(clearGroupSelection(searchParams, group))}
+                      onNavigate={(href) => navigate(href)}
                     />
                   ) : null}
                 </section>

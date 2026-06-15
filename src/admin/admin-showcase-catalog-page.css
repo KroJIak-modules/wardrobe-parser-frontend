@@ -206,6 +206,10 @@
   font-weight: 700;
 }
 
+.showcase-filters__item--action-strong {
+  font-weight: 700;
+}
+
 .showcase-filters__empty {
   min-height: 44px;
 }
