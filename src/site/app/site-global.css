@@ -1,0 +1,61 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;500;600&display=swap");
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+:root {
+  color-scheme: light;
+  --site-bg: #ffffff;
+  --site-surface: rgba(255, 255, 255, 0.16);
+  --site-surface-strong: rgba(255, 255, 255, 0.26);
+  --site-surface-border: rgba(255, 255, 255, 0.48);
+  --site-text: rgba(18, 18, 18, 0.88);
+  --site-muted: rgba(18, 18, 18, 0.46);
+  --site-muted-light: rgba(255, 255, 255, 0.7);
+  --site-shadow: 0 22px 70px rgba(14, 12, 9, 0.14);
+  --site-shadow-soft: inset 0 1px 1px rgba(255, 255, 255, 0.42), inset 0 -8px 18px rgba(0, 0, 0, 0.08);
+  --site-radius-pill: 18px;
+  --site-radius-card: 30px;
+  --site-font-ui: "SF Compact Rounded", "SF Pro Rounded", "Nunito Sans", "Helvetica Neue", Arial, sans-serif;
+  --site-font-body: "SF Compact Rounded", "SF Pro Rounded", "Nunito Sans", "Helvetica Neue", Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  background: var(--site-bg);
+  color: var(--site-text);
+  font-family: var(--site-font-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
