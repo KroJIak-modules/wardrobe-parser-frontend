@@ -1,4 +1,34 @@
-@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;500;600&display=swap");
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("/fonts/site/sf-compact-rounded-thin.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("/fonts/site/sf-compact-rounded-light.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("/fonts/site/sf-compact-rounded.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SF Compact Rounded";
+  src: url("/fonts/site/sf-compact-rounded-medium.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
 
 html,
 body,
@@ -20,8 +50,8 @@ body,
   --site-shadow-soft: inset 0 1px 1px rgba(255, 255, 255, 0.42), inset 0 -8px 18px rgba(0, 0, 0, 0.08);
   --site-radius-pill: 18px;
   --site-radius-card: 30px;
-  --site-font-ui: "SF Compact Rounded", "SF Pro Rounded", "Nunito Sans", "Helvetica Neue", Arial, sans-serif;
-  --site-font-body: "SF Compact Rounded", "SF Pro Rounded", "Nunito Sans", "Helvetica Neue", Arial, sans-serif;
+  --site-font-ui: "SF Compact Rounded", "Helvetica Neue", Arial, sans-serif;
+  --site-font-body: "SF Compact Rounded", "Helvetica Neue", Arial, sans-serif;
 }
 
 *,

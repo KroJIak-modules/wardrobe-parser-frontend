@@ -23,7 +23,7 @@
   color: rgba(118, 111, 101, 0.9);
   font-family: var(--site-font-ui);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
@@ -32,7 +32,7 @@
   color: rgba(18, 17, 15, 0.92);
   font-family: var(--site-font-ui);
   font-size: clamp(42px, 5vw, 72px);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 0.95;
   letter-spacing: -0.02em;
   text-transform: uppercase;
