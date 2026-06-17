@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
-import type { AdminDesignerCatalogPage, AdminDesignerMappingRow } from "./admin-types";
+import type { AdminFinalDesigner, AdminDesignerSourceRow } from "./admin-types";
 import { EmptyState } from "../shared/empty-state";
 
-type DesignersViewMode = "pages" | "sources";
+type DesignersViewMode = "designers" | "sources";
 
 type Props = {
   loading: boolean;
-  rows: AdminDesignerMappingRow[];
-  pages: AdminDesignerCatalogPage[];
-  onChangeCatalogTitle: (sourceBrand: string, catalogTitle: string) => void;
+  rows: AdminDesignerSourceRow[];
+  designers: AdminFinalDesigner[];
+  onChangeDesignerName: (sourceBrand: string, designerName: string) => void;
   onToggleIncludeInDesigners: (sourceBrand: string, includeInDesigners: boolean) => void;
-  onChangeCatalogPageTitle: (pageId: string, titleRef: string) => void;
-  onChangeCatalogPageDescription: (pageId: string, catalogDescription: string) => void;
-  onCreateCatalogPage: (titleRef: string) => void;
-  onDeleteCatalogPage: (pageId: string) => void;
+  onChangeFinalDesignerName: (designerId: string, designerName: string) => void;
+  onChangeFinalDesignerDescription: (designerId: string, description: string) => void;
+  onCreateDesigner: (designerName: string) => void;
+  onDeleteDesigner: (designerId: string) => void;
 };
 
 function normalizeText(value: string | null | undefined) {
@@ -43,33 +43,33 @@ function formatProductCount(count: number) {
 export function AdminDesignersTab({
   loading,
   rows,
-  pages,
-  onChangeCatalogTitle,
+  designers,
+  onChangeDesignerName,
   onToggleIncludeInDesigners,
-  onChangeCatalogPageTitle,
-  onChangeCatalogPageDescription,
-  onCreateCatalogPage,
-  onDeleteCatalogPage,
+  onChangeFinalDesignerName,
+  onChangeFinalDesignerDescription,
+  onCreateDesigner,
+  onDeleteDesigner,
 }: Props) {
   const [search, setSearch] = useState<string>("");
   const [viewMode, setViewMode] = useState<DesignersViewMode>("sources");
 
-  const catalogTitleOptions = useMemo(
+  const designerNameOptions = useMemo(
     () =>
-      [...new Set(rows.map((row) => normalizeText(row.catalog_title)).filter(Boolean))].sort((left, right) =>
+      [...new Set(rows.map((row) => normalizeText(row.designer_name)).filter(Boolean))].sort((left, right) =>
         left.localeCompare(right, "en", { numeric: true, sensitivity: "base" })
       ),
     [rows]
   );
 
-  const rowsByCatalogTitle = useMemo(() => {
-    const groups = new Map<string, AdminDesignerMappingRow[]>();
+  const rowsByDesignerName = useMemo(() => {
+    const groups = new Map<string, AdminDesignerSourceRow[]>();
     for (const row of rows) {
-      const title = normalizeText(row.catalog_title);
-      if (!title) {
+      const designerName = normalizeText(row.designer_name);
+      if (!designerName) {
         continue;
       }
-      const key = title.toLowerCase();
+      const key = designerName.toLowerCase();
       const bucket = groups.get(key);
       if (bucket) {
         bucket.push(row);
@@ -80,35 +80,35 @@ export function AdminDesignersTab({
     return groups;
   }, [rows]);
 
-  const catalogProductCountByTitle = useMemo(() => {
+  const designerProductCountByName = useMemo(() => {
     const counts = new Map<string, number>();
     for (const row of rows) {
-      const title = normalizeText(row.catalog_title);
-      if (!title) {
+      const designerName = normalizeText(row.designer_name);
+      if (!designerName) {
         continue;
       }
-      const key = title.toLowerCase();
+      const key = designerName.toLowerCase();
       counts.set(key, (counts.get(key) ?? 0) + row.source_product_count);
     }
     return counts;
   }, [rows]);
 
-  const pageItems = useMemo(() => {
-    const validTitleSet = new Set(catalogTitleOptions.map((title) => title.toLowerCase()));
-    const selectedTitleByPageId = new Map(
-      pages
-        .map((page) => {
-          const title = normalizeText(page.title_ref);
-          return [page.id, validTitleSet.has(title.toLowerCase()) ? title.toLowerCase() : ""];
+  const designerItems = useMemo(() => {
+    const validNameSet = new Set(designerNameOptions.map((name) => name.toLowerCase()));
+    const selectedNameByDesignerId = new Map(
+      designers
+        .map((designer) => {
+          const name = normalizeText(designer.name);
+          return [designer.id, validNameSet.has(name.toLowerCase()) ? name.toLowerCase() : ""];
         })
         .filter((entry) => entry[1])
     );
 
-    return pages.map((page) => {
-      const rawTitleRef = normalizeText(page.title_ref);
-      const titleKey = rawTitleRef.toLowerCase();
-      const hasValidTitle = Boolean(rawTitleRef) && validTitleSet.has(titleKey);
-      const linkedRows = hasValidTitle ? [...(rowsByCatalogTitle.get(titleKey) ?? [])] : [];
+    return designers.map((designer) => {
+      const rawName = normalizeText(designer.name);
+      const nameKey = rawName.toLowerCase();
+      const hasValidName = Boolean(rawName) && validNameSet.has(nameKey);
+      const linkedRows = hasValidName ? [...(rowsByDesignerName.get(nameKey) ?? [])] : [];
       linkedRows.sort((left, right) =>
         normalizeText(left.source_brand).localeCompare(normalizeText(right.source_brand), "en", {
           numeric: true,
@@ -117,8 +117,8 @@ export function AdminDesignersTab({
       );
 
       const selectedByOthers = new Set(
-        [...selectedTitleByPageId.entries()]
-          .filter(([pageId, selectedKey]) => pageId !== page.id && selectedKey)
+        [...selectedNameByDesignerId.entries()]
+          .filter(([designerId, selectedKey]) => designerId !== designer.id && selectedKey)
           .map(([, selectedKey]) => selectedKey)
       );
       const enabledSourceCount = linkedRows.filter((row) => row.include_in_designers).length;
@@ -126,18 +126,18 @@ export function AdminDesignersTab({
       const partiallyIncluded = enabledSourceCount > 0 && enabledSourceCount < linkedRows.length;
 
       return {
-        page,
-        hasValidTitle,
+        designer,
+        hasValidName,
         linkedRows,
         selectedByOthers,
-        selectableTitles: catalogTitleOptions,
+        selectableNames: designerNameOptions,
         totalProductCount: linkedRows.reduce((sum, row) => sum + row.source_product_count, 0),
         enabledSourceCount,
         allIncluded,
         partiallyIncluded,
       };
     });
-  }, [catalogTitleOptions, pages, rowsByCatalogTitle]);
+  }, [designerNameOptions, designers, rowsByDesignerName]);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -147,24 +147,24 @@ export function AdminDesignersTab({
 
     return rows.filter((row) => {
       const source = normalizeText(row.source_brand).toLowerCase();
-      const title = normalizeText(row.catalog_title).toLowerCase();
-      return source.includes(query) || title.includes(query);
+      const designerName = normalizeText(row.designer_name).toLowerCase();
+      return source.includes(query) || designerName.includes(query);
     });
   }, [rows, search]);
 
-  const filteredPageItems = useMemo(() => {
+  const filteredDesignerItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) {
-      return pageItems;
+      return designerItems;
     }
 
-    return pageItems.filter((item) => {
-      const title = normalizeText(item.page.title_ref).toLowerCase();
-      const description = normalizeText(item.page.catalog_description).toLowerCase();
+    return designerItems.filter((item) => {
+      const title = normalizeText(item.designer.name).toLowerCase();
+      const description = normalizeText(item.designer.description).toLowerCase();
       const sources = item.linkedRows.map((row) => normalizeText(row.source_brand).toLowerCase()).join(" ");
       return title.includes(query) || description.includes(query) || sources.includes(query);
     });
-  }, [pageItems, search]);
+  }, [designerItems, search]);
 
   return (
     <div className="card designers-tab-card">
@@ -178,22 +178,22 @@ export function AdminDesignersTab({
                 className={viewMode === "sources" ? "tab tab--active" : "tab"}
                 onClick={() => setViewMode("sources")}
               >
-                {`Бренды-источники (${rows.length})`}
+                {`Исходные бренды (${rows.length})`}
               </button>
               <button
                 type="button"
-                className={viewMode === "pages" ? "tab tab--active" : "tab"}
-                onClick={() => setViewMode("pages")}
+                className={viewMode === "designers" ? "tab tab--active" : "tab"}
+                onClick={() => setViewMode("designers")}
               >
-                {`Страницы дизайнеров (${pages.length})`}
+                {`Дизайнеры каталога (${designers.length})`}
               </button>
             </div>
             <input
               className="input designers-tab-search"
               placeholder={
-                viewMode === "pages"
-                  ? "Поиск по странице дизайнера, описанию или бренду-источнику"
-                  : "Поиск по бренду-источнику или имени страницы"
+                viewMode === "designers"
+                  ? "Поиск по дизайнеру, описанию или бренду-источнику"
+                  : "Поиск по бренду-источнику или имени дизайнера"
               }
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -201,10 +201,10 @@ export function AdminDesignersTab({
             <button
               type="button"
               className="designers-tab-create"
-              disabled={catalogTitleOptions.length === 0}
-              onClick={() => onCreateCatalogPage("")}
+              disabled={designerNameOptions.length === 0}
+              onClick={() => onCreateDesigner("")}
             >
-              Создать страницу дизайнера
+              Создать дизайнера
             </button>
           </div>
         </div>
@@ -213,18 +213,18 @@ export function AdminDesignersTab({
       <div className="designers-list">
         {loading ? <p className="muted">Загрузка дизайнеров...</p> : null}
         {!loading && viewMode === "sources" && filteredRows.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
-        {!loading && viewMode === "pages" && filteredPageItems.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
+        {!loading && viewMode === "designers" && filteredDesignerItems.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
 
         {!loading && viewMode === "sources"
           ? filteredRows.map((row) => {
-              const catalogTitleKey = normalizeText(row.catalog_title).toLowerCase();
+              const designerNameKey = normalizeText(row.designer_name).toLowerCase();
               const relatedRows =
-                rowsByCatalogTitle
-                  .get(catalogTitleKey)
+                rowsByDesignerName
+                  .get(designerNameKey)
                   ?.filter((candidate) => candidate.source_brand !== row.source_brand)
                   .map((candidate) => candidate.source_brand) ?? [];
-              const nextCatalogProductCount = catalogProductCountByTitle.get(catalogTitleKey) ?? row.source_product_count;
-              const currentCatalogProductCount = Math.max(0, nextCatalogProductCount - row.source_product_count);
+              const nextDesignerProductCount = designerProductCountByName.get(designerNameKey) ?? row.source_product_count;
+              const currentDesignerProductCount = Math.max(0, nextDesignerProductCount - row.source_product_count);
 
               return (
                 <article
@@ -255,23 +255,23 @@ export function AdminDesignersTab({
                     </div>
 
                     <label className="designers-item__field">
-                      <span className="designers-item__label">Имя страницы</span>
+                      <span className="designers-item__label">Имя дизайнера</span>
                       <div className="designers-item__field-body">
                         <input
                           className="input"
-                          value={row.catalog_title}
-                          onChange={(event) => onChangeCatalogTitle(row.source_brand, event.target.value)}
+                          value={row.designer_name}
+                          onChange={(event) => onChangeDesignerName(row.source_brand, event.target.value)}
                           placeholder="Например, Rick Owens"
                         />
                         <span className="designers-item__count-pill">
-                          {`${nextCatalogProductCount} ${getProductCountLabel(nextCatalogProductCount)} (${currentCatalogProductCount} + ${row.source_product_count})`}
+                          {`${nextDesignerProductCount} ${getProductCountLabel(nextDesignerProductCount)} (${currentDesignerProductCount} + ${row.source_product_count})`}
                         </span>
                       </div>
                     </label>
 
                     {relatedRows.length > 0 ? (
                       <div className="designers-item__field designers-item__field--related">
-                        <span className="designers-item__label">Бренды с этим именем</span>
+                        <span className="designers-item__label">Другие бренды с этим именем</span>
                         <div className="designers-item__related-list">
                           {relatedRows.map((sourceBrand) => (
                             <span key={`${row.source_brand}-${sourceBrand}`} className="designers-item__related-pill">
@@ -287,8 +287,8 @@ export function AdminDesignersTab({
             })
           : null}
 
-        {!loading && viewMode === "pages"
-          ? filteredPageItems.map((item) => {
+        {!loading && viewMode === "designers"
+          ? filteredDesignerItems.map((item) => {
               const stateLabel = item.linkedRows.length === 0
                 ? "Выключено"
                 : item.allIncluded
@@ -299,7 +299,7 @@ export function AdminDesignersTab({
 
               return (
                 <article
-                  key={item.page.id}
+                  key={item.designer.id}
                   className={item.allIncluded ? "designers-item designers-item--enabled" : "designers-item designers-item--catalog"}
                 >
                   <div className="designers-item__header designers-item__header--between">
@@ -326,7 +326,7 @@ export function AdminDesignersTab({
                       <button
                         type="button"
                         className="designers-item__delete"
-                        onClick={() => onDeleteCatalogPage(item.page.id)}
+                        onClick={() => onDeleteDesigner(item.designer.id)}
                       >
                         Удалить
                       </button>
@@ -335,19 +335,19 @@ export function AdminDesignersTab({
 
                   <div className="designers-item__fields">
                     <label className="designers-item__field">
-                      <span className="designers-item__label">Имя страницы</span>
+                      <span className="designers-item__label">Имя дизайнера</span>
                       <div className="designers-item__field-body">
                         <select
                           className="input"
-                          value={item.hasValidTitle || !normalizeText(item.page.title_ref) ? item.page.title_ref : ""}
-                          onChange={(event) => onChangeCatalogPageTitle(item.page.id, event.target.value)}
+                          value={item.hasValidName || !normalizeText(item.designer.name) ? item.designer.name : ""}
+                          onChange={(event) => onChangeFinalDesignerName(item.designer.id, event.target.value)}
                         >
-                          <option value="" disabled={item.hasValidTitle}>
-                            {!normalizeText(item.page.title_ref) ? "Выберите название" : "Название больше недоступно"}
+                          <option value="" disabled={item.hasValidName}>
+                            {!normalizeText(item.designer.name) ? "Выберите имя" : "Имя больше недоступно"}
                           </option>
-                          {item.selectableTitles.map((title) => (
+                          {item.selectableNames.map((title) => (
                             <option
-                              key={`${item.page.id}-${title}`}
+                              key={`${item.designer.id}-${title}`}
                               value={title}
                               disabled={item.selectedByOthers.has(title.toLowerCase())}
                             >
@@ -363,9 +363,9 @@ export function AdminDesignersTab({
                       <span className="designers-item__label">Описание</span>
                       <textarea
                         rows={4}
-                        value={item.page.catalog_description}
-                        onChange={(event) => onChangeCatalogPageDescription(item.page.id, event.target.value)}
-                        placeholder="Описание страницы дизайнера."
+                        value={item.designer.description}
+                        onChange={(event) => onChangeFinalDesignerDescription(item.designer.id, event.target.value)}
+                        placeholder="Описание дизайнера."
                       />
                     </label>
 
@@ -375,7 +375,7 @@ export function AdminDesignersTab({
                         {item.linkedRows.length > 0 ? (
                           item.linkedRows.map((row) => (
                             <span
-                              key={`${item.page.id}-${row.source_brand}`}
+                              key={`${item.designer.id}-${row.source_brand}`}
                               className={row.include_in_designers ? "designers-item__related-pill" : "designers-item__related-pill designers-item__related-pill--muted"}
                             >
                               {`${row.source_brand} · ${formatProductCount(row.source_product_count)}`}

@@ -1,4 +1,4 @@
-import type { AdminDesignerCatalogPage, AdminDesignerMappingRow } from "./admin-types";
+import type { AdminFinalDesigner, AdminDesignerSourceRow } from "./admin-types";
 
 const MOCK_LATENCY_MS = 180;
 
@@ -10,62 +10,62 @@ export type AdminCanonicalDesigner = {
 };
 
 export type AdminDesignerMappingsPayload = {
-  rows: AdminDesignerMappingRow[];
-  pages: AdminDesignerCatalogPage[];
+  rows: AdminDesignerSourceRow[];
+  designers: AdminFinalDesigner[];
 };
 
 type InternalDesignerStore = {
-  rows: AdminDesignerMappingRow[];
-  pages: AdminDesignerCatalogPage[];
+  rows: AdminDesignerSourceRow[];
+  designers: AdminFinalDesigner[];
 };
 
-const seedRows: AdminDesignerMappingRow[] = [
-  { source_brand: "0-Hide", source_product_count: 7, catalog_title: "0-Hide", catalog_description: "", include_in_designers: true },
-  { source_brand: "07A", source_product_count: 4, catalog_title: "07A", catalog_description: "", include_in_designers: true },
-  { source_brand: "1-100", source_product_count: 9, catalog_title: "1-100", catalog_description: "", include_in_designers: true },
-  { source_brand: "1017 ALYX 9SM", source_product_count: 43, catalog_title: "1017 ALYX 9SM", catalog_description: "", include_in_designers: true },
-  { source_brand: "10sei0otto", source_product_count: 6, catalog_title: "10sei0otto", catalog_description: "", include_in_designers: true },
-  { source_brand: "11 by Boris Bidjan Saberi", source_product_count: 13, catalog_title: "Boris Bidjan Saberi", catalog_description: "", include_in_designers: true },
-  { source_brand: "14th Addiction", source_product_count: 15, catalog_title: "14th Addiction", catalog_description: "", include_in_designers: true },
-  { source_brand: "14thAddiction", source_product_count: 8, catalog_title: "14th Addiction", catalog_description: "", include_in_designers: true },
-  { source_brand: "16ARLINGTON", source_product_count: 11, catalog_title: "16Arlington", catalog_description: "", include_in_designers: true },
-  { source_brand: "20471120", source_product_count: 5, catalog_title: "20471120", catalog_description: "", include_in_designers: true },
-  { source_brand: "291295=HOMME", source_product_count: 12, catalog_title: "291295=HOMME", catalog_description: "", include_in_designers: true },
-  { source_brand: "424", source_product_count: 26, catalog_title: "424", catalog_description: "", include_in_designers: true },
-  { source_brand: "424 x Hoorsenbuhs", source_product_count: 6, catalog_title: "424", catalog_description: "", include_in_designers: true },
-  { source_brand: "A-COLD-WALL*", source_product_count: 21, catalog_title: "A-COLD-WALL*", catalog_description: "", include_in_designers: true },
-  { source_brand: "A.P.C.", source_product_count: 34, catalog_title: "A.P.C.", catalog_description: "", include_in_designers: true },
-  { source_brand: "Acne Studios", source_product_count: 58, catalog_title: "Acne Studios", catalog_description: "", include_in_designers: true },
-  { source_brand: "Ann Demeulemeester", source_product_count: 67, catalog_title: "Ann Demeulemeester", catalog_description: "", include_in_designers: true },
-  { source_brand: "Balenciaga", source_product_count: 74, catalog_title: "Balenciaga", catalog_description: "", include_in_designers: true },
-  { source_brand: "Boris Bidjan Saberi", source_product_count: 31, catalog_title: "Boris Bidjan Saberi", catalog_description: "", include_in_designers: true },
-  { source_brand: "Bottega Veneta", source_product_count: 49, catalog_title: "Bottega Veneta", catalog_description: "", include_in_designers: true },
-  { source_brand: "Carol Christian Poell", source_product_count: 28, catalog_title: "Carol Christian Poell", catalog_description: "", include_in_designers: true },
-  { source_brand: "CDG Homme Plus", source_product_count: 14, catalog_title: "Comme des Garcons Homme Plus", catalog_description: "", include_in_designers: true },
-  { source_brand: "Comme des Garcons", source_product_count: 41, catalog_title: "Comme des Garcons", catalog_description: "", include_in_designers: true },
-  { source_brand: "Craig Green", source_product_count: 23, catalog_title: "Craig Green", catalog_description: "", include_in_designers: true },
-  { source_brand: "Dries Van Noten", source_product_count: 63, catalog_title: "Dries Van Noten", catalog_description: "", include_in_designers: true },
-  { source_brand: "Enfants Riches Deprimes", source_product_count: 19, catalog_title: "Enfants Riches Deprimes", catalog_description: "", include_in_designers: true },
-  { source_brand: "Guidi", source_product_count: 37, catalog_title: "Guidi", catalog_description: "", include_in_designers: true },
-  { source_brand: "Jaded London", source_product_count: 52, catalog_title: "Jaded London", catalog_description: "", include_in_designers: true },
-  { source_brand: "Jil Sander", source_product_count: 46, catalog_title: "Jil Sander", catalog_description: "", include_in_designers: true },
-  { source_brand: "Maison Margiela", source_product_count: 71, catalog_title: "Maison Margiela", catalog_description: "", include_in_designers: true },
-  { source_brand: "Our Legacy", source_product_count: 39, catalog_title: "Our Legacy", catalog_description: "", include_in_designers: true },
-  { source_brand: "Protocol Index", source_product_count: 17, catalog_title: "Protocol Index", catalog_description: "", include_in_designers: true },
-  { source_brand: "Racer Worldwide", source_product_count: 22, catalog_title: "Racer Worldwide", catalog_description: "", include_in_designers: true },
-  { source_brand: "Raf Simons", source_product_count: 44, catalog_title: "Raf Simons", catalog_description: "", include_in_designers: true },
-  { source_brand: "Rick Owens", source_product_count: 83, catalog_title: "Rick Owens", catalog_description: "", include_in_designers: true },
-  { source_brand: "Sacai", source_product_count: 29, catalog_title: "Sacai", catalog_description: "", include_in_designers: true },
-  { source_brand: "Saint Laurent", source_product_count: 54, catalog_title: "Saint Laurent", catalog_description: "", include_in_designers: true },
-  { source_brand: "Takahiromiyashita TheSoloist.", source_product_count: 18, catalog_title: "Takahiromiyashita TheSoloist.", catalog_description: "", include_in_designers: true },
-  { source_brand: "The Row", source_product_count: 26, catalog_title: "The Row", catalog_description: "", include_in_designers: true },
-  { source_brand: "Undercover", source_product_count: 36, catalog_title: "Undercover", catalog_description: "", include_in_designers: true },
-  { source_brand: "Wales Bonner", source_product_count: 24, catalog_title: "Wales Bonner", catalog_description: "", include_in_designers: true },
-  { source_brand: "Yohji Yamamoto", source_product_count: 48, catalog_title: "Yohji Yamamoto", catalog_description: "", include_in_designers: true },
-  { source_brand: "Ziggy Chen", source_product_count: 16, catalog_title: "Ziggy Chen", catalog_description: "", include_in_designers: true },
+const seedRows: AdminDesignerSourceRow[] = [
+  { source_brand: "0-Hide", source_product_count: 7, designer_name: "0-Hide", include_in_designers: true },
+  { source_brand: "07A", source_product_count: 4, designer_name: "07A", include_in_designers: true },
+  { source_brand: "1-100", source_product_count: 9, designer_name: "1-100", include_in_designers: true },
+  { source_brand: "1017 ALYX 9SM", source_product_count: 43, designer_name: "1017 ALYX 9SM", include_in_designers: true },
+  { source_brand: "10sei0otto", source_product_count: 6, designer_name: "10sei0otto", include_in_designers: true },
+  { source_brand: "11 by Boris Bidjan Saberi", source_product_count: 13, designer_name: "Boris Bidjan Saberi", include_in_designers: true },
+  { source_brand: "14th Addiction", source_product_count: 15, designer_name: "14th Addiction", include_in_designers: true },
+  { source_brand: "14thAddiction", source_product_count: 8, designer_name: "14th Addiction", include_in_designers: true },
+  { source_brand: "16ARLINGTON", source_product_count: 11, designer_name: "16Arlington", include_in_designers: true },
+  { source_brand: "20471120", source_product_count: 5, designer_name: "20471120", include_in_designers: true },
+  { source_brand: "291295=HOMME", source_product_count: 12, designer_name: "291295=HOMME", include_in_designers: true },
+  { source_brand: "424", source_product_count: 26, designer_name: "424", include_in_designers: true },
+  { source_brand: "424 x Hoorsenbuhs", source_product_count: 6, designer_name: "424", include_in_designers: true },
+  { source_brand: "A-COLD-WALL*", source_product_count: 21, designer_name: "A-COLD-WALL*", include_in_designers: true },
+  { source_brand: "A.P.C.", source_product_count: 34, designer_name: "A.P.C.", include_in_designers: true },
+  { source_brand: "Acne Studios", source_product_count: 58, designer_name: "Acne Studios", include_in_designers: true },
+  { source_brand: "Ann Demeulemeester", source_product_count: 67, designer_name: "Ann Demeulemeester", include_in_designers: true },
+  { source_brand: "Balenciaga", source_product_count: 74, designer_name: "Balenciaga", include_in_designers: true },
+  { source_brand: "Boris Bidjan Saberi", source_product_count: 31, designer_name: "Boris Bidjan Saberi", include_in_designers: true },
+  { source_brand: "Bottega Veneta", source_product_count: 49, designer_name: "Bottega Veneta", include_in_designers: true },
+  { source_brand: "Carol Christian Poell", source_product_count: 28, designer_name: "Carol Christian Poell", include_in_designers: true },
+  { source_brand: "CDG Homme Plus", source_product_count: 14, designer_name: "Comme des Garcons Homme Plus", include_in_designers: true },
+  { source_brand: "Comme des Garcons", source_product_count: 41, designer_name: "Comme des Garcons", include_in_designers: true },
+  { source_brand: "Craig Green", source_product_count: 23, designer_name: "Craig Green", include_in_designers: true },
+  { source_brand: "Dries Van Noten", source_product_count: 63, designer_name: "Dries Van Noten", include_in_designers: true },
+  { source_brand: "Enfants Riches Deprimes", source_product_count: 19, designer_name: "Enfants Riches Deprimes", include_in_designers: true },
+  { source_brand: "Guidi", source_product_count: 37, designer_name: "Guidi", include_in_designers: true },
+  { source_brand: "Jaded London", source_product_count: 52, designer_name: "Jaded London", include_in_designers: true },
+  { source_brand: "Jil Sander", source_product_count: 46, designer_name: "Jil Sander", include_in_designers: true },
+  { source_brand: "Maison Margiela", source_product_count: 71, designer_name: "Maison Margiela", include_in_designers: true },
+  { source_brand: "Our Legacy", source_product_count: 39, designer_name: "Our Legacy", include_in_designers: true },
+  { source_brand: "Protocol Index", source_product_count: 17, designer_name: "Protocol Index", include_in_designers: true },
+  { source_brand: "Racer Worldwide", source_product_count: 22, designer_name: "Racer Worldwide", include_in_designers: true },
+  { source_brand: "Raf Simons", source_product_count: 44, designer_name: "Raf Simons", include_in_designers: true },
+  { source_brand: "Rick Owens", source_product_count: 83, designer_name: "Rick Owens", include_in_designers: true },
+  { source_brand: "Sacai", source_product_count: 29, designer_name: "Sacai", include_in_designers: true },
+  { source_brand: "Saint Laurent", source_product_count: 54, designer_name: "Saint Laurent", include_in_designers: true },
+  { source_brand: "Takahiromiyashita TheSoloist.", source_product_count: 18, designer_name: "Takahiromiyashita TheSoloist.", include_in_designers: true },
+  { source_brand: "The Row", source_product_count: 26, designer_name: "The Row", include_in_designers: true },
+  { source_brand: "Undercover", source_product_count: 36, designer_name: "Undercover", include_in_designers: true },
+  { source_brand: "Wales Bonner", source_product_count: 24, designer_name: "Wales Bonner", include_in_designers: true },
+  { source_brand: "Yohji Yamamoto", source_product_count: 48, designer_name: "Yohji Yamamoto", include_in_designers: true },
+  { source_brand: "Ziggy Chen", source_product_count: 16, designer_name: "Ziggy Chen", include_in_designers: true },
 ];
 
-const seedPageDescriptions: Record<string, string> = {
+const seedDesignerDescriptions: Record<string, string> = {
   "0-hide": "Небольшая архивная подборка 0-Hide с редкими вещами и ограниченным количеством размеров.",
   "07a": "Компактная выборка 07A с редкими позициями и акцентом на фактурные материалы.",
   "1-100": "Каталог 1-100 с повседневной одеждой, обувью и небольшим количеством аксессуаров из актуальных поступлений.",
@@ -106,18 +106,18 @@ const seedPageDescriptions: Record<string, string> = {
   "yohji yamamoto": "Коллекция Yohji Yamamoto: черный tailoring, асимметричные силуэты, обувь и фирменный многослойный гардероб.",
 };
 
-function cloneRows(rows: readonly AdminDesignerMappingRow[]) {
+function cloneRows(rows: readonly AdminDesignerSourceRow[]) {
   return rows.map((row) => ({ ...row }));
 }
 
-function clonePages(pages: readonly AdminDesignerCatalogPage[]) {
-  return pages.map((page) => ({ ...page }));
+function cloneDesigners(designers: readonly AdminFinalDesigner[]) {
+  return designers.map((designer) => ({ ...designer }));
 }
 
 function clonePayload(payload: AdminDesignerMappingsPayload): AdminDesignerMappingsPayload {
   return {
     rows: cloneRows(payload.rows),
-    pages: clonePages(payload.pages),
+    designers: cloneDesigners(payload.designers),
   };
 }
 
@@ -132,20 +132,20 @@ function buildDesignerId(label: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function buildSeedPages(rows: readonly AdminDesignerMappingRow[]): AdminDesignerCatalogPage[] {
-  const uniqueTitles = [...new Set(rows.map((row) => normalizeText(row.catalog_title)).filter(Boolean))].sort((left, right) =>
+function buildSeedDesigners(rows: readonly AdminDesignerSourceRow[]): AdminFinalDesigner[] {
+  const uniqueNames = [...new Set(rows.map((row) => normalizeText(row.designer_name)).filter(Boolean))].sort((left, right) =>
     left.localeCompare(right, "en", { numeric: true, sensitivity: "base" })
   );
 
-  return uniqueTitles.map((title) => ({
-    id: `page-${buildDesignerId(title)}`,
-    title_ref: title,
-    catalog_description: seedPageDescriptions[title.toLowerCase()] || "",
+  return uniqueNames.map((name) => ({
+    id: `designer-${buildDesignerId(name)}`,
+    name,
+    description: seedDesignerDescriptions[name.toLowerCase()] || "",
   }));
 }
 
-function createUniquePageId(baseTitle: string, usedIds: Set<string>) {
-  const baseId = `page-${buildDesignerId(baseTitle) || "designer"}`;
+function createUniqueDesignerId(baseName: string, usedIds: Set<string>) {
+  const baseId = `designer-${buildDesignerId(baseName) || "designer"}`;
   if (!usedIds.has(baseId)) {
     usedIds.add(baseId);
     return baseId;
@@ -160,65 +160,58 @@ function createUniquePageId(baseTitle: string, usedIds: Set<string>) {
   return nextId;
 }
 
-function normalizeDesignerRows(rows: readonly AdminDesignerMappingRow[]) {
+function normalizeDesignerRows(rows: readonly AdminDesignerSourceRow[]) {
   return cloneRows(rows).map((row) => ({
     source_brand: normalizeText(row.source_brand),
     source_product_count: Math.max(0, Math.trunc(Number(row.source_product_count) || 0)),
-    catalog_title: normalizeText(row.catalog_title) || normalizeText(row.source_brand),
-    catalog_description: normalizeText(row.catalog_description),
+    designer_name: normalizeText(row.designer_name) || normalizeText(row.source_brand),
     include_in_designers: Boolean(row.include_in_designers),
   }));
 }
 
-function normalizeDesignerPages(pages: readonly AdminDesignerCatalogPage[]) {
-  return clonePages(pages).map((page, index) => ({
-    id: normalizeText(page.id) || `page-${index + 1}`,
-    title_ref: normalizeText(page.title_ref),
-    catalog_description: normalizeText(page.catalog_description),
+function normalizeFinalDesigners(designers: readonly AdminFinalDesigner[]) {
+  return cloneDesigners(designers).map((designer, index) => ({
+    id: normalizeText(designer.id) || `designer-${index + 1}`,
+    name: normalizeText(designer.name),
+    description: normalizeText(designer.description),
   }));
 }
 
 function normalizeDesignerStore(nextStore: InternalDesignerStore): InternalDesignerStore {
   const rows = normalizeDesignerRows(nextStore.rows);
-  const pages = normalizeDesignerPages(nextStore.pages);
-  const usedPageIds = new Set<string>();
-  const preparedPages = pages.map((page) => {
-    const normalizedId = normalizeText(page.id);
+  const designers = normalizeFinalDesigners(nextStore.designers);
+  const usedDesignerIds = new Set<string>();
+  const preparedDesigners = designers.map((designer) => {
+    const normalizedId = normalizeText(designer.id);
     if (!normalizedId) {
       return {
-        ...page,
-        id: createUniquePageId(page.title_ref || "designer", usedPageIds),
+        ...designer,
+        id: createUniqueDesignerId(designer.name || "designer", usedDesignerIds),
       };
     }
-    if (usedPageIds.has(normalizedId)) {
+    if (usedDesignerIds.has(normalizedId)) {
       return {
-        ...page,
-        id: createUniquePageId(page.title_ref || "designer", usedPageIds),
+        ...designer,
+        id: createUniqueDesignerId(designer.name || "designer", usedDesignerIds),
       };
     }
-    usedPageIds.add(normalizedId);
+    usedDesignerIds.add(normalizedId);
     return {
-      ...page,
+      ...designer,
       id: normalizedId,
     };
   });
-  const pageDescriptionByTitle = new Map(
-    preparedPages.filter((page) => page.title_ref).map((page) => [page.title_ref.toLowerCase(), page.catalog_description])
-  );
 
   return {
-    rows: rows.map((row) => ({
-      ...row,
-      catalog_description: pageDescriptionByTitle.get(row.catalog_title.toLowerCase()) || "",
-    })),
-    pages: preparedPages,
+    rows,
+    designers: preparedDesigners,
   };
 }
 
 function createSeedStore(): InternalDesignerStore {
   return normalizeDesignerStore({
     rows: seedRows,
-    pages: buildSeedPages(seedRows),
+    designers: buildSeedDesigners(seedRows),
   });
 }
 
@@ -234,7 +227,7 @@ function buildPayload(): AdminDesignerMappingsPayload {
   store = normalizeDesignerStore(store);
   return clonePayload({
     rows: store.rows,
-    pages: store.pages,
+    designers: store.designers,
   });
 }
 
@@ -245,7 +238,7 @@ export async function fetchAdminDesignerMappings(): Promise<AdminDesignerMapping
 export async function saveAdminDesignerMappings(payload: AdminDesignerMappingsPayload): Promise<AdminDesignerMappingsPayload> {
   store = normalizeDesignerStore({
     rows: payload.rows,
-    pages: payload.pages,
+    designers: payload.designers,
   });
   return simulateResponse(buildPayload(), MOCK_LATENCY_MS + 60);
 }
@@ -256,8 +249,8 @@ export function readAdminDesignerMappingsSeed(): AdminDesignerMappingsPayload {
 
 export function readCanonicalAdminDesignersSeed(): AdminCanonicalDesigner[] {
   const payload = buildPayload();
-  const pageDescriptionByTitle = new Map(
-    payload.pages.filter((page) => page.title_ref).map((page) => [page.title_ref.toLowerCase(), page.catalog_description || null])
+  const descriptionByName = new Map(
+    payload.designers.filter((designer) => designer.name).map((designer) => [designer.name.toLowerCase(), designer.description || null])
   );
   const aggregated = new Map<string, AdminCanonicalDesigner>();
 
@@ -266,7 +259,7 @@ export function readCanonicalAdminDesignersSeed(): AdminCanonicalDesigner[] {
       continue;
     }
 
-    const label = normalizeText(row.catalog_title) || normalizeText(row.source_brand);
+    const label = normalizeText(row.designer_name) || normalizeText(row.source_brand);
     if (!label) {
       continue;
     }
@@ -282,7 +275,7 @@ export function readCanonicalAdminDesignersSeed(): AdminCanonicalDesigner[] {
       id: buildDesignerId(label),
       label,
       product_count: row.source_product_count,
-      catalog_description: pageDescriptionByTitle.get(key) || null,
+      catalog_description: descriptionByName.get(key) || null,
     });
   }
 

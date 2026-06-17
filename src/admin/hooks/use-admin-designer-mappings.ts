@@ -1,77 +1,76 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAdminDesignerMappings, readAdminDesignerMappingsSeed, saveAdminDesignerMappings } from "../admin-designers-mock";
-import type { AdminDesignerCatalogPage, AdminDesignerMappingRow } from "../admin-types";
+import type { AdminFinalDesigner, AdminDesignerSourceRow } from "../admin-types";
 
 const AUTO_SAVE_DEBOUNCE_MS = 500;
 
-function normalizeRow(row: AdminDesignerMappingRow): AdminDesignerMappingRow {
+function normalizeRow(row: AdminDesignerSourceRow): AdminDesignerSourceRow {
   return {
     source_brand: String(row.source_brand || "").trim(),
     source_product_count: Number.isFinite(row.source_product_count) ? Math.max(0, Math.trunc(row.source_product_count)) : 0,
-    catalog_title: String(row.catalog_title || "").trim(),
-    catalog_description: String(row.catalog_description || "").trim(),
+    designer_name: String(row.designer_name || "").trim(),
     include_in_designers: Boolean(row.include_in_designers),
   };
 }
 
-function createSignature(rows: readonly AdminDesignerMappingRow[]) {
+function createSignature(rows: readonly AdminDesignerSourceRow[]) {
   return rows
     .map((row) => {
       const normalized = normalizeRow(row);
-      return `${normalized.source_brand}|${normalized.source_product_count}|${normalized.catalog_title}|${normalized.catalog_description}|${normalized.include_in_designers}`;
+      return `${normalized.source_brand}|${normalized.source_product_count}|${normalized.designer_name}|${normalized.include_in_designers}`;
     })
     .sort()
     .join("||");
 }
 
-function createPagesSignature(pages: readonly AdminDesignerCatalogPage[]) {
-  return pages
-    .map((page) => {
-      const id = String(page.id || "").trim();
-      const titleRef = String(page.title_ref || "").trim();
-      const description = String(page.catalog_description || "").trim();
-      return `${id}|${titleRef}|${description}`;
+function createDesignersSignature(designers: readonly AdminFinalDesigner[]) {
+  return designers
+    .map((designer) => {
+      const id = String(designer.id || "").trim();
+      const name = String(designer.name || "").trim();
+      const description = String(designer.description || "").trim();
+      return `${id}|${name}|${description}`;
     })
     .sort()
     .join("||");
 }
 
-function normalizePage(page: AdminDesignerCatalogPage): AdminDesignerCatalogPage {
+function normalizeDesigner(designer: AdminFinalDesigner): AdminFinalDesigner {
   return {
-    id: String(page.id || "").trim(),
-    title_ref: String(page.title_ref || "").trim(),
-    catalog_description: String(page.catalog_description || "").trim(),
+    id: String(designer.id || "").trim(),
+    name: String(designer.name || "").trim(),
+    description: String(designer.description || "").trim(),
   };
 }
 
-function sortPagesForLoad(pages: readonly AdminDesignerCatalogPage[]) {
-  return [...pages].sort((left, right) => {
-    const leftTitle = String(left.title_ref || "").trim();
-    const rightTitle = String(right.title_ref || "").trim();
-    if (!leftTitle && !rightTitle) {
+function sortDesignersForLoad(designers: readonly AdminFinalDesigner[]) {
+  return [...designers].sort((left, right) => {
+    const leftName = String(left.name || "").trim();
+    const rightName = String(right.name || "").trim();
+    if (!leftName && !rightName) {
       return String(left.id || "").localeCompare(String(right.id || ""), "en", { numeric: true, sensitivity: "base" });
     }
-    if (!leftTitle) {
+    if (!leftName) {
       return 1;
     }
-    if (!rightTitle) {
+    if (!rightName) {
       return -1;
     }
-    return leftTitle.localeCompare(rightTitle, "en", { numeric: true, sensitivity: "base" });
+    return leftName.localeCompare(rightName, "en", { numeric: true, sensitivity: "base" });
   });
 }
 
-function createPageId() {
-  return `designer-page-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+function createDesignerId() {
+  return `designer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function useAdminDesignerMappings(tab: string, pushToast: (message: string) => void) {
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
-  const [rows, setRows] = useState<AdminDesignerMappingRow[]>(() => readAdminDesignerMappingsSeed().rows);
-  const [pages, setPages] = useState<AdminDesignerCatalogPage[]>(() => readAdminDesignerMappingsSeed().pages);
-  const [baselineRows, setBaselineRows] = useState<AdminDesignerMappingRow[]>(() => readAdminDesignerMappingsSeed().rows);
-  const [baselinePages, setBaselinePages] = useState<AdminDesignerCatalogPage[]>(() => readAdminDesignerMappingsSeed().pages);
+  const [rows, setRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsSeed().rows);
+  const [designers, setDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsSeed().designers);
+  const [baselineRows, setBaselineRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsSeed().rows);
+  const [baselineDesigners, setBaselineDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsSeed().designers);
   const saveTimeoutRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
@@ -79,11 +78,11 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
       setLoading(true);
       const payload = await fetchAdminDesignerMappings();
       const nextRows = payload.rows.map(normalizeRow);
-      const nextPages = sortPagesForLoad(payload.pages.map(normalizePage));
+      const nextDesigners = sortDesignersForLoad(payload.designers.map(normalizeDesigner));
       setRows(nextRows);
-      setPages(nextPages);
+      setDesigners(nextDesigners);
       setBaselineRows(nextRows);
-      setBaselinePages(nextPages);
+      setBaselineDesigners(nextDesigners);
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Ошибка загрузки дизайнеров");
     } finally {
@@ -98,9 +97,9 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     void load();
   }, [tab, load]);
 
-  const onChangeCatalogTitle = useCallback((sourceBrand: string, catalogTitle: string) => {
+  const onChangeDesignerName = useCallback((sourceBrand: string, designerName: string) => {
     setRows((prev) =>
-      prev.map((row) => (row.source_brand === sourceBrand ? { ...row, catalog_title: catalogTitle } : row))
+      prev.map((row) => (row.source_brand === sourceBrand ? { ...row, designer_name: designerName } : row))
     );
   }, []);
 
@@ -110,47 +109,47 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     );
   }, []);
 
-  const onChangeCatalogPageTitle = useCallback((pageId: string, titleRef: string) => {
-    setPages((prev) =>
-      prev.map((page) => (page.id === pageId ? { ...page, title_ref: titleRef } : page))
+  const onChangeFinalDesignerName = useCallback((designerId: string, designerName: string) => {
+    setDesigners((prev) =>
+      prev.map((designer) => (designer.id === designerId ? { ...designer, name: designerName } : designer))
     );
   }, []);
 
-  const onChangeCatalogPageDescription = useCallback((pageId: string, catalogDescription: string) => {
-    setPages((prev) =>
-      prev.map((page) => (page.id === pageId ? { ...page, catalog_description: catalogDescription } : page))
+  const onChangeFinalDesignerDescription = useCallback((designerId: string, description: string) => {
+    setDesigners((prev) =>
+      prev.map((designer) => (designer.id === designerId ? { ...designer, description } : designer))
     );
   }, []);
 
-  const onCreateCatalogPage = useCallback((titleRef: string) => {
-    const normalizedTitleRef = String(titleRef || "").trim();
-    setPages((prev) => [
+  const onCreateDesigner = useCallback((designerName: string) => {
+    const normalizedDesignerName = String(designerName || "").trim();
+    setDesigners((prev) => [
       {
-        id: createPageId(),
-        title_ref: normalizedTitleRef,
-        catalog_description: "",
+        id: createDesignerId(),
+        name: normalizedDesignerName,
+        description: "",
       },
       ...prev,
     ]);
   }, []);
 
-  const onDeleteCatalogPage = useCallback((pageId: string) => {
-    setPages((prev) => prev.filter((page) => page.id !== pageId));
+  const onDeleteDesigner = useCallback((designerId: string) => {
+    setDesigners((prev) => prev.filter((designer) => designer.id !== designerId));
   }, []);
 
-  const persistState = useCallback(async (nextDraftRows: readonly AdminDesignerMappingRow[], nextDraftPages: readonly AdminDesignerCatalogPage[]) => {
+  const persistState = useCallback(async (nextDraftRows: readonly AdminDesignerSourceRow[], nextDraftDesigners: readonly AdminFinalDesigner[]) => {
     try {
       setSaving(true);
       const normalizedRows = nextDraftRows.map(normalizeRow);
-      const normalizedPages = nextDraftPages.map(normalizePage);
+      const normalizedDesigners = nextDraftDesigners.map(normalizeDesigner);
       const nextPayload = await saveAdminDesignerMappings({
         rows: normalizedRows,
-        pages: normalizedPages,
+        designers: normalizedDesigners,
       });
       setRows(nextPayload.rows);
-      setPages(nextPayload.pages);
+      setDesigners(nextPayload.designers);
       setBaselineRows(nextPayload.rows);
-      setBaselinePages(nextPayload.pages);
+      setBaselineDesigners(nextPayload.designers);
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Ошибка сохранения дизайнеров");
     } finally {
@@ -159,11 +158,11 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
   }, [pushToast]);
 
   const hasUnsavedChanges = useMemo(
-    () => createSignature(rows) !== createSignature(baselineRows) || createPagesSignature(pages) !== createPagesSignature(baselinePages),
-    [baselinePages, baselineRows, pages, rows]
+    () => createSignature(rows) !== createSignature(baselineRows) || createDesignersSignature(designers) !== createDesignersSignature(baselineDesigners),
+    [baselineDesigners, baselineRows, designers, rows]
   );
   const hasInvalidRows = useMemo(
-    () => rows.some((row) => row.include_in_designers && !String(row.catalog_title || "").trim()),
+    () => rows.some((row) => row.include_in_designers && !String(row.designer_name || "").trim()),
     [rows]
   );
 
@@ -178,7 +177,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
 
     saveTimeoutRef.current = window.setTimeout(() => {
       saveTimeoutRef.current = null;
-      void persistState(rows, pages);
+      void persistState(rows, designers);
     }, AUTO_SAVE_DEBOUNCE_MS);
 
     return () => {
@@ -187,7 +186,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
         saveTimeoutRef.current = null;
       }
     };
-  }, [hasInvalidRows, hasUnsavedChanges, loading, pages, persistState, rows, saving, tab]);
+  }, [designers, hasInvalidRows, hasUnsavedChanges, loading, persistState, rows, saving, tab]);
 
   useEffect(() => {
     return () => {
@@ -201,12 +200,12 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     loading,
     saving,
     rows,
-    pages,
-    onChangeCatalogTitle,
+    designers,
+    onChangeDesignerName,
     onToggleIncludeInDesigners,
-    onChangeCatalogPageTitle,
-    onChangeCatalogPageDescription,
-    onCreateCatalogPage,
-    onDeleteCatalogPage,
+    onChangeFinalDesignerName,
+    onChangeFinalDesignerDescription,
+    onCreateDesigner,
+    onDeleteDesigner,
   };
 }

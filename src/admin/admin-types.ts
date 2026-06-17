@@ -112,18 +112,17 @@ export type AdminFilterFacetOption = {
   count: number;
 };
 
-export type AdminDesignerMappingRow = {
+export type AdminDesignerSourceRow = {
   source_brand: string;
   source_product_count: number;
-  catalog_title: string;
-  catalog_description: string;
+  designer_name: string;
   include_in_designers: boolean;
 };
 
-export type AdminDesignerCatalogPage = {
+export type AdminFinalDesigner = {
   id: string;
-  title_ref: string;
-  catalog_description: string;
+  name: string;
+  description: string;
 };
 
 export type AdminUiSettings = {

@@ -440,13 +440,13 @@ export function AdminPage() {
   const {
     loading: designersLoading,
     rows: designersRows,
-    pages: designerPages,
-    onChangeCatalogTitle: onChangeDesignerCatalogTitle,
+    designers: finalDesigners,
+    onChangeDesignerName,
     onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
-    onChangeCatalogPageTitle: onChangeDesignerCatalogPageTitle,
-    onChangeCatalogPageDescription: onChangeDesignerCatalogPageDescription,
-    onCreateCatalogPage: onCreateDesignerCatalogPage,
-    onDeleteCatalogPage: onDeleteDesignerCatalogPage,
+    onChangeFinalDesignerName,
+    onChangeFinalDesignerDescription,
+    onCreateDesigner,
+    onDeleteDesigner,
   } = useAdminDesignerMappings(tab, pushToast);
 
   useAdminSvcValidationToast(svcRulesValidationError, pushToast);
@@ -501,13 +501,13 @@ export function AdminPage() {
     designersTabProps: {
       loading: designersLoading,
       rows: designersRows,
-      pages: designerPages,
-      onChangeCatalogTitle: onChangeDesignerCatalogTitle,
+      designers: finalDesigners,
+      onChangeDesignerName,
       onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
-      onChangeCatalogPageTitle: onChangeDesignerCatalogPageTitle,
-      onChangeCatalogPageDescription: onChangeDesignerCatalogPageDescription,
-      onCreateCatalogPage: onCreateDesignerCatalogPage,
-      onDeleteCatalogPage: onDeleteDesignerCatalogPage,
+      onChangeFinalDesignerName,
+      onChangeFinalDesignerDescription,
+      onCreateDesigner,
+      onDeleteDesigner,
     },
     sourcesTabProps: {
       sources,
