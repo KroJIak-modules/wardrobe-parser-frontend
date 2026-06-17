@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { SiteHeader } from "../../features/header/site-header";
 import {
   SiteCarouselSection,
@@ -19,11 +19,45 @@ type IntroPhase = "intro" | "transition" | "entered";
 const INTRO_TRANSITION_MS = 880;
 
 function SiteHomeSurface({ showHeader = true }: { showHeader?: boolean }) {
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const [headerTheme, setHeaderTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const carouselNode = carouselRef.current;
+    if (!carouselNode) {
+      return;
+    }
+
+    let frameId = 0;
+
+    const updateHeaderTheme = () => {
+      const rect = carouselNode.getBoundingClientRect();
+      const sampleLine = 40;
+      const isHeroBehindHeader = rect.top <= sampleLine && rect.bottom >= sampleLine;
+      setHeaderTheme(isHeroBehindHeader ? "dark" : "light");
+    };
+
+    const scheduleUpdate = () => {
+      cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(updateHeaderTheme);
+    };
+
+    updateHeaderTheme();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
+  }, []);
+
   return (
     <div className="site-home-surface">
-      {showHeader ? <SiteHeader theme="light" menuItems={siteMenuItems} actionItems={siteActionItems} /> : null}
+      {showHeader ? <SiteHeader theme={headerTheme} menuItems={siteMenuItems} actionItems={siteActionItems} /> : null}
       <div className="site-home-surface__content">
-        <div className="site-home-surface__carousel">
+        <div ref={carouselRef} className="site-home-surface__carousel">
           <SiteCarouselSection />
         </div>
         <div className="site-home-surface__products">

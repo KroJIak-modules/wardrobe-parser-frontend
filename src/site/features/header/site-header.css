@@ -24,7 +24,6 @@
   background: transparent;
   cursor: pointer;
   overflow: visible;
-  mix-blend-mode: difference;
 }
 
 .site-header__logo-image {
@@ -36,10 +35,18 @@
   max-width: none;
   object-fit: contain;
   opacity: 0.8;
-  filter: brightness(0) invert(1);
   transition:
+    filter 180ms ease,
     opacity 180ms ease,
     transform 220ms ease;
+}
+
+.site-header--light .site-header__logo-image {
+  filter: none;
+}
+
+.site-header--dark .site-header__logo-image {
+  filter: brightness(0) invert(1);
 }
 
 .site-header__logo:hover .site-header__logo-image,

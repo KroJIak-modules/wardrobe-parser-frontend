@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { siteCarouselSlides, siteFooterColumns, type SiteProduct } from "../../mock/site-mock-data";
 import "./site-storefront.css";
@@ -11,6 +11,7 @@ type SiteProductsSectionProps = {
 };
 
 const CAROUSEL_INTERVAL_MS = 4800;
+const CAROUSEL_TRANSITION_MS = 820;
 
 function formatRubles(value: number) {
   return new Intl.NumberFormat("ru-RU").format(value);
@@ -25,55 +26,146 @@ function getCarouselSlot(index: number, activeIndex: number, total: number) {
 }
 
 export function SiteCarouselSection() {
-  const [activeIndex, setActiveIndex] = useState(1);
+  const slideCount = siteCarouselSlides.length;
+  const transitionFrameRef = useRef<number | null>(null);
+  const isAnimatingRef = useRef(false);
+  const [trackIndex, setTrackIndex] = useState(1);
+  const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const carouselPanels = useMemo(() => {
+    const realPanels = siteCarouselSlides.map((_, activeIndex) => ({
+      id: `state-${activeIndex}`,
+      activeIndex,
+      slides: siteCarouselSlides.map((slide, index) => ({
+        ...slide,
+        slot: getCarouselSlot(index, activeIndex, slideCount),
+      })),
+    }));
+
+    const clonedPanels = [realPanels[realPanels.length - 1], ...realPanels, realPanels[0]];
+
+    return clonedPanels.map((panel, index) => ({
+      ...panel,
+      cloneKey: `${panel.id}-${index}`,
+    }));
+  }, [slideCount]);
+
+  const moveTrack = useCallback(
+    (direction: 1 | -1) => {
+      if (slideCount < 2 || isAnimatingRef.current) {
+        return;
+      }
+
+      isAnimatingRef.current = true;
+      setIsAnimating(true);
+      setIsTransitionEnabled(true);
+      setTrackIndex((current) => current + direction);
+    },
+    [slideCount]
+  );
 
   useEffect(() => {
+    if (slideCount < 2) {
+      return;
+    }
+
     const timerId = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % siteCarouselSlides.length);
+      moveTrack(1);
     }, CAROUSEL_INTERVAL_MS);
 
     return () => window.clearInterval(timerId);
-  }, []);
+  }, [moveTrack, slideCount]);
 
-  const slides = useMemo(
-    () =>
-      siteCarouselSlides.map((slide, index) => ({
-        ...slide,
-        slot: getCarouselSlot(index, activeIndex, siteCarouselSlides.length),
-      })),
-    [activeIndex]
+  useEffect(
+    () => () => {
+      if (transitionFrameRef.current !== null) {
+        window.cancelAnimationFrame(transitionFrameRef.current);
+      }
+    },
+    []
   );
+
+  const handleTrackTransitionEnd = useCallback(() => {
+    if (trackIndex === 0 || trackIndex === slideCount + 1) {
+      const resetIndex = trackIndex === 0 ? slideCount : 1;
+      setIsTransitionEnabled(false);
+      setTrackIndex(resetIndex);
+      isAnimatingRef.current = false;
+      setIsAnimating(false);
+
+      transitionFrameRef.current = window.requestAnimationFrame(() => {
+        transitionFrameRef.current = window.requestAnimationFrame(() => {
+          setIsTransitionEnabled(true);
+          transitionFrameRef.current = null;
+        });
+      });
+
+      return;
+    }
+
+    isAnimatingRef.current = false;
+    setIsAnimating(false);
+  }, [slideCount, trackIndex]);
 
   return (
     <section className="site-carousel" aria-label="Карусель фотографий">
       <div className="site-carousel__viewport">
-        {slides.map((slide) => (
-          <figure
-            key={slide.id}
-            className="site-carousel__slide"
-            data-slot={slide.slot}
-            aria-hidden={slide.slot === "center" ? "false" : "true"}
-          >
-            <img src={slide.imageSrc} alt={slide.alt} className="site-carousel__image" />
-          </figure>
-        ))}
+        <div
+          className="site-carousel__track"
+          data-transition-enabled={isTransitionEnabled ? "true" : "false"}
+          style={{
+            transform: `translate3d(-${trackIndex * 100}%, 0, 0)`,
+            transitionDuration: `${CAROUSEL_TRANSITION_MS}ms`,
+          }}
+          onTransitionEnd={handleTrackTransitionEnd}
+        >
+          {carouselPanels.map((panel, panelIndex) => (
+            <div
+              key={panel.cloneKey}
+              className="site-carousel__panel"
+              aria-hidden={panelIndex === trackIndex ? "false" : "true"}
+            >
+              {panel.slides.map((slide) => (
+                <figure
+                  key={`${panel.cloneKey}-${slide.id}`}
+                  className="site-carousel__slide"
+                  data-slot={slide.slot}
+                  aria-hidden={panelIndex === trackIndex && slide.slot === "center" ? "false" : "true"}
+                >
+                  <img src={slide.imageSrc} alt={slide.alt} className="site-carousel__image" />
+                </figure>
+              ))}
+            </div>
+          ))}
+        </div>
         <button
           type="button"
           className="site-carousel__arrow site-carousel__arrow--left"
           aria-label="Предыдущий кадр"
-          onClick={() =>
-            setActiveIndex((current) => (current + siteCarouselSlides.length - 1) % siteCarouselSlides.length)
-          }
+          disabled={isAnimating}
+          onClick={() => moveTrack(-1)}
         >
-          <span className="site-carousel__arrow-shape" aria-hidden="true" />
+          <img
+            src="/site-mock/carousel-arrow-right.svg"
+            alt=""
+            className="site-carousel__arrow-body"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
           className="site-carousel__arrow site-carousel__arrow--right"
           aria-label="Следующий кадр"
-          onClick={() => setActiveIndex((current) => (current + 1) % siteCarouselSlides.length)}
+          disabled={isAnimating}
+          onClick={() => moveTrack(1)}
         >
-          <span className="site-carousel__arrow-shape" aria-hidden="true" />
+          <img
+            src="/site-mock/carousel-arrow-right.svg"
+            alt=""
+            className="site-carousel__arrow-body site-carousel__arrow-body--left"
+            aria-hidden="true"
+          />
         </button>
       </div>
       <div className="site-carousel__dots" aria-hidden="true">
