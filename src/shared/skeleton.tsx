@@ -1,8 +1,16 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
-export function SkeletonBlock({ className = "", children }: { className?: string; children?: ReactNode }) {
+export function SkeletonBlock({
+  className = "",
+  children,
+  style,
+}: {
+  className?: string;
+  children?: ReactNode;
+  style?: CSSProperties;
+}) {
   const cls = className.trim() ? `skeleton ${className}` : "skeleton";
-  return <div className={cls} aria-hidden="true">{children}</div>;
+  return <div className={cls} aria-hidden="true" style={style}>{children}</div>;
 }
 
 export function AdminSectionSkeleton({ rows = 4 }: { rows?: number }) {
@@ -223,6 +231,130 @@ export function AdminSourcesSkeleton({ rows = 5 }: { rows?: number }) {
               <SkeletonBlock className="admin-sources-skeleton-switch" />
               <SkeletonBlock className="admin-sources-skeleton-switch" />
               <SkeletonBlock className="admin-sources-skeleton-switch" />
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+export function AdminTaxonomySkeleton() {
+  return (
+    <div className="taxonomy-shell" aria-hidden="true">
+      <div className="taxonomy-sidebar">
+        {Array.from({ length: 3 }).map((_, blockIndex) => (
+          <section key={`taxonomy-skeleton-tree-${blockIndex}`} className="taxonomy-tree-block card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+              <SkeletonBlock style={{ width: "9rem", height: "1.1rem", borderRadius: "0.65rem" }} />
+              <SkeletonBlock style={{ width: "5.5rem", height: "2rem", borderRadius: "999px" }} />
+            </div>
+            <div style={{ display: "grid", gap: "0.55rem" }}>
+              {Array.from({ length: blockIndex === 1 ? 3 : 5 }).map((__, rowIndex) => (
+                <div key={`taxonomy-skeleton-tree-row-${blockIndex}-${rowIndex}`} style={{ display: "grid", gap: "0.35rem" }}>
+                  <SkeletonBlock
+                    style={{
+                      width: rowIndex % 3 === 0 ? "88%" : rowIndex % 3 === 1 ? "72%" : "80%",
+                      height: "2.1rem",
+                      borderRadius: "0.9rem",
+                      marginLeft: rowIndex > 1 && blockIndex === 0 ? "1rem" : "0",
+                    }}
+                  />
+                  {blockIndex === 0 && rowIndex === 1 ? (
+                    <SkeletonBlock style={{ width: "58%", height: "2rem", borderRadius: "0.9rem", marginLeft: "1rem" }} />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+      <div className="card taxonomy-editor-card">
+        <div style={{ display: "grid", gap: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <SkeletonBlock style={{ width: "10rem", height: "1.3rem", borderRadius: "0.7rem" }} />
+            <SkeletonBlock style={{ width: "6rem", height: "2rem", borderRadius: "999px" }} />
+          </div>
+          <div style={{ display: "grid", gap: "0.5rem" }}>
+            <SkeletonBlock style={{ width: "9rem", height: "0.95rem", borderRadius: "0.5rem" }} />
+            <SkeletonBlock style={{ width: "100%", height: "2.75rem", borderRadius: "1rem" }} />
+          </div>
+          <div style={{ display: "grid", gap: "0.5rem" }}>
+            <SkeletonBlock style={{ width: "12rem", height: "0.95rem", borderRadius: "0.5rem" }} />
+            <SkeletonBlock style={{ width: "100%", height: "2.75rem", borderRadius: "1rem" }} />
+          </div>
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            <SkeletonBlock style={{ width: "11rem", height: "1rem", borderRadius: "0.5rem" }} />
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={`taxonomy-skeleton-chip-row-${idx}`} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <SkeletonBlock style={{ width: idx === 0 ? "7rem" : "9rem", height: "2rem", borderRadius: "999px" }} />
+                <SkeletonBlock style={{ width: idx === 1 ? "8rem" : "6rem", height: "2rem", borderRadius: "999px" }} />
+                <SkeletonBlock style={{ width: "5rem", height: "2rem", borderRadius: "999px" }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            <SkeletonBlock style={{ width: "10rem", height: "1rem", borderRadius: "0.5rem" }} />
+            {Array.from({ length: 2 }).map((_, idx) => (
+              <div key={`taxonomy-skeleton-product-${idx}`} style={{ display: "grid", gridTemplateColumns: "4rem 1fr auto", gap: "0.75rem", alignItems: "center" }}>
+                <SkeletonBlock style={{ width: "4rem", height: "4rem", borderRadius: "1rem" }} />
+                <div style={{ display: "grid", gap: "0.4rem" }}>
+                  <SkeletonBlock style={{ width: idx === 0 ? "80%" : "68%", height: "1rem", borderRadius: "0.55rem" }} />
+                  <SkeletonBlock style={{ width: "45%", height: "0.85rem", borderRadius: "0.45rem" }} />
+                </div>
+                <div style={{ display: "grid", gap: "0.45rem" }}>
+                  <SkeletonBlock style={{ width: "5rem", height: "2rem", borderRadius: "999px" }} />
+                  <SkeletonBlock style={{ width: "5rem", height: "2rem", borderRadius: "999px" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AdminDesignersSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="admin-designers-skeleton" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, idx) => (
+        <article key={`designers-skeleton-${idx}`} className="designers-item admin-designers-skeleton__card">
+          <div className="designers-item__header designers-item__header--between">
+            <SkeletonBlock className="admin-designers-skeleton__count" />
+            <div className="designers-item__actions">
+              <SkeletonBlock className="admin-designers-skeleton__toggle" />
+              <SkeletonBlock className="admin-designers-skeleton__delete" />
+            </div>
+          </div>
+          <div className="designers-item__fields">
+            <div className="designers-item__field">
+              <SkeletonBlock className="admin-designers-skeleton__label" />
+              <div className="designers-item__field-body">
+                <SkeletonBlock className="admin-designers-skeleton__input" />
+                <SkeletonBlock className="admin-designers-skeleton__pill" />
+              </div>
+            </div>
+            <div className="designers-item__field designers-item__field--description">
+              <SkeletonBlock className="admin-designers-skeleton__label admin-designers-skeleton__label--wide" />
+              <SkeletonBlock className="admin-designers-skeleton__textarea" />
+            </div>
+            <div className="designers-item__field designers-item__field--logo">
+              <SkeletonBlock className="admin-designers-skeleton__label" />
+              <div className="designers-item__logo-stack">
+                <SkeletonBlock className="admin-designers-skeleton__button" />
+                <SkeletonBlock className="admin-designers-skeleton__preview" />
+                <SkeletonBlock className="admin-designers-skeleton__button admin-designers-skeleton__button--short" />
+              </div>
+            </div>
+            <div className="designers-item__field designers-item__field--related">
+              <SkeletonBlock className="admin-designers-skeleton__label admin-designers-skeleton__label--wide" />
+              <div className="designers-item__related-list">
+                <SkeletonBlock className="admin-designers-skeleton__chip admin-designers-skeleton__chip--wide" />
+                <SkeletonBlock className="admin-designers-skeleton__chip" />
+                <SkeletonBlock className="admin-designers-skeleton__chip admin-designers-skeleton__chip--short" />
+                <SkeletonBlock className="admin-designers-skeleton__chip" />
+              </div>
             </div>
           </div>
         </article>

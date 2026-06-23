@@ -77,25 +77,23 @@ export function buildPricingExampleView(
   const sourcePriceRub = toFiniteNumber(components.source_price_rub);
   const sourcePriceUsd = toFiniteNumber(components.source_price_usd);
   const sourcePriceEur = toFiniteNumber(components.source_price_eur);
-  const bybitBase = toFiniteNumber(components.bybit_bucket_rate_rub) ?? toFiniteNumber(components.bybit_usdt_to_rub);
-  const bybitExtra = toFiniteNumber(components.bybit_extra_rub);
+  const bybitBase = toFiniteNumber(components.bybit_bucket_rate_rub);
+  const bybitExtra = toFiniteNumber(components.usdt_extra_rub);
   const bybitFx = toFiniteNumber(components.effective_usdt_to_rub);
   const promoFactor = toFiniteNumber(components.promo_factor);
   const buyoutSurchargeRub = toFiniteNumber(components.buyout_surcharge_rub);
   const buyoutRub = toFiniteNumber(components.buyout_rub);
   const paymentFeeRate = toFiniteNumber(components.payment_fee_rate);
   const paymentFeeRub = toFiniteNumber(components.payment_fee_rub);
-  const insuranceRub = toFiniteNumber(components.insurance_rub);
   const customsRub = toFiniteNumber(components.customs_duty_rub);
   const spAfterPromoEur = toFiniteNumber(components.sp_after_promo_eur);
   const customsThresholdEur = toFiniteNumber(components.customs_threshold_eur);
   const customsDutyRate = toFiniteNumber(components.customs_duty_rate);
   const customsProcessingRate = toFiniteNumber(components.customs_processing_rate);
   const customsFixedRub = toFiniteNumber(components.customs_fixed_rub);
-  const eurToUsdRate = toFiniteNumber(components.eur_to_usd_rate);
-  const gbpToUsdRate = toFiniteNumber(components.gbp_to_usd_rate);
+  const eurToUsdRate = toFiniteNumber(components.derived_eur_to_usd_rate);
+  const gbpToUsdRate = toFiniteNumber(components.derived_gbp_to_usd_rate);
   const supplierTransportRub = toFiniteNumber(components.supplier_transport_rub);
-  const serviceFeeRub = toFiniteNumber(components.service_fee_rub);
   const subtotalRub = toFiniteNumber(components.subtotal_rub);
   const subtotalAfterMarkupRub = toFiniteNumber(components.subtotal_after_markup_rub);
   const taxRate = toFiniteNumber(components.tax_rate);
@@ -118,7 +116,6 @@ export function buildPricingExampleView(
     || buyoutRub === null
     || paymentFeeRate === null
     || paymentFeeRub === null
-    || insuranceRub === null
     || customsRub === null
     || spAfterPromoEur === null
     || customsThresholdEur === null
@@ -128,7 +125,6 @@ export function buildPricingExampleView(
     || eurToUsdRate === null
     || gbpToUsdRate === null
     || supplierTransportRub === null
-    || serviceFeeRub === null
     || subtotalRub === null
     || subtotalAfterMarkupRub === null
     || taxRate === null
@@ -165,7 +161,6 @@ export function buildPricingExampleView(
     `\\underbrace{${formatCompactNumber(buyoutRub)}}_{${labelVar("BUY")}}` +
     `\\cdot\\underbrace{${formatCompactNumber(paymentFeeRate, 4)}}_{${labelVar("PFRP")}}` +
     `)}_{${labelGroup("PFR", paymentFeeRub)}}` +
-    `+\\underbrace{${formatCompactNumber(insuranceRub)}}_{${labelVar("INS")}}` +
     `+\\underbrace{(` +
     `(\\max(0,\\underbrace{${formatCompactNumber(spAfterPromoEur, 4)}}_{${labelVar("SPE")}}-\\underbrace{${formatCompactNumber(customsThresholdEur, 4)}}_{${labelVar("THR")}})` +
     `\\cdot\\underbrace{${formatCompactNumber(customsDutyRate, 4)}}_{${labelVar("DUT")}}` +
@@ -181,8 +176,7 @@ export function buildPricingExampleView(
     `\\quad\\Rightarrow\\quad` +
     `\\underbrace{(` +
     `\\underbrace{${formatCompactNumber(subtotalRub)}}_{${labelVar("SUB")}}` +
-    `\\cdot(1+\\underbrace{${formatCompactNumber(markupRate, 4)}}_{${labelVar("MUP")}})` +
-    `+\\underbrace{${formatCompactNumber(serviceFeeRub)}}_{${labelVar("SVC")}}` +
+    `\\cdot\\underbrace{${formatCompactNumber(markupRate + 1, 4)}}_{${labelVar("MUP")}}` +
     `)}_{${labelGroup("SUBM", subtotalAfterMarkupRub)}}` +
     `+\\underbrace{(` +
     `\\underbrace{${formatCompactNumber(subtotalAfterMarkupRub)}}_{${labelVar("SUBM")}}` +
@@ -195,7 +189,7 @@ export function buildPricingExampleView(
   const marginRub = toFiniteNumber(components.margin_rub) ?? (finalPrice - sourcePriceRub);
   const usedKeys = new Set([
     "SP", "SPU", "SPE", "SPR", "BBR", "BEX", "BFX", "E2U", "G2U", "PRM", "BSC", "BUY", "PFRP", "PFR",
-    "THR", "DUT", "CPR", "CFX", "CDR", "SSR", "SUP", "RNG", "INS", "SVC", "SUB", "SUBM", "TXR", "TAX", "MUP", "RND", "FPR",
+    "THR", "DUT", "CPR", "CFX", "CDR", "SSR", "SUP", "RNG", "SUB", "SUBM", "TXR", "TAX", "MUP", "RND", "FPR",
   ]);
   const keyValues: Record<string, unknown> = {
     SP: sourcePriceRaw,
@@ -220,8 +214,6 @@ export function buildPricingExampleView(
     SSR: supplierTransportRub,
     SUP: supplierName,
     RNG: shippingRuleLabel,
-    INS: insuranceRub,
-    SVC: serviceFeeRub,
     SUB: subtotalRub,
     SUBM: subtotalAfterMarkupRub,
     TXR: taxRate,
@@ -256,15 +248,16 @@ export function buildPricingExampleView(
     legendDim[key] = !usedKeys.has(key) || isZeroOrEmpty(keyValues[key]);
   }
   return {
-    productId: product.product_id,
+    productId: product.product_id ?? null,
     title: product.title,
-    url: product.url,
+    url: product.url ?? null,
     sourceName: product.source_name || null,
-    imageUrl: product.image_url ? String(product.image_url) : "",
+    imageUrl: product.image_url ? String(product.image_url) : null,
     finalPrice: Math.round(finalPrice),
     sourcePrice: sourcePriceRaw,
     sourcePriceRub,
     sourceCurrency,
+    isSample: Boolean(product.is_sample),
     summarySpLatex,
     summaryFpLatex,
     summaryRubLatex,

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { API_BASE, authFetch } from "../shared/admin-auth";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { API_BASE, authFetch, getAdminMeCached } from "../shared/admin-auth";
 
 type ScopeItem = {
   key: string;
@@ -102,8 +102,7 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
   const loadMe = useCallback(async () => {
     setLoadingMe(true);
     try {
-      const response = await authFetch(`${API_BASE}/auth/me`);
-      const payload = await readJsonOrError<MePayload>(response);
+      const payload = await getAdminMeCached();
       setMe(payload);
     } catch {
       setMe(null);
@@ -526,43 +525,50 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
           <h3>Пользователи</h3>
         </div>
 
-        <div className="admin-accounts-form-grid admin-accounts-form-grid--users">
-          <label>
-            <span>Логин</span>
-            <input value={newUserLogin} onChange={(event) => setNewUserLogin(event.target.value)} disabled={busy} autoComplete="off" />
-          </label>
-          <label>
-            <span>Пароль</span>
-            <input
-              type="password"
-              value={newUserPassword}
-              onChange={(event) => setNewUserPassword(event.target.value)}
-              disabled={busy}
-              autoComplete="new-password"
-            />
-          </label>
-          <label>
-            <span>Роль</span>
-            <select
-              value={newUserRoleId == null ? "" : String(newUserRoleId)}
-              onChange={(event) => setNewUserRoleId(event.target.value ? Number(event.target.value) : null)}
-              disabled={busy}
-            >
-              <option value="">Выберите роль</option>
-              {bootstrap.roles.map((role) => (
-                <option key={role.id} value={String(role.id)}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <form
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            void onCreateUser();
+          }}
+        >
+          <div className="admin-accounts-form-grid admin-accounts-form-grid--users">
+            <label>
+              <span>Логин</span>
+              <input value={newUserLogin} onChange={(event) => setNewUserLogin(event.target.value)} disabled={busy} autoComplete="username" />
+            </label>
+            <label>
+              <span>Пароль</span>
+              <input
+                type="password"
+                value={newUserPassword}
+                onChange={(event) => setNewUserPassword(event.target.value)}
+                disabled={busy}
+                autoComplete="new-password"
+              />
+            </label>
+            <label>
+              <span>Роль</span>
+              <select
+                value={newUserRoleId == null ? "" : String(newUserRoleId)}
+                onChange={(event) => setNewUserRoleId(event.target.value ? Number(event.target.value) : null)}
+                disabled={busy}
+              >
+                <option value="">Выберите роль</option>
+                {bootstrap.roles.map((role) => (
+                  <option key={role.id} value={String(role.id)}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
-        <div className="admin-accounts-actions admin-accounts-actions--inline">
-          <button type="button" className="admin-accounts-btn--compact" onClick={() => void onCreateUser()} disabled={busy}>
-            Создать пользователя
-          </button>
-        </div>
+          <div className="admin-accounts-actions admin-accounts-actions--inline">
+            <button type="submit" className="admin-accounts-btn--compact" disabled={busy}>
+              Создать пользователя
+            </button>
+          </div>
+        </form>
 
         <div className="admin-accounts-users-table-wrap">
           <table className="products-table admin-accounts-users-table">
@@ -639,18 +645,34 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
                     </label>
                   </td>
                   <td>
-                    <div className="admin-accounts-password-row">
+                    <form
+                      className="admin-accounts-password-row"
+                      onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                        event.preventDefault();
+                        void onResetUserPassword(user.id);
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={user.login}
+                        readOnly
+                        autoComplete="username"
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
+                      />
                       <input
                         type="password"
                         value={passwordDraftByUserId[user.id] || ""}
                         onChange={(event) => setPasswordDraftByUserId((prev) => ({ ...prev, [user.id]: event.target.value }))}
                         disabled={busy || user.is_superuser}
                         placeholder="Новый пароль"
+                        autoComplete="new-password"
                       />
-                      <button type="button" onClick={() => void onResetUserPassword(user.id)} disabled={busy || user.is_superuser}>
+                      <button type="submit" disabled={busy || user.is_superuser}>
                         Сменить
                       </button>
-                    </div>
+                    </form>
                   </td>
                   <td>
                     <div className="admin-accounts-row-actions">

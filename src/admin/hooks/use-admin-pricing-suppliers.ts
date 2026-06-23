@@ -8,10 +8,10 @@ type UseAdminPricingSuppliersParams = {
   updatePricingSupplier: (supplierId: number, payload: { name?: string; rates?: Array<{ min_kg: number; max_kg: number | null; rub: number }> }) => Promise<{ ok: boolean; message: string }>;
   createPricingSupplier: (payload: {
     name: string;
-    category: "main" | "alt";
+    provider_kind: "main" | "alternate";
     rate_currency: string;
     parent_supplier_id?: number;
-    alt_position?: number;
+    is_enabled?: boolean;
   }) => Promise<{ ok: boolean; message: string }>;
   deletePricingSupplier: (supplierId: number) => Promise<{ ok: boolean; message: string }>;
   pushToast: (message: string) => void;
@@ -52,7 +52,7 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
       grouped.set(parentId, list);
     }
     for (const [mainId, list] of grouped.entries()) {
-      list.sort((a, b) => (Number(a.alt_position || 0) - Number(b.alt_position || 0)) || (Number(a.id) - Number(b.id)));
+      list.sort((a, b) => Number(a.id) - Number(b.id));
       grouped.set(mainId, list);
     }
     return grouped;
@@ -171,8 +171,9 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
     }
     const result = await createPricingSupplier({
       name,
-      category: "main",
+      provider_kind: "main",
       rate_currency: "RUB",
+      is_enabled: true,
     });
     pushToast(result.message);
     if (result.ok) {
@@ -190,9 +191,9 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
     const result = await createPricingSupplier({
       name,
       parent_supplier_id: mainSupplierId,
-      category: "alt",
+      provider_kind: "alternate",
       rate_currency: "RUB",
-      alt_position: 1,
+      is_enabled: true,
     });
     pushToast(result.message);
   };

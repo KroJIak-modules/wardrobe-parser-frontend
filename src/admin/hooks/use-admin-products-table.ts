@@ -1,25 +1,69 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE, authFetch } from "../auth-fetch";
 import { PAGE_SIZE } from "../admin-constants";
 import { buildProductsApiQuery, type ProductsQueryState } from "../products-query";
 import type { AdminFilterFacetOption, AdminProductsTableItem } from "../admin-types";
 import { useDebouncedValue } from "../../shared/hooks/use-debounced-value";
+import { normalizeServiceProduct } from "../../shared/live-product-normalizer";
 
 type ProductsTablePayload = {
-  items: AdminProductsTableItem[];
+  items: Record<string, unknown>[];
   total: number;
-  overall_total?: number;
-  next_offset?: number | null;
   offset?: number;
-  has_more?: boolean;
 };
 
 type ProductsTableFacetsPayload = {
-  vendors?: AdminFilterFacetOption[];
-  local_categories?: AdminFilterFacetOption[];
+  sources?: AdminFilterFacetOption[];
+  designers?: AdminFilterFacetOption[];
+  catalogs?: AdminFilterFacetOption[];
+  sections?: AdminFilterFacetOption[];
+  genders?: AdminFilterFacetOption[];
   total?: number;
   overall_total?: number;
 };
+
+function mapAdminTableItem(raw: Record<string, unknown>): AdminProductsTableItem {
+  const normalized = normalizeServiceProduct(raw as never);
+  const internalCategoryNames = Array.isArray(raw.internal_category_names)
+    ? raw.internal_category_names.map((item) => String(item))
+    : [];
+  const sourceTags = Array.isArray(raw.source_tags)
+    ? raw.source_tags.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  return {
+    id: normalized.id,
+    source_id: normalized.source_id,
+    source_name: String(raw.source_name || normalized.source_name || "").trim() || null,
+    title: normalized.title,
+    gender:
+      normalized.gender === "female" || normalized.gender === "male" || normalized.gender === "unisex"
+        ? normalized.gender
+        : null,
+    designer_name: normalized.designer_name ?? null,
+    source_designer_name: normalized.source_designer_name ?? normalized.display_designer_name ?? null,
+    display_designer_name: normalized.display_designer_name ?? normalized.designer_name ?? normalized.source_designer_name ?? null,
+    url: normalized.url,
+    source_category_name: String(raw.source_category_name || normalized.source_category_name || "").trim() || null,
+    source_tags: sourceTags,
+    visibility_status: normalized.visibility_status ?? null,
+    availability_mode: normalized.availability_mode ?? null,
+    orderability_status: normalized.orderability_status ?? null,
+    status_reason: String(raw.status_reason || "").trim() || null,
+    lifecycle_status: normalized.lifecycle_status ?? null,
+    image_count: normalized.image_count,
+    image_urls: normalized.image_urls,
+    image_ids: Array.isArray(normalized.image_ids) ? normalized.image_ids : [],
+    source_price: normalized.source_price ?? null,
+    source_currency: normalized.source_currency ?? null,
+    final_price: normalized.final_price ?? null,
+    final_currency: normalized.final_currency ?? null,
+    pricing_reason: String(raw.pricing_reason || "").trim() || null,
+    pricing_manual_required:
+      typeof raw.pricing_manual_required === "boolean" ? raw.pricing_manual_required : null,
+    internal_category_name: String(raw.internal_category_name || internalCategoryNames[0] || "").trim() || null,
+    internal_category_names: internalCategoryNames,
+  };
+}
 
 type UseAdminProductsTableParams = {
   tab: string;
@@ -28,36 +72,45 @@ type UseAdminProductsTableParams = {
   pushToast: (message: string) => void;
 };
 
-function getStatusRank(rawStatus: string | null | undefined): number {
-  const value = String(rawStatus || "").trim().toLowerCase();
-  if (value === "available") {
-    return 0;
+function getStatusRank(item: AdminProductsTableItem): number {
+  const lifecycle = String(item.lifecycle_status || "").trim().toLowerCase();
+  const visibility = String(item.visibility_status || "").trim().toLowerCase();
+  const orderability = String(item.orderability_status || "").trim().toLowerCase();
+  const availability = String(item.availability_mode || "").trim().toLowerCase();
+  if (lifecycle === "merged") {
+    return 5;
   }
-  if (value === "hidden") {
-    return 1;
+  if (visibility === "hidden") {
+    return 4;
   }
-  if (value === "out_of_stock") {
-    return 2;
-  }
-  if (value === "unavailable") {
+  if (orderability === "unavailable") {
     return 3;
   }
-  return 4;
+  if (orderability === "sold_out") {
+    return 2;
+  }
+  if (availability === "by_order") {
+    return 1;
+  }
+  if (availability === "in_stock") {
+    return 0;
+  }
+  return 6;
 }
 
-function getVendorSortValue(item: AdminProductsTableItem): string {
-  return String(item.vendor_display || item.vendor_mapped || item.vendor || item.vendor_original || "")
+function getDesignerSortValue(item: AdminProductsTableItem): string {
+  return String(item.display_designer_name || item.designer_name || item.source_designer_name || "")
     .trim()
     .toLocaleLowerCase("ru");
 }
 
 function sortProductsForAdminTable(items: AdminProductsTableItem[]): AdminProductsTableItem[] {
   return [...items].sort((a, b) => {
-    const byVendor = getVendorSortValue(a).localeCompare(getVendorSortValue(b), "ru");
-    if (byVendor !== 0) {
-      return byVendor;
+    const byDesigner = getDesignerSortValue(a).localeCompare(getDesignerSortValue(b), "ru");
+    if (byDesigner !== 0) {
+      return byDesigner;
     }
-    const byStatus = getStatusRank(a.status) - getStatusRank(b.status);
+    const byStatus = getStatusRank(a) - getStatusRank(b);
     if (byStatus !== 0) {
       return byStatus;
     }
@@ -81,8 +134,11 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [tableOffset, setTableOffset] = useState<number>(0);
   const [tableLoading, setTableLoading] = useState<boolean>(false);
   const [tableLoadingMore, setTableLoadingMore] = useState<boolean>(false);
-  const [productVendors, setProductVendors] = useState<AdminFilterFacetOption[]>([]);
-  const [productTypes, setProductTypes] = useState<AdminFilterFacetOption[]>([]);
+  const [productSources, setProductSources] = useState<AdminFilterFacetOption[]>([]);
+  const [productDesigners, setProductDesigners] = useState<AdminFilterFacetOption[]>([]);
+  const [productCatalogs, setProductCatalogs] = useState<AdminFilterFacetOption[]>([]);
+  const [productSections, setProductSections] = useState<AdminFilterFacetOption[]>([]);
+  const [productGenders, setProductGenders] = useState<AdminFilterFacetOption[]>([]);
   const requestSeqRef = useRef(0);
 
   const loadMoreTableProducts = useCallback(async () => {
@@ -98,17 +154,16 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
         throw new Error(`Products table API error: ${response.status}`);
       }
       const payload = (await response.json()) as ProductsTablePayload;
-      const nextItems = payload.items || [];
+      const nextItems = (payload.items || []).map((item) => mapAdminTableItem(item));
       setTableProducts((previous) => {
         const known = new Set(previous.map((item) => item.id));
         const toAdd = nextItems.filter((item) => !known.has(item.id));
         return sortProductsForAdminTable([...previous, ...toAdd]);
       });
       setTableTotal(payload.total || 0);
-      setTableOverallTotal(payload.overall_total || 0);
-      const nextOffset = Number(payload.next_offset ?? tableOffset + nextItems.length);
-      setTableOffset(Number.isFinite(nextOffset) ? nextOffset : tableOffset + nextItems.length);
-      setTableHasMore(Boolean(payload.has_more));
+      const nextOffset = tableOffset + nextItems.length;
+      setTableOffset(nextOffset);
+      setTableHasMore(nextOffset < Number(payload.total || 0));
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Ошибка догрузки");
     } finally {
@@ -122,34 +177,45 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     try {
       const productsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: true, limit: PAGE_SIZE });
       const facetsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: false });
-      const [productsResponse, facetsResponse] = await Promise.all([
-        authFetch(`${API_BASE}/admin/products/table?${productsQuery.toString()}`, { signal }),
-        authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal }),
-      ]);
+      const productsPromise = authFetch(`${API_BASE}/admin/products/table?${productsQuery.toString()}`, { signal });
+      const facetsPromise = authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal });
+      const productsResponse = await productsPromise;
 
       if (!productsResponse.ok) {
         throw new Error(`Products table API error: ${productsResponse.status}`);
       }
-      if (!facetsResponse.ok) {
-        throw new Error(`Products facets API error: ${facetsResponse.status}`);
-      }
 
       const payload = (await productsResponse.json()) as ProductsTablePayload;
-      const facetsPayload = (await facetsResponse.json()) as ProductsTableFacetsPayload;
-
       if (requestSeq !== requestSeqRef.current) {
         return;
       }
 
-      setTableProducts(sortProductsForAdminTable(payload.items || []));
-      setTableTotal(payload.total || facetsPayload.total || 0);
-      setTableOverallTotal(payload.overall_total || facetsPayload.overall_total || 0);
-      const loadedCount = (payload.items || []).length;
-      const nextOffset = Number(payload.next_offset ?? loadedCount);
-      setTableOffset(Number.isFinite(nextOffset) ? nextOffset : loadedCount);
-      setTableHasMore(Boolean(payload.has_more));
-      setProductVendors(facetsPayload.vendors || []);
-      setProductTypes(facetsPayload.local_categories || []);
+      const items = (payload.items || []).map((item) => mapAdminTableItem(item));
+      setTableProducts(sortProductsForAdminTable(items));
+      setTableTotal(payload.total || 0);
+      setTableOverallTotal(payload.total || 0);
+      const loadedCount = items.length;
+      setTableOffset(loadedCount);
+      setTableHasMore(loadedCount < Number(payload.total || 0));
+      setTableLoading(false);
+
+      const facetsResponse = await facetsPromise;
+      if (!facetsResponse.ok) {
+        throw new Error(`Products facets API error: ${facetsResponse.status}`);
+      }
+      const facetsPayload = (await facetsResponse.json()) as ProductsTableFacetsPayload;
+      if (requestSeq !== requestSeqRef.current) {
+        return;
+      }
+      startTransition(() => {
+        setTableTotal(facetsPayload.total || payload.total || 0);
+        setTableOverallTotal(facetsPayload.overall_total || payload.total || 0);
+        setProductSources(facetsPayload.sources || []);
+        setProductDesigners(facetsPayload.designers || []);
+        setProductCatalogs(facetsPayload.catalogs || []);
+        setProductSections(facetsPayload.sections || []);
+        setProductGenders(facetsPayload.genders || []);
+      });
     } finally {
       if (requestSeq === requestSeqRef.current) {
         setTableLoading(false);
@@ -162,12 +228,12 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       return;
     }
 
-    let cancelled = false;
+    let aborted = false;
     const controller = new AbortController();
 
     const run = async () => {
       try {
-        if (cancelled) {
+        if (aborted) {
           return;
         }
         await reloadTableData(controller.signal);
@@ -175,7 +241,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
         if ((error as Error).name === "AbortError") {
           return;
         }
-        if (!cancelled) {
+        if (!aborted) {
           pushToast(error instanceof Error ? error.message : "Ошибка загрузки таблицы товаров");
         }
       }
@@ -184,7 +250,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     void run();
 
     return () => {
-      cancelled = true;
+      aborted = true;
       controller.abort();
     };
   }, [tab, reloadTableData, pushToast]);
@@ -193,7 +259,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     if (tab !== "products") {
       return;
     }
-    if (!latestJobStatus || !["pending", "in_progress"].includes(latestJobStatus)) {
+    if (!latestJobStatus || !["queued", "running"].includes(latestJobStatus)) {
       return;
     }
     const timer = window.setInterval(() => {
@@ -235,7 +301,10 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     tableOverallTotal,
     tableLoading,
     tableLoadingMore,
-    productVendors,
-    productTypes,
+    productSources,
+    productDesigners,
+    productCatalogs,
+    productSections,
+    productGenders,
   };
 }

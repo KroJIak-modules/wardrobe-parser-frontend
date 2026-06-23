@@ -1,0 +1,8 @@
+.site-about-page {
+  min-height: 100vh;
+  background: #fff;
+}
+
+.site-about-page__footer {
+  margin-top: 120px;
+}

@@ -1,0 +1,8 @@
+.site-product-page {
+  min-height: 100vh;
+  background: #fff;
+}
+
+.site-product-page__footer {
+  margin-top: 80px;
+}

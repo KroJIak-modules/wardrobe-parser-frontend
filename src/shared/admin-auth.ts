@@ -1,6 +1,20 @@
-export const API_BASE = "/api/v1";
+import { API_BASE } from "./api-base";
+
+export { API_BASE };
 export const ADMIN_AUTH_EXPIRED_FLAG = "admin_auth_expired";
 export const ADMIN_AUTH_EXPIRED_EVENT = "admin-auth-expired";
+
+export type AdminMePayload = {
+  user_id: number;
+  login: string;
+  role_name: string | null;
+  is_superuser: boolean;
+  is_active: boolean;
+  permissions: string[];
+};
+
+let cachedAdminMe: AdminMePayload | null = null;
+let adminMeInFlight: Promise<AdminMePayload | null> | null = null;
 
 export function clearAdminSessionHints(): void {
   try {
@@ -8,6 +22,8 @@ export function clearAdminSessionHints(): void {
   } catch {
     // Ignore storage errors.
   }
+  cachedAdminMe = null;
+  adminMeInFlight = null;
 }
 
 function markAuthExpired(): void {
@@ -48,6 +64,7 @@ export async function authFetch(input: RequestInfo | URL, init?: RequestInit): P
 
   const refreshed = await refreshAdminSession();
   if (!refreshed) {
+    cachedAdminMe = null;
     markAuthExpired();
     return response;
   }
@@ -55,20 +72,52 @@ export async function authFetch(input: RequestInfo | URL, init?: RequestInit): P
   return globalThis.fetch(input, { ...init, credentials: "include" });
 }
 
+export async function getAdminMeCached(force = false): Promise<AdminMePayload | null> {
+  if (!force && cachedAdminMe) {
+    return cachedAdminMe;
+  }
+  if (!force && adminMeInFlight) {
+    return adminMeInFlight;
+  }
+  adminMeInFlight = (async () => {
+    const response = await authFetch(`${API_BASE}/auth/me`);
+    if (!response.ok) {
+      cachedAdminMe = null;
+      return null;
+    }
+    const payload = (await response.json()) as AdminMePayload;
+    cachedAdminMe = payload;
+    return payload;
+  })();
+  try {
+    return await adminMeInFlight;
+  } finally {
+    adminMeInFlight = null;
+  }
+}
+
 export async function checkAdminSessionSilently(): Promise<boolean> {
   const me = await globalThis.fetch(`${API_BASE}/auth/me`, { credentials: "include" });
   if (me.ok) {
+    cachedAdminMe = (await me.json()) as AdminMePayload;
     return true;
   }
   if (me.status !== 401) {
+    cachedAdminMe = null;
     return false;
   }
   const refreshed = await refreshAdminSession();
   if (!refreshed) {
+    cachedAdminMe = null;
     return false;
   }
   const recheck = await globalThis.fetch(`${API_BASE}/auth/me`, { credentials: "include" });
-  return recheck.ok;
+  if (!recheck.ok) {
+    cachedAdminMe = null;
+    return false;
+  }
+  cachedAdminMe = (await recheck.json()) as AdminMePayload;
+  return true;
 }
 
 export async function logoutAdminSession(): Promise<void> {

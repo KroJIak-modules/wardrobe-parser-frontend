@@ -27,11 +27,20 @@ RUN case "$FRONTEND_APP" in \
 # Production stage
 FROM nginx:alpine
 
+ARG FRONTEND_APP=admin
+
 # Копируем собранное приложение
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Копируем конфигурацию nginx
-COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
+# Копируем конфигурацию nginx под конкретный frontend-вариант
+COPY nginx/admin.conf /etc/nginx/admin.conf
+COPY nginx/site.conf /etc/nginx/site.conf
+RUN case "$FRONTEND_APP" in \
+    site) cp /etc/nginx/site.conf /etc/nginx/conf.d/default.conf ;; \
+    admin) cp /etc/nginx/admin.conf /etc/nginx/conf.d/default.conf ;; \
+    *) echo "Unsupported FRONTEND_APP: $FRONTEND_APP" >&2; exit 1 ;; \
+    esac \
+    && rm /etc/nginx/admin.conf /etc/nginx/site.conf
 
 EXPOSE 80
 

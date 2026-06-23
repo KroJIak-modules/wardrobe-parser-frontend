@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import useEmblaCarousel from "embla-carousel-react";
 import { Link } from "react-router-dom";
-import { siteCarouselSlides, siteFooterColumns, type SiteProduct } from "../../mock/site-mock-data";
+import { siteFooterColumns } from "../../app/site-static-content";
+import { SiteProductCard } from "../product-card/site-product-card";
+import type { SiteCarouselSlide, SiteProduct } from "./site-storefront-contracts";
 import "./site-storefront.css";
 
 type SiteProductsSectionProps = {
@@ -8,176 +11,200 @@ type SiteProductsSectionProps = {
   products: SiteProduct[];
   ctaLabel?: string;
   ctaTo?: string;
+  emptyMessage?: string;
+  loading?: boolean;
+  errorMessage?: string | null;
 };
 
-const CAROUSEL_INTERVAL_MS = 4800;
-const CAROUSEL_TRANSITION_MS = 820;
+type SiteProductsGridProps = {
+  products: SiteProduct[];
+  emptyMessage?: string;
+  loading?: boolean;
+  errorMessage?: string | null;
+};
 
-function formatRubles(value: number) {
-  return new Intl.NumberFormat("ru-RU").format(value);
-}
-
-function getCarouselSlot(index: number, activeIndex: number, total: number) {
-  const offset = (index - activeIndex + total) % total;
-  if (offset === 0) {
-    return "center";
-  }
-  return offset === 1 ? "right" : "left";
-}
-
-export function SiteCarouselSection() {
-  const slideCount = siteCarouselSlides.length;
-  const transitionFrameRef = useRef<number | null>(null);
-  const isAnimatingRef = useRef(false);
-  const [trackIndex, setTrackIndex] = useState(1);
-  const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  const carouselPanels = useMemo(() => {
-    const realPanels = siteCarouselSlides.map((_, activeIndex) => ({
-      id: `state-${activeIndex}`,
-      activeIndex,
-      slides: siteCarouselSlides.map((slide, index) => ({
-        ...slide,
-        slot: getCarouselSlot(index, activeIndex, slideCount),
-      })),
-    }));
-
-    const clonedPanels = [realPanels[realPanels.length - 1], ...realPanels, realPanels[0]];
-
-    return clonedPanels.map((panel, index) => ({
-      ...panel,
-      cloneKey: `${panel.id}-${index}`,
-    }));
-  }, [slideCount]);
-
-  const moveTrack = useCallback(
-    (direction: 1 | -1) => {
-      if (slideCount < 2 || isAnimatingRef.current) {
-        return;
-      }
-
-      isAnimatingRef.current = true;
-      setIsAnimating(true);
-      setIsTransitionEnabled(true);
-      setTrackIndex((current) => current + direction);
-    },
-    [slideCount]
+function CarouselArrowIcon({ mirrored = false }: { mirrored?: boolean }) {
+  return (
+    <img
+      aria-hidden="true"
+      src="/site-mock/carousel-arrow-right.svg"
+      alt=""
+      className={`site-carousel__arrow-body${mirrored ? " site-carousel__arrow-body--left" : ""}`}
+    />
   );
+}
+
+export function SiteCarouselSection({
+  slides,
+  emptyMessage = "Карусель пока не настроена",
+}: {
+  slides: SiteCarouselSlide[];
+  emptyMessage?: string;
+}) {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: true,
+    align: "center",
+    skipSnaps: false,
+    containScroll: false,
+  });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [dotOrbitDirection, setDotOrbitDirection] = useState<"next" | "prev" | null>(null);
+  const [dotOrbitTick, setDotOrbitTick] = useState(0);
+  const orbitResetRef = useRef<number | null>(null);
+
+  const triggerDotOrbit = useCallback((direction: "next" | "prev") => {
+    if (orbitResetRef.current) {
+      window.clearTimeout(orbitResetRef.current);
+    }
+
+    setDotOrbitDirection(direction);
+    setDotOrbitTick((current) => current + 1);
+    orbitResetRef.current = window.setTimeout(() => {
+      setDotOrbitDirection(null);
+      orbitResetRef.current = null;
+    }, 760);
+  }, []);
+
+  const scrollPrev = useCallback(() => {
+    triggerDotOrbit("prev");
+    emblaApi?.scrollPrev();
+  }, [emblaApi, triggerDotOrbit]);
+
+  const scrollNext = useCallback(() => {
+    triggerDotOrbit("next");
+    emblaApi?.scrollNext();
+  }, [emblaApi, triggerDotOrbit]);
 
   useEffect(() => {
-    if (slideCount < 2) {
+    if (!emblaApi || slides.length <= 1) {
       return;
     }
 
-    const timerId = window.setInterval(() => {
-      moveTrack(1);
-    }, CAROUSEL_INTERVAL_MS);
+    const syncSelectedIndex = () => {
+      setSelectedIndex(emblaApi.selectedScrollSnap());
+    };
 
-    return () => window.clearInterval(timerId);
-  }, [moveTrack, slideCount]);
+    syncSelectedIndex();
+    emblaApi.on("select", syncSelectedIndex);
+    emblaApi.on("reInit", syncSelectedIndex);
 
-  useEffect(
-    () => () => {
-      if (transitionFrameRef.current !== null) {
-        window.cancelAnimationFrame(transitionFrameRef.current);
+    return () => {
+      emblaApi.off("select", syncSelectedIndex);
+      emblaApi.off("reInit", syncSelectedIndex);
+    };
+  }, [emblaApi, slides.length]);
+
+  useEffect(() => {
+    setSelectedIndex((current) => {
+      if (slides.length === 0) {
+        return 0;
       }
-    },
-    []
-  );
+      return Math.min(current, slides.length - 1);
+    });
+  }, [slides.length]);
 
-  const handleTrackTransitionEnd = useCallback(() => {
-    if (trackIndex === 0 || trackIndex === slideCount + 1) {
-      const resetIndex = trackIndex === 0 ? slideCount : 1;
-      setIsTransitionEnabled(false);
-      setTrackIndex(resetIndex);
-      isAnimatingRef.current = false;
-      setIsAnimating(false);
+  useEffect(() => {
+    return () => {
+      if (orbitResetRef.current) {
+        window.clearTimeout(orbitResetRef.current);
+      }
+    };
+  }, []);
 
-      transitionFrameRef.current = window.requestAnimationFrame(() => {
-        transitionFrameRef.current = window.requestAnimationFrame(() => {
-          setIsTransitionEnabled(true);
-          transitionFrameRef.current = null;
-        });
-      });
-
-      return;
-    }
-
-    isAnimatingRef.current = false;
-    setIsAnimating(false);
-  }, [slideCount, trackIndex]);
+  if (slides.length === 0) {
+    return (
+      <section className="site-carousel site-carousel--empty" aria-label="Карусель фотографий">
+        <div className="site-carousel__empty">{emptyMessage}</div>
+      </section>
+    );
+  }
 
   return (
     <section className="site-carousel" aria-label="Карусель фотографий">
-      <div className="site-carousel__viewport">
-        <div
-          className="site-carousel__track"
-          data-transition-enabled={isTransitionEnabled ? "true" : "false"}
-          style={{
-            transform: `translate3d(-${trackIndex * 100}%, 0, 0)`,
-            transitionDuration: `${CAROUSEL_TRANSITION_MS}ms`,
-          }}
-          onTransitionEnd={handleTrackTransitionEnd}
-        >
-          {carouselPanels.map((panel, panelIndex) => (
-            <div
-              key={panel.cloneKey}
-              className="site-carousel__panel"
-              aria-hidden={panelIndex === trackIndex ? "false" : "true"}
-            >
-              {panel.slides.map((slide) => (
-                <figure
-                  key={`${panel.cloneKey}-${slide.id}`}
-                  className="site-carousel__slide"
-                  data-slot={slide.slot}
-                  aria-hidden={panelIndex === trackIndex && slide.slot === "center" ? "false" : "true"}
-                >
-                  <img src={slide.imageSrc} alt={slide.alt} className="site-carousel__image" />
-                </figure>
-              ))}
-            </div>
-          ))}
+      <div className="site-carousel__embla">
+        <div className="site-carousel__viewport" ref={emblaRef}>
+          <div className="site-carousel__container">
+            {slides.map((slide, index) => (
+              <figure
+                key={slide.id}
+                className="site-carousel__slide"
+                data-active={selectedIndex === index ? "true" : "false"}
+                aria-hidden={selectedIndex === index ? "false" : "true"}
+              >
+                <img src={slide.imageSrc} alt={slide.alt} className="site-carousel__image" />
+              </figure>
+            ))}
+          </div>
         </div>
         <button
           type="button"
           className="site-carousel__arrow site-carousel__arrow--left"
           aria-label="Предыдущий кадр"
-          disabled={isAnimating}
-          onClick={() => moveTrack(-1)}
+          onClick={scrollPrev}
+          disabled={slides.length <= 1}
         >
-          <img
-            src="/site-mock/carousel-arrow-right.svg"
-            alt=""
-            className="site-carousel__arrow-body"
-            aria-hidden="true"
-          />
+          <CarouselArrowIcon />
         </button>
         <button
           type="button"
           className="site-carousel__arrow site-carousel__arrow--right"
           aria-label="Следующий кадр"
-          disabled={isAnimating}
-          onClick={() => moveTrack(1)}
+          onClick={scrollNext}
+          disabled={slides.length <= 1}
         >
-          <img
-            src="/site-mock/carousel-arrow-right.svg"
-            alt=""
-            className="site-carousel__arrow-body site-carousel__arrow-body--left"
-            aria-hidden="true"
-          />
+          <CarouselArrowIcon mirrored />
         </button>
       </div>
-      <div className="site-carousel__dots" aria-hidden="true">
-        <span className="site-carousel__dot" />
+      <div
+        key={`${dotOrbitDirection ?? "idle"}-${dotOrbitTick}`}
+        className={`site-carousel__dots${dotOrbitDirection ? " site-carousel__dots--orbiting" : ""}`}
+        data-direction={dotOrbitDirection ?? undefined}
+        aria-hidden="true"
+      >
+        <span className="site-carousel__dot site-carousel__dot--left" />
         <span className="site-carousel__dot site-carousel__dot--center" />
-        <span className="site-carousel__dot" />
+        <span className="site-carousel__dot site-carousel__dot--right" />
       </div>
     </section>
   );
 }
 
-export function SiteProductsSection({ title, products, ctaLabel, ctaTo }: SiteProductsSectionProps) {
+export function SiteProductsGrid({
+  products,
+  emptyMessage = "Ничего не найдено",
+  loading = false,
+  errorMessage = null,
+}: SiteProductsGridProps) {
+  if (loading) {
+    return <div className="site-products__status">Загрузка товаров...</div>;
+  }
+
+  if (errorMessage) {
+    return <div className="site-products__status site-products__status--error">{errorMessage}</div>;
+  }
+
+  if (products.length === 0) {
+    return <div className="site-products__empty">{emptyMessage}</div>;
+  }
+
+  return (
+    <div className="site-products__grid">
+      {products.map((product) => (
+        <SiteProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+}
+
+export function SiteProductsSection({
+  title,
+  products,
+  ctaLabel,
+  ctaTo,
+  emptyMessage = "Ничего не найдено",
+  loading = false,
+  errorMessage = null,
+}: SiteProductsSectionProps) {
   return (
     <section className="site-products" aria-labelledby="site-products-title">
       <div className="site-products__header">
@@ -190,25 +217,12 @@ export function SiteProductsSection({ title, products, ctaLabel, ctaTo }: SitePr
           </Link>
         ) : null}
       </div>
-      <div className="site-products__grid">
-        {products.map((product) => (
-          <article key={product.id} className="site-product-card">
-            <div className="site-product-card__media">
-              <span className="site-product-card__watermark" aria-hidden="true" />
-              <img src={product.imageSrc} alt={product.imageAlt} className="site-product-card__image" />
-            </div>
-            <div className="site-product-card__meta">
-              <p className="site-product-card__brand">{product.brand}</p>
-              <p className="site-product-card__name">{product.name}</p>
-              <p className="site-product-card__statusline">
-                <span className="site-product-card__price">{formatRubles(product.priceRub)} ₽</span>
-                <span className="site-product-card__divider">-</span>
-                <span className="site-product-card__availability">{product.availability}</span>
-              </p>
-            </div>
-          </article>
-        ))}
-      </div>
+      <SiteProductsGrid
+        products={products}
+        emptyMessage={emptyMessage}
+        loading={loading}
+        errorMessage={errorMessage}
+      />
     </section>
   );
 }
@@ -221,9 +235,25 @@ export function SiteFooterSection() {
           <div className="site-footer__title">{column.title}</div>
           <div className="site-footer__links">
             {column.links.map((item) => (
-              <span key={item} className="site-footer__link">
-                {item}
-              </span>
+              item.to ? (
+                <Link key={item.label} className="site-footer__link" to={item.to}>
+                  {item.label}
+                </Link>
+              ) : item.href ? (
+                <a
+                  key={item.label}
+                  className="site-footer__link"
+                  href={item.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <span key={item.label} className="site-footer__link">
+                  {item.label}
+                </span>
+              )
             ))}
           </div>
         </section>

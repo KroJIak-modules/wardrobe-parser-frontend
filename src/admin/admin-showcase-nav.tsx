@@ -1,10 +1,42 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LatexBrand } from "../shared/latex-brand";
-import type { ShowcaseNavigationSection, ShowcaseTopSectionKey } from "./showcase-contracts";
-import { fetchShowcaseNavigation, readShowcaseNavigationSeed } from "./showcase-mock-api";
+import type { ShowcaseNavigationMenuItem, ShowcaseNavigationSection, ShowcaseTopSectionKey } from "./showcase-contracts";
+import { fetchShowcaseNavigation } from "./showcase-api";
 import { buildRouteTargetHref, buildRouteTargetHrefWithCarry } from "./showcase-url-state";
 import "./admin-showcase-nav.css";
+
+function ShowcaseNavMenuItems({
+  items,
+  sectionKey,
+  onNavigate,
+}: {
+  items: readonly ShowcaseNavigationMenuItem[];
+  sectionKey: ShowcaseTopSectionKey;
+  onNavigate: () => void;
+}) {
+  return (
+    <ul className="showcase-nav__block-list">
+      {items.map((item) => (
+        <li key={item.id}>
+          <Link
+            className={
+              item.presentation === "heading" ? "showcase-nav__link showcase-nav__link--heading" : "showcase-nav__link"
+            }
+            to={buildRouteTargetHref(item.target)}
+            onClick={onNavigate}
+          >
+            {sectionKey === "designers" ? (
+              <LatexBrand value={item.label} className="showcase-nav__link-label showcase-nav__link-label--latex" />
+            ) : (
+              <span className="showcase-nav__link-label">{item.label}</span>
+            )}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function ShowcaseNavMenu({
   section,
@@ -45,27 +77,19 @@ function ShowcaseNavMenu({
                     <h3 className="showcase-nav__block-title">{block.title}</h3>
                   )
                 ) : null}
-                <ul className="showcase-nav__block-list">
-                  {block.items.map((item) => (
-                    <li key={item.id}>
-                    <Link
-                      className={
-                        item.presentation === "heading"
-                          ? "showcase-nav__link showcase-nav__link--heading"
-                          : "showcase-nav__link"
-                        }
-                      to={buildRouteTargetHref(item.target)}
-                      onClick={onNavigate}
-                    >
-                      {section.key === "designers" ? (
-                        <LatexBrand value={item.label} className="showcase-nav__link-label showcase-nav__link-label--latex" />
-                      ) : (
-                        <span className="showcase-nav__link-label">{item.label}</span>
-                      )}
-                    </Link>
-                  </li>
-                ))}
-                </ul>
+                {Array.isArray(block.groups) && block.groups.length > 0 ? (
+                  <div className="showcase-nav__block-groups">
+                    {block.groups.map((group) => (
+                      <div key={group.id} className="showcase-nav__group">
+                        <h4 className="showcase-nav__group-title">{group.title}</h4>
+                        <ShowcaseNavMenuItems items={group.items} sectionKey={section.key} onNavigate={onNavigate} />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {block.items.length > 0 ? (
+                  <ShowcaseNavMenuItems items={block.items} sectionKey={section.key} onNavigate={onNavigate} />
+                ) : null}
               </section>
             ))}
           </div>
@@ -89,20 +113,20 @@ function ShowcaseNavMenu({
 export function AdminShowcaseNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [sections, setSections] = useState<readonly ShowcaseNavigationSection[]>(() => readShowcaseNavigationSeed().sections);
+  const [sections, setSections] = useState<readonly ShowcaseNavigationSection[]>([]);
   const [activeSectionKey, setActiveSectionKey] = useState<ShowcaseTopSectionKey | null>(null);
   const currentSearchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
   useEffect(() => {
-    let cancelled = false;
+    let aborted = false;
     void (async () => {
-      const response = await fetchShowcaseNavigation();
-      if (!cancelled) {
+      const response = await fetchShowcaseNavigation().catch(() => ({ sections: [] }));
+      if (!aborted) {
         setSections(response.sections);
       }
     })();
     return () => {
-      cancelled = true;
+      aborted = true;
     };
   }, []);
 
@@ -126,7 +150,7 @@ export function AdminShowcaseNav() {
                 onMouseEnter={() => setActiveSectionKey(section.key)}
                 onFocus={() => setActiveSectionKey(section.key)}
                 onClick={() => {
-                  if (section.key === "sale" && section.target) {
+                  if (section.target) {
                     setActiveSectionKey(null);
                     navigate(buildRouteTargetHref(section.target));
                   }

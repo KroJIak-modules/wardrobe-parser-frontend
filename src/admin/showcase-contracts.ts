@@ -21,11 +21,18 @@ export type ShowcaseNavigationMenuItem = {
   presentation?: "default" | "heading";
 };
 
+export type ShowcaseNavigationMenuGroup = {
+  id: string;
+  title: string;
+  items: readonly ShowcaseNavigationMenuItem[];
+};
+
 export type ShowcaseNavigationMenuBlock = {
   id: string;
   title?: string;
   titleTarget?: ShowcaseRouteTarget | null;
   items: readonly ShowcaseNavigationMenuItem[];
+  groups?: readonly ShowcaseNavigationMenuGroup[];
 };
 
 export type ShowcaseNavigationMenuLayout = "new" | "designers" | "category_columns";

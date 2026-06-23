@@ -6,7 +6,7 @@ import { optimizeImageUrl } from "../shared/product-image";
 import { SkeletonBlock } from "../shared/skeleton";
 import { IconClose, IconExternalLink, IconEye, IconEyeOff, IconPencil, IconPlus, IconStar } from "../shared/mono-icons";
 import type { ServiceProduct } from "../shared/live-data-types";
-import type { ProductCreateVariant } from "./hooks/use-admin-product-create-mock";
+import type { ProductCreateVariant } from "./hooks/use-admin-product-create";
 
 type MatchedSourceDomain = {
   host: string;
@@ -25,10 +25,15 @@ type ProductCreateDraft = {
   sourceUrl: string;
   title: string;
   description: string;
+  descriptionHtml: string;
   weightGrams: string;
+  gender: "male" | "female" | "unisex";
+  availabilityMode: "in_stock" | "by_order";
   favorite: boolean;
   bindSync: boolean;
-  brand: string;
+  designerName: string;
+  manualPriceRub: string;
+  manualCompareAtPriceRub: string;
   images: ProductCreateImage[];
   variants: ProductCreateVariant[];
 };
@@ -48,11 +53,11 @@ type Props = {
   isHydrating: boolean;
   isCreating: boolean;
   hiddenProductIds: Set<number>;
-  knownBrandOptions: string[];
-  favoriteCategoryOptions: Array<{ id: number; name: string }>;
-  favoriteCategoryIds: number[];
+  knownDesignerOptions: string[];
+  favoriteCategoryOptions: Array<{ slug: string; name: string }>;
+  favoriteCategorySlugs: string[];
   boundFromSourceLookup: boolean;
-  onSetFavoriteCategoryIds: (ids: number[]) => void;
+  onSetFavoriteCategorySlugs: (slugs: string[]) => void;
   onClose: () => void;
   onSetField: <K extends keyof ProductCreateDraft>(key: K, value: ProductCreateDraft[K]) => void;
   onHydrateFromSourceUrl: () => Promise<void>;
@@ -157,11 +162,11 @@ export function AdminProductCreateModal({
   isHydrating,
   isCreating,
   hiddenProductIds,
-  knownBrandOptions,
+  knownDesignerOptions,
   favoriteCategoryOptions,
-  favoriteCategoryIds,
+  favoriteCategorySlugs,
   boundFromSourceLookup,
-  onSetFavoriteCategoryIds,
+  onSetFavoriteCategorySlugs,
   onClose,
   onSetField,
   onHydrateFromSourceUrl,
@@ -173,9 +178,9 @@ export function AdminProductCreateModal({
   onZoomImage,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const brandCloseTimerRef = useRef<number | null>(null);
+  const designerCloseTimerRef = useRef<number | null>(null);
   const [favoritePickerOpen, setFavoritePickerOpen] = useState<boolean>(false);
-  const [brandComboboxOpen, setBrandComboboxOpen] = useState<boolean>(false);
+  const [designerComboboxOpen, setDesignerComboboxOpen] = useState<boolean>(false);
   const [showValidation, setShowValidation] = useState<boolean>(false);
   const originalPrice = useMemo(() => {
     if (!lookup.product) return "—";
@@ -210,30 +215,30 @@ export function AdminProductCreateModal({
   const lookupSourceHref = toExternalHttpUrl(lookup.product?.url);
   const isExistingProductHidden = Boolean(
     lookup.product
-    && (hiddenProductIds.has(lookup.product.id) || String(lookup.product.status || "").trim().toLowerCase() === "hidden")
+    && (hiddenProductIds.has(lookup.product.id) || String(lookup.product.visibility_status || "").trim().toLowerCase() === "hidden")
   );
   const bindSyncDisabledReason = useMemo(() => {
     if (hasExistingLookupProduct) return "Товар уже есть в базе";
     if (!boundFromSourceLookup) return "Нельзя включить без ссылки источника";
     return "";
   }, [hasExistingLookupProduct, boundFromSourceLookup]);
-  const brandSuggestions = useMemo(() => {
-    const query = String(draft.brand || "").trim().toLowerCase();
-    const raw = knownBrandOptions.filter((item) => {
+  const designerSuggestions = useMemo(() => {
+    const query = String(draft.designerName || "").trim().toLowerCase();
+    const raw = knownDesignerOptions.filter((item) => {
       const normalized = String(item || "").trim();
       if (!normalized) return false;
       if (!query) return true;
       return normalized.toLowerCase().includes(query);
     });
     return Array.from(new Set(raw)).slice(0, 14);
-  }, [knownBrandOptions, draft.brand]);
+  }, [knownDesignerOptions, draft.designerName]);
 
-  const scheduleBrandClose = () => {
-    if (brandCloseTimerRef.current !== null) {
-      window.clearTimeout(brandCloseTimerRef.current);
+  const scheduleDesignerClose = () => {
+    if (designerCloseTimerRef.current !== null) {
+      window.clearTimeout(designerCloseTimerRef.current);
     }
-    brandCloseTimerRef.current = window.setTimeout(() => {
-      setBrandComboboxOpen(false);
+    designerCloseTimerRef.current = window.setTimeout(() => {
+      setDesignerComboboxOpen(false);
     }, 120);
   };
 
@@ -382,32 +387,32 @@ export function AdminProductCreateModal({
                     disabled={isHydrating || isCreating}
                   />
                 </label>
-                <div className="designers-combobox-wrap product-create__brand-wrap" onBlur={scheduleBrandClose}>
+                <div className="designers-combobox-wrap product-create__brand-wrap" onBlur={scheduleDesignerClose}>
                   <label className="product-create__field">
-                    <span>Бренд</span>
+                    <span>Дизайнер</span>
                     <input
-                      list="product-create-brand-options"
-                      value={draft.brand}
-                      onFocus={() => setBrandComboboxOpen(true)}
+                      list="product-create-designer-options"
+                      value={draft.designerName}
+                      onFocus={() => setDesignerComboboxOpen(true)}
                       onChange={(event) => {
-                        onSetField("brand", event.target.value);
-                        setBrandComboboxOpen(true);
+                        onSetField("designerName", event.target.value);
+                        setDesignerComboboxOpen(true);
                       }}
                       disabled={isHydrating || isCreating}
                     />
                   </label>
-                  {brandComboboxOpen ? (
+                  {designerComboboxOpen ? (
                     <div className="designers-combobox-list" role="listbox">
-                      {brandSuggestions.length > 0 ? (
-                        brandSuggestions.map((value) => (
+                      {designerSuggestions.length > 0 ? (
+                        designerSuggestions.map((value) => (
                           <button
-                            key={`create-brand-${value}`}
+                            key={`create-designer-${value}`}
                             type="button"
                             className="designers-combobox-item"
                             onMouseDown={(event) => {
                               event.preventDefault();
-                              onSetField("brand", value);
-                              setBrandComboboxOpen(false);
+                              onSetField("designerName", value);
+                              setDesignerComboboxOpen(false);
                             }}
                           >
                             {value}
@@ -418,14 +423,37 @@ export function AdminProductCreateModal({
                       )}
                     </div>
                   ) : null}
-                  {knownBrandOptions.length > 0 ? (
-                    <datalist id="product-create-brand-options">
-                      {knownBrandOptions.map((brand) => (
-                        <option key={`brand-opt-${brand}`} value={brand} />
+                  {knownDesignerOptions.length > 0 ? (
+                    <datalist id="product-create-designer-options">
+                      {knownDesignerOptions.map((designer) => (
+                        <option key={`designer-opt-${designer}`} value={designer} />
                       ))}
                     </datalist>
                   ) : null}
                 </div>
+                <label className="product-create__field">
+                  <span>Gender</span>
+                  <select
+                    value={draft.gender}
+                    onChange={(event) => onSetField("gender", event.target.value as "male" | "female" | "unisex")}
+                    disabled={isHydrating || isCreating}
+                  >
+                    <option value="male">Мужской</option>
+                    <option value="female">Женский</option>
+                    <option value="unisex">Унисекс</option>
+                  </select>
+                </label>
+                <label className="product-create__field">
+                  <span>Режим продажи</span>
+                  <select
+                    value={draft.availabilityMode}
+                    onChange={(event) => onSetField("availabilityMode", event.target.value as "in_stock" | "by_order")}
+                    disabled={isHydrating || isCreating}
+                  >
+                    <option value="in_stock">В наличии</option>
+                    <option value="by_order">Под заказ</option>
+                  </select>
+                </label>
 
               </div>
 
@@ -461,15 +489,15 @@ export function AdminProductCreateModal({
                       </button>
                     </div>
                     {favoriteCategoryOptions.map((option) => (
-                      <label key={option.id} className="star-picker-option">
+                      <label key={option.slug} className="star-picker-option">
                         <input
                           type="checkbox"
-                          checked={favoriteCategoryIds.includes(option.id)}
+                          checked={favoriteCategorySlugs.includes(option.slug)}
                           onChange={() => {
-                            const next = favoriteCategoryIds.includes(option.id)
-                              ? favoriteCategoryIds.filter((item) => item !== option.id)
-                              : [...favoriteCategoryIds, option.id];
-                            onSetFavoriteCategoryIds(next);
+                            const next = favoriteCategorySlugs.includes(option.slug)
+                              ? favoriteCategorySlugs.filter((item) => item !== option.slug)
+                              : [...favoriteCategorySlugs, option.slug];
+                            onSetFavoriteCategorySlugs(next);
                             onSetField("favorite", next.length > 0);
                           }}
                         />
@@ -483,13 +511,41 @@ export function AdminProductCreateModal({
 
             <div className="product-create__editor-right">
               <label className="product-create__field product-create__field--description">
-                <span>Описание товара</span>
+                <span>Описание товара (text)</span>
                 <textarea
                   value={draft.description}
                   onChange={(event) => onSetField("description", event.target.value)}
                   disabled={isHydrating || isCreating}
                 />
               </label>
+              <label className="product-create__field product-create__field--description">
+                <span>Описание товара (HTML)</span>
+                <textarea
+                  value={draft.descriptionHtml}
+                  onChange={(event) => onSetField("descriptionHtml", event.target.value)}
+                  disabled={isHydrating || isCreating}
+                />
+              </label>
+              <div className="product-create__line3">
+                <label className="product-create__field">
+                  <span>Ручная цена, RUB</span>
+                  <input
+                    value={draft.manualPriceRub}
+                    onChange={(event) => onSetField("manualPriceRub", event.target.value)}
+                    inputMode="decimal"
+                    disabled={isHydrating || isCreating}
+                  />
+                </label>
+                <label className="product-create__field">
+                  <span>Старая цена, RUB</span>
+                  <input
+                    value={draft.manualCompareAtPriceRub}
+                    onChange={(event) => onSetField("manualCompareAtPriceRub", event.target.value)}
+                    inputMode="decimal"
+                    disabled={isHydrating || isCreating}
+                  />
+                </label>
+              </div>
             </div>
           </div>
         </section>

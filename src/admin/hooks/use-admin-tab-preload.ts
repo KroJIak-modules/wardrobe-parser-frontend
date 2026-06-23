@@ -58,7 +58,10 @@ export function useAdminTabPreload({
       if (tab === "pricing") {
         setPricingTabLoadingRef.current(true);
         try {
-          await ensurePricingLoadedRef.current(true);
+          await Promise.all([
+            ensurePricingLoadedRef.current(true),
+            refreshSourcesOnlyRef.current(),
+          ]);
         } finally {
           setPricingTabLoadingRef.current(false);
         }

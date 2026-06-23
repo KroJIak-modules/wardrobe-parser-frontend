@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import type { DedupDecision } from "../shared/live-data-context";
 import { AdminDedupSkeleton } from "../shared/skeleton";
@@ -13,7 +13,7 @@ type Props = {
   loadingMoreDedupDecisions: boolean;
   dedupBusyPairKeys: Set<string>;
   openProductCard: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => void;
-  onUndoDecision: (pairKey: string) => Promise<void>;
+  onUndoDecision: (decisionId: number) => Promise<void>;
   onLoadMore: () => Promise<void>;
 };
 
@@ -28,9 +28,20 @@ export function AdminDedupDecisionsView({
   onLoadMore,
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [autoLoadArmed, setAutoLoadArmed] = useState(false);
 
   useEffect(() => {
-    if (!dedupDecisionsHasMore || loadingMoreDedupDecisions) return;
+    const armAutoLoad = () => {
+      if (window.scrollY > 0) {
+        setAutoLoadArmed(true);
+      }
+    };
+    window.addEventListener("scroll", armAutoLoad, { passive: true });
+    return () => window.removeEventListener("scroll", armAutoLoad);
+  }, []);
+
+  useEffect(() => {
+    if (!autoLoadArmed || !dedupDecisionsHasMore || loadingMoreDedupDecisions) return;
     const target = loadMoreRef.current;
     if (!target) return;
     const observer = new IntersectionObserver(
@@ -44,64 +55,65 @@ export function AdminDedupDecisionsView({
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [dedupDecisionsHasMore, loadingMoreDedupDecisions, onLoadMore]);
+  }, [autoLoadArmed, dedupDecisionsHasMore, loadingMoreDedupDecisions, onLoadMore]);
 
   return (
     <>
       {loadingDedupDecisions && dedupDecisions.length === 0 ? <AdminDedupSkeleton rows={3} /> : null}
       <div className="dedup-list">
-        {dedupDecisions.map((decision) => (
-          <div key={decision.pair_key} className="dedup-item">
-            <div className="dedup-grid">
-              <AdminDedupProductCard
-                id={decision.left.id}
-                title={decision.left.title}
-                vendor={decision.left.vendor}
-                price={decision.left.price}
-                currency={decision.left.currency}
-                imageCount={decision.left.image_count}
-                imageUrls={decision.left.image_urls}
-                imageIds={decision.left.image_ids}
-                url={decision.left.url}
-                onOpen={openProductCard}
-              />
-              <AdminDedupProductCard
-                id={decision.right.id}
-                title={decision.right.title}
-                vendor={decision.right.vendor}
-                price={decision.right.price}
-                currency={decision.right.currency}
-                imageCount={decision.right.image_count}
-                imageUrls={decision.right.image_urls}
-                imageIds={decision.right.image_ids}
-                url={decision.right.url}
-                onOpen={openProductCard}
-              />
+        {dedupDecisions.map((decision) => {
+          const members = Array.isArray(decision.members) ? decision.members : [];
+          return (
+            <div key={decision.pair_key} className="dedup-item">
+              <div className="dedup-grid">
+                {members.map((member) => (
+                  <AdminDedupProductCard
+                    key={`${decision.pair_key}-${member.id}`}
+                    id={member.id}
+                    title={member.title}
+                    designerName={member.display_designer_name || member.designer_name || member.source_designer_name || null}
+                    price={member.price}
+                    currency={member.currency}
+                    imageCount={member.image_count}
+                    imageUrls={member.image_urls}
+                    imageIds={member.image_ids}
+                    url={member.url}
+                    onOpen={openProductCard}
+                  />
+                ))}
+              </div>
+              <div className="dedup-reasons">
+                <span className="muted dedup-reasons-label">Решение:</span>
+                <span className="dedup-reason-pill">{formatDedupAction(decision.action)}</span>
+                {decision.decided_at ? (
+                  <span className="muted dedup-reasons-label dedup-reasons-label--soft">{new Date(decision.decided_at).toLocaleString("ru-RU")}</span>
+                ) : null}
+              </div>
+              <div className="actions dedup-actions">
+                <button
+                  type="button"
+                  disabled={dedupBusyPairKeys.has(`undo:${decision.id}`) || decision.can_undo === false}
+                  title={decision.can_undo === false ? (decision.undo_blocked_reason || "Отмена недоступна") : undefined}
+                  onClick={() => void onUndoDecision(decision.id)}
+                >
+                  Отменить решение
+                </button>
+              </div>
             </div>
-            <div className="dedup-reasons">
-              <span className="muted dedup-reasons-label">Решение:</span>
-              <span className="dedup-reason-pill">{formatDedupAction(decision.action)}</span>
-              {decision.decided_at ? (
-                <span className="muted dedup-reasons-label dedup-reasons-label--soft">{new Date(decision.decided_at).toLocaleString("ru-RU")}</span>
-              ) : null}
-            </div>
-            <div className="actions dedup-actions">
-              <button
-                type="button"
-                disabled={!decision.can_undo || dedupBusyPairKeys.has(decision.pair_key)}
-                title={decision.undo_block_reason || "Отменить решение"}
-                onClick={() => void onUndoDecision(decision.pair_key)}
-              >
-                Отменить решение
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {loadingDedupDecisions ? <AdminDedupSkeleton rows={1} /> : null}
         {!loadingDedupDecisions && dedupDecisionsHasMore ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
         {loadingMoreDedupDecisions ? (
           <div className="actions">
             <span className="muted">Загрузка...</span>
+          </div>
+        ) : null}
+        {!loadingDedupDecisions && !loadingMoreDedupDecisions && dedupDecisionsHasMore ? (
+          <div className="actions">
+            <button type="button" onClick={() => void onLoadMore()}>
+              Показать еще
+            </button>
           </div>
         ) : null}
         {!loadingDedupDecisions && dedupDecisions.length === 0 ? <EmptyState compact title="Решений пока нет" /> : null}

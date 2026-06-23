@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import type { DedupCandidate } from "../shared/live-data-context";
 import { AdminDedupSkeleton } from "../shared/skeleton";
@@ -15,9 +15,8 @@ type Props = {
   dedupChoosingPairKey: string | null;
   setDedupChoosingPairKey: (key: string | null | ((prev: string | null) => string | null)) => void;
   openProductCard: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => void;
-  onCombinePair: (pairKey: string, leftId: number, rightId: number) => Promise<void>;
-  onMergePair: (pairKey: string, primaryId: number, duplicateId: number) => Promise<void>;
-  onRejectPair: (pairKey: string, leftId: number, rightId: number) => Promise<void>;
+  onMergeProducts: (productIds: number[], primaryProductId?: number | null) => Promise<void>;
+  onRejectProducts: (productIds: number[]) => Promise<void>;
   onLoadMore: () => Promise<void>;
 };
 
@@ -30,15 +29,25 @@ export function AdminDedupCandidatesView({
   dedupChoosingPairKey,
   setDedupChoosingPairKey,
   openProductCard,
-  onCombinePair,
-  onMergePair,
-  onRejectPair,
+  onMergeProducts,
+  onRejectProducts,
   onLoadMore,
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [autoLoadArmed, setAutoLoadArmed] = useState(false);
 
   useEffect(() => {
-    if (!dedupCandidatesHasMore || loadingMoreDedupCandidates) return;
+    const armAutoLoad = () => {
+      if (window.scrollY > 0) {
+        setAutoLoadArmed(true);
+      }
+    };
+    window.addEventListener("scroll", armAutoLoad, { passive: true });
+    return () => window.removeEventListener("scroll", armAutoLoad);
+  }, []);
+
+  useEffect(() => {
+    if (!autoLoadArmed || !dedupCandidatesHasMore || loadingMoreDedupCandidates) return;
     const target = loadMoreRef.current;
     if (!target) return;
     const observer = new IntersectionObserver(
@@ -52,7 +61,7 @@ export function AdminDedupCandidatesView({
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [dedupCandidatesHasMore, loadingMoreDedupCandidates, onLoadMore]);
+  }, [autoLoadArmed, dedupCandidatesHasMore, loadingMoreDedupCandidates, onLoadMore]);
 
   return (
     <>
@@ -64,7 +73,7 @@ export function AdminDedupCandidatesView({
               <AdminDedupProductCard
                 id={candidate.left.id}
                 title={candidate.left.title}
-                vendor={candidate.left.vendor}
+                designerName={candidate.left.display_designer_name || candidate.left.designer_name || candidate.left.source_designer_name || null}
                 price={candidate.left.price}
                 currency={candidate.left.currency}
                 imageCount={candidate.left.image_count}
@@ -76,7 +85,7 @@ export function AdminDedupCandidatesView({
               <AdminDedupProductCard
                 id={candidate.right.id}
                 title={candidate.right.title}
-                vendor={candidate.right.vendor}
+                designerName={candidate.right.display_designer_name || candidate.right.designer_name || candidate.right.source_designer_name || null}
                 price={candidate.right.price}
                 currency={candidate.right.currency}
                 imageCount={candidate.right.image_count}
@@ -100,23 +109,23 @@ export function AdminDedupCandidatesView({
               <button
                 type="button"
                 disabled={dedupBusyPairKeys.has(candidate.pair_key)}
-                onClick={() => void onCombinePair(candidate.pair_key, candidate.left.id, candidate.right.id)}
+                onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id])}
               >
-                Соединить дубликаты
+                Соединить
               </button>
               {dedupChoosingPairKey === candidate.pair_key ? (
                 <div className="dedup-actions-row">
                   <button
                     type="button"
                     disabled={dedupBusyPairKeys.has(candidate.pair_key)}
-                    onClick={() => void onMergePair(candidate.pair_key, candidate.left.id, candidate.right.id)}
+                    onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id], candidate.left.id)}
                   >
                     Оставить левый
                   </button>
                   <button
                     type="button"
                     disabled={dedupBusyPairKeys.has(candidate.pair_key)}
-                    onClick={() => void onMergePair(candidate.pair_key, candidate.right.id, candidate.left.id)}
+                    onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id], candidate.right.id)}
                   >
                     Оставить правый
                   </button>
@@ -133,7 +142,7 @@ export function AdminDedupCandidatesView({
               <button
                 type="button"
                 disabled={dedupBusyPairKeys.has(candidate.pair_key)}
-                onClick={() => void onRejectPair(candidate.pair_key, candidate.left.id, candidate.right.id)}
+                onClick={() => void onRejectProducts([candidate.left.id, candidate.right.id])}
               >
                 Не дубль
               </button>
@@ -145,6 +154,13 @@ export function AdminDedupCandidatesView({
         {loadingMoreDedupCandidates ? (
           <div className="actions">
             <span className="muted">Загрузка...</span>
+          </div>
+        ) : null}
+        {!loadingDedupCandidates && !loadingMoreDedupCandidates && dedupCandidatesHasMore ? (
+          <div className="actions">
+            <button type="button" onClick={() => void onLoadMore()}>
+              Показать еще
+            </button>
           </div>
         ) : null}
         {!loadingDedupCandidates && dedupCandidates.length === 0 ? <EmptyState compact title="Дубликатов пока нет" /> : null}

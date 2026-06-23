@@ -13,6 +13,7 @@ import { ToastStack } from "../shared/toast-stack";
 import { EmptyState } from "../shared/empty-state";
 import { useToasts } from "../shared/use-toasts";
 import { useShowcaseEditPermission } from "../shared/use-showcase-edit-permission";
+import { buildHiddenProductWriteState } from "../shared/product-state";
 import { deriveStatusAfterUnhide, getStatusClass, getStatusLabel, normalizeProductStatus } from "./showcase-catalog-helpers";
 import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 
@@ -65,11 +66,8 @@ function toThumbUrl(url: string): string {
 }
 
 type ImageEditState = {
-  title_sync_locked: boolean;
-  description_sync_locked: boolean;
   description_visible_effective?: boolean;
   description_visible_override?: boolean | null;
-  images_sync_locked: boolean;
   hidden_source_image_urls: string[];
   manual_image_urls: string[];
   manual_image_order: string[];
@@ -104,7 +102,14 @@ export function ShowcaseProductPage() {
   const [editingTitle, setEditingTitle] = useState<boolean>(false);
   const [titleDraft, setTitleDraft] = useState<string>("");
   const [editingDescription, setEditingDescription] = useState<boolean>(false);
-  const [descriptionDraft, setDescriptionDraft] = useState<string>("");
+  const [descriptionTextDraft, setDescriptionTextDraft] = useState<string>("");
+  const [descriptionHtmlDraft, setDescriptionHtmlDraft] = useState<string>("");
+  const [genderDraft, setGenderDraft] = useState<"male" | "female" | "unisex">("unisex");
+  const [availabilityModeDraft, setAvailabilityModeDraft] = useState<"in_stock" | "by_order">("in_stock");
+  const [manualWeightDraft, setManualWeightDraft] = useState<string>("");
+  const [manualPriceDraft, setManualPriceDraft] = useState<string>("");
+  const [manualCompareAtPriceDraft, setManualCompareAtPriceDraft] = useState<string>("");
+  const [manualGalleryListingId, setManualGalleryListingId] = useState<number | null>(null);
   const [editPending, setEditPending] = useState<boolean>(false);
   const [draggingToken, setDraggingToken] = useState<string | null>(null);
   const imageUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -129,7 +134,7 @@ export function ShowcaseProductPage() {
   }, [inlineProduct]);
 
   useEffect(() => {
-    let cancelled = false;
+    let aborted = false;
     const run = async () => {
       if (!Number.isFinite(productId) || productId <= 0) {
         setProduct(null);
@@ -139,7 +144,7 @@ export function ShowcaseProductPage() {
       setLoading(!inlineProduct);
       setError(null);
       const fetched = await getProductById(productId, { forceFetch: !inlineProduct });
-      if (cancelled) {
+      if (aborted) {
         return;
       }
       if (fetched) {
@@ -152,7 +157,7 @@ export function ShowcaseProductPage() {
     };
     void run();
     return () => {
-      cancelled = true;
+      aborted = true;
     };
   }, [productId, getProductById]);
 
@@ -168,25 +173,90 @@ export function ShowcaseProductPage() {
 
   useEffect(() => {
     setTitleDraft(String(product?.title || ""));
-    setDescriptionDraft(String(product?.description || ""));
-  }, [product?.id, product?.title, product?.description]);
+    setDescriptionTextDraft(String(product?.description_text || product?.description || ""));
+    setDescriptionHtmlDraft(String(product?.description_html || ""));
+    setGenderDraft(
+      String(product?.gender || "").trim().toLowerCase() === "female"
+        ? "female"
+        : String(product?.gender || "").trim().toLowerCase() === "male"
+          ? "male"
+          : "unisex"
+    );
+    setAvailabilityModeDraft(String(product?.availability_mode || "").trim().toLowerCase() === "by_order" ? "by_order" : "in_stock");
+    setManualWeightDraft(
+      product?.manual_weight_grams === null || product?.manual_weight_grams === undefined
+        ? ""
+        : String(product.manual_weight_grams)
+    );
+    setManualPriceDraft(
+      product?.price_override?.manual_price_rub === null || product?.price_override?.manual_price_rub === undefined
+        ? ""
+        : String(product.price_override.manual_price_rub)
+    );
+    setManualCompareAtPriceDraft(
+      product?.price_override?.manual_compare_at_price_rub === null || product?.price_override?.manual_compare_at_price_rub === undefined
+        ? ""
+        : String(product.price_override.manual_compare_at_price_rub)
+    );
+    setManualGalleryListingId(
+      product?.primary_listing_id
+      ?? product?.listings?.[0]?.id
+      ?? null
+    );
+  }, [
+    product?.id,
+    product?.title,
+    product?.description,
+    product?.description_text,
+    product?.description_html,
+    product?.gender,
+    product?.availability_mode,
+    product?.manual_weight_grams,
+    product?.price_override?.manual_price_rub,
+    product?.price_override?.manual_compare_at_price_rub,
+    product?.primary_listing_id,
+    product?.listings,
+  ]);
+
+  const selectedVariantListingId = useMemo(() => {
+    const listingId = selectedVariantIndex !== null
+      && Array.isArray(product?.variants)
+      && product.variants[selectedVariantIndex]
+      ? (product.variants[selectedVariantIndex] as { listing_id?: number | null }).listing_id
+      : null;
+    return listingId === null || listingId === undefined ? null : Number(listingId);
+  }, [product?.variants, selectedVariantIndex]);
+
+  const activeGalleryListing = useMemo(() => {
+    const listings = Array.isArray(product?.listings) ? product.listings : [];
+    const targetListingId = manualGalleryListingId ?? selectedVariantListingId ?? product?.primary_listing_id ?? listings[0]?.id ?? null;
+    return listings.find((listing) => Number(listing.id) === Number(targetListingId)) || listings[0] || null;
+  }, [manualGalleryListingId, product?.listings, product?.primary_listing_id, selectedVariantListingId]);
 
   const imageEdit = useMemo<ImageEditState>(() => {
-    const fallbackSourceUrls = Array.isArray(product?.image_urls) ? product.image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [];
-    const raw = product?.product_edit || {};
-    const rawSourceUrls = Array.isArray(raw.source_image_urls) ? raw.source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    const fallbackSourceUrls = Array.isArray(activeGalleryListing?.image_urls)
+      ? activeGalleryListing.image_urls.map((x) => String(x || "").trim()).filter(Boolean)
+      : Array.isArray(product?.image_urls)
+        ? product.image_urls.map((x) => String(x || "").trim()).filter(Boolean)
+        : [];
+    const raw = activeGalleryListing?.gallery || product?.gallery;
+    const rawSourceUrls = Array.isArray(raw?.source_image_urls) ? raw.source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [];
     return {
-      title_sync_locked: Boolean(raw.title_sync_locked),
-      description_sync_locked: Boolean(raw.description_sync_locked),
-      description_visible_effective: typeof raw.description_visible_effective === "boolean" ? raw.description_visible_effective : undefined,
-      description_visible_override: typeof raw.description_visible_override === "boolean" ? raw.description_visible_override : null,
-      images_sync_locked: Boolean(raw.images_sync_locked),
-      hidden_source_image_urls: Array.isArray(raw.hidden_source_image_urls) ? raw.hidden_source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
-      manual_image_urls: Array.isArray(raw.manual_image_urls) ? raw.manual_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
-      manual_image_order: Array.isArray(raw.manual_image_order) ? raw.manual_image_order.map((x) => String(x)) : [],
-      source_image_urls: rawSourceUrls.length > 0 ? rawSourceUrls : [],
+      description_visible_effective: typeof product?.description_public_visible === "boolean" ? product.description_public_visible : undefined,
+      description_visible_override: typeof product?.presentation?.description_visibility === "boolean" ? product.presentation.description_visibility : null,
+      hidden_source_image_urls: Array.isArray(raw?.hidden_source_image_urls) ? raw.hidden_source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
+      manual_image_urls: Array.isArray(raw?.manual_image_urls) ? raw.manual_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
+      manual_image_order: Array.isArray(raw?.manual_image_order) ? raw.manual_image_order.map((x) => String(x)) : [],
+      source_image_urls: rawSourceUrls.length > 0 ? rawSourceUrls : fallbackSourceUrls,
     };
-  }, [product?.product_edit, product?.image_urls]);
+  }, [
+    activeGalleryListing?.gallery,
+    activeGalleryListing?.image_urls,
+    product?.gallery,
+    product?.presentation?.description_visibility,
+    product?.description_public_visible,
+    product?.image_urls,
+  ]);
 
   const images = useMemo(() => {
     if (!product) {
@@ -208,7 +278,7 @@ export function ShowcaseProductPage() {
     }
   }, [canEdit, imageEdit.source_image_urls.length, imageEdit.manual_image_urls.length, images.length, activeImageIndex]);
 
-  const sourceName = product ? (String(product.source_name || "").trim() || `Источник #${product.source_id}`) : null;
+  const sourceName = product ? (String(activeGalleryListing?.source_name || product.source_name || "").trim() || `Источник #${product.source_id}`) : null;
   const pricingExample = useMemo(() => {
     if (!pricingSettings || !product || !sourceName) {
       return null;
@@ -257,8 +327,11 @@ export function ShowcaseProductPage() {
   }
 
   const description = String(product.description || "").trim();
-  const statusClass = getStatusClass(product.status || "unknown");
-  const normalizedStatus = normalizeProductStatus(product.status);
+  const descriptionMode = String(product.description_mode || "text").trim().toLowerCase();
+  const descriptionText = String(product.description_text || product.description || "").trim();
+  const descriptionHtml = String(product.description_html || "").trim();
+  const normalizedStatus = normalizeProductStatus(product);
+  const statusClass = getStatusClass(normalizedStatus);
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 1;
   const selectedVariant = (
     selectedVariantIndex !== null
@@ -280,16 +353,16 @@ export function ShowcaseProductPage() {
   const categoryNames = (product.internal_category_names || []).filter(Boolean).length > 0
     ? (product.internal_category_names || []).filter(Boolean)
     : product.internal_category_name ? [product.internal_category_name] : [];
-  const vendorOriginal = String(product.vendor_original || product.vendor || "").trim();
-  const vendorMapped = String(product.vendor_mapped || product.vendor_display || product.vendor || "").trim();
-  const normalizedVendor = vendorMapped.toLowerCase();
-  const categoryChips = categoryNames.filter((name) => String(name).trim().toLowerCase() !== normalizedVendor);
-  const hasBrand = Boolean(vendorOriginal || vendorMapped);
+  const sourceDesignerName = String(product.source_designer_name || product.display_designer_name || "").trim();
+  const displayDesignerName = String(product.display_designer_name || product.designer_name || product.source_designer_name || "").trim();
+  const normalizedDesigner = displayDesignerName.toLowerCase();
+  const categoryChips = categoryNames.filter((name) => String(name).trim().toLowerCase() !== normalizedDesigner);
+  const hasBrand = Boolean(sourceDesignerName || displayDesignerName);
   const externalProductUrl = toExternalHttpUrl(product.url);
   const descriptionVisibleEffective = (
     typeof imageEdit.description_visible_effective === "boolean"
       ? imageEdit.description_visible_effective
-      : Boolean(pricingSettings?.show_product_description ?? true)
+      : product.description !== null
   );
   const descriptionVisibilityLocked = imageEdit.description_visible_override !== undefined && imageEdit.description_visible_override !== null;
   const sourceImageUrls = imageEdit.source_image_urls;
@@ -336,12 +409,17 @@ export function ShowcaseProductPage() {
     imageUrl: string;
     thumbUrl: string;
   }>;
-  const galleryImages = canEdit ? imageEditorItems.map((item) => item.imageUrl) : images;
+  const galleryImages = canEdit ? imageEditorItems.map((item) => item.imageUrl) : imageEdit.source_image_urls.length > 0 || imageEdit.manual_image_urls.length > 0
+    ? imageEditorItems.map((item) => item.imageUrl)
+    : images;
   const activeImage = galleryImages[activeImageIndex] || null;
 
   const persistImagePatch = async (next: { hidden_source_image_urls: string[]; manual_image_urls: string[]; manual_image_order: string[] }) => {
     setEditPending(true);
-    const result = await updateProductOverrides(product.id, { images: next });
+    const result = await updateProductOverrides(product.id, {
+      gallery_listing_id: activeGalleryListing?.id ?? null,
+      images: next,
+    });
     pushToast(result.message);
     if (result.ok) {
       await reloadFullProduct();
@@ -407,7 +485,8 @@ export function ShowcaseProductPage() {
     const nextManual = [...manualImageUrls, uploadedUrl];
     const nextOrder = [...imageEditorTokens, `m:${uploadedUrl}`];
     const result = await updateProductOverrides(product.id, {
-        images: {
+      gallery_listing_id: activeGalleryListing?.id ?? null,
+      images: {
         hidden_source_image_urls: imageEdit.hidden_source_image_urls,
         manual_image_urls: nextManual,
         manual_image_order: nextOrder,
@@ -425,7 +504,10 @@ export function ShowcaseProductPage() {
     const resetFields = field === "description"
       ? (["description", "description_visibility"] as const)
       : ([field] as const);
-    const result = await updateProductOverrides(product.id, { reset_to_default: [...resetFields] });
+    const result = await updateProductOverrides(product.id, {
+      ...(field === "images" ? { gallery_listing_id: activeGalleryListing?.id ?? null } : {}),
+      reset_to_default: [...resetFields],
+    });
     pushToast(result.message);
     if (result.ok) {
       await reloadFullProduct();
@@ -451,7 +533,10 @@ export function ShowcaseProductPage() {
 
   const onSaveDescription = async () => {
     setEditPending(true);
-    const result = await updateProductOverrides(product.id, { description: descriptionDraft });
+    const result = await updateProductOverrides(product.id, {
+      description_text: descriptionTextDraft,
+      description_html: descriptionHtmlDraft,
+    });
     pushToast(result.message);
     if (result.ok) {
       await reloadFullProduct();
@@ -487,15 +572,77 @@ export function ShowcaseProductPage() {
     setEditPending(false);
   };
 
+  const parsePositiveNumber = (raw: string): number | null => {
+    const normalized = raw.trim().replace(",", ".");
+    if (!normalized) {
+      return null;
+    }
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  };
+
+  const manualPriceDraftInvalid = manualPriceDraft.trim().length === 0 && manualCompareAtPriceDraft.trim().length > 0;
+
+  const onSaveProductControls = async () => {
+    if (manualPriceDraftInvalid) {
+      pushToast("Для скидки сначала укажи ручную цену");
+      return;
+    }
+    const nextManualWeight = parsePositiveNumber(manualWeightDraft);
+    const nextManualPrice = parsePositiveNumber(manualPriceDraft);
+    const nextManualCompareAtPrice = parsePositiveNumber(manualCompareAtPriceDraft);
+    setEditPending(true);
+    const result = await updateProductOverrides(product.id, {
+      gender: genderDraft,
+      availability_mode: availabilityModeDraft,
+      manual_weight_grams: nextManualWeight === null ? null : Math.round(nextManualWeight),
+      price_override: nextManualPrice === null ? null : {
+        manual_price_rub: nextManualPrice,
+        manual_compare_at_price_rub: nextManualCompareAtPrice,
+      },
+    });
+    pushToast(result.message);
+    if (result.ok) {
+      await reloadFullProduct();
+    }
+    setEditPending(false);
+  };
+
+  const onResetManualWeight = async () => {
+    setEditPending(true);
+    const result = await updateProductOverrides(product.id, {
+      reset_to_default: ["manual_weight_grams"],
+    });
+    pushToast(result.message);
+    if (result.ok) {
+      await reloadFullProduct();
+    }
+    setEditPending(false);
+  };
+
+  const onResetManualPrice = async () => {
+    setEditPending(true);
+    const result = await updateProductOverrides(product.id, {
+      reset_to_default: ["price_override"],
+    });
+    pushToast(result.message);
+    if (result.ok) {
+      await reloadFullProduct();
+    }
+    setEditPending(false);
+  };
+
   const toggleHidden = async () => {
     if (statusPending) {
       return;
     }
     setStatusPending(true);
-    const nextStatus = normalizedStatus === "hidden" ? deriveStatusAfterUnhide(product.variants) : "hidden";
-    const result = await setProductStatus(product.id, nextStatus);
+    const nextState = normalizedStatus === "hidden"
+      ? deriveStatusAfterUnhide(product.variants, product)
+      : buildHiddenProductWriteState(product);
+    const result = await setProductStatus(product.id, nextState);
     if (result.ok) {
-      setProduct((prev) => (prev ? { ...prev, status: nextStatus } : prev));
+      setProduct((prev) => (prev ? { ...prev, ...nextState } : prev));
     }
     pushToast(result.message);
     setStatusPending(false);
@@ -622,7 +769,7 @@ export function ShowcaseProductPage() {
             )}
           </div>
           <div className="product-main-status">
-            <span className={statusClass}>{getStatusLabel(product.status)}</span>
+            <span className={statusClass}>{getStatusLabel(normalizedStatus)}</span>
           </div>
 
           <div className="product-main-description">
@@ -661,15 +808,35 @@ export function ShowcaseProductPage() {
             {editingDescription ? (
               <div className="product-inline-edit">
                 <textarea
-                  value={descriptionDraft}
-                  onChange={(event) => setDescriptionDraft(event.target.value)}
+                  value={descriptionTextDraft}
+                  onChange={(event) => setDescriptionTextDraft(event.target.value)}
                   className="product-inline-textarea"
                   rows={5}
                   disabled={editPending || !descriptionVisibleEffective}
+                  placeholder="Текстовое описание"
+                />
+                <textarea
+                  value={descriptionHtmlDraft}
+                  onChange={(event) => setDescriptionHtmlDraft(event.target.value)}
+                  className="product-inline-textarea"
+                  rows={5}
+                  disabled={editPending || !descriptionVisibleEffective}
+                  placeholder="HTML-описание"
                 />
                 <div className="product-inline-actions">
                   <button type="button" className="btn-link" onClick={() => void onSaveDescription()} disabled={editPending}>Сохранить</button>
-                  <button type="button" className="btn-link" onClick={() => { setEditingDescription(false); setDescriptionDraft(description); }} disabled={editPending}>Отмена</button>
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => {
+                      setEditingDescription(false);
+                      setDescriptionTextDraft(descriptionText);
+                      setDescriptionHtmlDraft(descriptionHtml);
+                    }}
+                    disabled={editPending}
+                  >
+                    Отмена
+                  </button>
                   <button type="button" className="btn-link" onClick={() => void onResetFieldToDefault("description")} disabled={editPending}>Сброс</button>
                   {descriptionVisibilityLocked ? (
                     <button type="button" className="btn-link" onClick={() => void onResetDescriptionVisibility()} disabled={editPending}>
@@ -678,6 +845,12 @@ export function ShowcaseProductPage() {
                   ) : null}
                 </div>
               </div>
+            ) : descriptionMode === "html" && (descriptionHtml || descriptionText) ? (
+              <div
+                className={`product-description-text product-description-html ${descriptionVisibleEffective ? "" : "product-description-text--dimmed"}`}
+                onDoubleClick={() => canEdit && descriptionVisibleEffective && setEditingDescription(true)}
+                dangerouslySetInnerHTML={{ __html: descriptionHtml || descriptionText }}
+              />
             ) : (
               <p
                 className={`product-description-text ${descriptionVisibleEffective ? "" : "product-description-text--dimmed"}`}
@@ -691,13 +864,13 @@ export function ShowcaseProductPage() {
           <div className="product-main-meta">
             {hasBrand ? (
               <div className="product-meta-line">
-                <span className="product-meta-label">Бренд:</span>
+                <span className="product-meta-label">Дизайнер:</span>
                 <div className="product-meta-brand-stack">
                   <span className="product-meta-chip product-meta-chip--muted">
-                    Исходный: <LatexBrand value={vendorOriginal} fallback="-" />
+                    Исходный: <LatexBrand value={sourceDesignerName} fallback="-" />
                   </span>
                   <span className="product-meta-chip">
-                    Итоговый: <LatexBrand value={vendorMapped} fallback="-" />
+                    Итоговый: <LatexBrand value={displayDesignerName} fallback="-" />
                   </span>
                 </div>
               </div>
@@ -712,6 +885,70 @@ export function ShowcaseProductPage() {
             ) : null}
           </div>
 
+          {canEdit ? (
+            <div className="product-inline-edit">
+              <h3>Параметры товара</h3>
+              <div className="product-create__line3">
+                <label className="product-create__field">
+                  <span>Gender</span>
+                  <select value={genderDraft} onChange={(event) => setGenderDraft(event.target.value as "male" | "female" | "unisex")} disabled={editPending}>
+                    <option value="male">Мужской</option>
+                    <option value="female">Женский</option>
+                    <option value="unisex">Унисекс</option>
+                  </select>
+                </label>
+                <label className="product-create__field">
+                  <span>Режим продажи</span>
+                  <select value={availabilityModeDraft} onChange={(event) => setAvailabilityModeDraft(event.target.value as "in_stock" | "by_order")} disabled={editPending}>
+                    <option value="in_stock">В наличии</option>
+                    <option value="by_order">Под заказ</option>
+                  </select>
+                </label>
+                <label className="product-create__field">
+                  <span>Ручной вес, г</span>
+                  <input value={manualWeightDraft} onChange={(event) => setManualWeightDraft(event.target.value)} inputMode="numeric" disabled={editPending} />
+                </label>
+              </div>
+              <div className="product-create__line3">
+                <label className="product-create__field">
+                  <span>Ручная цена, RUB</span>
+                  <input value={manualPriceDraft} onChange={(event) => setManualPriceDraft(event.target.value)} inputMode="decimal" disabled={editPending} />
+                </label>
+                <label className="product-create__field">
+                  <span>Старая цена, RUB</span>
+                  <input value={manualCompareAtPriceDraft} onChange={(event) => setManualCompareAtPriceDraft(event.target.value)} inputMode="decimal" disabled={editPending} />
+                </label>
+                {Array.isArray(product.listings) && product.listings.length > 1 ? (
+                  <label className="product-create__field">
+                    <span>Стек фото листинга</span>
+                    <select
+                      value={String(activeGalleryListing?.id ?? "")}
+                      onChange={(event) => setManualGalleryListingId(Number(event.target.value) || null)}
+                      disabled={editPending}
+                    >
+                      {product.listings.map((listing) => (
+                        <option key={listing.id} value={listing.id}>
+                          {String(listing.source_name || `Листинг #${listing.id}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+              <div className="product-inline-actions">
+                <button type="button" className="btn-link" onClick={() => void onSaveProductControls()} disabled={editPending || manualPriceDraftInvalid}>
+                  Сохранить параметры
+                </button>
+                <button type="button" className="btn-link" onClick={() => void onResetManualWeight()} disabled={editPending}>
+                  Сбросить ручной вес
+                </button>
+                <button type="button" className="btn-link" onClick={() => void onResetManualPrice()} disabled={editPending}>
+                  Сбросить ручную цену
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {hasVariants ? (
             <div className="variants-section">
               <h3>Варианты</h3>
@@ -721,12 +958,30 @@ export function ShowcaseProductPage() {
                   const label = buildVariantLabel(info);
                   const available = Boolean(info.available);
                   return (
-                    <button key={`${product.id}-variant-${index}`} type="button" className={`variant-btn ${!available ? "variant-btn--disabled" : ""} ${selectedVariantIndex === index ? "variant-btn--selected" : ""}`} onClick={() => available && setSelectedVariantIndex(index)} disabled={!available}>
+                    <button
+                      key={`${product.id}-variant-${index}`}
+                      type="button"
+                      className={`variant-btn ${!available ? "variant-btn--disabled" : ""} ${selectedVariantIndex === index ? "variant-btn--selected" : ""}`}
+                      onClick={() => {
+                        if (!available) {
+                          return;
+                        }
+                        setSelectedVariantIndex(index);
+                        const listingId = (info as { listing_id?: number | null }).listing_id;
+                        setManualGalleryListingId(listingId === null || listingId === undefined ? null : Number(listingId));
+                      }}
+                      disabled={!available}
+                    >
                       {label}
                     </button>
                   );
                 })}
               </div>
+              {selectedVariant ? (
+                <p className="muted">
+                  {`Выбранный вариант из источника: ${String((selectedVariant as { source_name?: string | null }).source_name || activeGalleryListing?.source_name || sourceName || "—")}`}
+                </p>
+              ) : null}
             </div>
           ) : null}
 

@@ -9,7 +9,7 @@ import {
   tabs,
 } from "./admin-constants";
 import { formatCompactNumber, normalizeSupplierCategory } from "./admin-formatters";
-import { formatDateTime, formatSyncStageRu, formatSyncStatusRu } from "./admin-sync-formatters";
+import { formatDateTime, formatSyncStatusRu } from "./admin-sync-formatters";
 import { useAdminProductsTable } from "./hooks/use-admin-products-table";
 import { useAdminProductFilters } from "./hooks/use-admin-product-filters";
 import { readProductsQuery } from "./products-query";
@@ -26,10 +26,8 @@ import { AdminTopbar } from "./admin-topbar";
 import { AdminHead } from "./admin-head";
 import { AdminTabs } from "./admin-tabs";
 import { AdminTabContent } from "./admin-tab-content";
-import { useAdminSvcRules } from "./hooks/use-admin-svc-rules";
 import { useAdminTabPreload } from "./hooks/use-admin-tab-preload";
 import { useAdminPricingRuntime } from "./hooks/use-admin-pricing-runtime";
-import { useAdminSvcValidationToast } from "./hooks/use-admin-svc-validation-toast";
 import { useAdminSourceMap } from "./hooks/use-admin-source-map";
 import { useAdminDesignerMappings } from "./hooks/use-admin-designer-mappings";
 import { useAdminPageLifecycle } from "./hooks/use-admin-page-lifecycle";
@@ -37,7 +35,7 @@ import { useAdminErrorToast } from "./hooks/use-admin-error-toast";
 import { useAdminTabContentProps } from "./hooks/use-admin-tab-content-props";
 import { useAdminPricingLocalState } from "./hooks/use-admin-pricing-local-state";
 import { AdminOverlays } from "./admin-overlays";
-import { useAdminProductCreateMock } from "./hooks/use-admin-product-create-mock";
+import { useAdminProductCreate } from "./hooks/use-admin-product-create";
 import type {
   AdminTab,
   SupplierCategory,
@@ -67,6 +65,8 @@ export function AdminPage() {
     ensureAdminUiLoaded,
     ensureWeightLoaded,
     ensureDedupLoaded,
+    refreshDedupStatusOnly,
+    refreshDedupDecisionCountOnly,
     ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
     refreshSourcesOnly,
@@ -76,23 +76,27 @@ export function AdminPage() {
     uploadShowcaseHeroImage,
     uploadShowcaseCarouselImage,
     dedupCandidates,
+    dedupCandidatesTotal,
     loadingDedupCandidates,
+    dedupScanStatus,
     dedupCandidatesHasMore,
     loadingMoreDedupCandidates,
     dedupDecisions,
+    dedupDecisionsTotal,
     loadingDedupDecisions,
+    dedupDecisionsLoaded,
     dedupDecisionsHasMore,
     loadingMoreDedupDecisions,
-    mergeDedupPair,
-    rejectDedupPair,
-    combineDedupPair,
+    runDedupScan,
+    mergeDedupProducts,
+    rejectDedupProducts,
     undoDedupDecision,
     loading,
     toggleSourceEnabled,
     toggleSourceSyncEnabled,
+    toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
     updateSourceAttributeVisibility,
-    updateSourceCurrencyPriority,
     weightRules,
     weightMissingProducts,
     hasMoreWeightMissing,
@@ -175,19 +179,19 @@ export function AdminPage() {
     isHydrating: productCreateHydrating,
     isCreating: productCreateCreating,
     hiddenProductIds: productCreateHiddenIds,
-    knownBrandOptions: productCreateKnownBrands,
+    knownDesignerOptions: productCreateKnownDesigners,
     favoriteCategoryOptions: productCreateFavoriteOptions,
-    favoriteCategoryIds: productCreateFavoriteIds,
-    setFavoriteCategoryIds: setProductCreateFavoriteIds,
+    favoriteCategorySlugs: productCreateFavoriteSlugs,
+    setFavoriteCategorySlugs: setProductCreateFavoriteSlugs,
     boundFromSourceLookup: productCreateBoundFromSourceLookup,
     hydrateFromSourceUrl,
     hydrateFromExistingProduct,
-    hideExistingProductMock,
+    hideExistingProduct,
     addManualImage: addProductCreateImage,
     removeImage: removeProductCreateImage,
     onCancel: onCloseProductCreate,
-    onCreateMock: onCreateProductMock,
-  } = useAdminProductCreateMock({
+    onCreateDraft: onCreateProductDraft,
+  } = useAdminProductCreate({
     sources,
     products,
     onToast: (message, type = "success") => pushToast(message, type),
@@ -210,14 +214,12 @@ export function AdminPage() {
     dedupBusyPairKeys,
     dedupView,
     setDedupView,
-    onMergePair,
-    onRejectPair,
-    onCombinePair,
+    onMergeProducts,
+    onRejectProducts,
     onUndoDecision,
   } = useAdminDedupActions({
-    mergeDedupPair,
-    rejectDedupPair,
-    combineDedupPair,
+    mergeDedupProducts,
+    rejectDedupProducts,
     undoDedupDecision,
     pushToast,
   });
@@ -229,17 +231,49 @@ export function AdminPage() {
     void ensureDedupDecisionsLoaded();
   }, [tab, dedupView, ensureDedupDecisionsLoaded]);
 
+  useEffect(() => {
+    if (tab !== "dedup") {
+      return;
+    }
+    void refreshDedupDecisionCountOnly();
+  }, [tab, refreshDedupDecisionCountOnly]);
+
+  useEffect(() => {
+    if (tab !== "dedup") {
+      return;
+    }
+    void refreshDedupStatusOnly();
+    if (!dedupScanStatus.is_running) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void refreshDedupStatusOnly();
+      void ensureDedupLoaded(true);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [tab, dedupScanStatus.is_running, refreshDedupStatusOnly, ensureDedupLoaded]);
+
   const {
     productSearch,
     setProductSearch,
     productSourceFilter,
     setProductSourceFilter,
-    productVendorFilter,
-    setProductVendorFilter,
-    productTypeFilter,
-    setProductTypeFilter,
-    productStatusFilter,
-    setProductStatusFilter,
+    productSourceModeFilter,
+    setProductSourceModeFilter,
+    productDesignerFilter,
+    setProductDesignerFilter,
+    productCatalogFilter,
+    setProductCatalogFilter,
+    productSectionFilter,
+    setProductSectionFilter,
+    productGenderFilter,
+    setProductGenderFilter,
+    productVisibilityFilter,
+    setProductVisibilityFilter,
+    productAvailabilityModeFilter,
+    setProductAvailabilityModeFilter,
+    productOrderabilityFilter,
+    setProductOrderabilityFilter,
   } = useAdminProductFilters();
   const productsQuery = useMemo(
     () => readProductsQuery(searchParams),
@@ -285,25 +319,19 @@ export function AdminPage() {
     if (tab !== "pricing") {
       return undefined;
     }
-    let cancelled = false;
-    const run = async () => {
-      try {
-        await ensurePricingLoaded(true);
-      } catch {
-        // keep silent: next tick will retry
-      }
-    };
-    void run();
+    let aborted = false;
     const timer = window.setInterval(() => {
-      if (!cancelled) {
-        void run();
+      if (!aborted) {
+        void ensurePricingLoaded(true).catch(() => {
+          // keep silent: next tick will retry
+        });
       }
-    }, 15000);
+    }, 30000);
     return () => {
-      cancelled = true;
+      aborted = true;
       window.clearInterval(timer);
     };
-  }, [tab, ensurePricingLoaded]);
+  }, [tab, ensurePricingLoaded, pricingSettings]);
 
   const {
     newWeightRuleGrams,
@@ -334,18 +362,6 @@ export function AdminPage() {
     setMarkupRateDraft,
     finalRoundingModeDraft,
     setFinalRoundingModeDraft,
-    updatePricingSettings,
-    pushToast,
-  });
-
-  const {
-    svcRuleDrafts,
-    setSvcRuleDrafts,
-    svcRulesValidationError,
-    svcRuleFieldErrors,
-    onAddSvcRule,
-  } = useAdminSvcRules({
-    pricingSettings,
     updatePricingSettings,
     pushToast,
   });
@@ -399,7 +415,7 @@ export function AdminPage() {
     onStartCarouselDrag,
     onEndCarouselDrag,
   } = useAdminShowcase({
-    adminUiSettings,
+    enabled: tab === "settings",
     uploadShowcaseHeroImage,
     uploadShowcaseCarouselImage,
     updateShowcaseMediaSettings,
@@ -427,8 +443,11 @@ export function AdminPage() {
     tableOverallTotal,
     tableLoading,
     tableLoadingMore,
-    productVendors,
-    productTypes,
+    productSources,
+    productDesigners,
+    productCatalogs,
+    productSections,
+    productGenders,
   } = useAdminProductsTable({
     tab,
     latestJobStatus: latestJob?.status ?? null,
@@ -445,12 +464,11 @@ export function AdminPage() {
     onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
     onChangeFinalDesignerName,
     onChangeFinalDesignerDescription,
+    onUploadDesignerLogo,
+    onClearDesignerLogo,
     onCreateDesigner,
     onDeleteDesigner,
   } = useAdminDesignerMappings(tab, pushToast);
-
-  useAdminSvcValidationToast(svcRulesValidationError, pushToast);
-
   const tabContentProps = useAdminTabContentProps({
     tab,
     productsTabProps: {
@@ -462,15 +480,27 @@ export function AdminPage() {
       setProductSearch,
       productSourceFilter,
       setProductSourceFilter,
-      productVendorFilter,
-      setProductVendorFilter,
-      productTypeFilter,
-      setProductTypeFilter,
-      productStatusFilter,
-      setProductStatusFilter,
-      sourceSelectOptions: sources,
-      productVendors,
-      productTypes,
+      productSourceModeFilter,
+      setProductSourceModeFilter,
+      productDesignerFilter,
+      setProductDesignerFilter,
+      productCatalogFilter,
+      setProductCatalogFilter,
+      productSectionFilter,
+      setProductSectionFilter,
+      productGenderFilter,
+      setProductGenderFilter,
+      productVisibilityFilter,
+      setProductVisibilityFilter,
+      productAvailabilityModeFilter,
+      setProductAvailabilityModeFilter,
+      productOrderabilityFilter,
+      setProductOrderabilityFilter,
+      sourceFacetOptions: productSources,
+      productDesigners,
+      productCatalogs,
+      productSections,
+      productGenders,
       sourceById,
       tableLoadingMore,
       productsSentinelRef,
@@ -478,21 +508,25 @@ export function AdminPage() {
     dedupTabProps: {
       dedupView,
       setDedupView,
+      dedupScanStatus,
       dedupCandidates,
+      dedupCandidatesTotal,
       loadingDedupCandidates,
       dedupCandidatesHasMore,
       loadingMoreDedupCandidates,
       dedupDecisions,
+      dedupDecisionsTotal,
       loadingDedupDecisions,
+      dedupDecisionsLoaded,
       dedupDecisionsHasMore,
       loadingMoreDedupDecisions,
       dedupBusyPairKeys,
       dedupChoosingPairKey,
       setDedupChoosingPairKey,
       openProductCard,
-      onCombinePair,
-      onMergePair,
-      onRejectPair,
+      onRunDedupScan: runDedupScan,
+      onMergeProducts,
+      onRejectProducts,
       onUndoDecision,
       onLoadMoreCandidates: loadMoreDedupCandidates,
       onLoadMoreDecisions: loadMoreDedupDecisions,
@@ -506,6 +540,8 @@ export function AdminPage() {
       onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
       onChangeFinalDesignerName,
       onChangeFinalDesignerDescription,
+      onUploadDesignerLogo,
+      onClearDesignerLogo,
       onCreateDesigner,
       onDeleteDesigner,
     },
@@ -517,9 +553,9 @@ export function AdminPage() {
       cancelSync,
       toggleSourceEnabled,
       toggleSourceSyncEnabled,
+      toggleSourceDedupEnabled,
       toggleSourceAutoHideProducts,
       updateSourceAttributeVisibility,
-      updateSourceCurrencyPriority,
       autoSyncPeriodMinutes: Math.max(60, Number(adminUiSettings?.auto_sync_period_minutes || 60)),
       autoSyncNextRunAt: adminUiSettings?.auto_sync_next_run_at || null,
       autoSyncLastStatus: adminUiSettings?.auto_sync_last_status || null,
@@ -548,10 +584,6 @@ export function AdminPage() {
       setFinalRoundingModeDraft,
       thresholdDraft,
       setThresholdField,
-      svcRuleDrafts,
-      setSvcRuleDrafts,
-      svcRuleFieldErrors,
-      onAddSvcRule,
       mainPricingSuppliers,
       altSuppliersByMainId,
       tariffRangesDrafts,
@@ -642,7 +674,6 @@ export function AdminPage() {
             onOpenCreateProduct={() => setProductCreateOpen(true)}
             formatDateTime={formatDateTime}
             formatSyncStatusRu={formatSyncStatusRu}
-            formatSyncStageRu={formatSyncStageRu}
           />
 
           <AdminTabs tabs={tabs} activeTab={tab} onSelectTab={(nextTab) => navigate(`/control/${nextTab}`)} />
@@ -663,19 +694,19 @@ export function AdminPage() {
             productCreateHydrating={productCreateHydrating}
             productCreateCreating={productCreateCreating}
             productCreateHiddenIds={productCreateHiddenIds}
-            productCreateKnownBrands={productCreateKnownBrands}
+            productCreateKnownDesigners={productCreateKnownDesigners}
             productCreateFavoriteOptions={productCreateFavoriteOptions}
-            productCreateFavoriteIds={productCreateFavoriteIds}
+            productCreateFavoriteSlugs={productCreateFavoriteSlugs}
             productCreateBoundFromSourceLookup={productCreateBoundFromSourceLookup}
-            onSetProductCreateFavoriteIds={setProductCreateFavoriteIds}
+            onSetProductCreateFavoriteSlugs={setProductCreateFavoriteSlugs}
             onCloseProductCreate={onCloseProductCreate}
             onSetProductCreateField={setProductCreateField}
             onHydrateFromSourceUrl={hydrateFromSourceUrl}
             onHydrateFromExisting={hydrateFromExistingProduct}
-            onToggleHideExisting={hideExistingProductMock}
+            onToggleHideExisting={hideExistingProduct}
             onAddProductImage={addProductCreateImage}
             onRemoveProductImage={removeProductCreateImage}
-            onCreateProductMock={onCreateProductMock}
+            onCreateProductDraft={onCreateProductDraft}
             onZoomProductImage={(url) => setZoomedImageUrl(url)}
           />
         </section>

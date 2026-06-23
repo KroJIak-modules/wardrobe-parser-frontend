@@ -1,14 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { PricingSupplier } from "../shared/live-data-context";
 import { HelpHint } from "./help-hint";
-import { AdminPricingAthSection } from "./admin-pricing-ath-section";
-import type { PricingSettings } from "../shared/live-data-context";
-import type { PricingFieldKey } from "./admin-types";
 
 type Props = {
-  pricingSettings: PricingSettings;
-  pricingDrafts: Record<PricingFieldKey, string>;
-  setPricingDrafts: Dispatch<SetStateAction<Record<PricingFieldKey, string>>>;
   mainPricingSuppliers: PricingSupplier[];
   altSuppliersByMainId: Map<number, PricingSupplier[]>;
   tariffRangesDrafts: Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>>;
@@ -25,9 +19,6 @@ type Props = {
 };
 
 export function AdminPricingTariffsSection({
-  pricingSettings,
-  pricingDrafts,
-  setPricingDrafts,
   mainPricingSuppliers,
   altSuppliersByMainId,
   tariffRangesDrafts,
@@ -46,13 +37,8 @@ export function AdminPricingTariffsSection({
     <>
       <h3 className="with-help">
         Тарифы SSR
-        <HelpHint text="Для каждого базового тарифа можно создать только 1 альтернативу. ALT применяется автоматически при превышении ATH порога alt-доставки." />
+        <HelpHint text="Для каждого базового тарифа можно создать только 1 альтернативу." />
       </h3>
-      <AdminPricingAthSection
-        pricingSettings={pricingSettings}
-        pricingDrafts={pricingDrafts}
-        setPricingDrafts={setPricingDrafts}
-      />
       <div className="pricing-source-map-list">
         {mainPricingSuppliers.map((supplier) => {
           const altItems = altSuppliersByMainId.get(supplier.id) || [];

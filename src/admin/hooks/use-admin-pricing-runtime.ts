@@ -79,22 +79,22 @@ export function useAdminPricingRuntime({
       setPricingExampleLoading(false);
       return;
     }
-    let cancelled = false;
+    let aborted = false;
     setPricingExampleLoading(true);
     void fetchPricingExampleProduct()
       .then((result) => {
-        if (!cancelled) {
+        if (!aborted) {
           setPricingExampleProduct(result.product);
           setPricingExampleError(result.errorMessage);
         }
       })
       .finally(() => {
-        if (!cancelled) {
+        if (!aborted) {
           setPricingExampleLoading(false);
         }
       });
     return () => {
-      cancelled = true;
+      aborted = true;
     };
   }, [tab, pricingSettings, pricingBlockedByInitialBybit, fetchPricingExampleProduct]);
 

@@ -11,7 +11,7 @@ export function AdminPricingThresholdSection({ thresholdDraft, setThresholdField
     <>
       <h3 className="with-help">
         Порог пошлины THR
-        <HelpHint text="Укажи порог и валюту. Можно менять сумму в RUB, USD, EUR или GBP: остальные поля пересчитаются автоматически." />
+        <HelpHint text="Можно менять сумму в RUB, USD или EUR: остальные поля пересчитаются автоматически." />
       </h3>
       <div className="pricing-threshold-grid">
         <label className="pricing-settings-field">
@@ -25,10 +25,6 @@ export function AdminPricingThresholdSection({ thresholdDraft, setThresholdField
         <label className="pricing-settings-field">
           <span className="muted">THR (EUR)</span>
           <input type="number" step="0.01" value={thresholdDraft?.eur || "0"} onChange={(event) => setThresholdField("eur", event.target.value)} />
-        </label>
-        <label className="pricing-settings-field">
-          <span className="muted">THR (GBP)</span>
-          <input type="number" step="0.01" value={thresholdDraft?.gbp || "0"} onChange={(event) => setThresholdField("gbp", event.target.value)} />
         </label>
       </div>
     </>

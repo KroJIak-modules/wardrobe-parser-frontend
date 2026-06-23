@@ -36,8 +36,8 @@ export function AdminSettingsGeneralSection({
       <div className="pricing-settings-field pricing-settings-field--stacked">
         <label className="pricing-settings-field">
           <span className="with-help">
-            <span className="pricing-field-title">Порог бренда для категории «Дизайнеры»</span>
-            <HelpHint text="Бренд попадет в ветку «Дизайнеры», только если у него не меньше этого количества товаров." />
+            <span className="pricing-field-title">Порог дизайнера для категории «Дизайнеры»</span>
+            <HelpHint text="Дизайнер попадет в ветку «Дизайнеры», только если у него не меньше этого количества товаров." />
           </span>
           <input
             className="pricing-settings-input--compact"
@@ -52,12 +52,12 @@ export function AdminSettingsGeneralSection({
         <label className="ui-switch ui-switch--compact">
           <input
             type="checkbox"
-            checked={Boolean(adminUiSettings?.designers_exclude_store_vendors)}
+            checked={Boolean(adminUiSettings?.designers_exclude_store_names)}
             disabled={!adminUiSettings}
             onChange={(event) => {
               void (async () => {
                 if (!adminUiSettings) return;
-                const result = await updateAdminUiSettings({ designers_exclude_store_vendors: Boolean(event.target.checked) });
+                const result = await updateAdminUiSettings({ designers_exclude_store_names: Boolean(event.target.checked) });
                 if (!result.ok) pushToast(result.message);
               })();
             }}
@@ -65,9 +65,9 @@ export function AdminSettingsGeneralSection({
           <span className="ui-switch-track">
             <span className="ui-switch-thumb" />
           </span>
-          <span className="ui-switch-text">Исключать бренды-магазины</span>
+          <span className="ui-switch-text">Исключать названия магазинов</span>
           <span className="settings-inline-hint">
-            <HelpHint text="Если включено, из «Дизайнеров» убираются бренды, которые совпадают с именем/доменом самого источника." />
+            <HelpHint text="Если включено, из «Дизайнеров» убираются названия, которые совпадают с именем или доменом самого источника." />
           </span>
         </label>
       </div>

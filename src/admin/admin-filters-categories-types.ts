@@ -1,12 +1,12 @@
 export type AdminRuleManualProduct = {
   product_id: number;
   source_name: string;
-  source_product_url: string;
-  vendor: string;
+  url: string;
+  designer_name: string;
   title: string;
   image_url: string | null;
-  is_hidden: boolean;
-  matched_local_categories: string[];
+  visibility_status: "visible" | "hidden";
+  assigned_filter_titles: string[];
 };
 
 export type AdminCategoryBehavior = "new" | "designers" | "gender" | "sale";
@@ -32,8 +32,9 @@ type AdminRuleTreeNodeBase = {
 };
 
 export type AdminFilterTreeNode = AdminRuleTreeNodeBase & {
-  slug: string;
+  slug: string | null;
   display_label: string;
+  node_kind: "filter" | "multifilter";
   is_enabled: boolean;
   rules: AdminRuleSet;
   children: AdminFilterTreeNode[];
@@ -49,9 +50,10 @@ export type AdminCategoryTreeNode = AdminRuleTreeNodeBase & {
 
 export type AdminCustomCatalog = {
   id: number;
-  slug: string;
+  slug: string | null;
   label: string;
-  is_hidden: boolean;
+  description: string;
+  is_enabled: boolean;
   manual_products: AdminRuleManualProduct[];
 };
 
@@ -66,5 +68,5 @@ export type AdminFiltersCategoriesPayload = {
   categories: AdminCategoryTreeNode[];
   custom_catalogs: AdminCustomCatalog[];
   designer_directory: AdminDesignerDirectoryItem[];
-  product_library: AdminRuleManualProduct[];
+  hidden_product_ids: number[];
 };

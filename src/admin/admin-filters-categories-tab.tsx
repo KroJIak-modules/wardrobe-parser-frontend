@@ -9,7 +9,7 @@ import type {
   AdminRuleManualProduct,
 } from "./admin-filters-categories-types";
 import { useAdminFiltersCategories } from "./hooks/use-admin-filters-categories";
-import { AdminSectionSkeleton, SkeletonBlock } from "../shared/skeleton";
+import { AdminTaxonomySkeleton, SkeletonBlock } from "../shared/skeleton";
 import { IconEye, IconEyeOff } from "../shared/mono-icons";
 import { TagRemoveButton } from "../shared/tag-remove-button";
 
@@ -97,6 +97,10 @@ function countFilterProducts(filter: AdminFilterTreeNode) {
   return filter.rules.manual_products.length;
 }
 
+function getFilterDisplayLabel(filter: Pick<AdminFilterTreeNode, "label" | "display_label">) {
+  return filter.display_label.trim() || filter.label.trim();
+}
+
 function getTopNewCategoryFilters(filters: readonly AdminFilterTreeNode[], limit = 9) {
   return collectLeafFilters(filters)
     .filter((filter) => filter.is_enabled)
@@ -105,7 +109,7 @@ function getTopNewCategoryFilters(filters: readonly AdminFilterTreeNode[], limit
       if (countDiff !== 0) {
         return countDiff;
       }
-      return left.display_label.localeCompare(right.display_label, "ru", { sensitivity: "base" });
+      return getFilterDisplayLabel(left).localeCompare(getFilterDisplayLabel(right), "ru", { sensitivity: "base" });
     })
     .slice(0, limit);
 }
@@ -551,7 +555,7 @@ function CategoryAttachMenu({
                 className={`taxonomy-attach-menu-item taxonomy-attach-menu-item--${getNodeKind(filter)}`}
                 onClick={() => onAttachFilter(filter.id)}
               >
-                {filter.display_label}
+                {getFilterDisplayLabel(filter)}
               </button>
             )) : <p className="muted">Свободных фильтров нет.</p>}
           </div>
@@ -800,7 +804,7 @@ function ManualProductList({
           className={[
             "manual-product-row",
             disabled ? "manual-product-row--disabled" : "",
-            item.is_hidden ? "manual-product-row--hidden" : "",
+            item.visibility_status === "hidden" ? "manual-product-row--hidden" : "",
           ].filter(Boolean).join(" ")}
         >
           <Link className="manual-product-thumb-link" to={`/product/${item.product_id}?from=admin`}>
@@ -810,14 +814,14 @@ function ManualProductList({
           </Link>
           <div className="manual-product-main">
             <a className="btn-link manual-product-title-link" href={`/product/${item.product_id}?from=admin`} target="_blank" rel="noreferrer">
-              {item.vendor} {item.title}
+              {item.designer_name} {item.title}
             </a>
             <div className="manual-product-meta-stack">
-              <a className="manual-product-meta-link" href={item.source_product_url} target="_blank" rel="noreferrer">
-                {getSourceDomainLabel(item.source_product_url, item.source_name)}
+              <a className="manual-product-meta-link" href={item.url} target="_blank" rel="noreferrer">
+                {getSourceDomainLabel(item.url, item.source_name)}
               </a>
               <span className="manual-product-meta-link manual-product-meta-link--muted">
-                {item.matched_local_categories.join(" / ")}
+                {item.assigned_filter_titles.join(" / ")}
               </span>
             </div>
           </div>
@@ -826,8 +830,8 @@ function ManualProductList({
               {actionLabel}
             </button>
             <button type="button" className="manual-product-action-btn manual-product-action-btn--secondary" disabled={disabled} onClick={() => onToggleHidden(item.product_id)}>
-              {item.is_hidden ? <IconEye className="icon-svg icon-svg--sm" /> : <IconEyeOff className="icon-svg icon-svg--sm" />}
-              {item.is_hidden ? "Показать" : "Скрыть"}
+              {item.visibility_status === "hidden" ? <IconEye className="icon-svg icon-svg--sm" /> : <IconEyeOff className="icon-svg icon-svg--sm" />}
+              {item.visibility_status === "hidden" ? "Показать" : "Скрыть"}
             </button>
           </div>
         </div>
@@ -1100,12 +1104,13 @@ function FilterEditor({
             type="text"
             value={filter.display_label}
             onChange={(event) => updateFilterDisplayLabel(event.target.value)}
+            placeholder={filter.label}
           />
         </label>
       </div>
 
       <KeywordField
-        title="Ключевые слова локальных категорий"
+        title="Ключевые слова локальных категорий и тегов"
         items={filter.rules.local_category_keywords}
         placeholder="Например: outerwear"
         onAdd={(value) => addKeyword("local_category_keywords", value)}
@@ -1202,7 +1207,7 @@ function CategoryEditor({
             <div className="taxonomy-designer-chip-list">
               {topNewCategoryFilters.map((filter) => (
                 <span key={filter.id} className="taxonomy-designer-chip">
-                  <span>{filter.display_label}</span>
+                  <span>{getFilterDisplayLabel(filter)}</span>
                   <strong>{countFilterProducts(filter)}</strong>
                 </span>
               ))}
@@ -1302,7 +1307,7 @@ function CategoryLinkedEditor({
           </label>
           <label className="taxonomy-field">
             <span>Отображаемое имя</span>
-            <input type="text" value={sourceNode.display_label} disabled readOnly />
+            <input type="text" value={sourceNode.display_label} placeholder={sourceNode.label} disabled readOnly />
           </label>
         </div>
       ) : (
@@ -1341,7 +1346,7 @@ function CategoryLinkedEditor({
       {isFilterNode(sourceNode) ? (
         <>
           <KeywordField
-            title="Ключевые слова локальных категорий"
+            title="Ключевые слова локальных категорий и тегов"
             items={sourceNode.rules.local_category_keywords}
             placeholder=""
             onAdd={() => {}}
@@ -1392,7 +1397,8 @@ function CustomCatalogEditor({
   catalogSearchLoading,
   catalogSearchResults,
   updateCustomCatalogLabel,
-  setCustomCatalogHidden,
+  updateCustomCatalogDescription,
+  setCustomCatalogEnabled,
   deleteSelectedCustomCatalog,
   onDelete,
   addCustomCatalogProduct,
@@ -1405,7 +1411,8 @@ function CustomCatalogEditor({
   catalogSearchLoading: boolean;
   catalogSearchResults: AdminRuleManualProduct[];
   updateCustomCatalogLabel: (value: string) => void;
-  setCustomCatalogHidden: (value: boolean) => void;
+  updateCustomCatalogDescription: (value: string) => void;
+  setCustomCatalogEnabled: (value: boolean) => void;
   deleteSelectedCustomCatalog: () => void;
   onDelete: () => void;
   addCustomCatalogProduct: (productId: number) => void;
@@ -1432,12 +1439,20 @@ function CustomCatalogEditor({
             <span>Название</span>
             <input type="text" value={customCatalog.label} onChange={(event) => updateCustomCatalogLabel(event.target.value)} />
           </label>
+          <label className="taxonomy-field">
+            <span>Описание</span>
+            <textarea
+              rows={4}
+              value={customCatalog.description}
+              onChange={(event) => updateCustomCatalogDescription(event.target.value)}
+            />
+          </label>
           <div className="taxonomy-field-actions">
             <label className="ui-switch ui-switch--compact">
               <input
                 type="checkbox"
-                checked={!customCatalog.is_hidden}
-                onChange={(event) => setCustomCatalogHidden(!Boolean(event.target.checked))}
+                checked={customCatalog.is_enabled}
+                onChange={(event) => setCustomCatalogEnabled(Boolean(event.target.checked))}
               />
               <span className="ui-switch-track">
                 <span className="ui-switch-thumb" />
@@ -1545,7 +1560,8 @@ export function AdminFiltersCategoriesTab() {
     removeCustomCatalogProduct,
     toggleManualProductHidden,
     updateCustomCatalogLabel,
-    setCustomCatalogHidden,
+    updateCustomCatalogDescription,
+    setCustomCatalogEnabled,
     deleteSelectedCustomCatalog,
     attachFilterToCategory,
     attachCustomCatalogToCategory,
@@ -1700,8 +1716,8 @@ export function AdminFiltersCategoriesTab() {
     <div className="card">
       <h2>Структура витрины</h2>
 
-      {loading ? (
-        <AdminSectionSkeleton rows={8} />
+      {loading && filters.length === 0 && categories.length === 0 && customCatalogs.length === 0 ? (
+        <AdminTaxonomySkeleton />
       ) : (
         <div className="taxonomy-shell">
           <div className="taxonomy-sidebar">
@@ -1827,7 +1843,8 @@ export function AdminFiltersCategoriesTab() {
                   catalogSearchLoading={catalogSearchLoading}
                   catalogSearchResults={catalogSearchResults}
                   updateCustomCatalogLabel={updateCustomCatalogLabel}
-                  setCustomCatalogHidden={setCustomCatalogHidden}
+                  updateCustomCatalogDescription={updateCustomCatalogDescription}
+                  setCustomCatalogEnabled={setCustomCatalogEnabled}
                   deleteSelectedCustomCatalog={deleteSelectedCustomCatalog}
                   onDelete={() => setActiveEditor(null)}
                   addCustomCatalogProduct={addCustomCatalogProduct}

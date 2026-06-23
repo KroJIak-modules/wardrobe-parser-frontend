@@ -21,10 +21,15 @@ type ProductCreateDraft = {
   sourceUrl: string;
   title: string;
   description: string;
+  descriptionHtml: string;
   weightGrams: string;
+  gender: "male" | "female" | "unisex";
+  availabilityMode: "in_stock" | "by_order";
   favorite: boolean;
   bindSync: boolean;
-  brand: string;
+  designerName: string;
+  manualPriceRub: string;
+  manualCompareAtPriceRub: string;
   images: ProductCreateImage[];
   variants: Array<{ id: string; title: string; price: string; currency: "USD" | "EUR" | "GBP" | "JPY"; available: boolean }>;
 };
@@ -48,11 +53,11 @@ type Props = {
   productCreateHydrating: boolean;
   productCreateCreating: boolean;
   productCreateHiddenIds: Set<number>;
-  productCreateKnownBrands: string[];
-  productCreateFavoriteOptions: Array<{ id: number; name: string }>;
-  productCreateFavoriteIds: number[];
+  productCreateKnownDesigners: string[];
+  productCreateFavoriteOptions: Array<{ slug: string; name: string }>;
+  productCreateFavoriteSlugs: string[];
   productCreateBoundFromSourceLookup: boolean;
-  onSetProductCreateFavoriteIds: (ids: number[]) => void;
+  onSetProductCreateFavoriteSlugs: (slugs: string[]) => void;
   onCloseProductCreate: () => void;
   onSetProductCreateField: <K extends keyof ProductCreateDraft>(key: K, value: ProductCreateDraft[K]) => void;
   onHydrateFromSourceUrl: () => Promise<void>;
@@ -60,7 +65,7 @@ type Props = {
   onToggleHideExisting: () => void;
   onAddProductImage: (file: File) => void;
   onRemoveProductImage: (imageId: string) => void;
-  onCreateProductMock: () => void;
+  onCreateProductDraft: () => void;
   onZoomProductImage: (url: string) => void;
 };
 
@@ -80,11 +85,11 @@ export function AdminOverlays({
   productCreateHydrating,
   productCreateCreating,
   productCreateHiddenIds,
-  productCreateKnownBrands,
+  productCreateKnownDesigners,
   productCreateFavoriteOptions,
-  productCreateFavoriteIds,
+  productCreateFavoriteSlugs,
   productCreateBoundFromSourceLookup,
-  onSetProductCreateFavoriteIds,
+  onSetProductCreateFavoriteSlugs,
   onCloseProductCreate,
   onSetProductCreateField,
   onHydrateFromSourceUrl,
@@ -92,7 +97,7 @@ export function AdminOverlays({
   onToggleHideExisting,
   onAddProductImage,
   onRemoveProductImage,
-  onCreateProductMock,
+  onCreateProductDraft,
   onZoomProductImage,
 }: Props) {
   return (
@@ -109,11 +114,11 @@ export function AdminOverlays({
         isHydrating={productCreateHydrating}
         isCreating={productCreateCreating}
         hiddenProductIds={productCreateHiddenIds}
-        knownBrandOptions={productCreateKnownBrands}
+        knownDesignerOptions={productCreateKnownDesigners}
         favoriteCategoryOptions={productCreateFavoriteOptions}
-        favoriteCategoryIds={productCreateFavoriteIds}
+        favoriteCategorySlugs={productCreateFavoriteSlugs}
         boundFromSourceLookup={productCreateBoundFromSourceLookup}
-        onSetFavoriteCategoryIds={onSetProductCreateFavoriteIds}
+        onSetFavoriteCategorySlugs={onSetProductCreateFavoriteSlugs}
         onClose={onCloseProductCreate}
         onSetField={onSetProductCreateField}
         onHydrateFromSourceUrl={onHydrateFromSourceUrl}
@@ -121,7 +126,7 @@ export function AdminOverlays({
         onToggleHideExisting={onToggleHideExisting}
         onAddManualImage={onAddProductImage}
         onRemoveImage={onRemoveProductImage}
-        onCreate={onCreateProductMock}
+        onCreate={onCreateProductDraft}
         onZoomImage={onZoomProductImage}
       />
 

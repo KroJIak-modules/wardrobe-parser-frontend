@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { CatalogExperienceResponse, CatalogFilterGroup, CatalogFilterOption, CatalogViewKey } from "./showcase-contracts";
-import { fetchCatalogExperience, readCatalogExperienceSeed } from "./showcase-mock-api";
+import { fetchCatalogExperience } from "./showcase-api";
 import { buildRouteTargetHref, buildRouteTargetHrefWithCarry, clearGroupSelection, getGroupSelection, toggleGroupOption } from "./showcase-url-state";
 import "./admin-showcase-catalog-page.css";
 
@@ -101,22 +101,19 @@ function ShowcaseFilterFlyout({
 export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [experience, setExperience] = useState<CatalogExperienceResponse | null>(() =>
-    readCatalogExperienceSeed({ viewKey, searchParams })
-  );
+  const [experience, setExperience] = useState<CatalogExperienceResponse | null>(null);
   const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    setExperience(readCatalogExperienceSeed({ viewKey, searchParams }));
+    let aborted = false;
     void (async () => {
-      const response = await fetchCatalogExperience({ viewKey, searchParams });
-      if (!cancelled) {
+      const response = await fetchCatalogExperience({ viewKey, searchParams }).catch(() => null);
+      if (!aborted) {
         setExperience(response);
       }
     })();
     return () => {
-      cancelled = true;
+      aborted = true;
     };
   }, [searchParams, viewKey]);
 

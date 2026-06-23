@@ -13,8 +13,8 @@ import {
 import { DEFAULT_ADMIN_TAB } from "./admin-constants";
 import { AdminShowcaseCatalogPage } from "./admin-showcase-catalog-page";
 import { AdminShowcaseDesignersPage } from "./admin-showcase-designers-page";
-import { AdminPage } from "./admin-page";
 import { AdminShowcaseHomePage } from "./admin-showcase-home-page";
+import { AdminPage } from "./admin-page";
 import { AdminShowcaseLayout } from "./admin-showcase-layout";
 import { ShowcaseProductPage } from "./showcase-product-page";
 
@@ -164,6 +164,14 @@ function AdminProtectedRoute() {
   );
 }
 
+function AdminShowcaseRoute() {
+  return (
+    <AdminErrorBoundary>
+      <AdminShowcaseLayout />
+    </AdminErrorBoundary>
+  );
+}
+
 function AdminRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -212,7 +220,7 @@ function AdminRoutes() {
 
   const routes = (
     <Routes>
-      <Route path="/" element={<AdminShowcaseLayout />}>
+      <Route path="/" element={<AdminShowcaseRoute />}>
         <Route index element={<AdminShowcaseHomePage />} />
         <Route path="catalog" element={<AdminShowcaseCatalogPage viewKey="default" />} />
         <Route path="catalog/designers" element={<AdminShowcaseCatalogPage viewKey="designers" />} />

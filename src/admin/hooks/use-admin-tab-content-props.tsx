@@ -1,11 +1,10 @@
 import type { ComponentProps } from "react";
 import { AdminTabContent } from "../admin-tab-content";
-import { getAdminProductStatusBadge } from "../admin-product-status";
 
 type TabContentProps = ComponentProps<typeof AdminTabContent>;
 
 type Params = Omit<TabContentProps, "productsTabProps" | "dedupTabProps" | "filtersCategoriesTabProps" | "designersTabProps" | "sourcesTabProps" | "pricingTabProps" | "weightTabProps" | "settingsTabProps"> & {
-  productsTabProps: Omit<TabContentProps["productsTabProps"], "statusBadge">;
+  productsTabProps: TabContentProps["productsTabProps"];
   designersTabProps: TabContentProps["designersTabProps"];
   filtersCategoriesTabProps: TabContentProps["filtersCategoriesTabProps"];
 };
@@ -25,10 +24,7 @@ export function useAdminTabContentProps(params: Params): TabContentProps {
 
   return {
     tab,
-    productsTabProps: {
-      ...productsTabProps,
-      statusBadge: getAdminProductStatusBadge,
-    },
+    productsTabProps,
     dedupTabProps,
     filtersCategoriesTabProps,
     designersTabProps,

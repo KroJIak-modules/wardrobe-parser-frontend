@@ -1,13 +1,17 @@
 import type { CategoryView, ServiceProduct } from "../shared/live-data-context";
-import { toSlug } from "../shared/utils";
-
-export type ProductUiStatus = "available" | "out_of_stock" | "hidden";
+import {
+  buildVisibleProductWriteState,
+  getProductStateClass,
+  getProductStateKey,
+  getProductStateLabel,
+  type ProductStateKey,
+} from "../shared/product-state";
 
 export type CatalogSort = "updated_desc" | "updated_asc" | "title_asc" | "price_asc" | "price_desc";
 
 export type CatalogFilters = {
   query: string;
-  status: "all" | ProductUiStatus;
+  status: "all" | ProductStateKey;
   sourceId: "all" | number;
   sort: CatalogSort;
 };
@@ -89,7 +93,7 @@ function resolveProductCategorySlugs(product: ServiceProduct): string[] {
   if (single) {
     return [single];
   }
-  return [toSlug(product.product_type || "Прочее")];
+  return [];
 }
 
 function isDescendantOfRoot(root: CategoryView, slug: string): boolean {
@@ -104,48 +108,21 @@ function isDescendantOfRoot(root: CategoryView, slug: string): boolean {
   return false;
 }
 
-export function normalizeProductStatus(status: string | null | undefined): ProductUiStatus {
-  const raw = String(status || "").toLowerCase().trim();
-  if (raw === "available") {
-    return "available";
-  }
-  if (raw === "out_of_stock") {
-    return "out_of_stock";
-  }
-  return "hidden";
+export function normalizeProductStatus(
+  value:
+    | Pick<ServiceProduct, "visibility_status" | "availability_mode" | "orderability_status" | "lifecycle_status">
+    | string
+    | null
+    | undefined,
+): ProductStateKey {
+  return getProductStateKey(value);
 }
 
-function variantIsAvailable(variant: unknown): boolean {
-  if (!variant || typeof variant !== "object") {
-    return false;
-  }
-  const row = variant as Record<string, unknown>;
-  const rawAvailable = row.available;
-  if (typeof rawAvailable === "boolean") {
-    if (rawAvailable) {
-      return true;
-    }
-  } else if (rawAvailable !== null && rawAvailable !== undefined) {
-    const normalized = String(rawAvailable).trim().toLowerCase();
-    if (["1", "true", "yes", "y", "in_stock"].includes(normalized)) {
-      return true;
-    }
-  }
-  const inventoryRaw = row.inventory_quantity;
-  const inventory =
-    typeof inventoryRaw === "number"
-      ? inventoryRaw
-      : typeof inventoryRaw === "string"
-        ? Number(inventoryRaw)
-        : Number.NaN;
-  return Number.isFinite(inventory) && inventory > 0;
-}
-
-export function deriveStatusAfterUnhide(variants: unknown): ProductUiStatus {
-  if (!Array.isArray(variants) || variants.length === 0) {
-    return "available";
-  }
-  return variants.some((item) => variantIsAvailable(item)) ? "available" : "out_of_stock";
+export function deriveStatusAfterUnhide(
+  variants: unknown,
+  input?: Pick<ServiceProduct, "visibility_status" | "availability_mode" | "orderability_status" | "lifecycle_status"> | null,
+) {
+  return buildVisibleProductWriteState(input ?? null, variants);
 }
 
 export function withSyntheticAllRoot(categories: CategoryView[]): CategoryView[] {
@@ -203,25 +180,11 @@ export function getSourceNameById(sources: SourceLike[]): Map<number, string> {
 }
 
 export function getStatusLabel(status: string | null | undefined): string {
-  const normalized = normalizeProductStatus(status);
-  if (normalized === "available") {
-    return "В наличии";
-  }
-  if (normalized === "out_of_stock") {
-    return "Нет в наличии";
-  }
-  return "Скрыт";
+  return getProductStateLabel(status);
 }
 
 export function getStatusClass(status: string | null | undefined): string {
-  const normalized = normalizeProductStatus(status);
-  if (normalized === "available") {
-    return "status-pill status-pill--ok";
-  }
-  if (normalized === "out_of_stock") {
-    return "status-pill status-pill--warn";
-  }
-  return "status-pill status-pill--muted";
+  return getProductStateClass(status);
 }
 
 function applySearchAndFilters(
@@ -233,7 +196,7 @@ function applySearchAndFilters(
   const sourceNameById = getSourceNameById(sources);
 
   return products.filter((product) => {
-    const status = normalizeProductStatus(product.status);
+    const status = normalizeProductStatus(product);
 
     if (filters.status !== "all" && status !== filters.status) {
       return false;
@@ -250,9 +213,9 @@ function applySearchAndFilters(
     const sourceName = sourceNameById.get(product.source_id) || "";
     const haystack = normalizeText([
       product.title,
-      product.vendor,
+      product.display_designer_name || product.designer_name || product.source_designer_name,
       product.handle,
-      product.product_type,
+      product.source_category_name,
       product.url,
       sourceName,
       status,

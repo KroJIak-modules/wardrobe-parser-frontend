@@ -18,16 +18,36 @@ export function useAdminProductFilters() {
     setParam(PRODUCTS_QUERY_KEYS.sourceId, value);
   }, [setParam]);
 
-  const setProductVendorFilter = useCallback((value: string) => {
-    setParam(PRODUCTS_QUERY_KEYS.vendor, value);
+  const setProductSourceModeFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.sourceMode, value);
   }, [setParam]);
 
-  const setProductTypeFilter = useCallback((value: string) => {
-    setParam(PRODUCTS_QUERY_KEYS.productType, value);
+  const setProductDesignerFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.designer, value);
   }, [setParam]);
 
-  const setProductStatusFilter = useCallback((value: string) => {
-    setParam(PRODUCTS_QUERY_KEYS.status, value);
+  const setProductSectionFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.filterSlug, value);
+  }, [setParam]);
+
+  const setProductCatalogFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.customCatalogSlug, value);
+  }, [setParam]);
+
+  const setProductGenderFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.gender, value);
+  }, [setParam]);
+
+  const setProductVisibilityFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.visibilityStatus, value);
+  }, [setParam]);
+
+  const setProductAvailabilityModeFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.availabilityMode, value);
+  }, [setParam]);
+
+  const setProductOrderabilityFilter = useCallback((value: string) => {
+    setParam(PRODUCTS_QUERY_KEYS.orderabilityStatus, value);
   }, [setParam]);
 
   return {
@@ -35,11 +55,21 @@ export function useAdminProductFilters() {
     setProductSearch,
     productSourceFilter: state.sourceId,
     setProductSourceFilter,
-    productVendorFilter: state.vendor,
-    setProductVendorFilter,
-    productTypeFilter: state.productType,
-    setProductTypeFilter,
-    productStatusFilter: state.status,
-    setProductStatusFilter,
+    productSourceModeFilter: state.sourceMode,
+    setProductSourceModeFilter,
+    productDesignerFilter: state.designer,
+    setProductDesignerFilter,
+    productSectionFilter: state.filterSlug,
+    setProductSectionFilter,
+    productCatalogFilter: state.customCatalogSlug,
+    setProductCatalogFilter,
+    productGenderFilter: state.gender,
+    setProductGenderFilter,
+    productVisibilityFilter: state.visibilityStatus,
+    setProductVisibilityFilter,
+    productAvailabilityModeFilter: state.availabilityMode,
+    setProductAvailabilityModeFilter,
+    productOrderabilityFilter: state.orderabilityStatus,
+    setProductOrderabilityFilter,
   };
 }

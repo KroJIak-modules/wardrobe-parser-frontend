@@ -6,7 +6,7 @@ import { getProductPrimaryImageUrl } from "../shared/product-image";
 type Props = {
   id: number;
   title: string;
-  vendor: string | null;
+  designerName: string | null;
   price: number | null;
   currency: string;
   imageCount: number;
@@ -19,7 +19,7 @@ type Props = {
 export function AdminDedupProductCard({
   id,
   title,
-  vendor,
+  designerName,
   price,
   currency,
   imageCount,
@@ -56,7 +56,7 @@ export function AdminDedupProductCard({
       />
       <div className="dedup-card-body">
         <strong className="dedup-card-title">{title}</strong>
-        <p className="muted dedup-card-meta">{vendor || "-"}</p>
+        <p className="muted dedup-card-meta">{designerName || "-"}</p>
         <p className="muted dedup-card-meta">
           {price ?? "-"} {currency}
         </p>

@@ -1,8 +1,13 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { AdminFinalDesigner, AdminDesignerSourceRow } from "./admin-types";
 import { EmptyState } from "../shared/empty-state";
+import { AdminDesignersSkeleton } from "../shared/skeleton";
 
 type DesignersViewMode = "designers" | "sources";
+
+const SOURCE_ROWS_BATCH = 60;
+const DESIGNERS_BATCH = 20;
+const RELATED_BRANDS_BATCH = 80;
 
 type Props = {
   loading: boolean;
@@ -12,6 +17,8 @@ type Props = {
   onToggleIncludeInDesigners: (sourceBrand: string, includeInDesigners: boolean) => void;
   onChangeFinalDesignerName: (designerId: string, designerName: string) => void;
   onChangeFinalDesignerDescription: (designerId: string, description: string) => void;
+  onUploadDesignerLogo: (designerId: string, file: File) => Promise<void>;
+  onClearDesignerLogo: (designerId: string) => void;
   onCreateDesigner: (designerName: string) => void;
   onDeleteDesigner: (designerId: string) => void;
 };
@@ -40,6 +47,124 @@ function formatProductCount(count: number) {
   return `${count} ${getProductCountLabel(count)}`;
 }
 
+function getDesignerLogoUrl(logoImageAssetId: number | null) {
+  return logoImageAssetId && logoImageAssetId > 0 ? `/api/v1/products/images/${logoImageAssetId}` : null;
+}
+
+function RelatedBrandsField({
+  designerId,
+  rows,
+}: {
+  designerId: string;
+  rows: AdminDesignerSourceRow[];
+}) {
+  const [visibleCount, setVisibleCount] = useState<number>(RELATED_BRANDS_BATCH);
+
+  useEffect(() => {
+    setVisibleCount(RELATED_BRANDS_BATCH);
+  }, [designerId, rows.length]);
+
+  const visibleRows = rows.slice(0, visibleCount);
+  const hiddenCount = Math.max(0, rows.length - visibleRows.length);
+
+  return (
+    <div className="designers-item__field designers-item__field--related">
+      <span className="designers-item__label">Связанные бренды</span>
+      <div className="designers-item__related-list">
+        {rows.length > 0 ? (
+          visibleRows.map((row) => (
+            <span
+              key={`${designerId}-${row.source_brand}`}
+              className={row.include_in_designers ? "designers-item__related-pill" : "designers-item__related-pill designers-item__related-pill--muted"}
+            >
+              {`${row.source_brand} · ${formatProductCount(row.source_product_count)}`}
+            </span>
+          ))
+        ) : (
+          <span className="designers-item__related-pill designers-item__related-pill--muted">Нет связанных брендов</span>
+        )}
+      </div>
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          className="designers-item__more"
+          onClick={() => setVisibleCount((current) => current + RELATED_BRANDS_BATCH)}
+        >
+          {`Показать еще ${hiddenCount}`}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function AdminDesignerLogoField({
+  designerId,
+  designerName,
+  logoImageAssetId,
+  onUploadDesignerLogo,
+  onClearDesignerLogo,
+}: {
+  designerId: string;
+  designerName: string;
+  logoImageAssetId: number | null;
+  onUploadDesignerLogo: (designerId: string, file: File) => Promise<void>;
+  onClearDesignerLogo: (designerId: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoLoadFailed(false);
+  }, [logoImageAssetId]);
+
+  const logoUrl = getDesignerLogoUrl(logoImageAssetId);
+
+  const onPickLogo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    await onUploadDesignerLogo(designerId, file);
+  };
+
+  return (
+    <div className="designers-item__field designers-item__field--logo">
+      <span className="designers-item__label">Логотип</span>
+        <div className="designers-item__logo-stack">
+          <button type="button" className="designers-item__logo-upload" onClick={() => inputRef.current?.click()}>
+            Загрузить SVG / PNG / JPG
+          </button>
+        <div className="designers-item__logo-preview">
+          {logoUrl && !logoLoadFailed ? (
+            <img
+              src={logoUrl}
+              alt={designerName ? `Логотип ${designerName}` : "Логотип дизайнера"}
+              loading="lazy"
+              decoding="async"
+              onError={() => setLogoLoadFailed(true)}
+            />
+          ) : (
+            <span>{logoImageAssetId ? "Не удалось загрузить превью" : "Превью логотипа появится здесь"}</span>
+          )}
+        </div>
+        <div className="designers-item__logo-actions">
+          <button type="button" className="designers-item__logo-clear" onClick={() => onClearDesignerLogo(designerId)} disabled={!logoImageAssetId}>
+            Удалить логотип
+          </button>
+        </div>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/svg+xml,image/png,image/jpeg"
+        className="input-hidden"
+        onChange={(event) => void onPickLogo(event)}
+      />
+    </div>
+  );
+}
+
 export function AdminDesignersTab({
   loading,
   rows,
@@ -48,16 +173,22 @@ export function AdminDesignersTab({
   onToggleIncludeInDesigners,
   onChangeFinalDesignerName,
   onChangeFinalDesignerDescription,
+  onUploadDesignerLogo,
+  onClearDesignerLogo,
   onCreateDesigner,
   onDeleteDesigner,
 }: Props) {
   const [search, setSearch] = useState<string>("");
   const [viewMode, setViewMode] = useState<DesignersViewMode>("sources");
+  const deferredSearch = useDeferredValue(search);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [sourceVisibleCount, setSourceVisibleCount] = useState<number>(SOURCE_ROWS_BATCH);
+  const [designerVisibleCount, setDesignerVisibleCount] = useState<number>(DESIGNERS_BATCH);
 
   const designerNameOptions = useMemo(
     () =>
       [...new Set(rows.map((row) => normalizeText(row.designer_name)).filter(Boolean))].sort((left, right) =>
-        left.localeCompare(right, "en", { numeric: true, sensitivity: "base" })
+        left.localeCompare(right, "en", { numeric: true, sensitivity: "variant" })
       ),
     [rows]
   );
@@ -69,7 +200,7 @@ export function AdminDesignersTab({
       if (!designerName) {
         continue;
       }
-      const key = designerName.toLowerCase();
+      const key = designerName;
       const bucket = groups.get(key);
       if (bucket) {
         bucket.push(row);
@@ -87,26 +218,29 @@ export function AdminDesignersTab({
       if (!designerName) {
         continue;
       }
-      const key = designerName.toLowerCase();
+      const key = designerName;
       counts.set(key, (counts.get(key) ?? 0) + row.source_product_count);
     }
     return counts;
   }, [rows]);
 
   const designerItems = useMemo(() => {
-    const validNameSet = new Set(designerNameOptions.map((name) => name.toLowerCase()));
+    if (viewMode !== "designers" && !deferredSearch.trim()) {
+      return [];
+    }
+    const validNameSet = new Set(designerNameOptions);
     const selectedNameByDesignerId = new Map(
       designers
         .map((designer) => {
           const name = normalizeText(designer.name);
-          return [designer.id, validNameSet.has(name.toLowerCase()) ? name.toLowerCase() : ""];
+          return [designer.id, validNameSet.has(name) ? name : ""];
         })
         .filter((entry) => entry[1])
     );
 
     return designers.map((designer) => {
       const rawName = normalizeText(designer.name);
-      const nameKey = rawName.toLowerCase();
+      const nameKey = rawName;
       const hasValidName = Boolean(rawName) && validNameSet.has(nameKey);
       const linkedRows = hasValidName ? [...(rowsByDesignerName.get(nameKey) ?? [])] : [];
       linkedRows.sort((left, right) =>
@@ -137,10 +271,10 @@ export function AdminDesignersTab({
         partiallyIncluded,
       };
     });
-  }, [designerNameOptions, designers, rowsByDesignerName]);
+  }, [deferredSearch, designerNameOptions, designers, rowsByDesignerName, viewMode]);
 
   const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = deferredSearch.trim().toLowerCase();
     if (!query) {
       return rows;
     }
@@ -150,10 +284,10 @@ export function AdminDesignersTab({
       const designerName = normalizeText(row.designer_name).toLowerCase();
       return source.includes(query) || designerName.includes(query);
     });
-  }, [rows, search]);
+  }, [deferredSearch, rows]);
 
   const filteredDesignerItems = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = deferredSearch.trim().toLowerCase();
     if (!query) {
       return designerItems;
     }
@@ -164,7 +298,45 @@ export function AdminDesignersTab({
       const sources = item.linkedRows.map((row) => normalizeText(row.source_brand).toLowerCase()).join(" ");
       return title.includes(query) || description.includes(query) || sources.includes(query);
     });
-  }, [designerItems, search]);
+  }, [deferredSearch, designerItems]);
+
+  useEffect(() => {
+    setSourceVisibleCount(SOURCE_ROWS_BATCH);
+    setDesignerVisibleCount(DESIGNERS_BATCH);
+  }, [deferredSearch, viewMode]);
+
+  const visibleRows = useMemo(
+    () => filteredRows.slice(0, sourceVisibleCount),
+    [filteredRows, sourceVisibleCount]
+  );
+  const visibleDesignerItems = useMemo(
+    () => filteredDesignerItems.slice(0, designerVisibleCount),
+    [designerVisibleCount, filteredDesignerItems]
+  );
+  const canLoadMoreSources = viewMode === "sources" && visibleRows.length < filteredRows.length;
+  const canLoadMoreDesigners = viewMode === "designers" && visibleDesignerItems.length < filteredDesignerItems.length;
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) {
+          return;
+        }
+        if (canLoadMoreSources) {
+          setSourceVisibleCount((current) => current + SOURCE_ROWS_BATCH);
+        } else if (canLoadMoreDesigners) {
+          setDesignerVisibleCount((current) => current + DESIGNERS_BATCH);
+        }
+      },
+      { rootMargin: "320px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [canLoadMoreDesigners, canLoadMoreSources]);
 
   return (
     <div className="card designers-tab-card">
@@ -211,19 +383,19 @@ export function AdminDesignersTab({
       </div>
 
       <div className="designers-list">
-        {loading ? <p className="muted">Загрузка дизайнеров...</p> : null}
+        {loading ? <AdminDesignersSkeleton rows={3} /> : null}
         {!loading && viewMode === "sources" && filteredRows.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
         {!loading && viewMode === "designers" && filteredDesignerItems.length === 0 ? <EmptyState compact title="Ничего не найдено" /> : null}
 
         {!loading && viewMode === "sources"
-          ? filteredRows.map((row) => {
-              const designerNameKey = normalizeText(row.designer_name).toLowerCase();
+          ? visibleRows.map((row) => {
+              const exactDesignerNameKey = normalizeText(row.designer_name);
               const relatedRows =
                 rowsByDesignerName
-                  .get(designerNameKey)
+                  .get(exactDesignerNameKey)
                   ?.filter((candidate) => candidate.source_brand !== row.source_brand)
                   .map((candidate) => candidate.source_brand) ?? [];
-              const nextDesignerProductCount = designerProductCountByName.get(designerNameKey) ?? row.source_product_count;
+              const nextDesignerProductCount = designerProductCountByName.get(exactDesignerNameKey) ?? row.source_product_count;
               const currentDesignerProductCount = Math.max(0, nextDesignerProductCount - row.source_product_count);
 
               return (
@@ -288,7 +460,7 @@ export function AdminDesignersTab({
           : null}
 
         {!loading && viewMode === "designers"
-          ? filteredDesignerItems.map((item) => {
+          ? visibleDesignerItems.map((item) => {
               const stateLabel = item.linkedRows.length === 0
                 ? "Выключено"
                 : item.allIncluded
@@ -349,7 +521,7 @@ export function AdminDesignersTab({
                             <option
                               key={`${item.designer.id}-${title}`}
                               value={title}
-                              disabled={item.selectedByOthers.has(title.toLowerCase())}
+                              disabled={item.selectedByOthers.has(title)}
                             >
                               {title}
                             </option>
@@ -369,28 +541,24 @@ export function AdminDesignersTab({
                       />
                     </label>
 
-                    <div className="designers-item__field designers-item__field--related">
-                      <span className="designers-item__label">Связанные бренды</span>
-                      <div className="designers-item__related-list">
-                        {item.linkedRows.length > 0 ? (
-                          item.linkedRows.map((row) => (
-                            <span
-                              key={`${item.designer.id}-${row.source_brand}`}
-                              className={row.include_in_designers ? "designers-item__related-pill" : "designers-item__related-pill designers-item__related-pill--muted"}
-                            >
-                              {`${row.source_brand} · ${formatProductCount(row.source_product_count)}`}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="designers-item__related-pill designers-item__related-pill--muted">Нет связанных брендов</span>
-                        )}
-                      </div>
-                    </div>
+                    <AdminDesignerLogoField
+                      designerId={item.designer.id}
+                      designerName={item.designer.name}
+                      logoImageAssetId={item.designer.logo_image_asset_id}
+                      onUploadDesignerLogo={onUploadDesignerLogo}
+                      onClearDesignerLogo={onClearDesignerLogo}
+                    />
+
+                    <RelatedBrandsField designerId={item.designer.id} rows={item.linkedRows} />
                   </div>
                 </article>
               );
             })
           : null}
+
+        {!loading && (canLoadMoreSources || canLoadMoreDesigners) ? (
+          <div ref={loadMoreRef} className="designers-tab-load-more" aria-hidden="true" />
+        ) : null}
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { normalizeCurrencyCode } from "../admin-constants";
 import { parseNonNegativeNumber, toRubByRates, fromRubByRates } from "../admin-formatters";
 import type { CurrencyCode, PricingFieldKey, PricingSettings, TriCurrencyAmountKey, TriCurrencyDraft } from "../admin-types";
 import { buildSourceDraft, buildThresholdDraft, computePricingRates, rebuildTriCurrencyDraft, toSourceSyncPayload, type SourceEntry, type SourcePricingDraft } from "./admin-source-pricing-helpers";
@@ -12,8 +11,8 @@ type UseAdminSourcePricingParams = {
     supplier_id: number;
     promo_factor: number;
     promo_only_no_discount: boolean;
-    buyout_surcharge_value: number;
-    buyout_surcharge_currency: CurrencyCode;
+    buyout_surcharge_value: number | null;
+    buyout_surcharge_currency: CurrencyCode | null;
   }) => Promise<{ ok: boolean; message: string }>;
   updatePricingSettings: (patch: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
   pushToast: (message: string) => void;
@@ -60,7 +59,7 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
       return;
     }
     setThresholdDraft(buildThresholdDraft(pricingSettings, pricingRates));
-  }, [pricingSettings?.customs_threshold_eur, pricingSettings?.customs_threshold_currency, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
+  }, [pricingSettings?.customs_threshold_eur, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!pricingSettings || !thresholdDraft) {
@@ -75,14 +74,12 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
     const thresholdRub = toRubByRates(activeValue, activeCurrency, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
     const nextThresholdEur = fromRubByRates(thresholdRub, "EUR", pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
     const currentThresholdEur = Number(pricingSettings.customs_threshold_eur);
-    const currentCurrency = normalizeCurrencyCode(pricingSettings.customs_threshold_currency, "EUR");
-    if (Math.abs(nextThresholdEur - currentThresholdEur) <= 0.0001 && activeCurrency === currentCurrency) {
+    if (Math.abs(nextThresholdEur - currentThresholdEur) <= 0.0001) {
       return;
     }
     const timer = window.setTimeout(async () => {
       const result = await updatePricingSettings({
         customs_threshold_eur: Number(nextThresholdEur.toFixed(6)),
-        customs_threshold_currency: activeCurrency,
       });
       if (!result.ok) {
         pushToast(result.message);

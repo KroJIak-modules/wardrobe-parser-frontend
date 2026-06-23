@@ -24,10 +24,10 @@ const pricingNumericKeys: PricingFieldKey[] = [
   "customs_fixed_rub",
   "payment_fee_rate",
   "tax_rate",
-  "bybit_extra_rub",
-  "eur_to_usd_rate",
-  "gbp_to_usd_rate",
-  "jpy_to_usd_rate",
+  "eur_to_rub_rate",
+  "usd_to_rub_rate",
+  "usdt_to_rub_rate",
+  "usdt_extra_rub",
 ];
 
 const finalRoundingOptions: Array<{ value: FinalRoundingMode; label: string }> = [
@@ -62,8 +62,6 @@ const legendKeyToLatex: Record<string, string> = {
   SSR: "SSR",
   SUP: "SUP",
   RNG: "RNG",
-  INS: "INS",
-  SVC: "SVC",
   SUB: "SUB",
   SUBM: "SUBM",
   TXR: "TXR",
@@ -95,8 +93,6 @@ const legendKeyToLatex: Record<string, string> = {
   "SSR[SUPPLIER][STEP]": "SSR[SUP,RNG]",
   SUPPLIER: "SUP",
   STEP: "RNG",
-  INSURANCE_RUB: "INS",
-  SERVICE_FEE_RUB: "SVC",
   TAX_RATE: "TXR",
   TAX_RUB: "TAX",
   FP_RUB: "FPR",
@@ -109,16 +105,16 @@ const pricingFieldMeta: Array<{ key: PricingFieldKey; symbolLatex: string; label
   { key: "customs_fixed_rub", symbolLatex: "CFX", label: "Фикс таможни (RUB)", hint: "Фиксированная добавка к таможне в рублях, если пошлина срабатывает.", step: "0.01" },
   { key: "payment_fee_rate", symbolLatex: "PFRP", label: "Комиссия платёжки", hint: "Комиссия платежной системы с суммы выкупа товара. Пример: 0.02 = 2%.", step: "0.001" },
   { key: "tax_rate", symbolLatex: "TXR", label: "Налог", hint: "Налог на полную итоговую сумму. Пример: 0.06 = 6%.", step: "0.001" },
-  { key: "bybit_extra_rub", symbolLatex: "BEX", label: "Надбавка к курсу", hint: "Надбавка к курсу Bybit в рублях.", step: "0.01" },
-  { key: "eur_to_usd_rate", symbolLatex: "E2U", label: "EUR -> USD", hint: "Коэффициент перевода цены товара из EUR в USD.", step: "0.0001" },
-  { key: "gbp_to_usd_rate", symbolLatex: "G2U", label: "GBP -> USD", hint: "Коэффициент перевода цены товара из GBP в USD.", step: "0.0001" },
-  { key: "jpy_to_usd_rate", symbolLatex: "J2U", label: "JPY -> USD", hint: "Коэффициент перевода цены товара из JPY в USD.", step: "0.000001" },
+  { key: "eur_to_rub_rate", symbolLatex: "E2R", label: "EUR -> RUB", hint: "Курс перевода EUR в RUB для расчетов.", step: "0.0001" },
+  { key: "usd_to_rub_rate", symbolLatex: "U2R", label: "USD -> RUB", hint: "Курс перевода USD в RUB для расчетов.", step: "0.0001" },
+  { key: "usdt_to_rub_rate", symbolLatex: "BBR", label: "USDT -> RUB", hint: "Базовый курс USDT/RUB, который приходит из Bybit.", step: "0.0001" },
+  { key: "usdt_extra_rub", symbolLatex: "BEX", label: "Надбавка к USDT", hint: "Ручная надбавка к курсу USDT/RUB в рублях.", step: "0.01" },
 ];
 
 const dedupReasonLabelMap: Record<string, string> = {
   title_match: "Название",
   title_similar: "Похожее название",
-  vendor_match: "Бренд",
+  same_designer: "Дизайнер",
   price_close: "Цена",
   handle_match: "Handle",
   handle_similar: "Похожий handle",
@@ -129,7 +125,6 @@ const dedupReasonLabelMap: Record<string, string> = {
 
 const dedupActionLabelMap: Record<string, string> = {
   merge: "Оставлен один",
-  combine: "Соединены",
   reject: "Не дубль",
 };
 

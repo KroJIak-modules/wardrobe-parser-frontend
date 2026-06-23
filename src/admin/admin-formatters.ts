@@ -1,7 +1,7 @@
 import { renderToString } from "katex";
 import { optimizeImageUrl } from "../shared/product-image";
 import { dedupActionLabelMap, dedupReasonLabelMap, legendKeyToLatex } from "./admin-constants";
-import type { CurrencyCode, FinalRoundingMode, SupplierCategory, SvcRuleDraft, SvcRulePayload, TriCurrencyAmountKey, TriCurrencyDraft } from "./admin-types";
+import type { CurrencyCode, FinalRoundingMode, SupplierCategory, TriCurrencyAmountKey, TriCurrencyDraft } from "./admin-types";
 
 const toFiniteNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -152,8 +152,11 @@ const fromRubByRates = (valueRub: number, currency: CurrencyCode, usdToRub: numb
 
 const normalizeSupplierCategory = (value: string | null | undefined, fallback: SupplierCategory = "main"): SupplierCategory => {
   const raw = (value || "").trim().toLowerCase();
-  if (raw === "main" || raw === "alt") {
+  if (raw === "main" || raw === "alternate") {
     return raw;
+  }
+  if (raw === "alt") {
+    return "alternate";
   }
   return fallback;
 };
@@ -167,7 +170,7 @@ const normalizeFinalRoundingMode = (value: string | null | undefined, fallback: 
 };
 
 const formatSupplierCategory = (value: string | null | undefined): string =>
-  normalizeSupplierCategory(value) === "alt" ? "Alt" : "Main";
+  normalizeSupplierCategory(value) === "alternate" ? "Alt" : "Main";
 
 const currencyToAmountKey = (currency: CurrencyCode): TriCurrencyAmountKey => {
   if (currency === "RUB") {
@@ -201,28 +204,6 @@ const parseNonNegativeNumber = (raw: string): number | null => {
     return null;
   }
   return parsed;
-};
-
-const parseSvcRuleDraft = (rule: SvcRuleDraft): SvcRulePayload | null => {
-  const minRub = Number((rule.min_rub || "").trim());
-  const maxRaw = (rule.max_rub || "").trim();
-  const maxRub = maxRaw ? Number(maxRaw) : null;
-  const value = Number((rule.value || "").trim());
-  if (!Number.isFinite(minRub) || !Number.isFinite(value)) {
-    return null;
-  }
-  if (maxRub !== null && !Number.isFinite(maxRub)) {
-    return null;
-  }
-  if (minRub < 0 || (maxRub !== null && maxRub <= minRub) || value < 0) {
-    return null;
-  }
-  return {
-    min_rub: Number(minRub.toFixed(6)),
-    max_rub: maxRub === null ? null : Number(maxRub.toFixed(6)),
-    mode: rule.mode === "percent" ? "percent" : "fixed_rub",
-    value: Number(value.toFixed(6)),
-  };
 };
 
 const buildTriCurrencyDraft = (
@@ -297,7 +278,6 @@ export {
   normalizeSupplierCategory,
   parseApiDate,
   parseNonNegativeNumber,
-  parseSvcRuleDraft,
   renderLatexBlock,
   renderLatexInline,
   renderLegendSymbol,

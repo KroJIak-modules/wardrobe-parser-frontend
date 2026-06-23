@@ -19,10 +19,15 @@ export type ManualEditImage = {
 export type ManualProductEditDraft = {
   title: string;
   description: string;
+  descriptionHtml: string;
   weightGrams: string;
-  brand: string;
+  gender: "male" | "female" | "unisex";
+  availabilityMode: "in_stock" | "by_order";
+  designerName: string;
   bindSync: boolean;
   favorite: boolean;
+  manualPriceRub: string;
+  manualCompareAtPriceRub: string;
   images: ManualEditImage[];
   variants: ManualEditVariant[];
 };
@@ -32,14 +37,14 @@ type Props = {
   saving: boolean;
   productTitle: string;
   draft: ManualProductEditDraft;
-  knownBrandOptions: string[];
-  favoriteCategoryOptions: Array<{ id: number; name: string }>;
-  favoriteCategoryIds: number[];
+  knownDesignerOptions: string[];
+  favoriteCategoryOptions: Array<{ slug: string; name: string }>;
+  favoriteCategorySlugs: string[];
   showBindSync: boolean;
   onClose: () => void;
   onSave: () => void;
   onDelete: () => void;
-  onSetFavoriteCategoryIds: (ids: number[]) => void;
+  onSetFavoriteCategorySlugs: (slugs: string[]) => void;
   onSetField: <K extends keyof ManualProductEditDraft>(key: K, value: ManualProductEditDraft[K]) => void;
   onAddImage: (file: File) => void;
   onRemoveImage: (imageId: string) => void;
@@ -58,14 +63,14 @@ export function AdminManualProductEditModal({
   saving,
   productTitle,
   draft,
-  knownBrandOptions,
+  knownDesignerOptions,
   favoriteCategoryOptions,
-  favoriteCategoryIds,
+  favoriteCategorySlugs,
   showBindSync,
   onClose,
   onSave,
   onDelete,
-  onSetFavoriteCategoryIds,
+  onSetFavoriteCategorySlugs,
   onSetField,
   onAddImage,
   onRemoveImage,
@@ -107,8 +112,23 @@ export function AdminManualProductEditModal({
                   <input value={draft.weightGrams} onChange={(event) => onSetField("weightGrams", event.target.value)} inputMode="numeric" disabled={saving} />
                 </label>
                 <label className="product-create__field">
-                  <span>Бренд</span>
-                  <input list="manual-edit-brand-options" value={draft.brand} onChange={(event) => onSetField("brand", event.target.value)} disabled={saving} />
+                  <span>Дизайнер</span>
+                  <input list="manual-edit-designer-options" value={draft.designerName} onChange={(event) => onSetField("designerName", event.target.value)} disabled={saving} />
+                </label>
+                <label className="product-create__field">
+                  <span>Gender</span>
+                  <select value={draft.gender} onChange={(event) => onSetField("gender", event.target.value as "male" | "female" | "unisex")} disabled={saving}>
+                    <option value="male">Мужской</option>
+                    <option value="female">Женский</option>
+                    <option value="unisex">Унисекс</option>
+                  </select>
+                </label>
+                <label className="product-create__field">
+                  <span>Режим продажи</span>
+                  <select value={draft.availabilityMode} onChange={(event) => onSetField("availabilityMode", event.target.value as "in_stock" | "by_order")} disabled={saving}>
+                    <option value="in_stock">В наличии</option>
+                    <option value="by_order">Под заказ</option>
+                  </select>
                 </label>
               </div>
 
@@ -125,9 +145,9 @@ export function AdminManualProductEditModal({
                   className={draft.favorite ? "icon-btn icon-btn--active" : "icon-btn"}
                   title="Избранные категории"
                   onClick={() => {
-                    const has = favoriteCategoryIds.length > 0;
+                    const has = favoriteCategorySlugs.length > 0;
                     onSetField("favorite", !has);
-                    if (has) onSetFavoriteCategoryIds([]);
+                    if (has) onSetFavoriteCategorySlugs([]);
                   }}
                   disabled={saving}
                 >
@@ -135,10 +155,10 @@ export function AdminManualProductEditModal({
                 </button>
               </div>
 
-              {knownBrandOptions.length > 0 ? (
-                <datalist id="manual-edit-brand-options">
-                  {knownBrandOptions.map((brand) => (
-                    <option key={`manual-edit-brand-${brand}`} value={brand} />
+              {knownDesignerOptions.length > 0 ? (
+                <datalist id="manual-edit-designer-options">
+                  {knownDesignerOptions.map((designer) => (
+                    <option key={`manual-edit-designer-${designer}`} value={designer} />
                   ))}
                 </datalist>
               ) : null}
@@ -146,16 +166,16 @@ export function AdminManualProductEditModal({
               {favoriteCategoryOptions.length > 0 ? (
                 <div className="star-picker">
                   {favoriteCategoryOptions.map((option) => (
-                    <label key={option.id} className="star-picker-option">
+                    <label key={option.slug} className="star-picker-option">
                       <input
                         type="checkbox"
-                        checked={favoriteCategoryIds.includes(option.id)}
+                        checked={favoriteCategorySlugs.includes(option.slug)}
                         disabled={saving}
                         onChange={() => {
-                          const next = favoriteCategoryIds.includes(option.id)
-                            ? favoriteCategoryIds.filter((item) => item !== option.id)
-                            : [...favoriteCategoryIds, option.id];
-                          onSetFavoriteCategoryIds(next);
+                          const next = favoriteCategorySlugs.includes(option.slug)
+                            ? favoriteCategorySlugs.filter((item) => item !== option.slug)
+                            : [...favoriteCategorySlugs, option.slug];
+                          onSetFavoriteCategorySlugs(next);
                           onSetField("favorite", next.length > 0);
                         }}
                       />
@@ -168,9 +188,23 @@ export function AdminManualProductEditModal({
 
             <div className="product-create__editor-right">
               <label className="product-create__field product-create__field--description">
-                <span>Описание товара</span>
+                <span>Описание товара (text)</span>
                 <textarea value={draft.description} onChange={(event) => onSetField("description", event.target.value)} disabled={saving} />
               </label>
+              <label className="product-create__field product-create__field--description">
+                <span>Описание товара (HTML)</span>
+                <textarea value={draft.descriptionHtml} onChange={(event) => onSetField("descriptionHtml", event.target.value)} disabled={saving} />
+              </label>
+              <div className="product-create__line3">
+                <label className="product-create__field">
+                  <span>Ручная цена, RUB</span>
+                  <input value={draft.manualPriceRub} onChange={(event) => onSetField("manualPriceRub", event.target.value)} inputMode="decimal" disabled={saving} />
+                </label>
+                <label className="product-create__field">
+                  <span>Старая цена, RUB</span>
+                  <input value={draft.manualCompareAtPriceRub} onChange={(event) => onSetField("manualCompareAtPriceRub", event.target.value)} inputMode="decimal" disabled={saving} />
+                </label>
+              </div>
             </div>
           </div>
         </section>

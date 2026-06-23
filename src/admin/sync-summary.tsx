@@ -1,19 +1,15 @@
+import { useEffect, useState } from "react";
+
 type SyncSummaryJob = {
   status: string;
   progress_percent?: number | null;
   processed_sources?: number | null;
   total_sources?: number | null;
-  current_source_name?: string | null;
-  current_source_parser_type?: string | null;
-  current_strategy_index?: number | null;
-  current_strategy_total?: number | null;
-  current_stage?: string | null;
-  current_source_processed_products?: number | null;
-  current_source_total_products?: number | null;
-  processed_products?: number | null;
-  expected_products?: number | null;
+  products_applied?: number | null;
+  products_seen?: number | null;
   failed_products?: number | null;
-  completed_at?: string | null;
+  error?: string | null;
+  finished_at?: string | null;
   started_at?: string | null;
   created_at?: string | null;
 } | null;
@@ -23,12 +19,11 @@ type SyncSummaryProps = {
   isSyncInProgress: boolean;
   formatDateTime: (value: string | null | undefined) => string;
   formatSyncStatusRu: (status: string | null | undefined) => string;
-  formatSyncStageRu: (stage: string | null | undefined) => string;
 };
 
 const clampPercent = (value: number | null | undefined): number => Math.max(0, Math.min(100, value || 0));
 
-export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, formatSyncStatusRu, formatSyncStageRu }: SyncSummaryProps) {
+export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, formatSyncStatusRu }: SyncSummaryProps) {
   const [, setNowTick] = useState<number>(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -41,17 +36,13 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
     return null;
   }
 
-  const strategyIndex = Math.max(1, Number(latestJob.current_strategy_index || 1));
-  const strategyTotal = Math.max(strategyIndex, Number(latestJob.current_strategy_total || 1));
-  const lastAtRaw = latestJob.completed_at || latestJob.started_at || latestJob.created_at;
-  const processedProducts = Number(latestJob.processed_products ?? 0);
-  const currentSourceProcessed = Number(latestJob.current_source_processed_products ?? 0);
-  const successCount = Math.max(processedProducts, currentSourceProcessed, 0);
+  const lastAtRaw = latestJob.finished_at || latestJob.started_at || latestJob.created_at;
+  const successCount = Number(latestJob.products_applied ?? 0);
+  const expectedCount = Number(latestJob.products_seen ?? 0);
   const failCount = Number(latestJob.failed_products ?? 0);
-  const failedStageText = String(latestJob.current_stage || "").trim();
   const failedStatusText =
-    String(latestJob.status || "").trim().toLowerCase() === "failed" && failedStageText.toLowerCase().startsWith("ошибки на источниках:")
-      ? failedStageText
+    String(latestJob.status || "").trim().toLowerCase() === "failed" && String(latestJob.error || "").trim()
+      ? String(latestJob.error || "").trim()
       : formatSyncStatusRu(latestJob.status);
 
   const formatElapsedRu = (iso: string | null | undefined): string => {
@@ -87,11 +78,8 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
             <div className="sync-progress__bar" style={{ width: `${clampPercent(latestJob.progress_percent)}%` }} />
           </div>
           <div className="sync-stats">
-            <span className="sync-pill">{`${latestJob.processed_sources || 0}/${latestJob.total_sources || 0} | ${latestJob.current_source_name || "—"}`}</span>
-            <span className="sync-pill">
-              Стратегия: {latestJob.current_source_parser_type || "—"} ({strategyIndex}/{strategyTotal})
-            </span>
-            <span className="sync-pill">Этап: {formatSyncStageRu(latestJob.current_stage)}</span>
+            <span className="sync-pill">{`${latestJob.processed_sources || 0}/${latestJob.total_sources || 0} источников`}</span>
+            <span className="sync-pill">Товаров: {successCount}/{expectedCount}</span>
             <span className="sync-pill">Успешно: {successCount}</span>
             <span className="sync-pill">Ошибки: {failCount}</span>
             <span className="sync-pill">{clampPercent(latestJob.progress_percent)}%</span>
@@ -112,4 +100,3 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
     </div>
   );
 }
-import { useEffect, useState } from "react";

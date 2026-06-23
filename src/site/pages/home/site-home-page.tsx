@@ -1,26 +1,49 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { landingHeroButtonLabel, siteMenuItems } from "../../app/site-static-content";
 import { SiteHeader } from "../../features/header/site-header";
+import { SiteHomeNotification } from "../../features/home-notification/site-home-notification";
+import { LandingGlassButtons } from "../../features/landing/landing-glass-buttons";
 import {
   SiteCarouselSection,
   SiteFooterSection,
   SiteProductsSection,
 } from "../../features/storefront/site-storefront-sections";
-import {
-  landingHeroButtonLabel,
-  landingHeroImageSrc,
-  siteActionItems,
-  siteMenuItems,
-  siteProducts,
-} from "../../mock/site-mock-data";
+import { useSiteActionItems } from "../../runtime/use-site-cart";
+import { useSiteHomeNotification } from "../../runtime/use-site-home-notification";
+import { useSiteProducts } from "../../runtime/use-site-products";
+import { useSiteShowcaseMedia } from "../../runtime/use-site-showcase-media";
 import "./site-home-page.css";
 
 type IntroPhase = "intro" | "transition" | "entered";
 
 const INTRO_TRANSITION_MS = 880;
 
-function SiteHomeSurface({ showHeader = true }: { showHeader?: boolean }) {
+function SiteHomeSurface({
+  showHeader = true,
+  headerMode = "fixed",
+  notificationsEnabled = true,
+  showcaseMedia,
+  showcaseError,
+}: {
+  showHeader?: boolean;
+  headerMode?: "fixed" | "preview";
+  notificationsEnabled?: boolean;
+  showcaseMedia: ReturnType<typeof useSiteShowcaseMedia>["media"];
+  showcaseError: string | null;
+}) {
+  const navigate = useNavigate();
+  const actionItems = useSiteActionItems();
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const [headerTheme, setHeaderTheme] = useState<"light" | "dark">("light");
+  const [searchValue, setSearchValue] = useState("");
+  const homeNotification = useSiteHomeNotification(notificationsEnabled);
+  const {
+    products,
+    loading: productsLoading,
+    error: productsError,
+  } = useSiteProducts("", { limit: 12 });
+  const [isMobileCarousel, setIsMobileCarousel] = useState(false);
 
   useEffect(() => {
     const carouselNode = carouselRef.current;
@@ -53,30 +76,92 @@ function SiteHomeSurface({ showHeader = true }: { showHeader?: boolean }) {
     };
   }, []);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+
+    const sync = () => setIsMobileCarousel(mediaQuery.matches);
+    sync();
+
+    mediaQuery.addEventListener("change", sync);
+    return () => mediaQuery.removeEventListener("change", sync);
+  }, []);
+
+  const carouselSlides = isMobileCarousel
+    ? showcaseMedia.carouselSlidesMobile ?? showcaseMedia.carouselSlidesDesktop
+    : showcaseMedia.carouselSlidesDesktop;
+
   return (
     <div className="site-home-surface">
-      {showHeader ? <SiteHeader theme={headerTheme} menuItems={siteMenuItems} actionItems={siteActionItems} /> : null}
+      {showHeader ? (
+        <SiteHeader
+          theme={headerTheme}
+          menuItems={siteMenuItems}
+          actionItems={actionItems}
+          mode={headerMode}
+          searchValue={searchValue}
+          onSearchValueChange={setSearchValue}
+          onSearchSubmit={(value) => {
+            const params = new URLSearchParams();
+            if (value !== "") {
+              params.set("q", value);
+            }
+
+            navigate({
+              pathname: "/catalog",
+              search: params.toString() ? `?${params.toString()}` : "",
+            });
+          }}
+        />
+      ) : null}
       <div className="site-home-surface__content">
         <div ref={carouselRef} className="site-home-surface__carousel">
-          <SiteCarouselSection />
+          <SiteCarouselSection
+            slides={carouselSlides}
+            emptyMessage={showcaseError || "Карусель витрины пока пуста"}
+          />
         </div>
         <div className="site-home-surface__products">
-          <SiteProductsSection title="Все товары" ctaLabel="Смотреть все" ctaTo="/catalog" products={siteProducts} />
+          <SiteProductsSection
+            title="Все товары"
+            ctaLabel="Смотреть все"
+            ctaTo="/catalog"
+            products={products}
+            loading={productsLoading}
+            errorMessage={productsError}
+          />
         </div>
         <div className="site-home-surface__footer">
           <SiteFooterSection />
         </div>
       </div>
+      {homeNotification.isOpen ? (
+        <SiteHomeNotification payload={homeNotification.payload} onDismiss={homeNotification.dismiss} />
+      ) : null}
     </div>
   );
 }
 
 export function SiteHomePage() {
-  const [phase, setPhase] = useState<IntroPhase>("intro");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const shouldOpenStorefront = searchParams.get("view") === "storefront";
+  const [phase, setPhase] = useState<IntroPhase>(shouldOpenStorefront ? "entered" : "intro");
+  const { media, error: showcaseError } = useSiteShowcaseMedia();
 
   useEffect(() => {
     document.title = "Anton Shell";
   }, []);
+
+  useLayoutEffect(() => {
+    if (!shouldOpenStorefront) {
+      return;
+    }
+
+    if (phase !== "entered") {
+      setPhase("entered");
+    }
+
+    window.scrollTo(0, 0);
+  }, [phase, shouldOpenStorefront]);
 
   useEffect(() => {
     if (phase === "entered") {
@@ -114,7 +199,7 @@ export function SiteHomePage() {
   );
 
   if (phase === "entered") {
-    return <SiteHomeSurface />;
+    return <SiteHomeSurface showcaseMedia={media} showcaseError={showcaseError} />;
   }
 
   return (
@@ -124,19 +209,32 @@ export function SiteHomePage() {
         style={transitionStyle}
       >
         <section className="site-landing__hero" aria-label="Титульная страница">
-          <img src={landingHeroImageSrc} alt="" className="site-landing__image" />
+          {media.heroImageSrc ? (
+            <img src={media.heroImageSrc} alt="" className="site-landing__image" />
+          ) : (
+            <div className="site-landing__image site-landing__image--placeholder" aria-hidden="true" />
+          )}
           <div className="site-landing__scrim" aria-hidden="true" />
-          <button
-            type="button"
-            className="site-landing__button"
-            onClick={() => setPhase("transition")}
-            aria-label={landingHeroButtonLabel}
-          >
-            <span>{landingHeroButtonLabel}</span>
-          </button>
+          <LandingGlassButtons
+            label={landingHeroButtonLabel}
+            onEnter={() => {
+              setSearchParams((current) => {
+                const next = new URLSearchParams(current);
+                next.delete("view");
+                return next;
+              });
+              setPhase("transition");
+            }}
+          />
         </section>
         <section className="site-landing__preview" aria-hidden="true">
-          <SiteHomeSurface showHeader={phase === "transition"} />
+          <SiteHomeSurface
+            showHeader
+            headerMode="preview"
+            notificationsEnabled={false}
+            showcaseMedia={media}
+            showcaseError={showcaseError}
+          />
         </section>
       </div>
     </main>

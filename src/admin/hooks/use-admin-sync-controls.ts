@@ -17,7 +17,7 @@ export function useAdminSyncControls(params: UseAdminSyncControlsParams) {
   const { latestJob, runSync, cancelSync, pushToast } = params;
 
   const isSyncInProgress = useMemo(
-    () => Boolean(latestJob && ["in_progress", "pending"].includes(latestJob.status)),
+    () => Boolean(latestJob && ["queued", "running"].includes(latestJob.status)),
     [latestJob]
   );
   const canRunSync = !isSyncInProgress;

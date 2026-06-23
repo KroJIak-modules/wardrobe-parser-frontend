@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { API_BASE } from "../admin-auth";
 import { errResult, okResult } from "../action-result";
 import { apiJson, apiNoContent } from "../api-client";
-import type { PricingExampleProduct, PricingSettings, SettingsTransferPayload, Source } from "../live-data-types";
+import type { DescriptionMode, PricingExampleProduct, PricingSettings, SettingsTransferPayload, Source } from "../live-data-types";
 import type { AdminUiSettings } from "../live-data-types";
 
 export function useLiveDataSourceSettingsActions(params: {
@@ -39,6 +39,20 @@ export function useLiveDataSourceSettingsActions(params: {
       const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/sync-enabled`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sync_enabled: syncEnabled }) });
       patchSource(sourceKey, updated);
       return okResult(syncEnabled ? "Источник участвует в синхронизации" : "Источник исключен из синхронизации");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [patchSource]);
+
+  const toggleSourceDedupEnabled = useCallback(async (sourceKey: string, dedupEnabled: boolean) => {
+    try {
+      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/dedup-enabled`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dedup_enabled: dedupEnabled }),
+      });
+      patchSource(sourceKey, updated);
+      return okResult(dedupEnabled ? "Источник участвует в дедубликации" : "Источник исключен из новой дедубликации");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
@@ -127,7 +141,7 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [patchSource]);
 
-  const updateSourceAttributeVisibility = useCallback(async (sourceKey: string, payload: { show_description?: boolean; show_images?: boolean }) => {
+  const updateSourceAttributeVisibility = useCallback(async (sourceKey: string, payload: { description_mode?: DescriptionMode; show_images?: boolean }) => {
     try {
       const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/attribute-visibility`, {
         method: "PATCH",
@@ -136,29 +150,6 @@ export function useLiveDataSourceSettingsActions(params: {
       });
       patchSource(sourceKey, updated);
       return okResult("Правила атрибутов обновлены");
-    } catch (e) {
-      return errResult(e instanceof Error ? e.message : "Unknown error");
-    }
-  }, [patchSource]);
-
-  const updateSourceCurrencyPriority = useCallback(
-    async (
-      sourceKey: string,
-      currencyPriority: string[],
-      options?: { currencyMethod?: "priority_list" | "locked_param_currency" | "locked_no_currency"; lockedCurrency?: string }
-    ) => {
-    try {
-      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/currency-priority`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currency_priority: currencyPriority,
-          currency_method: options?.currencyMethod,
-          locked_currency: options?.lockedCurrency,
-        }),
-      });
-      patchSource(sourceKey, updated);
-      return okResult("Приоритет валют обновлен");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
@@ -206,42 +197,74 @@ export function useLiveDataSourceSettingsActions(params: {
   const importSettings = useCallback(async (payload: SettingsTransferPayload) => {
     try {
       await apiNoContent(`${API_BASE}/settings/import`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      await Promise.all([refresh(), refreshPricingOnly(), refreshWeightOnly(), refreshCategoriesOnly({ includeCounts: true, silent: true }), refreshSourcesOnly()]);
+      await Promise.all([
+        refresh(),
+        refreshPricingOnly(),
+        refreshAdminUiOnly(),
+        refreshWeightOnly(),
+        refreshCategoriesOnly({ includeCounts: true, silent: true }),
+        refreshSourcesOnly(),
+      ]);
       return okResult("Настройки импортированы");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
-  }, [refresh, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]);
+  }, [refresh, refreshAdminUiOnly, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]);
 
   const resetSettings = useCallback(async () => {
     try {
       await apiJson<{ ok: boolean }>(`${API_BASE}/settings/reset`, { method: "POST" });
-      await Promise.all([refresh(), refreshPricingOnly(), refreshWeightOnly(), refreshCategoriesOnly({ includeCounts: true, silent: true }), refreshSourcesOnly()]);
+      await Promise.all([
+        refresh(),
+        refreshPricingOnly(),
+        refreshAdminUiOnly(),
+        refreshWeightOnly(),
+        refreshCategoriesOnly({ includeCounts: true, silent: true }),
+        refreshSourcesOnly(),
+      ]);
       return okResult("Настройки сброшены");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
-  }, [refresh, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]);
+  }, [refresh, refreshAdminUiOnly, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]);
 
   const updateShowcaseMediaSettings = useCallback(async (payload: {
-    showcase_hero_image_asset_id?: number | null;
-    showcase_carousel_image_asset_ids?: number[];
+    hero_image_asset_id?: number | null;
+    carousel_image_asset_ids?: number[];
   }) => {
     try {
-      if (payload.showcase_hero_image_asset_id === null) {
+      if (payload.hero_image_asset_id === null) {
         await apiNoContent(`${API_BASE}/showcase/hero`, { method: "DELETE" });
-      } else if (typeof payload.showcase_hero_image_asset_id === "number" && payload.showcase_hero_image_asset_id > 0) {
+      } else if (typeof payload.hero_image_asset_id === "number" && payload.hero_image_asset_id > 0) {
         await apiJson<{ ok: boolean; image_asset_id: number }>(`${API_BASE}/showcase/hero`, {
-          method: "PATCH",
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image_asset_id: payload.showcase_hero_image_asset_id }),
+          body: JSON.stringify({ image_asset_id: payload.hero_image_asset_id }),
         });
       }
-      if (Array.isArray(payload.showcase_carousel_image_asset_ids)) {
+      if (Array.isArray(payload.carousel_image_asset_ids)) {
+        const state = await apiJson<{ carousel_image_asset_ids?: number[] }>(`${API_BASE}/showcase/state`);
+        const currentIds = Array.isArray(state.carousel_image_asset_ids)
+          ? state.carousel_image_asset_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0)
+          : [];
+        const nextIds = payload.carousel_image_asset_ids
+          .map((item) => Number(item))
+          .filter((item, index, items) => Number.isFinite(item) && item > 0 && items.indexOf(item) === index);
+
+        for (const imageId of nextIds) {
+          if (!currentIds.includes(imageId)) {
+            await apiJson<{ ok: boolean }>(`${API_BASE}/showcase/carousel/${imageId}`, { method: "POST" });
+          }
+        }
+        for (const imageId of currentIds) {
+          if (!nextIds.includes(imageId)) {
+            await apiJson<{ ok: boolean }>(`${API_BASE}/showcase/carousel/${imageId}`, { method: "DELETE" });
+          }
+        }
         await apiJson<{ ok: boolean; items: number[] }>(`${API_BASE}/showcase/carousel/order`, {
-          method: "PATCH",
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: payload.showcase_carousel_image_asset_ids }),
+          body: JSON.stringify({ items: nextIds }),
         });
       }
       await refreshAdminUiOnly();
@@ -306,9 +329,9 @@ export function useLiveDataSourceSettingsActions(params: {
   return {
     toggleSourceEnabled,
     toggleSourceSyncEnabled,
+    toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
     updateSourceAttributeVisibility,
-    updateSourceCurrencyPriority,
     assignSourceSupplier,
     createWeightRule,
     updateWeightRule,

@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml, pricingExample, pricingExampleLoading, pricingExampleError }: Props) {
-  const pricingExampleHref = pricingExample ? `/product/${pricingExample.productId}?from=admin` : null;
+  const pricingExampleHref = pricingExample?.productId ? `/product/${pricingExample.productId}?from=admin` : null;
   const pricingExampleSourceHref = toExternalHttpUrl(pricingExample?.url);
 
   return (
@@ -29,24 +29,47 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
       {pricingExample ? (
         <div className="pricing-example-box">
           <p className="with-help">
-            <strong>Пример на товаре:</strong>
-            <HelpHint text="Это реальный товар из базы. Пример показывает, как числа подставляются в формулу." />
+            <strong>{pricingExample.isSample ? "Пример расчета:" : "Пример на товаре:"}</strong>
+            <HelpHint
+              text={
+                pricingExample.isSample
+                  ? "Если в каталоге пока нет товара с полным derived pricing, система показывает типовой пример по текущей формуле и активному тарифу."
+                  : "Это реальный товар из базы. Пример показывает, как числа подставляются в формулу."
+              }
+            />
           </p>
           <div className="pricing-example-head">
-            <Link className="pricing-example-thumb-link" to={pricingExampleHref || "#"}>
-              <ImageWithFallback
-                src={toCompressedThumbUrl(pricingExample.imageUrl, 240, 240, 55)}
-                alt={pricingExample.title}
-                className="pricing-example-thumb"
-                placeholderClassName="pricing-example-thumb-placeholder photo-placeholder"
-                placeholderText="Нет фото"
-                loadingText="Загружаем..."
-              />
-            </Link>
-            <div className="pricing-example-title-row">
-              <Link className="btn-link pricing-example-title-link" to={pricingExampleHref || "#"}>
-                {pricingExample.title}
+            {pricingExampleHref ? (
+              <Link className="pricing-example-thumb-link" to={pricingExampleHref}>
+                <ImageWithFallback
+                  src={toCompressedThumbUrl(pricingExample.imageUrl, 240, 240, 55)}
+                  alt={pricingExample.title}
+                  className="pricing-example-thumb"
+                  placeholderClassName="pricing-example-thumb-placeholder photo-placeholder"
+                  placeholderText="Нет фото"
+                  loadingText="Загружаем..."
+                />
               </Link>
+            ) : (
+              <div className="pricing-example-thumb-link">
+                <ImageWithFallback
+                  src={toCompressedThumbUrl(pricingExample.imageUrl, 240, 240, 55)}
+                  alt={pricingExample.title}
+                  className="pricing-example-thumb"
+                  placeholderClassName="pricing-example-thumb-placeholder photo-placeholder"
+                  placeholderText="Нет фото"
+                  loadingText="Загружаем..."
+                />
+              </div>
+            )}
+            <div className="pricing-example-title-row">
+              {pricingExampleHref ? (
+                <Link className="btn-link pricing-example-title-link" to={pricingExampleHref}>
+                  {pricingExample.title}
+                </Link>
+              ) : (
+                <span className="pricing-example-title-link">{pricingExample.title}</span>
+              )}
               {pricingExampleSourceHref ? (
                 <a className="btn-link pricing-example-source-link" href={pricingExampleSourceHref} target="_blank" rel="noreferrer">
                   {pricingExample.sourceName || "Источник"}

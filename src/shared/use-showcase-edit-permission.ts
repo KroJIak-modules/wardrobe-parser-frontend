@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import { API_BASE, authFetch } from "./admin-auth";
-
-type AuthMePayload = {
-  is_superuser?: boolean;
-  permissions?: string[];
-};
+import { getAdminMeCached } from "./admin-auth";
 
 let cachedShowcaseEditPermission: boolean | null = null;
 let permissionInFlight: Promise<boolean> | null = null;
@@ -18,12 +13,11 @@ async function resolveShowcaseEditPermission(): Promise<boolean> {
   }
   permissionInFlight = (async () => {
     try {
-      const res = await authFetch(`${API_BASE}/auth/me`);
-      if (!res.ok) {
+      const payload = await getAdminMeCached();
+      if (!payload) {
         cachedShowcaseEditPermission = false;
         return false;
       }
-      const payload = (await res.json()) as AuthMePayload;
       if (payload?.is_superuser) {
         cachedShowcaseEditPermission = true;
         return true;
@@ -46,18 +40,17 @@ export function useShowcaseEditPermission(): boolean {
   const [canEditShowcase, setCanEditShowcase] = useState<boolean>(cachedShowcaseEditPermission === true);
 
   useEffect(() => {
-    let cancelled = false;
+    let aborted = false;
     void (async () => {
       const allowed = await resolveShowcaseEditPermission();
-      if (!cancelled) {
+      if (!aborted) {
         setCanEditShowcase(allowed);
       }
     })();
     return () => {
-      cancelled = true;
+      aborted = true;
     };
   }, []);
 
   return canEditShowcase;
 }
-

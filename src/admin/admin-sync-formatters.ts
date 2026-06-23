@@ -20,10 +20,10 @@ export function formatDateTime(value: string | null | undefined): string {
 
 export function formatSyncStatusRu(status: string | null | undefined): string {
   const value = String(status || "").trim().toLowerCase();
-  if (value === "pending") {
+  if (value === "queued") {
     return "В очереди";
   }
-  if (value === "in_progress") {
+  if (value === "running") {
     return "Выполняется";
   }
   if (value === "completed" || value === "success") {
@@ -32,7 +32,7 @@ export function formatSyncStatusRu(status: string | null | undefined): string {
   if (value === "partial") {
     return "Частично";
   }
-  if (value === "cancelled") {
+  if (value === "canceled") {
     return "Отменено";
   }
   if (value === "failed") {

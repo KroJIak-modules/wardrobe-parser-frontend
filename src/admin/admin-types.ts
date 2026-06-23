@@ -16,15 +16,14 @@ export type PricingFieldKey =
   | "customs_fixed_rub"
   | "payment_fee_rate"
   | "tax_rate"
-  | "shipping_alt_threshold_eur"
-  | "bybit_extra_rub"
-  | "eur_to_usd_rate"
-  | "gbp_to_usd_rate"
-  | "jpy_to_usd_rate";
+  | "eur_to_rub_rate"
+  | "usd_to_rub_rate"
+  | "usdt_to_rub_rate"
+  | "usdt_extra_rub";
 
 export type FinalRoundingMode = "none" | "unit" | "ten" | "hundred" | "thousand";
 export type CurrencyCode = "RUB" | "USD" | "EUR" | "GBP" | "JPY";
-export type SupplierCategory = "main" | "alt";
+export type SupplierCategory = "main" | "alternate";
 
 export type TriCurrencyDraft = {
   currency: CurrencyCode;
@@ -34,39 +33,19 @@ export type TriCurrencyDraft = {
   gbp: string;
 };
 
-export type SvcRuleDraft = {
-  id: string;
-  min_rub: string;
-  max_rub: string;
-  mode: "fixed_rub" | "percent";
-  value: string;
-};
-
-export type SvcRulePayload = {
-  min_rub: number;
-  max_rub: number | null;
-  mode: "fixed_rub" | "percent";
-  value: number;
-};
-
-export type SvcRuleFieldError = {
-  min: boolean;
-  max: boolean;
-  value: boolean;
-};
-
 export type TriCurrencyAmountKey = "rub" | "usd" | "eur" | "gbp";
 
 export type PricingExampleView = {
-  productId: number;
+  productId: number | null;
   title: string;
-  url: string;
+  url: string | null;
   sourceName: string | null;
-  imageUrl: string;
+  imageUrl: string | null;
   finalPrice: number;
   sourcePrice: number;
   sourcePriceRub: number;
   sourceCurrency: CurrencyCode;
+  isSample: boolean;
   summarySpLatex: string;
   summaryFpLatex: string;
   summaryRubLatex: string;
@@ -86,16 +65,21 @@ export type BybitWorkerInfo = {
 
 export type AdminProductsTableItem = {
   id: number;
-  source_id: number;
+  source_id: number | null;
   source_name?: string | null;
   title: string;
-  vendor?: string | null;
-  vendor_original?: string | null;
-  vendor_mapped?: string | null;
-  vendor_display?: string | null;
+  gender?: "male" | "female" | "unisex" | null;
+  designer_name?: string | null;
+  source_designer_name?: string | null;
+  display_designer_name?: string | null;
   url: string;
-  product_type: string | null;
-  status: string;
+  source_category_name: string | null;
+  source_tags?: string[];
+  visibility_status?: string | null;
+  availability_mode?: string | null;
+  orderability_status?: string | null;
+  status_reason?: string | null;
+  lifecycle_status?: string | null;
   image_count: number;
   image_urls: string[];
   image_ids: number[];
@@ -103,13 +87,17 @@ export type AdminProductsTableItem = {
   source_currency?: string | null;
   final_price?: number | null;
   final_currency?: string | null;
+  pricing_reason?: string | null;
+  pricing_manual_required?: boolean | null;
   internal_category_name?: string | null;
+  internal_category_names?: string[];
 };
 
 export type AdminFilterFacetOption = {
   value: string;
   label: string;
   count: number;
+  disabled?: boolean;
 };
 
 export type AdminDesignerSourceRow = {
@@ -123,12 +111,11 @@ export type AdminFinalDesigner = {
   id: string;
   name: string;
   description: string;
+  logo_image_asset_id: number | null;
 };
 
 export type AdminUiSettings = {
   designers_min_products: number;
-  designers_exclude_store_vendors: boolean;
+  designers_exclude_store_names: boolean;
   auto_sync_period_minutes?: number;
-  showcase_hero_image_asset_id?: number | null;
-  showcase_carousel_image_asset_ids?: number[];
 };

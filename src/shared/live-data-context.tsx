@@ -7,10 +7,10 @@ import { useLiveDataBootstrap } from "./hooks/use-live-data-bootstrap";
 import { useLiveJobPolling } from "./hooks/use-live-job-polling";
 import { useLiveDataProductActions } from "./hooks/use-live-data-product-actions";
 import { useLiveDataSourceSettingsActions } from "./hooks/use-live-data-source-settings-actions";
+import { normalizeServiceProduct } from "./live-product-normalizer";
 
 import type {
   AdminCategoryNode,
-  CategoryManualProduct,
   CategoryView,
   DedupCandidate,
   DedupDecision,
@@ -28,7 +28,6 @@ import type {
 } from "./live-data-types";
 
 const PRODUCTS_PAGE_SIZE = 100;
-const isUnavailableStatus = (status: unknown): boolean => String(status || "").trim().toLowerCase() === "unavailable";
 
 const LiveDataContext = createContext<LiveDataContextValue | undefined>(undefined);
 
@@ -51,9 +50,13 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const {
     adminCategories,
     dedupCandidates,
+    dedupCandidatesTotal,
     loadingDedupCandidates,
+    dedupScanStatus,
     dedupDecisions,
+    dedupDecisionsTotal,
     loadingDedupDecisions,
+    dedupDecisionsLoaded,
     weightRules,
     weightMissingProducts,
     hasMoreWeightMissing,
@@ -65,6 +68,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     pricingSettings,
     adminUiSettings,
     refreshDedupOnly,
+    refreshDedupStatusOnly,
+    refreshDedupDecisionCountOnly,
     refreshDedupDecisionsOnly,
     refreshPricingOnly,
     refreshAdminUiOnly,
@@ -82,6 +87,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     loadingCategoriesTree,
     loadingCategoryCounts,
     setAdminCategories,
+    setDedupCandidates,
+    setDedupDecisions,
     setAdminUiSettings,
   } = useLiveDataAdminReference(onAdminReferenceError);
 
@@ -118,41 +125,55 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
 
   const refreshProductsOnly = useCallback(async () => {
-    const res = await authFetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`);
+    const res = await authFetch(`${API_BASE}/admin/products/table?limit=${PRODUCTS_PAGE_SIZE}&offset=0`);
     if (!res.ok) {
       throw new Error(`Products API error: ${res.status}`);
     }
     const payload = (await res.json()) as { items: ServiceProduct[]; total: number; limit: number; offset: number };
-    setProducts((payload.items || []).filter((item) => !isUnavailableStatus(item.status)));
+    const normalizedItems = (payload.items || []).map((item) => normalizeServiceProduct(item as never));
+    setProducts(normalizedItems);
     setProductsTotal(payload.total || 0);
-    setProductsHasMore((payload.items || []).length + (payload.offset || 0) < (payload.total || 0));
+    setProductsHasMore(normalizedItems.length + (payload.offset || 0) < (payload.total || 0));
   }, []);
 
-  const refreshAfterDedupMutation = useCallback(() => {
-    void Promise.all([refreshProductsOnly(), refreshCategoriesOnly(), refreshDedupOnly()]).catch((e) => {
+  const refreshAfterDedupMutation = useCallback(async (affectedProductIds?: number[]) => {
+    if (Array.isArray(affectedProductIds) && affectedProductIds.length > 0) {
+      const affectedIds = new Set(
+        affectedProductIds
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0)
+      );
+      if (affectedIds.size > 0) {
+        setDedupCandidates((previous) =>
+          previous.filter(
+            (candidate) => !affectedIds.has(Number(candidate.left?.id)) && !affectedIds.has(Number(candidate.right?.id))
+          )
+        );
+      }
+    }
+    try {
+      await Promise.all([refreshDedupOnly(), refreshDedupDecisionsOnly()]);
+      void refreshProductsOnly().catch((e) => {
+        setError(e instanceof Error ? e.message : "Unknown error");
+      });
+      void refreshCategoriesOnly({ includeCounts: true, silent: true }).catch((e) => {
+        setError(e instanceof Error ? e.message : "Unknown error");
+      });
+    } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
-    });
-  }, [refreshProductsOnly, refreshCategoriesOnly, refreshDedupOnly]);
+    }
+  }, [refreshCategoriesOnly, refreshDedupDecisionsOnly, refreshDedupOnly, refreshProductsOnly, setDedupCandidates]);
 
   const {
-    createCategory,
-    updateCategory,
-    deleteCategory,
-    addCategoryKeyword,
-    removeCategoryKeyword,
-    getCategoryManualProducts,
-    searchCategoryManualProducts,
-    addCategoryManualProduct,
-    removeCategoryManualProduct,
-    mergeDedupPair,
-    rejectDedupPair,
-    combineDedupPair,
+    runDedupScan,
+    mergeDedupProducts,
+    rejectDedupProducts,
     undoDedupDecision,
   } = useLiveDataCategoryDedupActions({
-    setAdminCategories,
-    refreshCategoriesOnly,
-    refreshProductsOnly,
     refreshAfterDedupMutation,
+    refreshDedupOnly,
+    refreshDedupStatusOnly,
+    setDedupDecisions,
   });
 
   const refresh = useCallback(async () => {
@@ -160,7 +181,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     setError(null);
     try {
       const [productsRes, sourcesRes, latestJobRes] = await Promise.all([
-        authFetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=0`),
+        authFetch(`${API_BASE}/admin/products/table?limit=${PRODUCTS_PAGE_SIZE}&offset=0`),
         authFetch(`${API_BASE}/sources`),
         authFetch(`${API_BASE}/jobs/latest`),
       ]);
@@ -172,11 +193,12 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         throw new Error(`Jobs API error: ${latestJobRes.status}`);
       }
       const productsPayload = (await productsRes.json()) as { items: ServiceProduct[]; total: number; limit: number; offset: number };
+      const normalizedItems = (productsPayload.items || []).map((item) => normalizeServiceProduct(item as never));
       const latestPayload = (await latestJobRes.json()) as JobsLatest;
 
-      setProducts((productsPayload.items || []).filter((item) => !isUnavailableStatus(item.status)));
+      setProducts(normalizedItems);
       setProductsTotal(productsPayload.total || 0);
-      setProductsHasMore((productsPayload.items || []).length + (productsPayload.offset || 0) < (productsPayload.total || 0));
+      setProductsHasMore(normalizedItems.length + (productsPayload.offset || 0) < (productsPayload.total || 0));
       if (sourcesRes.ok) {
         const sourcesPayload = (await sourcesRes.json()) as Source[];
         setSources(sourcesPayload || []);
@@ -197,6 +219,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     updateManualProduct,
     uploadProductImage,
     uploadProductImageByUrl,
+    bulkUpdateProducts,
     updateProductOverrides,
     setProductStatus,
     getProductStarredCategories,
@@ -211,9 +234,9 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const {
     toggleSourceEnabled,
     toggleSourceSyncEnabled,
+    toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
     updateSourceAttributeVisibility,
-    updateSourceCurrencyPriority,
     assignSourceSupplier,
     createWeightRule,
     updateWeightRule,
@@ -252,17 +275,17 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     try {
       setLoadingMoreProducts(true);
       const offset = products.length;
-      const res = await authFetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
+      const res = await authFetch(`${API_BASE}/admin/products/table?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
       if (!res.ok) {
         throw new Error(`Products API error: ${res.status}`);
       }
       const payload = (await res.json()) as { items: ServiceProduct[]; total: number; offset: number };
-      const nextItems = payload.items || [];
+      const nextItems = (payload.items || []).map((item) => normalizeServiceProduct(item as never));
       const known = new Set(products.map((item) => item.id));
-      const toAdd = nextItems.filter((item) => !known.has(item.id) && !isUnavailableStatus(item.status));
+      const toAdd = nextItems.filter((item) => !known.has(item.id));
       setProducts((prev) => {
         const known = new Set(prev.map((item) => item.id));
-        const toAdd = nextItems.filter((item) => !known.has(item.id) && !isUnavailableStatus(item.status));
+        const toAdd = nextItems.filter((item) => !known.has(item.id));
         return [...prev, ...toAdd];
       });
       setProductsTotal(payload.total || 0);
@@ -283,20 +306,14 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     try {
       const existing = productsRef.current.find((item) => item.id === id);
       if (existing && !opts?.forceFetch) {
-        if (isUnavailableStatus(existing.status)) {
-          return null;
-        }
         return existing;
       }
 
-      const res = await authFetch(`${API_BASE}/products/${id}`);
+      const res = await authFetch(`${API_BASE}/admin/products/${id}`);
       if (!res.ok) {
         return null;
       }
-      const payload = (await res.json()) as ServiceProduct;
-      if (isUnavailableStatus(payload.status)) {
-        return null;
-      }
+      const payload = normalizeServiceProduct((await res.json()) as never);
       setProducts((prev) => {
         const idx = prev.findIndex((item) => item.id === payload.id);
         if (idx >= 0) {
@@ -318,7 +335,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       const latestRes = await authFetch(`${API_BASE}/jobs/latest`);
       if (latestRes.ok) {
         const latestPayload = (await latestRes.json()) as JobsLatest;
-        if (latestPayload && ["pending", "in_progress"].includes(String(latestPayload.status || ""))) {
+        if (latestPayload && ["queued", "running"].includes(String(latestPayload.status || ""))) {
           setLatestJob(latestPayload);
           return { ok: false, message: "Синхронизация уже запущена другим админом" };
         }
@@ -355,7 +372,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       const latestRes = await authFetch(`${API_BASE}/jobs/latest`);
       if (latestRes.ok) {
         const latestPayload = (await latestRes.json()) as JobsLatest;
-        if (latestPayload && ["pending", "in_progress"].includes(String(latestPayload.status || ""))) {
+        if (latestPayload && ["queued", "running"].includes(String(latestPayload.status || ""))) {
           setLatestJob(latestPayload);
           return { ok: false, message: "Синхронизация уже запущена другим админом" };
         }
@@ -439,12 +456,12 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
 
       while (guard < 1000) {
         guard += 1;
-        const res = await authFetch(`${API_BASE}/products?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
+        const res = await authFetch(`${API_BASE}/admin/products/table?limit=${PRODUCTS_PAGE_SIZE}&offset=${offset}`);
         if (!res.ok) {
           throw new Error(`Products API error: ${res.status}`);
         }
         const payload = (await res.json()) as { items: ServiceProduct[]; total: number };
-        const items = payload.items || [];
+        const items = (payload.items || []).map((item) => normalizeServiceProduct(item as never));
         total = Number(payload.total || 0);
 
         for (const item of items) {
@@ -509,9 +526,13 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       categories,
       adminCategories,
       dedupCandidates,
+      dedupCandidatesTotal,
       loadingDedupCandidates,
+      dedupScanStatus,
       dedupDecisions,
+      dedupDecisionsTotal,
       loadingDedupDecisions,
+      dedupDecisionsLoaded,
       weightRules,
       weightMissingProducts,
       hasMoreWeightMissing,
@@ -537,6 +558,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       loadMoreDedupCandidates,
       loadMoreDedupDecisions,
       ensureDedupLoaded,
+      refreshDedupStatusOnly,
+      refreshDedupDecisionCountOnly,
       ensureDedupDecisionsLoaded,
       ensureCategoriesLoaded,
       refreshSourcesOnly,
@@ -554,19 +577,11 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       uploadProductImageByUrl,
       uploadShowcaseHeroImage,
       uploadShowcaseCarouselImage,
-      createCategory,
-      updateCategory,
-      deleteCategory,
-      addCategoryKeyword,
-      removeCategoryKeyword,
-      getCategoryManualProducts,
-      searchCategoryManualProducts,
-      addCategoryManualProduct,
-      removeCategoryManualProduct,
-      mergeDedupPair,
-      rejectDedupPair,
-      combineDedupPair,
+      runDedupScan,
+      mergeDedupProducts,
+      rejectDedupProducts,
       undoDedupDecision,
+      bulkUpdateProducts,
       setProductStatus,
       updateProductOverrides,
       getProductStarredCategories,
@@ -575,9 +590,9 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensureAllProductsLoaded,
       toggleSourceEnabled,
       toggleSourceSyncEnabled,
+      toggleSourceDedupEnabled,
       toggleSourceAutoHideProducts,
       updateSourceAttributeVisibility,
-      updateSourceCurrencyPriority,
       assignSourceSupplier,
       createWeightRule,
       updateWeightRule,
@@ -602,9 +617,13 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       categories,
       adminCategories,
       dedupCandidates,
+      dedupCandidatesTotal,
       loadingDedupCandidates,
+      dedupScanStatus,
       dedupDecisions,
+      dedupDecisionsTotal,
       loadingDedupDecisions,
+      dedupDecisionsLoaded,
       weightRules,
       weightMissingProducts,
       hasMoreWeightMissing,
@@ -630,6 +649,8 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       loadMoreDedupCandidates,
       loadMoreDedupDecisions,
       ensureDedupLoaded,
+      refreshDedupStatusOnly,
+      refreshDedupDecisionCountOnly,
       ensureDedupDecisionsLoaded,
       ensureCategoriesLoaded,
       refreshSourcesOnly,
@@ -647,19 +668,11 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       uploadProductImageByUrl,
       uploadShowcaseHeroImage,
       uploadShowcaseCarouselImage,
-      createCategory,
-      updateCategory,
-      deleteCategory,
-      addCategoryKeyword,
-      removeCategoryKeyword,
-      getCategoryManualProducts,
-      searchCategoryManualProducts,
-      addCategoryManualProduct,
-      removeCategoryManualProduct,
-      mergeDedupPair,
-      rejectDedupPair,
-      combineDedupPair,
+      runDedupScan,
+      mergeDedupProducts,
+      rejectDedupProducts,
       undoDedupDecision,
+      bulkUpdateProducts,
       setProductStatus,
       updateProductOverrides,
       getProductStarredCategories,
@@ -667,9 +680,9 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensureAllProductsLoaded,
       toggleSourceEnabled,
       toggleSourceSyncEnabled,
+      toggleSourceDedupEnabled,
       toggleSourceAutoHideProducts,
       updateSourceAttributeVisibility,
-      updateSourceCurrencyPriority,
       assignSourceSupplier,
       createWeightRule,
       updateWeightRule,

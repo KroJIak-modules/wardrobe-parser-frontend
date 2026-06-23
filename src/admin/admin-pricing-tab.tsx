@@ -5,14 +5,14 @@ import { AdminPricingCoreFieldsSection } from "./admin-pricing-core-fields-secti
 import { AdminPricingFormulaSection } from "./admin-pricing-formula-section";
 import { AdminPricingTariffsSection } from "./admin-pricing-tariffs-section";
 import { AdminPricingThresholdSection } from "./admin-pricing-threshold-section";
-import { AdminPricingSvcSection } from "./admin-pricing-svc-section";
 import { AdminPricingWorkerSection } from "./admin-pricing-worker-section";
 import { AdminPricingSourcesSection } from "./admin-pricing-sources-section";
-import type { BybitWorkerInfo, FinalRoundingMode, PricingExampleView, PricingFieldKey, SvcRuleDraft, SvcRuleFieldError, TriCurrencyAmountKey, TriCurrencyDraft } from "./admin-types";
+import type { BybitWorkerInfo, FinalRoundingMode, PricingExampleView, PricingFieldKey, TriCurrencyAmountKey, TriCurrencyDraft } from "./admin-types";
 
 type SourceItem = {
   key: string;
   name: string;
+  mode?: "auto" | "manual" | "personal";
   supplier_id: number | null;
   promo_factor: number;
   promo_only_no_discount: boolean;
@@ -45,10 +45,6 @@ type Props = {
   setFinalRoundingModeDraft: Dispatch<SetStateAction<FinalRoundingMode>>;
   thresholdDraft: TriCurrencyDraft | null;
   setThresholdField: (field: TriCurrencyAmountKey, raw: string) => void;
-  svcRuleDrafts: SvcRuleDraft[];
-  setSvcRuleDrafts: Dispatch<SetStateAction<SvcRuleDraft[]>>;
-  svcRuleFieldErrors: Record<string, SvcRuleFieldError>;
-  onAddSvcRule: () => void;
   mainPricingSuppliers: PricingSupplier[];
   altSuppliersByMainId: Map<number, PricingSupplier[]>;
   tariffRangesDrafts: Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>>;
@@ -89,10 +85,6 @@ export function AdminPricingTab({
   setFinalRoundingModeDraft,
   thresholdDraft,
   setThresholdField,
-  svcRuleDrafts,
-  setSvcRuleDrafts,
-  svcRuleFieldErrors,
-  onAddSvcRule,
   mainPricingSuppliers,
   altSuppliersByMainId,
   tariffRangesDrafts,
@@ -147,17 +139,7 @@ export function AdminPricingTab({
 
           <AdminPricingThresholdSection thresholdDraft={thresholdDraft} setThresholdField={setThresholdField} />
 
-          <AdminPricingSvcSection
-            svcRuleDrafts={svcRuleDrafts}
-            setSvcRuleDrafts={setSvcRuleDrafts}
-            svcRuleFieldErrors={svcRuleFieldErrors}
-            onAddSvcRule={onAddSvcRule}
-          />
-
           <AdminPricingTariffsSection
-            pricingSettings={pricingSettings}
-            pricingDrafts={pricingDrafts}
-            setPricingDrafts={setPricingDrafts}
             mainPricingSuppliers={mainPricingSuppliers}
             altSuppliersByMainId={altSuppliersByMainId}
             tariffRangesDrafts={tariffRangesDrafts}
@@ -174,7 +156,7 @@ export function AdminPricingTab({
           />
 
           <AdminPricingSourcesSection
-            sources={sources}
+            sources={sources.filter((source) => String(source.mode || "auto") !== "personal")}
             sourcePricingDrafts={sourcePricingDrafts}
             setSourcePricingDrafts={setSourcePricingDrafts}
             pricingSuppliers={sourcePricingSuppliers}

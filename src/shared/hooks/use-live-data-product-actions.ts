@@ -3,9 +3,47 @@ import type { Dispatch, SetStateAction } from "react";
 import { API_BASE } from "../admin-auth";
 import { errResult, okResult } from "../action-result";
 import { apiJson } from "../api-client";
-import type { ProductStarredCategoryOption, ProductUrlPreview, ServiceProduct } from "../live-data-types";
+import { normalizeServiceProduct } from "../live-product-normalizer";
+import type { ProductStarredCategoryOption, ProductUrlPreview, ProductWriteState, ServiceProduct } from "../live-data-types";
 
 type SetProducts = Dispatch<SetStateAction<ServiceProduct[]>>;
+
+type TaxonomyState = {
+  filters?: Array<{
+    slug?: string | null;
+    title?: string | null;
+    children?: TaxonomyState["filters"];
+  }>;
+};
+
+function flattenFilterOptions(nodes: TaxonomyState["filters"], items: Array<{ slug: string; name: string }> = []) {
+  for (const node of nodes || []) {
+    const slug = String(node?.slug || "").trim();
+    const title = String(node?.title || "").trim();
+    if (slug && title) {
+      items.push({ slug, name: title });
+    }
+    flattenFilterOptions(node?.children, items);
+  }
+  return items;
+}
+
+function normalizeManualImageOrder(order: string[] | undefined): string[] | undefined {
+  if (!Array.isArray(order)) {
+    return undefined;
+  }
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const rawItem of order) {
+    const item = String(rawItem || "").trim();
+    if (!item || seen.has(item)) {
+      continue;
+    }
+    seen.add(item);
+    normalized.push(item);
+  }
+  return normalized;
+}
 
 export function useLiveDataProductActions(params: {
   setProducts: SetProducts;
@@ -37,7 +75,7 @@ export function useLiveDataProductActions(params: {
   }, []);
 
   const addProductByUrl = useCallback(async (url: string, payload?: {
-    title?: string; vendor?: string | null; product_type?: string | null; price?: number | null; currency?: string; image_count?: number;
+    title?: string; designer_name?: string | null; source_category_name?: string | null; price?: number | null; currency?: string; image_count?: number;
   }) => {
     try {
       await apiJson(`${API_BASE}/products/add-by-url`, {
@@ -55,21 +93,41 @@ export function useLiveDataProductActions(params: {
   const createManualProduct = useCallback(async (payload: {
     title: string;
     description?: string | null;
-    vendor?: string | null;
-    product_type: string | null;
+    description_html?: string | null;
+    designer_name?: string | null;
+    source_category_name: string | null;
+    gender?: "male" | "female" | "unisex" | null;
     variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
-    weight_grams?: number | null;
-    status?: "available" | "out_of_stock" | "hidden";
+    manual_weight_grams?: number | null;
+    price_override?: {
+      manual_price_rub?: number | null;
+      manual_compare_at_price_rub?: number | null;
+    } | null;
+    state?: ProductWriteState;
+    filter_slugs?: string[];
     bind_sync?: boolean;
-    bind_source_id?: number | null;
-    bind_source_product_url?: string | null;
+    bind_url?: string | null;
   }) => {
     try {
       const out = await apiJson<{ id?: number }>(`${API_BASE}/products/manual`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          title: payload.title,
+          description_text: payload.description ?? null,
+          ...(payload.description_html !== undefined ? { description_html: payload.description_html } : {}),
+          designer_name: payload.designer_name ?? null,
+          source_category_name: payload.source_category_name ?? null,
+          ...(payload.gender !== undefined ? { gender: payload.gender } : {}),
+          variants: payload.variants,
+          manual_image_asset_ids: payload.manual_image_asset_ids,
+          manual_weight_grams: payload.manual_weight_grams ?? null,
+          ...(payload.price_override !== undefined ? { price_override: payload.price_override } : {}),
+          filter_slugs: payload.filter_slugs ?? [],
+          bind_source_url: payload.bind_url ?? null,
+          ...(payload.state || {}),
+        }),
       });
       await Promise.all([refreshProductsOnly(), refreshSourcesOnly()]);
       return { ...okResult("Ручной товар сохранен"), id: Number(out?.id || 0) || null };
@@ -81,22 +139,56 @@ export function useLiveDataProductActions(params: {
   const updateManualProduct = useCallback(async (productId: number, payload: {
     title: string;
     description?: string | null;
-    vendor?: string | null;
-    product_type: string | null;
+    description_html?: string | null;
+    designer_name?: string | null;
+    source_category_name: string | null;
+    gender?: "male" | "female" | "unisex" | null;
     variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
-    weight_grams?: number | null;
-    status?: "available" | "out_of_stock" | "hidden";
+    manual_weight_grams?: number | null;
+    price_override?: {
+      manual_price_rub?: number | null;
+      manual_compare_at_price_rub?: number | null;
+    } | null;
+    state?: ProductWriteState;
+    filter_slugs?: string[];
     bind_sync?: boolean;
-    bind_source_id?: number | null;
-    bind_source_product_url?: string | null;
+    bind_url?: string | null;
   }) => {
     try {
       const out = await apiJson<{ id?: number }>(`${API_BASE}/products/manual/${productId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          title: payload.title,
+          description_text: payload.description ?? null,
+          ...(payload.description_html !== undefined ? { description_html: payload.description_html } : {}),
+          designer_name: payload.designer_name ?? null,
+          source_category_name: payload.source_category_name ?? null,
+          ...(payload.gender !== undefined ? { gender: payload.gender } : {}),
+          variants: payload.variants,
+          manual_image_asset_ids: payload.manual_image_asset_ids,
+          manual_weight_grams: payload.manual_weight_grams ?? null,
+          ...(payload.price_override !== undefined ? { price_override: payload.price_override } : {}),
+          filter_slugs: payload.filter_slugs ?? [],
+          ...(payload.state || {}),
+        }),
       });
+      if (payload.bind_sync && payload.bind_url) {
+        await apiJson(`${API_BASE}/products/${productId}/bind-source-by-url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: payload.bind_url, set_as_primary: false }),
+        });
+      } else if (payload.bind_sync === false) {
+        const product = await apiJson<{ listings?: Array<{ id: number; ingest_mode?: string | null }> }>(`${API_BASE}/admin/products/${productId}`);
+        for (const listing of product.listings || []) {
+          if (String(listing.ingest_mode || "").trim().toLowerCase() !== "sync") {
+            continue;
+          }
+          await apiJson(`${API_BASE}/products/${productId}/listings/${Number(listing.id)}`, { method: "DELETE" });
+        }
+      }
       await Promise.all([refreshProductsOnly(), refreshSourcesOnly()]);
       return { ...okResult("Ручной товар обновлен"), id: Number(out?.id || 0) || null };
     } catch (e) {
@@ -106,10 +198,10 @@ export function useLiveDataProductActions(params: {
 
   const getStarredCategoryOptions = useCallback(async () => {
     try {
-      const payload = await apiJson<{ items?: Array<{ id: number; name: string; slug: string }> }>(`${API_BASE}/products/starred-categories/options`);
-      return { ok: true, items: Array.isArray(payload.items) ? payload.items : [] };
+      const payload = await apiJson<TaxonomyState>(`${API_BASE}/taxonomy/state`);
+      return { ok: true, items: flattenFilterOptions(payload.filters) };
     } catch {
-      return { ok: false, items: [] as Array<{ id: number; name: string; slug: string }> };
+      return { ok: false, items: [] as Array<{ slug: string; name: string }> };
     }
   }, []);
 
@@ -145,37 +237,102 @@ export function useLiveDataProductActions(params: {
     }
   }, []);
 
+  const bulkUpdateProducts = useCallback(async (payload: {
+    product_ids: number[];
+    gender?: "male" | "female" | "unisex" | null;
+  }) => {
+    try {
+      const response = await apiJson<{ updated_product_ids?: number[] }>(`${API_BASE}/admin/products/bulk`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      await refreshProductsOnly();
+      return {
+        ok: true,
+        message: "Товары обновлены",
+        updatedProductIds: Array.isArray(response?.updated_product_ids)
+          ? response.updated_product_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0)
+          : [],
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        message: e instanceof Error ? e.message : "Unknown error",
+        updatedProductIds: [],
+      };
+    }
+  }, [refreshProductsOnly]);
+
   const updateProductOverrides = useCallback(async (productId: number, payload: {
-    title?: string; description?: string; description_visible?: boolean | null; images?: { hidden_source_image_urls?: string[]; manual_image_urls?: string[]; manual_image_order?: string[] };
-    reset_to_default?: Array<"title" | "description" | "images" | "description_visibility">;
+    title?: string;
+    description?: string;
+    description_text?: string;
+    description_html?: string;
+    description_visible?: boolean | null;
+    gender?: "male" | "female" | "unisex" | null;
+    availability_mode?: "in_stock" | "by_order" | null;
+    manual_weight_grams?: number | null;
+    price_override?: {
+      manual_price_rub?: number | null;
+      manual_compare_at_price_rub?: number | null;
+    } | null;
+    gallery_listing_id?: number | null;
+    images?: { hidden_source_image_urls?: string[]; manual_image_urls?: string[]; manual_image_order?: string[] };
+    reset_to_default?: Array<"title" | "description" | "images" | "description_visibility" | "manual_weight_grams" | "price_override">;
   }) => {
     try {
       const nextProduct = await apiJson<ServiceProduct>(`${API_BASE}/products/${productId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          title_override: payload.title,
+          description_text: payload.description_text ?? payload.description,
+          description_html: payload.description_html,
+          description_visibility: payload.description_visible,
+          ...(payload.gender !== undefined ? { gender: payload.gender } : {}),
+          ...(payload.availability_mode !== undefined ? { availability_mode: payload.availability_mode } : {}),
+          ...(payload.manual_weight_grams !== undefined ? { manual_weight_grams: payload.manual_weight_grams } : {}),
+          ...(payload.price_override !== undefined ? { price_override: payload.price_override } : {}),
+          ...(payload.gallery_listing_id !== undefined ? { gallery_listing_id: payload.gallery_listing_id } : {}),
+          images: payload.images
+            ? {
+                ...payload.images,
+                ...(payload.images.manual_image_order
+                  ? { manual_image_order: normalizeManualImageOrder(payload.images.manual_image_order) }
+                  : {}),
+              }
+            : payload.images,
+          reset_to_default: (payload.reset_to_default || []).flatMap((item) => {
+            if (item === "title") return ["title_override"];
+            if (item === "description") return ["description_text", "description_html"];
+            if (item === "description_visibility") return ["description_visibility"];
+            if (item === "manual_weight_grams") return ["manual_weight_grams"];
+            if (item === "price_override") return ["price_override"];
+            return [item];
+          }),
+        }),
       });
-      if (nextProduct?.id) {
-        setProducts((prev) => prev.map((item) => (item.id === nextProduct.id ? { ...item, ...nextProduct } : item)));
+      const normalizedProduct = nextProduct?.id ? normalizeServiceProduct(nextProduct as never) : null;
+      if (normalizedProduct?.id) {
+        setProducts((prev) => prev.map((item) => (item.id === normalizedProduct.id ? { ...item, ...normalizedProduct } : item)));
       }
-      return { ok: true, message: "Товар обновлен", product: nextProduct };
+      return { ok: true, message: "Товар обновлен", product: normalizedProduct };
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Unknown error", product: null };
     }
   }, [setProducts]);
 
-  const setProductStatus = useCallback(async (productId: number, status: "available" | "out_of_stock" | "hidden") => {
+  const setProductStatus = useCallback(async (productId: number, state: ProductWriteState) => {
     try {
       const payload = await apiJson<ServiceProduct>(`${API_BASE}/products/${productId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(state),
       });
-      if (payload?.id) {
-        const statusOnly = String((payload.pricing_components as { reason?: unknown } | null | undefined)?.reason || "") === "status-only-patch";
-        setProducts((prev) => prev.map((item) => (item.id === payload.id ? (statusOnly ? { ...item, status: payload.status } : { ...item, ...payload }) : item)));
-      } else {
-        setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, status } : item)));
+      const normalizedProduct = payload?.id ? normalizeServiceProduct(payload as never) : null;
+      if (normalizedProduct?.id) {
+        setProducts((prev) => prev.map((item) => (item.id === normalizedProduct.id ? { ...item, ...normalizedProduct } : item)));
       }
       return { ok: true, message: "Статус товара обновлен" };
     } catch (e) {
@@ -185,33 +342,39 @@ export function useLiveDataProductActions(params: {
 
   const getProductStarredCategories = useCallback(async (productId: number) => {
     try {
-      const payload = await apiJson<{ assigned_category_ids?: number[]; available_categories?: ProductStarredCategoryOption[] }>(`${API_BASE}/products/${productId}/starred-categories`);
+      const [productPayload, taxonomyPayload] = await Promise.all([
+        apiJson<ServiceProduct>(`${API_BASE}/admin/products/${productId}`),
+        apiJson<TaxonomyState>(`${API_BASE}/taxonomy/state`),
+      ]);
+      const available = flattenFilterOptions(taxonomyPayload.filters);
+      const assignedSlugs = Array.isArray((productPayload as ServiceProduct).filter_slugs) ? (productPayload as ServiceProduct).filter_slugs || [] : [];
       return {
         ok: true,
         message: "OK",
-        assignedCategoryIds: Array.isArray(payload.assigned_category_ids) ? payload.assigned_category_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item)) : [],
-        availableCategories: Array.isArray(payload.available_categories) ? payload.available_categories : [],
+        assignedFilterSlugs: assignedSlugs,
+        availableCategories: available as ProductStarredCategoryOption[],
       };
     } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCategoryIds: [], availableCategories: [] };
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedFilterSlugs: [], availableCategories: [] };
     }
   }, []);
 
-  const setProductStarredCategories = useCallback(async (productId: number, categoryIds: number[]) => {
+  const setProductStarredCategories = useCallback(async (productId: number, filterSlugs: string[]) => {
     try {
-      const normalizedCategoryIds = [...new Set(categoryIds.filter((item) => Number.isFinite(item)).map((item) => Number(item)))];
-      const payload = await apiJson<{ assigned_category_ids?: number[] }>(`${API_BASE}/products/${productId}/starred-categories`, {
-        method: "PUT",
+      const normalizedFilterSlugs = [...new Set(filterSlugs.map((item) => String(item || "").trim()).filter(Boolean))];
+      await apiJson(`${API_BASE}/products/${productId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category_ids: normalizedCategoryIds }),
+        body: JSON.stringify({ filter_slugs: normalizedFilterSlugs }),
       });
-      const assigned = Array.isArray(payload?.assigned_category_ids)
-        ? payload.assigned_category_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item))
-        : normalizedCategoryIds;
-      setProducts((prev) => prev.map((item) => (item.id === productId ? { ...item, starred_category_ids: assigned, is_favorite: assigned.length > 0 } : item)));
-      return { ok: true, message: "Избранные категории сохранены", assignedCategoryIds: assigned };
+      setProducts((prev) => prev.map((item) => (
+        item.id === productId
+          ? { ...item, filter_slugs: normalizedFilterSlugs, is_favorite: normalizedFilterSlugs.length > 0 }
+          : item
+      )));
+      return { ok: true, message: "Избранные категории сохранены", assignedFilterSlugs: normalizedFilterSlugs };
     } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCategoryIds: [] };
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedFilterSlugs: [] };
     }
   }, [setProducts]);
 
@@ -223,6 +386,7 @@ export function useLiveDataProductActions(params: {
     updateManualProduct,
     uploadProductImage,
     uploadProductImageByUrl,
+    bulkUpdateProducts,
     updateProductOverrides,
     setProductStatus,
     getProductStarredCategories,

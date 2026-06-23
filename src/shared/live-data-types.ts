@@ -1,37 +1,38 @@
+export type DescriptionMode = "hidden" | "text" | "html";
+export type SourceMode = "auto" | "manual" | "personal";
+export type ProductWriteState = {
+  visibility_status: "visible" | "hidden";
+  availability_mode?: "in_stock" | "by_order";
+  orderability_status?: "orderable" | "sold_out" | "unavailable";
+};
+
 export type Source = {
   key: string;
   source_id: number | null;
+  mode?: SourceMode;
   name: string;
   base_url: string;
-  parser_type: string;
   enabled: boolean;
   sync_enabled: boolean;
+  dedup_enabled: boolean;
   hide_auto_added_products?: boolean;
-  show_description?: boolean;
+  description_mode?: DescriptionMode;
   show_images?: boolean;
-  currency_priority?: string[];
-  currency_method?: "priority_list" | "locked_param_currency" | "locked_no_currency";
-  locked_currency?: string;
-  currency_priority_editable?: boolean;
-  notes: string | null;
-  status_label: string | null;
   products_count: number;
   manual_products_count?: number;
   bound_sync_products_count?: number;
-  categories_count: number;
   last_sync_at?: string | null;
   last_sync_duration_sec?: number | null;
   last_sync_status?: string | null;
-  is_password_protected?: boolean;
-  is_auto_ingest?: boolean;
-  is_personal?: boolean;
+  last_error_code?: string | null;
+  last_error_message?: string | null;
   supplier_id: number | null;
   supplier_key: string | null;
   supplier_name: string | null;
   promo_factor: number;
   promo_only_no_discount: boolean;
-  buyout_surcharge_value: number;
-  buyout_surcharge_currency: string;
+  buyout_surcharge_value: number | null;
+  buyout_surcharge_currency: string | null;
 };
 
 export type ProductVariant = {
@@ -41,34 +42,77 @@ export type ProductVariant = {
   option3: string | null;
   available: boolean;
   price: string | number | null;
+  compare_at_price?: number | string | null;
   inventory_quantity: number;
   sku: string | null;
+  source_id?: number | null;
+  source_name?: string | null;
+  listing_id?: number | null;
+  source_ref_id?: string | null;
 };
 
-export type ProductEditState = {
-  title_sync_locked: boolean;
-  description_sync_locked: boolean;
-  description_visible_override?: boolean | null;
-  description_visible_effective?: boolean;
-  images_sync_locked: boolean;
+export type ProductPresentationState = {
   title_override?: string | null;
-  description_override?: string | null;
+  description_text?: string | null;
+  description_html?: string | null;
+  description_visibility?: boolean | null;
+};
+
+export type ProductGalleryRow = {
+  position: number;
+  origin_kind: "source_image" | "uploaded_asset";
+  is_hidden: boolean;
+  url: string | null;
+  listing_image_id?: number | null;
+  image_asset_id?: number | null;
+};
+
+export type ProductGalleryState = {
+  display_image_urls: string[];
   hidden_source_image_urls: string[];
+  uploaded_image_urls: string[];
+  rows: ProductGalleryRow[];
+  source_image_urls: string[];
   manual_image_urls: string[];
   manual_image_order: string[];
-  source_image_urls: string[];
+};
+
+export type ProductPriceOverrideState = {
+  manual_price_rub: number;
+  manual_compare_at_price_rub?: number | null;
+};
+
+export type ProductListing = {
+  id: number;
+  source_id: number | null;
+  source_name: string | null;
+  ingest_mode: string;
+  url: string | null;
+  handle: string | null;
+  source_title: string;
+  source_description_text?: string | null;
+  source_description_html?: string | null;
+  source_weight_grams?: number | null;
+  source_designer_name?: string | null;
+  source_category_name?: string | null;
+  orderability_status: string;
+  status_reason?: string | null;
+  image_urls: string[];
+  gallery?: ProductGalleryState;
+  variants?: ProductVariant[];
 };
 
 export type ServiceProduct = {
   id: number;
-  source_id: number;
+  source_id: number | null;
+  primary_listing_id?: number | null;
   handle: string;
   title: string;
-  vendor: string | null;
-  vendor_original?: string | null;
-  vendor_mapped?: string | null;
-  vendor_display?: string | null;
-  product_type: string | null;
+  gender?: string | null;
+  designer_name: string | null;
+  source_designer_name?: string | null;
+  display_designer_name?: string | null;
+  source_category_name: string | null;
   url: string;
   price: number | null;
   currency: string;
@@ -80,12 +124,15 @@ export type ServiceProduct = {
   pricing_reason?: string | null;
   pricing_components?: Record<string, unknown>;
   buyout_price_rub?: number | null;
-  status: string;
+  visibility_status?: string | null;
+  availability_mode?: string | null;
+  orderability_status?: string | null;
+  lifecycle_status?: string | null;
   image_count: number;
+  image_ids?: number[];
   image_urls: string[];
   variants: ProductVariant[];
   is_favorite?: boolean;
-  starred_category_ids?: number[];
   internal_category_id?: number | null;
   internal_category_name?: string | null;
   internal_category_slug?: string | null;
@@ -93,9 +140,19 @@ export type ServiceProduct = {
   internal_category_names?: string[];
   internal_category_slugs?: string[];
   description?: string | null;
+  description_mode?: DescriptionMode;
+  description_public_visible?: boolean;
+  description_text?: string | null;
+  description_html?: string | null;
   source_name?: string | null;
   weight_grams?: number | null;
-  product_edit?: ProductEditState;
+  manual_weight_grams?: number | null;
+  filter_slugs?: string[];
+  internal_category_names?: string[];
+  gallery?: ProductGalleryState;
+  presentation?: ProductPresentationState;
+  price_override?: ProductPriceOverrideState | null;
+  listings?: ProductListing[];
   created_at: string;
   updated_at: string;
 };
@@ -105,29 +162,15 @@ export type JobsLatest = {
   status: string;
   created_at: string;
   started_at: string | null;
-  completed_at: string | null;
-  next_scheduled_at: string | null;
-  total_products: number | null;
-  new_products: number;
-  updated_products: number;
-  new_images: number;
+  finished_at: string | null;
   total_sources: number;
   processed_sources: number;
   progress_percent: number;
-  processed_products: number;
-  expected_products: number;
+  products_seen: number;
+  products_applied: number;
   failed_products: number;
-  products_progress_percent: number;
-  current_source_name: string | null;
-  current_source_parser_type: string | null;
-  current_source_index: number;
-  current_stage: string | null;
-  current_source_processed_products: number;
-  current_source_total_products: number;
-  current_product_title: string | null;
-  site_products_total: number;
   can_cancel: boolean;
-  sync_period_minutes: number;
+  error: string | null;
 } | null;
 
 export type SyncJobHistoryItem = {
@@ -136,27 +179,27 @@ export type SyncJobHistoryItem = {
   triggered_by: string;
   created_at: string;
   started_at: string | null;
-  completed_at: string | null;
-  total_products: number | null;
-  new_products: number;
-  updated_products: number;
-  new_images: number;
-  error_count: number;
-  http_429_count: number;
-  http_5xx_count: number;
+  finished_at: string | null;
+  total_sources: number;
+  processed_sources: number;
+  progress_percent: number;
+  products_seen: number;
+  products_applied: number;
+  failed_products: number;
+  can_cancel: boolean;
+  error: string | null;
 };
 
 export type SourceRunItem = {
   id: number;
-  source_id: number;
+  source_id: number | null;
   status: string;
-  products_discovered: number;
-  products_fetched: number;
-  products_failed: number;
+  products_received: number;
+  products_applied: number;
+  failed_products: number;
   error_message: string | null;
-  discovery_mode: string | null;
   started_at?: string | null;
-  completed_at?: string | null;
+  finished_at?: string | null;
 };
 
 export type PricingExampleFetchResult = {
@@ -200,8 +243,6 @@ export type AdminCategoryNode = {
   product_count: number;
   keywords: string[];
   title_keywords: string[];
-  status_keywords: string[];
-  effective_keywords: string[];
   children: AdminCategoryNode[];
 };
 
@@ -217,10 +258,8 @@ export type CategoryManualProduct = {
 };
 
 export type ProductStarredCategoryOption = {
-  id: number;
-  name: string;
   slug: string;
-  parent_id: number | null;
+  name: string;
 };
 
 export type DedupCandidate = {
@@ -232,26 +271,78 @@ export type DedupCandidate = {
 };
 
 export type DedupDecision = {
+  id: number;
   pair_key: string;
   action: string;
   decided_at: string | null;
-  can_undo: boolean;
-  undo_block_reason: string | null;
-  left: ServiceProduct;
-  right: ServiceProduct;
+  members: ServiceProduct[];
+  created_product?: ServiceProduct | null;
+  can_undo?: boolean;
+  undo_blocked_reason?: string | null;
+};
+
+export type DedupScanStatus = {
+  is_running: boolean;
+  started_at: string | null;
+  finished_at: string | null;
+  last_error: string | null;
+  last_completed_candidates: number | null;
+};
+
+export type TaxonomyFilterNode = {
+  slug: string | null;
+  title: string;
+  display_title?: string | null;
+  node_kind?: string;
+  is_enabled: boolean;
+  local_category_keywords: string[];
+  title_keywords: string[];
+  manual_product_ids: number[];
+  children: TaxonomyFilterNode[];
+};
+
+export type TaxonomyCustomCatalog = {
+  slug: string | null;
+  title: string;
+  description?: string | null;
+  is_enabled: boolean;
+  product_ids: number[];
+};
+
+export type TaxonomyShowcaseAttachment = {
+  kind: "filter" | "custom_catalog";
+  filter_slug?: string | null;
+  custom_catalog_slug?: string | null;
+  hidden_filter_slugs: string[];
+};
+
+export type TaxonomyShowcaseCategory = {
+  code: string;
+  title: string;
+  attachments: TaxonomyShowcaseAttachment[];
+};
+
+export type TaxonomyState = {
+  filters: TaxonomyFilterNode[];
+  custom_catalogs: TaxonomyCustomCatalog[];
+  showcase_categories: TaxonomyShowcaseCategory[];
 };
 
 export type ProductUrlPreview = {
   id?: number;
   source_id?: number;
   source_name?: string;
-  status?: string;
+  visibility_status?: "visible" | "hidden" | null;
+  availability_mode?: "in_stock" | "by_order" | null;
+  orderability_status?: "orderable" | "sold_out" | "unavailable" | null;
+  gender?: "male" | "female" | "unisex" | null;
   handle: string;
   title: string;
-  description?: string | null;
-  weight_grams?: number | null;
-  vendor: string | null;
-  product_type: string | null;
+  description_text?: string | null;
+  description_html?: string | null;
+  source_weight_grams?: number | null;
+  designer_name: string | null;
+  source_category_name: string | null;
   product_url: string;
   price: number | null;
   currency: string;
@@ -278,26 +369,17 @@ export type WeightMissingProduct = {
 export type PricingSettings = {
   markup_multiplier: number;
   weight_tolerance: number;
-  promo_factor: number;
   customs_threshold_eur: number;
-  customs_threshold_currency: string;
   customs_duty_rate: number;
-  bybit_usdt_to_rub: number;
-  bybit_extra_rub: number;
-  eur_to_usd_rate: number;
-  gbp_to_usd_rate: number;
-  jpy_to_usd_rate: number;
+  eur_to_rub_rate: number;
+  usd_to_rub_rate: number;
+  usdt_to_rub_rate: number;
+  usdt_extra_rub: number;
   final_rounding_mode: string;
   payment_fee_rate: number;
   customs_processing_rate: number;
   customs_fixed_rub: number;
-  shipping_alt_threshold_eur: number;
   tax_rate: number;
-  dedup_only_available_products: boolean;
-  show_product_description: boolean;
-  svc_rules: Array<Record<string, unknown>>;
-  insurance_rules: Array<Record<string, unknown>>;
-  service_fee_rules: Array<Record<string, unknown>>;
   bybit_rate_status?: string;
   bybit_rate_warning?: string | null;
   bybit_bucket_step_usdt?: number;
@@ -315,27 +397,26 @@ export type PricingSettings = {
 
 export type AdminUiSettings = {
   designers_min_products: number;
-  designers_exclude_store_vendors: boolean;
+  designers_exclude_store_names: boolean;
   auto_sync_period_minutes?: number;
   auto_sync_next_run_at?: string | null;
   auto_sync_last_started_at?: string | null;
   auto_sync_last_finished_at?: string | null;
   auto_sync_last_status?: string | null;
   auto_sync_last_error?: string | null;
-  showcase_hero_image_asset_id?: number | null;
-  showcase_carousel_image_asset_ids?: number[];
 };
 
 export type PricingExampleProduct = {
-  product_id: number;
+  product_id: number | null;
   title: string;
-  url: string;
+  url: string | null;
   source_name: string | null;
   image_url: string | null;
   source_price: number | null;
   source_currency: string | null;
   final_price: number | null;
   components: Record<string, unknown>;
+  is_sample?: boolean;
 };
 
 export type PricingSupplierRate = {
@@ -348,9 +429,9 @@ export type PricingSupplier = {
   id: number;
   key: string;
   name: string;
-  category: string;
+  provider_kind: string;
   parent_supplier_id?: number | null;
-  alt_position?: number;
+  is_enabled: boolean;
   rate_currency: string;
   rates: PricingSupplierRate[];
 };
@@ -364,86 +445,55 @@ export type SettingsTransferSupplierRateEntry = {
 export type SettingsTransferSupplierEntry = {
   key: string;
   name: string;
-  category: string;
+  provider_kind: string;
+  parent_supplier_key?: string | null;
   rate_currency: string;
+  is_enabled: boolean;
   rates: SettingsTransferSupplierRateEntry[];
 };
 
 export type SettingsTransferSourceEntry = {
+  key: string;
   name: string;
   url: string;
   enabled: boolean;
   sync_enabled: boolean;
+  dedup_enabled: boolean;
   hide_auto_added_products: boolean;
-  show_description: boolean;
+  description_mode: DescriptionMode;
   show_images: boolean;
-  currency_priority: string[];
-  currency_method: "priority_list" | "locked_param_currency" | "locked_no_currency";
-  locked_currency: string | null;
   supplier_key: string | null;
   promo_factor: number;
   promo_only_no_discount: boolean;
-  buyout_surcharge_value: number;
-  buyout_surcharge_currency: string;
+  buyout_surcharge_value: number | null;
+  buyout_surcharge_currency: string | null;
 };
 
 export type SettingsTransferWeightRuleEntry = {
   weight_grams: number;
-  sort_order: number;
   keywords: string[];
-};
-
-export type SettingsTransferCategoryEntry = {
-  slug: string;
-  name: string;
-  parent_slug: string | null;
-  is_fallback: boolean;
-  is_favorite: boolean;
-  is_enabled: boolean;
-};
-
-export type SettingsTransferCategoryKeywordEntry = {
-  category_slug: string;
-  keyword: string;
-  scope: "local" | "title" | "status";
-};
-
-export type SettingsTransferBrandMappingEntry = {
-  source_brand: string;
-  source_brand_key: string;
-  target_brand: string;
-  include_in_designers: boolean;
 };
 
 export type SettingsTransferPricingSettings = {
   markup_multiplier: number;
   weight_tolerance: number;
-  promo_factor: number;
   customs_threshold_eur: number;
-  customs_threshold_currency: string;
   customs_duty_rate: number;
-  bybit_extra_rub: number;
-  eur_to_usd_rate: number;
-  gbp_to_usd_rate: number;
-  jpy_to_usd_rate: number;
+  eur_to_rub_rate: number;
+  usd_to_rub_rate: number;
+  usdt_to_rub_rate: number;
+  usdt_extra_rub: number;
   final_rounding_mode: string;
   payment_fee_rate: number;
   customs_processing_rate: number;
   customs_fixed_rub: number;
-  shipping_alt_threshold_eur: number;
   tax_rate: number;
-  dedup_only_available_products: boolean;
-  show_product_description: boolean;
-  svc_rules: Array<Record<string, unknown>>;
-  insurance_rules: Array<Record<string, unknown>>;
-  service_fee_rules: Array<Record<string, unknown>>;
 };
 
 export type SettingsTransferAdminUiSettings = {
   designers_min_products: number;
-  designers_exclude_store_vendors: boolean;
-  showcase_hero_image_asset_id?: number | null;
-  showcase_carousel_image_asset_ids?: number[];
+  designers_exclude_store_names: boolean;
+  auto_sync_period_minutes?: number;
 };
 
 export type SettingsTransferPayload = {
@@ -455,9 +505,7 @@ export type SettingsTransferPayload = {
   suppliers: SettingsTransferSupplierEntry[];
   sources: SettingsTransferSourceEntry[];
   weight_rules: SettingsTransferWeightRuleEntry[];
-  categories: SettingsTransferCategoryEntry[];
-  category_keywords: SettingsTransferCategoryKeywordEntry[];
-  brand_mappings: SettingsTransferBrandMappingEntry[];
+  designer_source_names: Array<{ source_name: string; designer_name: string | null }>;
 };
 
 export type LiveDataContextValue = {
@@ -467,11 +515,15 @@ export type LiveDataContextValue = {
   categories: CategoryView[];
   adminCategories: AdminCategoryNode[];
   dedupCandidates: DedupCandidate[];
+  dedupCandidatesTotal: number;
   loadingDedupCandidates: boolean;
+  dedupScanStatus: DedupScanStatus;
   dedupCandidatesHasMore: boolean;
   loadingMoreDedupCandidates: boolean;
   dedupDecisions: DedupDecision[];
+  dedupDecisionsTotal: number;
   loadingDedupDecisions: boolean;
+  dedupDecisionsLoaded: boolean;
   dedupDecisionsHasMore: boolean;
   loadingMoreDedupDecisions: boolean;
   weightRules: WeightRule[];
@@ -495,6 +547,8 @@ export type LiveDataContextValue = {
   loadMoreDedupCandidates: () => Promise<void>;
   loadMoreDedupDecisions: () => Promise<void>;
   ensureDedupLoaded: (force?: boolean) => Promise<void>;
+  refreshDedupStatusOnly: () => Promise<void>;
+  refreshDedupDecisionCountOnly: () => Promise<void>;
   ensureDedupDecisionsLoaded: () => Promise<void>;
   ensureCategoriesLoaded: (force?: boolean) => Promise<void>;
   refreshSourcesOnly: () => Promise<void>;
@@ -509,8 +563,8 @@ export type LiveDataContextValue = {
     url: string,
     payload?: {
       title?: string;
-      vendor?: string | null;
-      product_type?: string | null;
+      designer_name?: string | null;
+      source_category_name?: string | null;
       price?: number | null;
       currency?: string;
       image_count?: number;
@@ -519,84 +573,98 @@ export type LiveDataContextValue = {
   createManualProduct: (payload: {
     title: string;
     description?: string | null;
-    vendor?: string | null;
-    product_type: string | null;
+    description_html?: string | null;
+    designer_name?: string | null;
+    source_category_name: string | null;
+    gender?: "male" | "female" | "unisex" | null;
     variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
-    weight_grams?: number | null;
-    status?: "available" | "out_of_stock" | "hidden";
+    manual_weight_grams?: number | null;
+    price_override?: {
+      manual_price_rub?: number | null;
+      manual_compare_at_price_rub?: number | null;
+    } | null;
+    state?: ProductWriteState;
+    filter_slugs?: string[];
     bind_sync?: boolean;
-    bind_source_id?: number | null;
-    bind_source_product_url?: string | null;
+    bind_url?: string | null;
   }) => Promise<{ ok: boolean; message: string; id: number | null }>;
   updateManualProduct: (productId: number, payload: {
     title: string;
     description?: string | null;
-    vendor?: string | null;
-    product_type: string | null;
+    description_html?: string | null;
+    designer_name?: string | null;
+    source_category_name: string | null;
+    gender?: "male" | "female" | "unisex" | null;
     variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
     manual_image_asset_ids: number[];
-    weight_grams?: number | null;
-    status?: "available" | "out_of_stock" | "hidden";
+    manual_weight_grams?: number | null;
+    price_override?: {
+      manual_price_rub?: number | null;
+      manual_compare_at_price_rub?: number | null;
+    } | null;
+    state?: ProductWriteState;
+    filter_slugs?: string[];
     bind_sync?: boolean;
-    bind_source_id?: number | null;
-    bind_source_product_url?: string | null;
+    bind_url?: string | null;
   }) => Promise<{ ok: boolean; message: string; id: number | null }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadProductImageByUrl: (url: string) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadShowcaseHeroImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadShowcaseCarouselImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
-  createCategory: (name: string, parentId: number | null) => Promise<{ ok: boolean; message: string; categoryId?: number }>;
-  updateCategory: (
-    id: number,
-    payload: { name?: string; parent_id?: number | null; is_enabled?: boolean; is_favorite?: boolean }
-  ) => Promise<{ ok: boolean; message: string }>;
-  deleteCategory: (id: number) => Promise<{ ok: boolean; message: string }>;
-  addCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title" | "status") => Promise<{ ok: boolean; message: string }>;
-  removeCategoryKeyword: (id: number, keyword: string, scope?: "local" | "title" | "status") => Promise<{ ok: boolean; message: string }>;
-  getCategoryManualProducts: (categoryId: number) => Promise<{ ok: boolean; message: string; items: CategoryManualProduct[] }>;
-  searchCategoryManualProducts: (categoryId: number, query: string, limit?: number) => Promise<{ ok: boolean; message: string; items: CategoryManualProduct[] }>;
-  addCategoryManualProduct: (categoryId: number, productId: number) => Promise<{ ok: boolean; message: string }>;
-  removeCategoryManualProduct: (categoryId: number, productId: number) => Promise<{ ok: boolean; message: string }>;
-  mergeDedupPair: (primaryProductId: number, duplicateProductId: number) => Promise<{ ok: boolean; message: string }>;
-  rejectDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
-  combineDedupPair: (productAId: number, productBId: number) => Promise<{ ok: boolean; message: string }>;
-  undoDedupDecision: (pairKey: string) => Promise<{ ok: boolean; message: string }>;
-  setProductStatus: (productId: number, status: "available" | "out_of_stock" | "hidden") => Promise<{ ok: boolean; message: string }>;
+  mergeDedupProducts: (payload: {
+    product_ids: number[];
+    primary_product_id?: number | null;
+    primary_listing_id?: number | null;
+  }) => Promise<{ ok: boolean; message: string }>;
+  rejectDedupProducts: (productIds: number[]) => Promise<{ ok: boolean; message: string }>;
+  undoDedupDecision: (decisionId: number) => Promise<{ ok: boolean; message: string }>;
+  runDedupScan: () => Promise<{ ok: boolean; message: string }>;
+  bulkUpdateProducts: (payload: {
+    product_ids: number[];
+    gender?: "male" | "female" | "unisex" | null;
+  }) => Promise<{ ok: boolean; message: string; updatedProductIds: number[] }>;
+  setProductStatus: (productId: number, state: ProductWriteState) => Promise<{ ok: boolean; message: string }>;
   updateProductOverrides: (
     productId: number,
     payload: {
       title?: string;
       description?: string;
+      description_text?: string;
+      description_html?: string;
       description_visible?: boolean | null;
+      gender?: "male" | "female" | "unisex" | null;
+      availability_mode?: "in_stock" | "by_order" | null;
+      manual_weight_grams?: number | null;
+      price_override?: {
+        manual_price_rub?: number | null;
+        manual_compare_at_price_rub?: number | null;
+      } | null;
+      gallery_listing_id?: number | null;
       images?: {
         hidden_source_image_urls?: string[];
         manual_image_urls?: string[];
         manual_image_order?: string[];
       };
-      reset_to_default?: Array<"title" | "description" | "images" | "description_visibility">;
+      reset_to_default?: Array<"title" | "description" | "images" | "description_visibility" | "manual_weight_grams" | "price_override">;
     }
   ) => Promise<{ ok: boolean; message: string; product: ServiceProduct | null }>;
   getProductStarredCategories: (
     productId: number
-  ) => Promise<{ ok: boolean; message: string; assignedCategoryIds: number[]; availableCategories: ProductStarredCategoryOption[] }>;
+  ) => Promise<{ ok: boolean; message: string; assignedFilterSlugs: string[]; availableCategories: ProductStarredCategoryOption[] }>;
   setProductStarredCategories: (
     productId: number,
-    categoryIds: number[]
-  ) => Promise<{ ok: boolean; message: string; assignedCategoryIds: number[] }>;
-  getStarredCategoryOptions: () => Promise<{ ok: boolean; items: Array<{ id: number; name: string; slug: string }> }>;
+    filterSlugs: string[]
+  ) => Promise<{ ok: boolean; message: string; assignedFilterSlugs: string[] }>;
+  getStarredCategoryOptions: () => Promise<{ ok: boolean; items: Array<{ slug: string; name: string }> }>;
   ensureAllProductsLoaded: () => Promise<void>;
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceSyncEnabled: (sourceKey: string, syncEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  toggleSourceDedupEnabled: (sourceKey: string, dedupEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (sourceKey: string, hideAutoAddedProducts: boolean) => Promise<{ ok: boolean; message: string }>;
   updateSourceAttributeVisibility: (
     sourceKey: string,
-    payload: { show_description?: boolean; show_images?: boolean }
-  ) => Promise<{ ok: boolean; message: string }>;
-  updateSourceCurrencyPriority: (
-    sourceKey: string,
-    currencyPriority: string[],
-    options?: { currencyMethod?: "priority_list" | "locked_param_currency" | "locked_no_currency"; lockedCurrency?: string }
+    payload: { description_mode?: DescriptionMode; show_images?: boolean }
   ) => Promise<{ ok: boolean; message: string }>;
   createWeightRule: (weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   updateWeightRule: (id: number, weightGrams: number) => Promise<{ ok: boolean; message: string }>;
@@ -607,24 +675,25 @@ export type LiveDataContextValue = {
   updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
   updateAdminUiSettings: (payload: Partial<AdminUiSettings>) => Promise<{ ok: boolean; message: string }>;
   updateShowcaseMediaSettings: (payload: {
-    showcase_hero_image_asset_id?: number | null;
-    showcase_carousel_image_asset_ids?: number[];
+    hero_image_asset_id?: number | null;
+    carousel_image_asset_ids?: number[];
   }) => Promise<{ ok: boolean; message: string }>;
   updatePricingSupplier: (
     supplierId: number,
     payload: {
       name?: string;
-      category?: string;
+      provider_kind?: string;
       rate_currency?: string;
+      is_enabled?: boolean;
       rates?: Array<{ min_kg: number; max_kg: number | null; rub: number }>;
     }
   ) => Promise<{ ok: boolean; message: string }>;
   createPricingSupplier: (payload: {
     key?: string;
     name: string;
-    category: string;
+    provider_kind: string;
     parent_supplier_id?: number | null;
-    alt_position?: number;
+    is_enabled?: boolean;
     rate_currency: string;
   }) => Promise<{ ok: boolean; message: string }>;
   deletePricingSupplier: (supplierId: number) => Promise<{ ok: boolean; message: string }>;

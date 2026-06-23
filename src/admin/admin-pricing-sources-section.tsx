@@ -36,7 +36,7 @@ function ensureDraft(sourceKey: string, sourceSupplierId: number, prev: Record<s
     supplierId: String(sourceSupplierId || ""),
     promoPercent: "0",
     promoOnlyNoDiscount: false,
-    buyout: { currency: "USD", rub: "0", usd: "0", eur: "0", gbp: "0" },
+    buyout: { currency: "USD", rub: "", usd: "", eur: "", gbp: "" },
   };
 }
 
@@ -51,7 +51,7 @@ export function AdminPricingSourcesSection({
     <>
       <h3 className="with-help">
         Настройки по источникам
-        <HelpHint text="Для каждого магазина выбирается базовый тариф, доплата к выкупу и параметры промокода. ALT-тариф применяется автоматически при превышении ATH порога alt-доставки." />
+        <HelpHint text="Для каждого магазина выбирается тариф, доплата к выкупу и параметры промокода." />
       </h3>
       <div className="pricing-source-map-list">
         <div className="pricing-source-map-head">
@@ -59,7 +59,6 @@ export function AdminPricingSourcesSection({
           <span>Тариф</span>
           <span>Выкуп + (USD)</span>
           <span>Выкуп + (EUR)</span>
-          <span>Выкуп + (GBP)</span>
           <span>PROMO (%)</span>
           <span>Промокод</span>
         </div>
@@ -88,9 +87,8 @@ export function AdminPricingSourcesSection({
                   </option>
                 ))}
               </select>
-              <input type="number" step="0.01" value={draft?.buyout.usd ?? "0"} onChange={(event) => setSourceBuyoutField(source.key, "usd", event.target.value)} />
-              <input type="number" step="0.01" value={draft?.buyout.eur ?? "0"} onChange={(event) => setSourceBuyoutField(source.key, "eur", event.target.value)} />
-              <input type="number" step="0.01" value={draft?.buyout.gbp ?? "0"} onChange={(event) => setSourceBuyoutField(source.key, "gbp", event.target.value)} />
+              <input type="number" step="0.01" placeholder="—" value={draft?.buyout.usd ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "usd", event.target.value)} />
+              <input type="number" step="0.01" placeholder="—" value={draft?.buyout.eur ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "eur", event.target.value)} />
               <div className="percent-input-wrap">
                 <input
                   type="number"

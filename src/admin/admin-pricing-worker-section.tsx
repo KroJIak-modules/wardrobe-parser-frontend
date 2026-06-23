@@ -55,8 +55,8 @@ export function AdminPricingWorkerSection({
         </div>
         <div className="pricing-worker-item">
           <span className="muted">Выбранный курс</span>
-          <strong>{formatCompactNumber(pricingSettings.bybit_usdt_to_rub, 4)} RUB/USDT</strong>
-          <span className="muted">BFX: {formatCompactNumber(pricingSettings.bybit_usdt_to_rub + pricingSettings.bybit_extra_rub, 4)} RUB/USDT</span>
+          <strong>{formatCompactNumber(pricingSettings.usdt_to_rub_rate, 4)} RUB/USDT</strong>
+          <span className="muted">BFX: {formatCompactNumber(pricingSettings.usdt_to_rub_rate + pricingSettings.usdt_extra_rub, 4)} RUB/USDT</span>
         </div>
       </div>
     </div>

@@ -4,11 +4,6 @@ import type { AdminFilterFacetOption, AdminProductsTableItem } from "./admin-typ
 import { AdminProductsFilters } from "./admin-products-filters";
 import { AdminProductsTable } from "./admin-products-table";
 
-type StatusBadge = {
-  cls: string;
-  label: string;
-};
-
 type SourceLabel = {
   name: string;
 };
@@ -22,17 +17,28 @@ type Props = {
   setProductSearch: (value: string) => void;
   productSourceFilter: string;
   setProductSourceFilter: (value: string) => void;
-  productVendorFilter: string;
-  setProductVendorFilter: (value: string) => void;
-  productTypeFilter: string;
-  setProductTypeFilter: (value: string) => void;
-  productStatusFilter: string;
-  setProductStatusFilter: (value: string) => void;
-  sourceSelectOptions: Array<{ key: string; source_id: number | null; name: string }>;
-  productVendors: AdminFilterFacetOption[];
-  productTypes: AdminFilterFacetOption[];
+  productSourceModeFilter: string;
+  setProductSourceModeFilter: (value: string) => void;
+  productDesignerFilter: string;
+  setProductDesignerFilter: (value: string) => void;
+  productCatalogFilter: string;
+  setProductCatalogFilter: (value: string) => void;
+  productSectionFilter: string;
+  setProductSectionFilter: (value: string) => void;
+  productGenderFilter: string;
+  setProductGenderFilter: (value: string) => void;
+  productVisibilityFilter: string;
+  setProductVisibilityFilter: (value: string) => void;
+  productAvailabilityModeFilter: string;
+  setProductAvailabilityModeFilter: (value: string) => void;
+  productOrderabilityFilter: string;
+  setProductOrderabilityFilter: (value: string) => void;
+  sourceFacetOptions: AdminFilterFacetOption[];
+  productDesigners: AdminFilterFacetOption[];
+  productCatalogs: AdminFilterFacetOption[];
+  productSections: AdminFilterFacetOption[];
+  productGenders: AdminFilterFacetOption[];
   sourceById: Map<number, SourceLabel>;
-  statusBadge: (status: string) => StatusBadge;
   tableLoadingMore: boolean;
   productsSentinelRef: RefObject<HTMLDivElement | null>;
 };
@@ -46,17 +52,28 @@ export function AdminProductsTab({
   setProductSearch,
   productSourceFilter,
   setProductSourceFilter,
-  productVendorFilter,
-  setProductVendorFilter,
-  productTypeFilter,
-  setProductTypeFilter,
-  productStatusFilter,
-  setProductStatusFilter,
-  sourceSelectOptions,
-  productVendors,
-  productTypes,
+  productSourceModeFilter,
+  setProductSourceModeFilter,
+  productDesignerFilter,
+  setProductDesignerFilter,
+  productCatalogFilter,
+  setProductCatalogFilter,
+  productSectionFilter,
+  setProductSectionFilter,
+  productGenderFilter,
+  setProductGenderFilter,
+  productVisibilityFilter,
+  setProductVisibilityFilter,
+  productAvailabilityModeFilter,
+  setProductAvailabilityModeFilter,
+  productOrderabilityFilter,
+  setProductOrderabilityFilter,
+  sourceFacetOptions,
+  productDesigners,
+  productCatalogs,
+  productSections,
+  productGenders,
   sourceById,
-  statusBadge,
   tableLoadingMore,
   productsSentinelRef,
 }: Props) {
@@ -74,21 +91,32 @@ export function AdminProductsTab({
               setProductSearch={setProductSearch}
               productSourceFilter={productSourceFilter}
               setProductSourceFilter={setProductSourceFilter}
-              productVendorFilter={productVendorFilter}
-              setProductVendorFilter={setProductVendorFilter}
-              productTypeFilter={productTypeFilter}
-              setProductTypeFilter={setProductTypeFilter}
-              productStatusFilter={productStatusFilter}
-              setProductStatusFilter={setProductStatusFilter}
-              sourceSelectOptions={sourceSelectOptions}
-              productVendors={productVendors}
-              productTypes={productTypes}
+              productSourceModeFilter={productSourceModeFilter}
+              setProductSourceModeFilter={setProductSourceModeFilter}
+              productDesignerFilter={productDesignerFilter}
+              setProductDesignerFilter={setProductDesignerFilter}
+              productCatalogFilter={productCatalogFilter}
+              setProductCatalogFilter={setProductCatalogFilter}
+              productSectionFilter={productSectionFilter}
+              setProductSectionFilter={setProductSectionFilter}
+              productGenderFilter={productGenderFilter}
+              setProductGenderFilter={setProductGenderFilter}
+              productVisibilityFilter={productVisibilityFilter}
+              setProductVisibilityFilter={setProductVisibilityFilter}
+              productAvailabilityModeFilter={productAvailabilityModeFilter}
+              setProductAvailabilityModeFilter={setProductAvailabilityModeFilter}
+              productOrderabilityFilter={productOrderabilityFilter}
+              setProductOrderabilityFilter={setProductOrderabilityFilter}
+              sourceFacetOptions={sourceFacetOptions}
+              productDesigners={productDesigners}
+              productCatalogs={productCatalogs}
+              productSections={productSections}
+              productGenders={productGenders}
             />
             <AdminProductsTable
               tableLoading={tableLoading}
               tableProducts={tableProducts}
               sourceById={sourceById}
-              statusBadge={statusBadge}
               tableLoadingMore={tableLoadingMore}
               productsSentinelRef={productsSentinelRef}
             />

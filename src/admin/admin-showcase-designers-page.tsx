@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { LatexBrand, renderBrandLatexHtml } from "../shared/latex-brand";
 import { IconChevronLeft } from "../shared/mono-icons";
 import type { ShowcaseDesignersDirectoryEntry, ShowcaseDesignersDirectoryResponse } from "./showcase-contracts";
-import { fetchShowcaseDesignersDirectory, readShowcaseDesignersDirectorySeed } from "./showcase-mock-api";
+import { fetchShowcaseDesignersDirectory } from "./showcase-api";
 import "./admin-showcase-designers-page.css";
 
 function readSelectedDesigners(searchParams: URLSearchParams) {
@@ -129,21 +129,20 @@ function TruncatedLatexBrand({
 export function AdminShowcaseDesignersPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [directory, setDirectory] = useState<ShowcaseDesignersDirectoryResponse | null>(() => readShowcaseDesignersDirectorySeed());
+  const [directory, setDirectory] = useState<ShowcaseDesignersDirectoryResponse | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>(() => readSelectedDesigners(searchParams));
   const alphabetCardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    setDirectory(readShowcaseDesignersDirectorySeed());
+    let aborted = false;
     void (async () => {
-      const response = await fetchShowcaseDesignersDirectory();
-      if (!cancelled) {
+      const response = await fetchShowcaseDesignersDirectory().catch(() => null);
+      if (!aborted) {
         setDirectory(response);
       }
     })();
     return () => {
-      cancelled = true;
+      aborted = true;
     };
   }, []);
 

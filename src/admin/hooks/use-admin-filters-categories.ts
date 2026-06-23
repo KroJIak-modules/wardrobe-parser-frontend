@@ -1,5 +1,9 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { fetchAdminFiltersCategoriesMock, saveAdminFiltersCategoriesMock } from "../admin-filters-categories-mock-api";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  fetchAdminFiltersCategoriesState,
+  saveAdminFiltersCategoriesState,
+  searchAdminFiltersCategoriesProductLibrary,
+} from "../admin-filters-categories-api";
 import type {
   AdminCategoryAttachment,
   AdminCategoryTreeNode,
@@ -272,29 +276,19 @@ function moveFlatNodeToEnd<T extends { id: number }>(nodes: T[], draggedId: numb
   return [...nodes.filter((node) => node.id !== draggedId), draggedNode];
 }
 
-function searchManualProducts(
-  query: string,
-  assignedIds: Set<number>,
-  library: AdminRuleManualProduct[]
-): AdminRuleManualProduct[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return [];
+function mergeProductLookup(previous: Record<number, AdminRuleManualProduct>, items: AdminRuleManualProduct[]) {
+  const next = { ...previous };
+  for (const item of items) {
+    next[item.product_id] = item;
   }
-  return library.filter((item) => {
-    if (assignedIds.has(item.product_id)) {
-      return false;
-    }
-    const haystack = [
-      item.vendor,
-      item.title,
-      item.source_name,
-      item.matched_local_categories.join(" "),
-    ]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(normalizedQuery);
-  });
+  return next;
+}
+
+function applyVisibility(items: AdminRuleManualProduct[], hiddenProductIds: Set<number>): AdminRuleManualProduct[] {
+  return items.map((item) => ({
+    ...item,
+    visibility_status: hiddenProductIds.has(item.product_id) ? "hidden" : item.visibility_status,
+  }));
 }
 
 function buildCategoryAttachment(kind: AdminCategoryAttachment["kind"], refId: number, categoryId: number): AdminCategoryAttachment {
@@ -312,7 +306,7 @@ export function useAdminFiltersCategories() {
   const [categories, setCategories] = useState<AdminCategoryTreeNode[]>([]);
   const [customCatalogs, setCustomCatalogs] = useState<AdminCustomCatalog[]>([]);
   const [designerDirectory, setDesignerDirectory] = useState<AdminDesignerDirectoryItem[]>([]);
-  const [productLibrary, setProductLibrary] = useState<AdminRuleManualProduct[]>([]);
+  const [productLookup, setProductLookup] = useState<Record<number, AdminRuleManualProduct>>({});
   const [selectedFilterId, setSelectedFilterId] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedCustomCatalogId, setSelectedCustomCatalogId] = useState<number | null>(null);
@@ -322,23 +316,64 @@ export function useAdminFiltersCategories() {
   const [catalogSearchInput, setCatalogSearchInput] = useState<string>("");
   const [catalogSearchLoading, setCatalogSearchLoading] = useState<boolean>(false);
   const [catalogSearchResults, setCatalogSearchResults] = useState<AdminRuleManualProduct[]>([]);
+  const [hiddenProductIds, setHiddenProductIds] = useState<number[]>([]);
+  const hasHydratedRef = useRef(false);
+  const lastSavedSignatureRef = useRef<string>("");
   const deferredManualSearchInput = useDeferredValue(manualSearchInput);
   const deferredCatalogSearchInput = useDeferredValue(catalogSearchInput);
+  const hiddenProductIdSet = useMemo(() => new Set(hiddenProductIds), [hiddenProductIds]);
 
   useEffect(() => {
     let active = true;
     void (async () => {
       setLoading(true);
-      const payload: AdminFiltersCategoriesPayload = await fetchAdminFiltersCategoriesMock();
-      if (!active) {
-        return;
+      try {
+        const payload: AdminFiltersCategoriesPayload = await fetchAdminFiltersCategoriesState();
+        if (!active) {
+          return;
+        }
+        const nextFilters = Array.isArray(payload.filters) ? payload.filters : [];
+        const nextCategories = Array.isArray(payload.categories) ? payload.categories : [];
+        const nextCustomCatalogs = Array.isArray(payload.custom_catalogs) ? payload.custom_catalogs : [];
+        const nextDesignerDirectory = Array.isArray(payload.designer_directory) ? payload.designer_directory : [];
+        setFilters(nextFilters);
+        setCategories(nextCategories);
+        setCustomCatalogs(nextCustomCatalogs);
+        setDesignerDirectory(nextDesignerDirectory);
+        const nextHiddenProductIds = Array.isArray(payload.hidden_product_ids)
+          ? Array.from(new Set(payload.hidden_product_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0))).sort((left, right) => left - right)
+          : [];
+        setHiddenProductIds(nextHiddenProductIds);
+        setProductLookup(
+          mergeProductLookup(
+            {},
+            [
+              ...nextFilters.flatMap((node) => flattenFilters([node]).flatMap((item) => item.rules.manual_products)),
+              ...nextCustomCatalogs.flatMap((catalog) => catalog.manual_products),
+            ],
+          )
+        );
+        lastSavedSignatureRef.current = JSON.stringify({
+          filters: nextFilters,
+          categories: nextCategories,
+          custom_catalogs: nextCustomCatalogs,
+          hidden_product_ids: nextHiddenProductIds,
+        });
+        hasHydratedRef.current = true;
+      } catch {
+        if (active) {
+          setFilters([]);
+          setCategories([]);
+          setCustomCatalogs([]);
+          setDesignerDirectory([]);
+          setHiddenProductIds([]);
+          setProductLookup({});
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
-      setFilters(payload.filters);
-      setCategories(payload.categories);
-      setCustomCatalogs(payload.custom_catalogs);
-      setDesignerDirectory(payload.designer_directory);
-      setProductLibrary(payload.product_library);
-      setLoading(false);
     })();
     return () => {
       active = false;
@@ -346,18 +381,37 @@ export function useAdminFiltersCategories() {
   }, []);
 
   useEffect(() => {
-    if (loading) {
+    if (loading || !hasHydratedRef.current) {
       return;
     }
-
-    void saveAdminFiltersCategoriesMock({
+    const signature = JSON.stringify({
       filters,
       categories,
       custom_catalogs: customCatalogs,
-      designer_directory: designerDirectory,
-      product_library: productLibrary,
+      hidden_product_ids: [...hiddenProductIds].sort((left, right) => left - right),
     });
-  }, [categories, customCatalogs, designerDirectory, filters, loading, productLibrary]);
+    if (signature === lastSavedSignatureRef.current) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void saveAdminFiltersCategoriesState({
+        filters,
+        categories,
+        custom_catalogs: customCatalogs,
+        hidden_product_ids: [...hiddenProductIds].sort((left, right) => left - right),
+      }).then((payload) => {
+        lastSavedSignatureRef.current = JSON.stringify({
+          filters: payload.filters,
+          categories: payload.categories,
+          custom_catalogs: payload.custom_catalogs,
+          hidden_product_ids: Array.isArray(payload.hidden_product_ids) ? [...payload.hidden_product_ids].sort((left, right) => left - right) : [],
+        });
+      });
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [categories, customCatalogs, filters, hiddenProductIds, loading]);
 
   const flatFilters = useMemo(() => flattenFilters(filters), [filters]);
   const selectedFilter = useMemo(() => findFilterById(filters, selectedFilterId), [filters, selectedFilterId]);
@@ -386,20 +440,30 @@ export function useAdminFiltersCategories() {
       return;
     }
     const assignedIds = new Set(selectedFilter.rules.manual_products.map((item) => item.product_id));
-    let cancelled = false;
+    let aborted = false;
     setManualSearchLoading(true);
     const timer = window.setTimeout(() => {
-      if (cancelled) {
-        return;
-      }
-      setManualSearchResults(searchManualProducts(deferredManualSearchInput, assignedIds, productLibrary).slice(0, 6));
-      setManualSearchLoading(false);
+      void (async () => {
+        const items = await searchAdminFiltersCategoriesProductLibrary(deferredManualSearchInput, 8);
+        if (aborted) {
+          return;
+        }
+        const normalizedItems = applyVisibility(items, hiddenProductIdSet).filter((item) => !assignedIds.has(item.product_id));
+        setProductLookup((prev) => mergeProductLookup(prev, normalizedItems));
+        setManualSearchResults(normalizedItems);
+        setManualSearchLoading(false);
+      })().catch(() => {
+        if (!aborted) {
+          setManualSearchResults([]);
+          setManualSearchLoading(false);
+        }
+      });
     }, 180);
     return () => {
-      cancelled = true;
+      aborted = true;
       window.clearTimeout(timer);
     };
-  }, [deferredManualSearchInput, productLibrary, selectedFilter]);
+  }, [deferredManualSearchInput, hiddenProductIdSet, selectedFilter]);
 
   useEffect(() => {
     if (!selectedCustomCatalog || deferredCatalogSearchInput.trim().length === 0) {
@@ -408,20 +472,30 @@ export function useAdminFiltersCategories() {
       return;
     }
     const assignedIds = new Set(selectedCustomCatalog.manual_products.map((item) => item.product_id));
-    let cancelled = false;
+    let aborted = false;
     setCatalogSearchLoading(true);
     const timer = window.setTimeout(() => {
-      if (cancelled) {
-        return;
-      }
-      setCatalogSearchResults(searchManualProducts(deferredCatalogSearchInput, assignedIds, productLibrary).slice(0, 6));
-      setCatalogSearchLoading(false);
+      void (async () => {
+        const items = await searchAdminFiltersCategoriesProductLibrary(deferredCatalogSearchInput, 8);
+        if (aborted) {
+          return;
+        }
+        const normalizedItems = applyVisibility(items, hiddenProductIdSet).filter((item) => !assignedIds.has(item.product_id));
+        setProductLookup((prev) => mergeProductLookup(prev, normalizedItems));
+        setCatalogSearchResults(normalizedItems);
+        setCatalogSearchLoading(false);
+      })().catch(() => {
+        if (!aborted) {
+          setCatalogSearchResults([]);
+          setCatalogSearchLoading(false);
+        }
+      });
     }, 180);
     return () => {
-      cancelled = true;
+      aborted = true;
       window.clearTimeout(timer);
     };
-  }, [deferredCatalogSearchInput, productLibrary, selectedCustomCatalog]);
+  }, [deferredCatalogSearchInput, hiddenProductIdSet, selectedCustomCatalog]);
 
   const addKeyword = (scope: RuleKeywordScope, raw: string) => {
     const keyword = raw.trim().toLowerCase();
@@ -468,7 +542,7 @@ export function useAdminFiltersCategories() {
     if (!selectedFilterId) {
       return;
     }
-    const product = productLibrary.find((item) => item.product_id === productId);
+    const product = productLookup[productId];
     if (!product) {
       return;
     }
@@ -512,7 +586,7 @@ export function useAdminFiltersCategories() {
     if (!selectedCustomCatalogId) {
       return;
     }
-    const product = productLibrary.find((item) => item.product_id === productId);
+    const product = productLookup[productId];
     if (!product) {
       return;
     }
@@ -542,14 +616,44 @@ export function useAdminFiltersCategories() {
   };
 
   const toggleManualProductHidden = (productId: number) => {
-    setProductLibrary((prev) => prev.map((item) => (
-      item.product_id === productId ? { ...item, is_hidden: !item.is_hidden } : item
+    const nextVisibility = hiddenProductIdSet.has(productId) ? "visible" : "hidden";
+    setHiddenProductIds((prev) => {
+      const next = new Set(prev);
+      if (nextVisibility === "hidden") {
+        next.add(productId);
+      } else {
+        next.delete(productId);
+      }
+      return Array.from(next.values()).sort((left, right) => left - right);
+    });
+    setProductLookup((prev) => {
+      const item = prev[productId];
+      if (!item) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [productId]: { ...item, visibility_status: nextVisibility },
+      };
+    });
+    setManualSearchResults((prev) => prev.map((item) => (
+      item.product_id === productId ? { ...item, visibility_status: nextVisibility } : item
     )));
-    setFilters((prev) => updateManualProductInFilters(prev, productId, (item) => ({ ...item, is_hidden: !item.is_hidden })));
+    setCatalogSearchResults((prev) => prev.map((item) => (
+      item.product_id === productId ? { ...item, visibility_status: nextVisibility } : item
+    )));
+    setFilters((prev) =>
+      updateManualProductInFilters(prev, productId, (item) => ({
+        ...item,
+        visibility_status: nextVisibility,
+      }))
+    );
     setCustomCatalogs((prev) => prev.map((catalog) => ({
       ...catalog,
       manual_products: catalog.manual_products.map((item) => (
-        item.product_id === productId ? { ...item, is_hidden: !item.is_hidden } : item
+        item.product_id === productId
+          ? { ...item, visibility_status: nextVisibility }
+          : item
       )),
     })));
   };
@@ -606,9 +710,10 @@ export function useAdminFiltersCategories() {
     const nextId = getMaxFilterId(filters) + 1;
     const newNode: AdminFilterTreeNode = {
       id: nextId,
-      slug: `filter-${nextId}`,
+      slug: null,
       label: DEFAULT_FILTER_LABEL,
-      display_label: DEFAULT_FILTER_LABEL,
+      display_label: "",
+      node_kind: "filter",
       is_enabled: true,
       rules: {
         local_category_keywords: [],
@@ -627,9 +732,10 @@ export function useAdminFiltersCategories() {
     const nextId = getMaxCustomCatalogId(customCatalogs) + 1;
     const nextCatalog: AdminCustomCatalog = {
       id: nextId,
-      slug: `custom-catalog-${nextId}`,
+      slug: null,
       label: DEFAULT_CUSTOM_CATALOG_LABEL,
-      is_hidden: false,
+      description: "",
+      is_enabled: true,
       manual_products: [],
     };
     setCustomCatalogs((prev) => [...prev, nextCatalog]);
@@ -650,14 +756,26 @@ export function useAdminFiltersCategories() {
     );
   };
 
-  const setCustomCatalogHidden = (isHidden: boolean) => {
+  const updateCustomCatalogDescription = (value: string) => {
     if (!selectedCustomCatalogId) {
       return;
     }
     setCustomCatalogs((prev) =>
       updateCustomCatalogById(prev, selectedCustomCatalogId, (catalog) => ({
         ...catalog,
-        is_hidden: isHidden,
+        description: value,
+      }))
+    );
+  };
+
+  const setCustomCatalogEnabled = (isEnabled: boolean) => {
+    if (!selectedCustomCatalogId) {
+      return;
+    }
+    setCustomCatalogs((prev) =>
+      updateCustomCatalogById(prev, selectedCustomCatalogId, (catalog) => ({
+        ...catalog,
+        is_enabled: isEnabled,
       }))
     );
   };
@@ -791,7 +909,6 @@ export function useAdminFiltersCategories() {
     categories,
     customCatalogs,
     designerDirectory,
-    productLibrary,
     selectedFilterId,
     setSelectedFilterId,
     selectedFilter,
@@ -828,7 +945,8 @@ export function useAdminFiltersCategories() {
     removeCustomCatalogProduct,
     toggleManualProductHidden,
     updateCustomCatalogLabel,
-    setCustomCatalogHidden,
+    updateCustomCatalogDescription,
+    setCustomCatalogEnabled,
     deleteSelectedCustomCatalog,
     attachFilterToCategory,
     attachCustomCatalogToCategory,

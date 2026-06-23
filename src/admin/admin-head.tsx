@@ -11,7 +11,6 @@ type AdminHeadProps = {
   onOpenCreateProduct: () => void;
   formatDateTime: (value: string | null | undefined) => string;
   formatSyncStatusRu: (status?: string | null) => string;
-  formatSyncStageRu: (stage?: string | null) => string;
 };
 
 export function AdminHead({
@@ -24,7 +23,6 @@ export function AdminHead({
   onOpenCreateProduct,
   formatDateTime,
   formatSyncStatusRu,
-  formatSyncStageRu,
 }: AdminHeadProps) {
   return (
     <div className="admin-head">
@@ -45,7 +43,6 @@ export function AdminHead({
         isSyncInProgress={isSyncInProgress}
         formatDateTime={formatDateTime}
         formatSyncStatusRu={formatSyncStatusRu}
-        formatSyncStageRu={formatSyncStageRu}
       />
     </div>
   );

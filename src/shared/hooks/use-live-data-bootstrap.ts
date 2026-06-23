@@ -20,7 +20,7 @@ export function useLiveDataBootstrap({
   const lastRouteKindRef = useRef<RouteKind | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let aborted = false;
     const currentPath = routePath ?? (typeof window !== "undefined" ? window.location.pathname : "/");
     const isManagementRoute = currentPath.startsWith("/control");
     const isProductRoute = /^\/product\/\d+/.test(currentPath);
@@ -35,14 +35,9 @@ export function useLiveDataBootstrap({
       setError(null);
       try {
         if (routeKind === "admin") {
-          const adminTab = currentPath.split("/")[2] || "";
-          const shouldPrefetchSources = adminTab === "products" || adminTab === "sources" || adminTab === "pricing";
           setLoading(true);
           await refreshAdminCoreOnly();
-          if (shouldPrefetchSources) {
-            await refreshSourcesOnly();
-          }
-          if (!cancelled) {
+          if (!aborted) {
             setLoading(false);
           }
           return;
@@ -54,11 +49,11 @@ export function useLiveDataBootstrap({
         }
         setLoading(true);
         await refreshSourcesOnly();
-        if (!cancelled) {
+        if (!aborted) {
           setLoading(false);
         }
       } catch (e) {
-        if (!cancelled) {
+        if (!aborted) {
           setError(e instanceof Error ? e.message : "Unknown error");
           setLoading(false);
         }
@@ -67,7 +62,7 @@ export function useLiveDataBootstrap({
     void run();
 
     return () => {
-      cancelled = true;
+      aborted = true;
     };
   }, [refreshAdminCoreOnly, refreshSourcesOnly, routePath, setError, setLoading]);
 }

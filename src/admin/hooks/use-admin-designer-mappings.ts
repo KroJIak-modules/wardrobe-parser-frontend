@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchAdminDesignerMappings, readAdminDesignerMappingsSeed, saveAdminDesignerMappings } from "../admin-designers-mock";
+import {
+  fetchAdminDesignerMappings,
+  readAdminDesignerMappingsState,
+  saveAdminDesignerMappings,
+  uploadAdminDesignerLogo,
+} from "../admin-designers-api";
 import type { AdminFinalDesigner, AdminDesignerSourceRow } from "../admin-types";
 
 const AUTO_SAVE_DEBOUNCE_MS = 500;
@@ -29,17 +34,22 @@ function createDesignersSignature(designers: readonly AdminFinalDesigner[]) {
       const id = String(designer.id || "").trim();
       const name = String(designer.name || "").trim();
       const description = String(designer.description || "").trim();
-      return `${id}|${name}|${description}`;
+      const logo = Number.isFinite(Number(designer.logo_image_asset_id)) ? Math.trunc(Number(designer.logo_image_asset_id)) : 0;
+      return `${id}|${name}|${description}|${logo > 0 ? logo : 0}`;
     })
     .sort()
     .join("||");
 }
 
 function normalizeDesigner(designer: AdminFinalDesigner): AdminFinalDesigner {
+  const logoImageAssetId = Number.isFinite(Number(designer.logo_image_asset_id)) && Number(designer.logo_image_asset_id) > 0
+    ? Math.trunc(Number(designer.logo_image_asset_id))
+    : null;
   return {
     id: String(designer.id || "").trim(),
     name: String(designer.name || "").trim(),
     description: String(designer.description || "").trim(),
+    logo_image_asset_id: logoImageAssetId,
   };
 }
 
@@ -67,10 +77,10 @@ function createDesignerId() {
 export function useAdminDesignerMappings(tab: string, pushToast: (message: string) => void) {
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
-  const [rows, setRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsSeed().rows);
-  const [designers, setDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsSeed().designers);
-  const [baselineRows, setBaselineRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsSeed().rows);
-  const [baselineDesigners, setBaselineDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsSeed().designers);
+  const [rows, setRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsState().rows);
+  const [designers, setDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsState().designers);
+  const [baselineRows, setBaselineRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsState().rows);
+  const [baselineDesigners, setBaselineDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsState().designers);
   const saveTimeoutRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
@@ -121,6 +131,25 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     );
   }, []);
 
+  const onChangeFinalDesignerLogo = useCallback((designerId: string, logoImageAssetId: number | null) => {
+    setDesigners((prev) =>
+      prev.map((designer) => (designer.id === designerId ? { ...designer, logo_image_asset_id: logoImageAssetId } : designer))
+    );
+  }, []);
+
+  const onUploadDesignerLogo = useCallback(async (designerId: string, file: File) => {
+    const uploaded = await uploadAdminDesignerLogo(file);
+    if (!uploaded.ok || !uploaded.imageAssetId) {
+      pushToast(uploaded.message || "Не удалось загрузить логотип");
+      return;
+    }
+    onChangeFinalDesignerLogo(designerId, uploaded.imageAssetId);
+  }, [onChangeFinalDesignerLogo, pushToast]);
+
+  const onClearDesignerLogo = useCallback((designerId: string) => {
+    onChangeFinalDesignerLogo(designerId, null);
+  }, [onChangeFinalDesignerLogo]);
+
   const onCreateDesigner = useCallback((designerName: string) => {
     const normalizedDesignerName = String(designerName || "").trim();
     setDesigners((prev) => [
@@ -128,6 +157,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
         id: createDesignerId(),
         name: normalizedDesignerName,
         description: "",
+        logo_image_asset_id: null,
       },
       ...prev,
     ]);
@@ -165,9 +195,13 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     () => rows.some((row) => row.include_in_designers && !String(row.designer_name || "").trim()),
     [rows]
   );
+  const hasInvalidDesigners = useMemo(
+    () => designers.some((designer) => !String(designer.name || "").trim()),
+    [designers]
+  );
 
   useEffect(() => {
-    if (tab !== "designers" || loading || saving || !hasUnsavedChanges || hasInvalidRows) {
+    if (tab !== "designers" || loading || saving || !hasUnsavedChanges || hasInvalidRows || hasInvalidDesigners) {
       return;
     }
 
@@ -186,7 +220,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
         saveTimeoutRef.current = null;
       }
     };
-  }, [designers, hasInvalidRows, hasUnsavedChanges, loading, persistState, rows, saving, tab]);
+  }, [designers, hasInvalidDesigners, hasInvalidRows, hasUnsavedChanges, loading, persistState, rows, saving, tab]);
 
   useEffect(() => {
     return () => {
@@ -205,6 +239,8 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     onToggleIncludeInDesigners,
     onChangeFinalDesignerName,
     onChangeFinalDesignerDescription,
+    onUploadDesignerLogo,
+    onClearDesignerLogo,
     onCreateDesigner,
     onDeleteDesigner,
   };
