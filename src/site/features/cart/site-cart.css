@@ -58,7 +58,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: calc(100% + 2px);
   height: 33px;
+  margin-inline: -1px;
   padding: 7px;
   border-radius: var(--site-cart-card-inner-radius);
   background: center / 100% 100% no-repeat url("/site-mock/cart-window-bar.png");

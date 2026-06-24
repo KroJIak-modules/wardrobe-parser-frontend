@@ -485,8 +485,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 385px;
+  width: 387px;
   height: 38px;
+  margin-inline: -1px;
   padding: 7px;
   border-radius: var(--site-product-detail-sources-inner-radius);
   background: center / 100% 100% no-repeat url("/site-mock/product-detail/sources-modal/titlebar.png");

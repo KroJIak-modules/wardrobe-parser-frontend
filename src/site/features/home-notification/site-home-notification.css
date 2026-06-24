@@ -68,6 +68,8 @@
   align-items: center;
   justify-content: flex-start;
   min-height: 38px;
+  width: calc(100% + 2px);
+  margin-inline: -1px;
   padding: 0 39px 0 8px;
   border-radius: var(--site-home-notification-inner-radius);
   background:
