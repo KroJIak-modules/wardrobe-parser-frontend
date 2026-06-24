@@ -481,16 +481,11 @@
 }
 
 .site-product-detail__sources-titlebar {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   width: 387px;
-  height: 38px;
-  margin-inline: -1px;
-  padding: 7px;
-  border-radius: var(--site-product-detail-sources-inner-radius);
-  background: center / 100% 100% no-repeat url("/site-mock/product-detail/sources-modal/titlebar.png");
+  --site-window-titlebar-height: 38px;
+  --site-window-titlebar-padding: 7px;
+  --site-window-titlebar-radius: var(--site-product-detail-sources-inner-radius);
+  --site-window-titlebar-background: center / 100% 100% no-repeat url("/site-mock/product-detail/sources-modal/titlebar.png");
 }
 
 .site-product-detail__sources-title,
@@ -512,24 +507,8 @@
 }
 
 .site-product-detail__sources-close {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 22.627px;
   height: 22.627px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.site-product-detail__sources-close-icon {
-  width: 16px;
-  height: 16px;
-  display: block;
-  transform: rotate(45deg);
 }
 
 .site-product-detail__sources-panel {

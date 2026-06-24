@@ -1,0 +1,154 @@
+.site-image {
+  --site-image-skeleton-base: #f4f4f4;
+  --site-image-skeleton-glow: #fcfcfc;
+  --site-image-skeleton-shadow: #ececec;
+  --site-image-skeleton-overlay: linear-gradient(
+    100deg,
+    var(--site-image-skeleton-base) 0%,
+    var(--site-image-skeleton-base) 24%,
+    var(--site-image-skeleton-glow) 42%,
+    var(--site-image-skeleton-base) 58%,
+    var(--site-image-skeleton-shadow) 100%
+  );
+  --site-image-skeleton-background-size: 220% 100%;
+  --site-image-skeleton-animation: site-image-skeleton-wave 1.35s linear infinite;
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.site-image--fill {
+  width: 100%;
+  height: 100%;
+}
+
+.site-image__img {
+  display: block;
+  border-radius: inherit;
+}
+
+.site-image:not(.site-image--loaded) .site-image__img,
+.site-image--forced-skeleton .site-image__img {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.site-image__skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--site-image-skeleton-overlay);
+  background-size: var(--site-image-skeleton-background-size);
+  background-repeat: no-repeat;
+  animation: var(--site-image-skeleton-animation);
+  pointer-events: none;
+}
+
+.site-image--error .site-image__skeleton {
+  animation-duration: 2.2s;
+  opacity: 0.9;
+}
+
+.site-image--wave {
+  --site-image-skeleton-base: #f4f4f4;
+  --site-image-skeleton-glow: #fcfcfc;
+  --site-image-skeleton-shadow: #ececec;
+  --site-image-skeleton-overlay: linear-gradient(
+    100deg,
+    var(--site-image-skeleton-base) 0%,
+    var(--site-image-skeleton-base) 24%,
+    var(--site-image-skeleton-glow) 42%,
+    var(--site-image-skeleton-base) 58%,
+    var(--site-image-skeleton-shadow) 100%
+  );
+  --site-image-skeleton-background-size: 220% 100%;
+  --site-image-skeleton-animation: site-image-skeleton-wave 1.35s linear infinite;
+}
+
+.site-image--spotlight {
+  --site-image-skeleton-overlay:
+    radial-gradient(58% 80% at 50% 50%, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.3) 38%, rgba(255, 255, 255, 0) 68%),
+    linear-gradient(118deg, rgba(255, 255, 255, 0) 18%, rgba(255, 255, 255, 0.62) 46%, rgba(255, 255, 255, 0) 74%),
+    linear-gradient(180deg, #f3f3f3 0%, #eaeaea 100%);
+  --site-image-skeleton-background-size: 170% 170%, 220% 100%, 100% 100%;
+  --site-image-skeleton-animation: site-image-skeleton-spotlight 1.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.site-image--admin-image {
+  --site-image-skeleton-overlay:
+    linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.52) 50%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(180deg, #f2f2f2 0%, #e9e9e9 100%);
+  --site-image-skeleton-background-size: 200% 100%, 100% 100%;
+  --site-image-skeleton-animation: site-image-skeleton-admin 1.2s ease-in-out infinite;
+}
+
+.site-image--pulse {
+  --site-image-skeleton-overlay: linear-gradient(180deg, #f3f3f3 0%, #eaeaea 100%);
+  --site-image-skeleton-background-size: 100% 100%;
+  --site-image-skeleton-animation: site-image-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.site-image--shine {
+  --site-image-skeleton-overlay:
+    linear-gradient(115deg, rgba(255, 255, 255, 0) 28%, rgba(255, 255, 255, 0.78) 47%, rgba(255, 255, 255, 0) 64%),
+    linear-gradient(180deg, #f2f2f2 0%, #e9e9e9 100%);
+  --site-image-skeleton-background-size: 240% 100%, 100% 100%;
+  --site-image-skeleton-animation: site-image-skeleton-shine 1.5s linear infinite;
+}
+
+@keyframes site-image-skeleton-wave {
+  0% {
+    background-position: 140% 0;
+  }
+
+  100% {
+    background-position: -140% 0;
+  }
+}
+
+@keyframes site-image-skeleton-spotlight {
+  0% {
+    background-position: -55% 50%, 145% 0, 0 0;
+  }
+
+  50% {
+    background-position: 50% 50%, 0 0, 0 0;
+  }
+
+  100% {
+    background-position: 155% 50%, -145% 0, 0 0;
+  }
+}
+
+@keyframes site-image-skeleton-admin {
+  0% {
+    background-position: -140% 0, 0 0;
+  }
+
+  100% {
+    background-position: 140% 0, 0 0;
+  }
+}
+
+@keyframes site-image-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.68;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes site-image-skeleton-shine {
+  0% {
+    background-position: 140% 0, 0 0;
+  }
+
+  100% {
+    background-position: -140% 0, 0 0;
+  }
+}

@@ -52,53 +52,24 @@
 }
 
 .site-home-notification__window-label {
-  margin: 0;
-  color: rgba(0, 0, 0, 0.8);
-  font-family: var(--site-font-ui);
   font-size: 16px;
   font-weight: 500;
-  line-height: 1;
   text-align: left;
-  text-transform: uppercase;
 }
 
 .site-home-notification__titlebar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  min-height: 38px;
-  width: calc(100% + 2px);
-  margin-inline: -1px;
-  padding: 0 39px 0 8px;
-  border-radius: var(--site-home-notification-inner-radius);
-  background:
+  --site-window-titlebar-height: 38px;
+  --site-window-titlebar-padding: 0 9px 0 8px;
+  --site-window-titlebar-radius: var(--site-home-notification-inner-radius);
+  --site-window-titlebar-background:
     url("/site-mock/home-notification/titlebar.png") center / 100% 100% no-repeat,
     linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(236, 236, 236, 0.92) 100%);
   box-shadow: inset 0 -1px 0 rgba(138, 138, 138, 0.28);
 }
 
 .site-home-notification__close {
-  position: absolute;
-  top: 50%;
-  right: 9px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 23px;
-  height: 23px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  transform: translateY(-50%);
-  cursor: pointer;
-}
-
-.site-home-notification__close-icon {
-  width: 16.75px;
-  height: 16.75px;
-  display: block;
-  transform: rotate(45deg);
+  width: 22.627px;
+  height: 22.627px;
 }
 
 .site-home-notification__image-shell {

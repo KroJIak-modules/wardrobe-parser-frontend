@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
-import { SiteWindowShell } from "../window-shell/site-window-shell";
+import { SiteImage } from "../image/site-image";
+import { SiteWindowCloseButton, SiteWindowShell, SiteWindowTitlebar } from "../window-shell/site-window-shell";
 import type { SiteCartItem } from "../../runtime/site-cart-mock";
 import "./site-cart.css";
 
@@ -13,17 +14,6 @@ function CopyIcon() {
     <svg aria-hidden="true" className="site-cart-summary__copy-icon" viewBox="0 0 11 11" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M3.20833 1.375C2.70107 1.375 2.29167 1.7844 2.29167 2.29167V7.79167H3.20833V2.29167H7.79167V1.375H3.20833ZM4.58333 3.20833C4.07607 3.20833 3.66667 3.61774 3.66667 4.125V8.70833C3.66667 9.21559 4.07607 9.625 4.58333 9.625H9.16667C9.67393 9.625 10.0833 9.21559 10.0833 8.70833V4.125C10.0833 3.61774 9.67393 3.20833 9.16667 3.20833H4.58333ZM4.58333 4.125H9.16667V8.70833H4.58333V4.125Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function WindowCloseIcon() {
-  return (
-    <svg aria-hidden="true" className="site-cart-card__close-icon" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M8.375 0.375C8.65114 0.375 8.875 0.598858 8.875 0.875V7.875H15.875C16.1511 7.875 16.375 8.09886 16.375 8.375C16.375 8.65114 16.1511 8.875 15.875 8.875H8.875V15.875C8.875 16.1511 8.65114 16.375 8.375 16.375C8.09886 16.375 7.875 16.1511 7.875 15.875V8.875H0.875C0.598858 8.875 0.375 8.65114 0.375 8.375C0.375 8.09886 0.598858 7.875 0.875 7.875H7.875V0.875C7.875 0.598858 8.09886 0.375 8.375 0.375Z"
         fill="currentColor"
       />
     </svg>
@@ -46,16 +36,22 @@ function SiteCartCard({
 
   return (
     <SiteWindowShell as="article" className="site-cart-card" frameClassName="site-cart-card__frame">
-      <div className="site-cart-card__window-bar">
-        <p className="site-cart-card__availability">{item.availabilityLabel.toUpperCase()}</p>
-        <button type="button" className="site-cart-card__close" aria-label={`Убрать ${item.name} из корзины`} onClick={onRemove}>
-          <WindowCloseIcon />
-        </button>
-      </div>
+      <SiteWindowTitlebar
+        title={item.availabilityLabel}
+        className="site-cart-card__window-bar"
+        titleClassName="site-cart-card__availability"
+        closeButton={
+          <SiteWindowCloseButton
+            className="site-cart-card__close"
+            ariaLabel={`Убрать ${item.name} из корзины`}
+            onClick={onRemove}
+          />
+        }
+      />
 
       <div className="site-cart-card__body">
         <div className="site-cart-card__media">
-          {item.imageSrc ? <img src={item.imageSrc} alt={item.imageAlt} className="site-cart-card__image" /> : null}
+          {item.imageSrc ? <SiteImage src={item.imageSrc} alt={item.imageAlt} className="site-cart-card__image" fillContainer /> : null}
         </div>
 
         <div className="site-cart-card__content">

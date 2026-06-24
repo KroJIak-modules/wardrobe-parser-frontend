@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
-import { SiteWindowShell } from "../window-shell/site-window-shell";
+import { SiteImage } from "../image/site-image";
+import { SiteWindowCloseButton, SiteWindowShell, SiteWindowTitlebar } from "../window-shell/site-window-shell";
 import type { SiteProductDetailItem } from "../../runtime/site-product-detail-mock";
 import {
   buildSiteCartItemFromProduct,
@@ -187,19 +188,19 @@ function SiteProductSourcesDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <SiteWindowShell className="site-product-detail__sources-window" frameClassName="site-product-detail__sources-frame">
-          <div className="site-product-detail__sources-titlebar">
-            <p id="site-product-detail-sources-title" className="site-product-detail__sources-title">
-              ИСТОЧНИКИ
-            </p>
-            <button type="button" className="site-product-detail__sources-close" aria-label="Закрыть окно источников" onClick={onClose}>
-              <img
-                src="/site-mock/product-detail/sources-modal/close-icon.svg"
-                alt=""
-                aria-hidden="true"
-                className="site-product-detail__sources-close-icon"
+          <SiteWindowTitlebar
+            title="ИСТОЧНИКИ"
+            titleId="site-product-detail-sources-title"
+            className="site-product-detail__sources-titlebar"
+            titleClassName="site-product-detail__sources-title"
+            closeButton={
+              <SiteWindowCloseButton
+                className="site-product-detail__sources-close"
+                ariaLabel="Закрыть окно источников"
+                onClick={onClose}
               />
-            </button>
-          </div>
+            }
+          />
           <div className="site-product-detail__sources-panel">
             <SiteSizeSelector
               sizes={product.sizes}
@@ -226,12 +227,13 @@ function SiteProductSourcesDialog({
                           width: source.logoWidth ? `${source.logoWidth}px` : undefined,
                           height: source.logoHeight ? `${source.logoHeight}px` : undefined,
                         }}
-                      >
-                        <img
+                    >
+                        <SiteImage
                           src={source.logoSrc}
                           alt=""
                           aria-hidden="true"
                           className="site-product-detail__source-logo-image"
+                          fillContainer
                           style={{
                             width: source.logoImageWidthPercent ? `${source.logoImageWidthPercent}%` : undefined,
                             height: source.logoImageHeightPercent ? `${source.logoImageHeightPercent}%` : undefined,
@@ -419,7 +421,7 @@ function SiteProductHero({
               }}
               aria-label={`Фотография ${index + 1}`}
             >
-              <img
+              <SiteImage
                 src={item.thumbSrc}
                 alt=""
                 aria-hidden="true"
@@ -439,10 +441,11 @@ function SiteProductHero({
           >
             {product.gallery.map((item, index) => (
               <figure key={item.id} className="site-product-detail__main-image-slide" aria-hidden={selectedGalleryItem?.id === item.id ? "false" : "true"}>
-                <img
+                <SiteImage
                   src={item.imageSrc}
                   alt={item.alt}
                   className="site-product-detail__main-image"
+                  fillContainer
                   loading={index === 0 ? "eager" : "lazy"}
                   decoding="async"
                   fetchPriority={index === 0 ? "high" : "auto"}

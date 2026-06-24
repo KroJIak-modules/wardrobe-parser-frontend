@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { SiteImage } from "../image/site-image";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import type { SiteDesignersLocationState } from "../designers/site-designers-navigation";
 import { getSiteHeaderDropdownMenu, type SiteHeaderDropdownMenu, type SiteHeaderMenuEntry } from "./site-header-data";
@@ -392,7 +393,7 @@ export function SiteHeader({
       aria-label="Anton Shell"
       onClick={handleLogoActivate}
     >
-      <img
+      <SiteImage
         aria-hidden="true"
         className="site-header__logo-image"
         src="/logo_anton_shell.svg"

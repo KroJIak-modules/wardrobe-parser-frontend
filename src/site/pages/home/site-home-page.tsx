@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { landingHeroButtonLabel, siteMenuItems } from "../../app/site-static-content";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteHomeNotification } from "../../features/home-notification/site-home-notification";
+import { SiteImage } from "../../features/image/site-image";
+import type { SiteImageSkeletonVariant } from "../../features/image/site-image";
 import { LandingGlassButtons } from "../../features/landing/landing-glass-buttons";
 import {
   SiteCarouselSection,
@@ -18,6 +20,7 @@ import "./site-home-page.css";
 type IntroPhase = "intro" | "transition" | "entered";
 
 const INTRO_TRANSITION_MS = 880;
+const HOME_DEBUG_SKELETON_VARIANTS: readonly SiteImageSkeletonVariant[] = ["spotlight", "admin-image", "pulse", "shine"];
 
 function SiteHomeSurface({
   showHeader = true,
@@ -128,6 +131,7 @@ function SiteHomeSurface({
             products={products}
             loading={productsLoading}
             errorMessage={productsError}
+            debugSkeletonVariants={HOME_DEBUG_SKELETON_VARIANTS}
           />
         </div>
         <div className="site-home-surface__footer">
@@ -210,7 +214,7 @@ export function SiteHomePage() {
       >
         <section className="site-landing__hero" aria-label="Титульная страница">
           {media.heroImageSrc ? (
-            <img src={media.heroImageSrc} alt="" className="site-landing__image" />
+            <SiteImage src={media.heroImageSrc} alt="" className="site-landing__image" fillContainer />
           ) : (
             <div className="site-landing__image site-landing__image--placeholder" aria-hidden="true" />
           )}

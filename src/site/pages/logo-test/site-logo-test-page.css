@@ -85,6 +85,10 @@
   opacity: 1;
 }
 
+.site-logo-test-page__logo-blend > .site-image {
+  width: 100%;
+}
+
 .site-logo-test-page__logo-blend img {
   display: block;
   width: 100%;

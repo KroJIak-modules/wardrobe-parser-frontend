@@ -22,9 +22,7 @@
 
 .site-landing__hero {
   overflow: hidden;
-  background:
-    #0b0a09 url("/site-mock/landing-hero.jpg")
-    center / cover no-repeat;
+  background: #0b0a09;
 }
 
 .site-landing__image {

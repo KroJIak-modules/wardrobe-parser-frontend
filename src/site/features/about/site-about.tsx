@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import { SiteImage } from "../image/site-image";
 import type { SiteCarouselSlide } from "../storefront/site-storefront-contracts";
 import type { SiteAboutTextPanelViewModel } from "../../runtime/site-about-mock";
 import "./site-about.css";
@@ -144,7 +145,7 @@ function SiteAboutPhotoCarousel({
                 data-active={selectedIndex === index ? "true" : "false"}
                 aria-hidden={selectedIndex === index ? "false" : "true"}
               >
-                <img src={slide.imageSrc} alt={slide.alt} className="site-about__carousel-image" />
+                <SiteImage src={slide.imageSrc} alt={slide.alt} className="site-about__carousel-image" fillContainer />
               </figure>
             ))}
           </div>

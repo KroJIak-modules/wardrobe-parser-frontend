@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Link } from "react-router-dom";
 import { siteFooterColumns } from "../../app/site-static-content";
+import { SiteImage, type SiteImageSkeletonVariant } from "../image/site-image";
 import { SiteProductCard } from "../product-card/site-product-card";
 import type { SiteCarouselSlide, SiteProduct } from "./site-storefront-contracts";
 import "./site-storefront.css";
@@ -14,6 +15,7 @@ type SiteProductsSectionProps = {
   emptyMessage?: string;
   loading?: boolean;
   errorMessage?: string | null;
+  debugSkeletonVariants?: readonly SiteImageSkeletonVariant[];
 };
 
 type SiteProductsGridProps = {
@@ -21,6 +23,7 @@ type SiteProductsGridProps = {
   emptyMessage?: string;
   loading?: boolean;
   errorMessage?: string | null;
+  debugSkeletonVariants?: readonly SiteImageSkeletonVariant[];
 };
 
 function CarouselArrowIcon({ mirrored = false }: { mirrored?: boolean }) {
@@ -131,7 +134,7 @@ export function SiteCarouselSection({
                 data-active={selectedIndex === index ? "true" : "false"}
                 aria-hidden={selectedIndex === index ? "false" : "true"}
               >
-                <img src={slide.imageSrc} alt={slide.alt} className="site-carousel__image" />
+                <SiteImage src={slide.imageSrc} alt={slide.alt} className="site-carousel__image" fillContainer />
               </figure>
             ))}
           </div>
@@ -174,6 +177,7 @@ export function SiteProductsGrid({
   emptyMessage = "Ничего не найдено",
   loading = false,
   errorMessage = null,
+  debugSkeletonVariants = [],
 }: SiteProductsGridProps) {
   if (loading) {
     return <div className="site-products__status">Загрузка товаров...</div>;
@@ -189,8 +193,13 @@ export function SiteProductsGrid({
 
   return (
     <div className="site-products__grid">
-      {products.map((product) => (
-        <SiteProductCard key={product.id} product={product} />
+      {products.map((product, index) => (
+        <SiteProductCard
+          key={product.id}
+          product={product}
+          forceImageSkeleton={index < debugSkeletonVariants.length}
+          imageSkeletonVariant={debugSkeletonVariants[index] ?? "wave"}
+        />
       ))}
     </div>
   );
@@ -204,6 +213,7 @@ export function SiteProductsSection({
   emptyMessage = "Ничего не найдено",
   loading = false,
   errorMessage = null,
+  debugSkeletonVariants = [],
 }: SiteProductsSectionProps) {
   return (
     <section className="site-products" aria-labelledby="site-products-title">
@@ -222,6 +232,7 @@ export function SiteProductsSection({
         emptyMessage={emptyMessage}
         loading={loading}
         errorMessage={errorMessage}
+        debugSkeletonVariants={debugSkeletonVariants}
       />
     </section>
   );

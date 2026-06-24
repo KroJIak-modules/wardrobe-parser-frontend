@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { SiteHomeNotificationPayload } from "../../runtime/site-home-notification-mock";
-import { SiteWindowShell } from "../window-shell/site-window-shell";
+import { SiteImage } from "../image/site-image";
+import { SiteWindowCloseButton, SiteWindowShell, SiteWindowTitlebar } from "../window-shell/site-window-shell";
 import "./site-home-notification.css";
 
 const SITE_HOME_NOTIFICATION_TRANSITION_MS = 240;
@@ -88,27 +89,22 @@ export function SiteHomeNotification({
         }}
       >
         <SiteWindowShell className="site-home-notification__window" frameClassName="site-home-notification__frame">
-          <div className="site-home-notification__titlebar">
-            <p id="site-home-notification-title" className="site-home-notification__window-label">
-              {payload.windowLabel}
-            </p>
-            <button
-              type="button"
-              className="site-home-notification__close"
-              aria-label="Закрыть уведомление"
-              onClick={beginDismiss}
-            >
-              <img
-                src="/site-mock/home-notification/close-icon-figma.svg"
-                alt=""
-                aria-hidden="true"
-                className="site-home-notification__close-icon"
+          <SiteWindowTitlebar
+            title={payload.windowLabel}
+            titleId="site-home-notification-title"
+            className="site-home-notification__titlebar"
+            titleClassName="site-home-notification__window-label"
+            closeButton={
+              <SiteWindowCloseButton
+                className="site-home-notification__close"
+                ariaLabel="Закрыть уведомление"
+                onClick={beginDismiss}
               />
-            </button>
-          </div>
+            }
+          />
 
           <div className="site-home-notification__image-shell">
-            <img src={payload.imageSrc} alt={payload.imageAlt} className="site-home-notification__image" />
+            <SiteImage src={payload.imageSrc} alt={payload.imageAlt} className="site-home-notification__image" fillContainer />
           </div>
 
           <div className="site-home-notification__content">

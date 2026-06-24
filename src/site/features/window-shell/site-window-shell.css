@@ -11,3 +11,50 @@
   display: grid;
   gap: var(--site-window-shell-gap, 2px);
 }
+
+.site-window-titlebar {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: calc(100% + 2px);
+  min-height: var(--site-window-titlebar-height, 38px);
+  margin-inline: -1px;
+  padding: var(--site-window-titlebar-padding, 7px);
+  border-radius: var(--site-window-titlebar-radius, 4px);
+  background: var(--site-window-titlebar-background, center / 100% 100% no-repeat url("/site-mock/product-detail/sources-modal/titlebar.png"));
+}
+
+.site-window-titlebar__label {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.8);
+  font-family: var(--site-font-ui);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.site-window-titlebar__close {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22.627px;
+  height: 22.627px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.site-window-titlebar__close-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  transform: rotate(45deg);
+}

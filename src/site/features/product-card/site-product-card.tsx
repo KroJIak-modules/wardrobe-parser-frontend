@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { saveSiteCatalogReturnSnapshot } from "../catalog/site-catalog-return";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
+import { SiteImage, type SiteImageSkeletonVariant } from "../image/site-image";
 import type { SiteProduct } from "../storefront/site-storefront-contracts";
 import "./site-product-card.css";
 
@@ -11,9 +12,13 @@ function formatRubles(value: number) {
 export function SiteProductCard({
   product,
   imageLoading = "lazy",
+  imageSkeletonVariant = "wave",
+  forceImageSkeleton = false,
 }: {
   product: SiteProduct;
   imageLoading?: "lazy" | "eager";
+  imageSkeletonVariant?: SiteImageSkeletonVariant;
+  forceImageSkeleton?: boolean;
 }) {
   const location = useLocation();
   const designerHref = product.designerId ? buildDesignerCatalogHref(product.designerId) : null;
@@ -53,13 +58,16 @@ export function SiteProductCard({
           <div className="site-product-tile__media">
             <span className="site-product-tile__watermark" aria-hidden="true" />
             {product.imageSrc ? (
-              <img
+              <SiteImage
                 src={product.imageSrc}
                 alt={product.imageAlt}
                 className="site-product-tile__image"
+                fillContainer
+                forceSkeletonVisible={forceImageSkeleton}
                 loading={imageLoading}
                 decoding={imageLoading === "eager" ? "sync" : "async"}
                 fetchPriority={imageLoading === "eager" ? "high" : "auto"}
+                skeletonVariant={imageSkeletonVariant}
               />
             ) : (
               <div className="site-product-tile__image site-product-tile__image--empty">Фото скоро появится</div>

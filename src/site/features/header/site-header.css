@@ -50,14 +50,8 @@
   height: 89px;
   opacity: 1;
   pointer-events: none;
-}
-
-.site-header__logo-image img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
   object-fit: contain;
+  overflow: visible;
 }
 
 .site-header--preview .site-header__logo-image {

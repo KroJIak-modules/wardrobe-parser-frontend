@@ -23,3 +23,52 @@ export function SiteWindowShell<T extends ElementType = "div">({
     </Component>
   );
 }
+
+export function SiteWindowTitlebar({
+  title,
+  titleId,
+  className = "",
+  titleClassName = "",
+  closeButton,
+}: {
+  title: ReactNode;
+  titleId?: string;
+  className?: string;
+  titleClassName?: string;
+  closeButton?: ReactNode;
+}) {
+  return (
+    <div className={`site-window-titlebar${className ? ` ${className}` : ""}`.trim()}>
+      <p id={titleId} className={`site-window-titlebar__label${titleClassName ? ` ${titleClassName}` : ""}`.trim()}>
+        {title}
+      </p>
+      {closeButton}
+    </div>
+  );
+}
+
+export function SiteWindowCloseButton({
+  onClick,
+  ariaLabel,
+  className = "",
+}: {
+  onClick: () => void;
+  ariaLabel: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`site-window-titlebar__close${className ? ` ${className}` : ""}`.trim()}
+      aria-label={ariaLabel}
+      onClick={onClick}
+    >
+      <img
+        src="/site-mock/product-detail/sources-modal/close-icon.svg"
+        alt=""
+        aria-hidden="true"
+        className="site-window-titlebar__close-icon"
+      />
+    </button>
+  );
+}
