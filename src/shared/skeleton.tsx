@@ -339,14 +339,6 @@ export function AdminDesignersSkeleton({ rows = 3 }: { rows?: number }) {
               <SkeletonBlock className="admin-designers-skeleton__label admin-designers-skeleton__label--wide" />
               <SkeletonBlock className="admin-designers-skeleton__textarea" />
             </div>
-            <div className="designers-item__field designers-item__field--logo">
-              <SkeletonBlock className="admin-designers-skeleton__label" />
-              <div className="designers-item__logo-stack">
-                <SkeletonBlock className="admin-designers-skeleton__button" />
-                <SkeletonBlock className="admin-designers-skeleton__preview" />
-                <SkeletonBlock className="admin-designers-skeleton__button admin-designers-skeleton__button--short" />
-              </div>
-            </div>
             <div className="designers-item__field designers-item__field--related">
               <SkeletonBlock className="admin-designers-skeleton__label admin-designers-skeleton__label--wide" />
               <div className="designers-item__related-list">

@@ -67,7 +67,7 @@ export function useAdminTabPreload({
         }
         return;
       }
-      if (tab === "settings") {
+      if (tab === "content" || tab === "security") {
         await ensureAdminUiLoadedRef.current(true);
         return;
       }

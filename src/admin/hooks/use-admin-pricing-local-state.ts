@@ -11,7 +11,6 @@ export function useAdminPricingLocalState({ pricingSettings }: Props) {
   const [pricingDrafts, setPricingDrafts] = useState<Record<PricingFieldKey, string>>({} as Record<PricingFieldKey, string>);
   const [markupRateDraft, setMarkupRateDraft] = useState<string>("0");
   const [finalRoundingModeDraft, setFinalRoundingModeDraft] = useState<FinalRoundingMode>("unit");
-  const [designersMinProductsDraft, setDesignersMinProductsDraft] = useState<string>("1");
   const pricingFormulaHtml = useMemo(() => {
     if (!pricingSettings?.formula_latex) {
       return "";
@@ -26,8 +25,6 @@ export function useAdminPricingLocalState({ pricingSettings }: Props) {
     setMarkupRateDraft,
     finalRoundingModeDraft,
     setFinalRoundingModeDraft,
-    designersMinProductsDraft,
-    setDesignersMinProductsDraft,
     pricingFormulaHtml,
   };
 }

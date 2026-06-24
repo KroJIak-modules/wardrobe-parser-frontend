@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
+import { createSiteDesignersLocationState } from "../designers/site-designers-navigation";
 import { SiteProductCard } from "../product-card/site-product-card";
 import type {
   SiteCatalogFilterGroup,
@@ -422,6 +423,8 @@ function SiteCatalogFilters({
                     navigate({
                       pathname: "/designers",
                       search: searchParams.toString() ? `?${searchParams.toString()}` : "",
+                    }, {
+                      state: createSiteDesignersLocationState("catalog-filter"),
                     });
                     return;
                   }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
+import type { SiteDesignersLocationState } from "../designers/site-designers-navigation";
 import { getSiteHeaderDropdownMenu, type SiteHeaderDropdownMenu, type SiteHeaderMenuEntry } from "./site-header-data";
 import "./site-header.css";
 
@@ -10,6 +11,7 @@ type SiteHeaderProps = {
   actionItems: SiteNavItem[];
   mode?: "fixed" | "preview";
   searchValue?: string;
+  allowEmptySearchSubmit?: boolean;
   onSearchValueChange?: (value: string) => void;
   onSearchSubmit?: (value: string) => void;
 };
@@ -23,6 +25,10 @@ type IndicatorState = {
 const EMPTY_INDICATOR: IndicatorState = { left: 0, width: 0, opacity: 0 };
 const MENU_INDICATOR_SIDE_PADDING = 10;
 const ACTION_INDICATOR_SIDE_PADDING = 7;
+const ACTIONS_SIDE_INSET = 18;
+const SEARCH_ICON_LEFT = 161;
+const SEARCH_ICON_WIDTH = 23;
+const SEARCH_ICON_TO_SEARCH_HOVER_GAP = 10;
 
 function SearchIcon() {
   return (
@@ -56,7 +62,7 @@ function SiteHeaderDropdownContent({
   onNavigate,
 }: {
   menu: SiteHeaderDropdownMenu;
-  onNavigate: (to: string) => void;
+  onNavigate: (to: string, navigationState?: SiteDesignersLocationState) => void;
 }) {
   return (
     <div className={`site-header__menu-dropdown site-header__menu-dropdown--${menu.kind}`} aria-hidden={false}>
@@ -71,13 +77,13 @@ function SiteHeaderDropdownContent({
         >
           {column.title ? (
             column.title.to ? (
-              <button
-                type="button"
-                className="site-header__menu-column-title site-header__menu-column-title--link"
-                onClick={() => onNavigate(column.title?.to ?? "/catalog")}
-              >
-                {column.title.label}
-              </button>
+                <button
+                  type="button"
+                  className="site-header__menu-column-title site-header__menu-column-title--link"
+                  onClick={() => onNavigate(column.title?.to ?? "/catalog", column.title?.navigationState)}
+                >
+                  {column.title.label}
+                </button>
             ) : (
               <p className="site-header__menu-column-title">{column.title.label}</p>
             )
@@ -86,7 +92,12 @@ function SiteHeaderDropdownContent({
           <div className="site-header__menu-column-items">
             {column.entries.map((entry) =>
               entry.to ? (
-                <button key={entry.id} type="button" className={getMenuEntryClassName(entry)} onClick={() => onNavigate(entry.to ?? "/catalog")}>
+                <button
+                  key={entry.id}
+                  type="button"
+                  className={getMenuEntryClassName(entry)}
+                  onClick={() => onNavigate(entry.to ?? "/catalog", entry.navigationState)}
+                >
                   {entry.label}
                 </button>
               ) : (
@@ -100,7 +111,11 @@ function SiteHeaderDropdownContent({
       ))}
 
       {menu.footerLink ? (
-        <button type="button" className="site-header__menu-footer-link" onClick={() => onNavigate(menu.footerLink.to)}>
+        <button
+          type="button"
+          className="site-header__menu-footer-link"
+          onClick={() => onNavigate(menu.footerLink.to, menu.footerLink.navigationState)}
+        >
           {menu.footerLink.label}
         </button>
       ) : null}
@@ -114,6 +129,7 @@ export function SiteHeader({
   actionItems,
   mode = "fixed",
   searchValue = "",
+  allowEmptySearchSubmit = false,
   onSearchValueChange,
   onSearchSubmit,
 }: SiteHeaderProps) {
@@ -127,14 +143,33 @@ export function SiteHeader({
   const actionLabelRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const pendingSearchHoverFrameRef = useRef<number | null>(null);
+  const lastLocationRef = useRef(`${location.pathname}${location.search}`);
+  const shouldSyncCollapsedSearchRef = useRef(false);
   const [hoveredMenuIndex, setHoveredMenuIndex] = useState<number | null>(null);
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
   const [isSearchExpanded, setIsSearchExpanded] = useState(searchValue.trim() !== "");
   const [hoveredActionIndex, setHoveredActionIndex] = useState<number | null>(null);
   const [menuIndicator, setMenuIndicator] = useState<IndicatorState>(EMPTY_INDICATOR);
   const [actionIndicator, setActionIndicator] = useState<IndicatorState>(EMPTY_INDICATOR);
-  const expandedWidth = isSearchExpanded ? 370 : 180;
+  const [actionsRowWidth, setActionsRowWidth] = useState(144);
+  const [collapsedActionsWidth, setCollapsedActionsWidth] = useState(180);
+  const [isActionsTransitionReady, setIsActionsTransitionReady] = useState(false);
+  const expandedActionsWidth =
+    actionsRowWidth +
+    ACTIONS_SIDE_INSET +
+    SEARCH_ICON_LEFT +
+    SEARCH_ICON_WIDTH +
+    SEARCH_ICON_TO_SEARCH_HOVER_GAP +
+    ACTION_INDICATOR_SIDE_PADDING;
+  const actionsWidth = isSearchExpanded ? Math.max(expandedActionsWidth, collapsedActionsWidth) : collapsedActionsWidth;
   const activeDropdownMenu = openMenuIndex === null ? null : getSiteHeaderDropdownMenu(menuItems[openMenuIndex]?.label ?? "");
+
+  const syncCollapsedActionsWidth = useCallback(() => {
+    const nextRowWidth = actionsRowRef.current?.getBoundingClientRect().width ?? 0;
+    const nextWidth = nextRowWidth + ACTIONS_SIDE_INSET * 2;
+    setActionsRowWidth((currentWidth) => (currentWidth === nextRowWidth ? currentWidth : nextRowWidth));
+    setCollapsedActionsWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+  }, []);
 
   const syncIndicator = useCallback(
     (
@@ -199,6 +234,48 @@ export function SiteHeader({
     syncActionIndicator(hoveredActionIndex);
   }, [hoveredActionIndex, isSearchExpanded, syncActionIndicator]);
 
+  useLayoutEffect(() => {
+    syncCollapsedActionsWidth();
+  }, [actionItems, syncCollapsedActionsWidth]);
+
+  useEffect(() => {
+    const target = actionsRowRef.current;
+    if (!target || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      syncCollapsedActionsWidth();
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [syncCollapsedActionsWidth]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const markReady = () => {
+      syncCollapsedActionsWidth();
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (!isCancelled) {
+            setIsActionsTransitionReady(true);
+          }
+        });
+      });
+    };
+
+    if (typeof document !== "undefined" && "fonts" in document) {
+      document.fonts.ready.then(markReady).catch(markReady);
+    } else {
+      markReady();
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [syncCollapsedActionsWidth]);
+
   useEffect(() => {
     const handleResize = () => {
       syncIndicator(
@@ -211,11 +288,12 @@ export function SiteHeader({
       );
 
       syncActionIndicator(hoveredActionIndex);
+      syncCollapsedActionsWidth();
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [hoveredActionIndex, hoveredMenuIndex, syncActionIndicator, syncIndicator]);
+  }, [hoveredActionIndex, hoveredMenuIndex, syncActionIndicator, syncCollapsedActionsWidth, syncIndicator]);
 
   useEffect(() => {
     if (searchValue.trim() !== "") {
@@ -223,16 +301,40 @@ export function SiteHeader({
     }
   }, [searchValue]);
 
+  useEffect(() => {
+    const nextLocationKey = `${location.pathname}${location.search}`;
+    if (lastLocationRef.current === nextLocationKey) {
+      return;
+    }
+
+    lastLocationRef.current = nextLocationKey;
+    shouldSyncCollapsedSearchRef.current = true;
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!shouldSyncCollapsedSearchRef.current) {
+      return;
+    }
+
+    shouldSyncCollapsedSearchRef.current = false;
+    if (searchValue.trim() !== "") {
+      return;
+    }
+
+    setHoveredActionIndex((current) => (current === 0 ? null : current));
+    setIsSearchExpanded(false);
+  }, [searchValue]);
+
   const isSearchInteractive = typeof onSearchValueChange === "function" || typeof onSearchSubmit === "function";
 
   const handleSearchSubmit = useCallback(() => {
     const normalizedValue = normalizeSearchSubmitValue(searchValue);
-    if (normalizedValue === "") {
+    if (normalizedValue === "" && !allowEmptySearchSubmit) {
       return;
     }
 
     onSearchSubmit?.(normalizedValue);
-  }, [onSearchSubmit, searchValue]);
+  }, [allowEmptySearchSubmit, onSearchSubmit, searchValue]);
 
   const collapseSearchIfEmpty = useCallback(() => {
     if (document.activeElement === searchInputRef.current || searchValue.trim() !== "") {
@@ -302,21 +404,13 @@ export function SiteHeader({
   );
 
   const navigateFromDropdown = useCallback(
-    (to: string) => {
+    (to: string, navigationState?: SiteDesignersLocationState) => {
       setHoveredMenuIndex(null);
       setOpenMenuIndex(null);
 
-      if (to === "/designers" && location.pathname === "/catalog" && location.search !== "") {
-        navigate({
-          pathname: "/designers",
-          search: location.search,
-        });
-        return;
-      }
-
-      navigate(to);
+      navigate(to, navigationState ? { state: navigationState } : undefined);
     },
-    [location.pathname, location.search, navigate]
+    [navigate]
   );
 
   return (
@@ -384,8 +478,8 @@ export function SiteHeader({
         </div>
 
         <div
-          className={`site-header__actions${isSearchExpanded ? " site-header__actions--expanded" : ""}`}
-          style={{ width: `${expandedWidth}px` }}
+          className={`site-header__actions${isSearchExpanded ? " site-header__actions--expanded" : ""}${isActionsTransitionReady ? " site-header__actions--ready" : ""}`}
+          style={{ width: `${actionsWidth}px` }}
           onMouseLeave={() => {
             setHoveredActionIndex(null);
             collapseSearchIfEmpty();

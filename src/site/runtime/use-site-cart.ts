@@ -13,6 +13,8 @@ function isSiteCartItem(value: unknown): value is SiteCartItem {
   const candidate = value as Partial<SiteCartItem>;
   return (
     typeof candidate.id === "string" &&
+    typeof candidate.productId === "string" &&
+    typeof candidate.designerId === "string" &&
     typeof candidate.brand === "string" &&
     typeof candidate.name === "string" &&
     (typeof candidate.imageSrc === "string" || candidate.imageSrc === null) &&
@@ -167,9 +169,11 @@ export function useSiteCart() {
 
 export function useSiteActionItems(): SiteNavItem[] {
   const { hasItems, totalItems } = useSiteCart();
+  const cartCountLabel = totalItems >= 10 ? "9+" : `${totalItems}`;
+  const cartLabel = hasItems ? `Корзина (${cartCountLabel})` : "Корзина";
 
   return useMemo(
-    () => [{ label: "Поиск" }, { label: `Корзина (${totalItems})`, to: hasItems ? "/cart" : undefined }],
-    [hasItems, totalItems]
+    () => [{ label: "Поиск" }, { label: cartLabel, to: hasItems ? "/cart" : undefined }],
+    [cartLabel, hasItems]
   );
 }

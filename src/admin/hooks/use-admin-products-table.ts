@@ -140,6 +140,9 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [productSections, setProductSections] = useState<AdminFilterFacetOption[]>([]);
   const [productGenders, setProductGenders] = useState<AdminFilterFacetOption[]>([]);
   const requestSeqRef = useRef(0);
+  const fullReloadInFlightRef = useRef(false);
+  const backgroundReloadInFlightRef = useRef(false);
+  const previousJobStatusRef = useRef<string | null>(latestJobStatus ?? null);
 
   const loadMoreTableProducts = useCallback(async () => {
     if (!tableHasMore || tableLoadingMore) {
@@ -171,25 +174,23 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     }
   }, [tableHasMore, tableLoadingMore, tableOffset, debouncedQuery, pushToast]);
 
-  const reloadTableData = useCallback(async (signal?: AbortSignal) => {
+  const reloadTableProducts = useCallback(async (options?: { signal?: AbortSignal; silent?: boolean }) => {
+    const signal = options?.signal;
+    const silent = options?.silent === true;
     const requestSeq = ++requestSeqRef.current;
-    setTableLoading(true);
+    if (!silent) {
+      setTableLoading(true);
+    }
     try {
       const productsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: true, limit: PAGE_SIZE });
-      const facetsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: false });
-      const productsPromise = authFetch(`${API_BASE}/admin/products/table?${productsQuery.toString()}`, { signal });
-      const facetsPromise = authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal });
-      const productsResponse = await productsPromise;
-
+      const productsResponse = await authFetch(`${API_BASE}/admin/products/table?${productsQuery.toString()}`, { signal });
       if (!productsResponse.ok) {
         throw new Error(`Products table API error: ${productsResponse.status}`);
       }
-
       const payload = (await productsResponse.json()) as ProductsTablePayload;
       if (requestSeq !== requestSeqRef.current) {
-        return;
+        return null;
       }
-
       const items = (payload.items || []).map((item) => mapAdminTableItem(item));
       setTableProducts(sortProductsForAdminTable(items));
       setTableTotal(payload.total || 0);
@@ -197,9 +198,27 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       const loadedCount = items.length;
       setTableOffset(loadedCount);
       setTableHasMore(loadedCount < Number(payload.total || 0));
-      setTableLoading(false);
+      return payload;
+    } finally {
+      if (!silent && requestSeq === requestSeqRef.current) {
+        setTableLoading(false);
+      }
+    }
+  }, [debouncedQuery]);
 
-      const facetsResponse = await facetsPromise;
+  const reloadTableData = useCallback(async (signal?: AbortSignal) => {
+    fullReloadInFlightRef.current = true;
+    try {
+      const productsPayload = await reloadTableProducts({ signal });
+      if (productsPayload === null) {
+        return;
+      }
+      const requestSeq = requestSeqRef.current;
+      const facetsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: false });
+      const facetsResponse = await authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal });
+      if (requestSeq !== requestSeqRef.current) {
+        return;
+      }
       if (!facetsResponse.ok) {
         throw new Error(`Products facets API error: ${facetsResponse.status}`);
       }
@@ -208,8 +227,8 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
         return;
       }
       startTransition(() => {
-        setTableTotal(facetsPayload.total || payload.total || 0);
-        setTableOverallTotal(facetsPayload.overall_total || payload.total || 0);
+        setTableTotal(facetsPayload.total || productsPayload.total || 0);
+        setTableOverallTotal(facetsPayload.overall_total || productsPayload.total || 0);
         setProductSources(facetsPayload.sources || []);
         setProductDesigners(facetsPayload.designers || []);
         setProductCatalogs(facetsPayload.catalogs || []);
@@ -217,11 +236,9 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
         setProductGenders(facetsPayload.genders || []);
       });
     } finally {
-      if (requestSeq === requestSeqRef.current) {
-        setTableLoading(false);
-      }
+      fullReloadInFlightRef.current = false;
     }
-  }, [debouncedQuery]);
+  }, [debouncedQuery, reloadTableProducts]);
 
   useEffect(() => {
     if (tab !== "products") {
@@ -262,11 +279,40 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     if (!latestJobStatus || !["queued", "running"].includes(latestJobStatus)) {
       return;
     }
+    const runBackgroundReload = async () => {
+      if (backgroundReloadInFlightRef.current || fullReloadInFlightRef.current) {
+        return;
+      }
+      backgroundReloadInFlightRef.current = true;
+      try {
+        await reloadTableProducts({ silent: true });
+      } catch (error) {
+        pushToast(error instanceof Error ? error.message : "Ошибка обновления таблицы товаров");
+      } finally {
+        backgroundReloadInFlightRef.current = false;
+      }
+    };
     const timer = window.setInterval(() => {
-      void reloadTableData();
+      void runBackgroundReload();
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [tab, latestJobStatus, reloadTableData]);
+  }, [tab, latestJobStatus, pushToast, reloadTableProducts]);
+
+  useEffect(() => {
+    const previousStatus = previousJobStatusRef.current;
+    previousJobStatusRef.current = latestJobStatus ?? null;
+    if (tab !== "products") {
+      return;
+    }
+    const wasActive = !!previousStatus && ["queued", "running"].includes(previousStatus);
+    const isActive = !!latestJobStatus && ["queued", "running"].includes(latestJobStatus);
+    if (!wasActive || isActive) {
+      return;
+    }
+    void reloadTableData().catch((error) => {
+      pushToast(error instanceof Error ? error.message : "Ошибка загрузки таблицы товаров");
+    });
+  }, [tab, latestJobStatus, pushToast, reloadTableData]);
 
   useEffect(() => {
     if (tab !== "products") {

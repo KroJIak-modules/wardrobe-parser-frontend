@@ -19,6 +19,17 @@ import {
   siteCatalogSections,
 } from "../../runtime/site-catalog-mock";
 
+const SEARCH_HEADER_MAX_TITLE_LENGTH = "Поиск: павпавпавппвпавпвапва".length;
+
+function buildSearchHeaderTitle(query: string) {
+  const baseTitle = `Поиск: ${query}`;
+  if (baseTitle.length <= SEARCH_HEADER_MAX_TITLE_LENGTH) {
+    return baseTitle;
+  }
+
+  return `${baseTitle.slice(0, SEARCH_HEADER_MAX_TITLE_LENGTH - 1).trimEnd()}…`;
+}
+
 function findDesigner(designerId: string): SiteCatalogDesigner | null {
   return siteCatalogDesigners.find((designer) => designer.id === designerId) ?? null;
 }
@@ -38,6 +49,10 @@ function hasRestrictiveFilters(state: SiteCatalogState) {
 }
 
 function resolveHeader(state: SiteCatalogState): SiteCatalogHeader {
+  if (state.query !== "") {
+    return { title: buildSearchHeaderTitle(state.query), description: null, source: "search" };
+  }
+
   if (state.top === "sale") {
     return { title: "Скидки", description: null, source: "sale" };
   }
@@ -60,7 +75,7 @@ function resolveHeader(state: SiteCatalogState): SiteCatalogHeader {
     return { title: "Дизайнеры", description: null, source: "multiple_designers" };
   }
 
-  if (state.multi && (state.top === "men" || state.top === "women")) {
+  if (state.multi) {
     const multi = siteCatalogMultiFilters.find((item) => item.id === state.multi);
     if (multi) {
       return { title: multi.label, description: null, source: "menu_filter" };
@@ -123,15 +138,7 @@ function applyBaseContext(products: readonly SiteCatalogProduct[], state: SiteCa
     scoped = scoped.filter((product) => product.customCatalogIds.includes("my-choice"));
   }
 
-  if (state.top === "men") {
-    scoped = scoped.filter((product) => product.genders.includes("men"));
-  }
-
-  if (state.top === "women") {
-    scoped = scoped.filter((product) => product.genders.includes("women"));
-  }
-
-  if (state.multi && (state.top === "men" || state.top === "women")) {
+  if (state.multi) {
     scoped = scoped.filter((product) =>
       product.sectionIds.some((sectionId) => findSection(sectionId)?.multiFilterIds.includes(state.multi as string))
     );
@@ -174,6 +181,9 @@ export function parseCatalogState(searchParams: URLSearchParams): SiteCatalogSta
   const sortRaw = String(searchParams.get("sort") || "").trim();
   const sort: SiteCatalogState["sort"] =
     sortRaw === "price-asc" || sortRaw === "price-desc" || sortRaw === "featured" ? sortRaw : "featured";
+  const genderIds = readCatalogListParam(searchParams, "gender");
+  const normalizedGenderIds =
+    genderIds.length === 0 && (top === "men" || top === "women") ? [top] : genderIds;
 
   return {
     top,
@@ -184,7 +194,7 @@ export function parseCatalogState(searchParams: URLSearchParams): SiteCatalogSta
     availability,
     sectionIds: readCatalogListParam(searchParams, "section"),
     designerIds: readCatalogListParam(searchParams, "designer"),
-    genderIds: readCatalogListParam(searchParams, "gender"),
+    genderIds: normalizedGenderIds,
   };
 }
 

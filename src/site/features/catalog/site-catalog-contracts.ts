@@ -69,6 +69,7 @@ export type SiteCatalogProduct = SiteProduct & {
 };
 
 export type SiteCatalogHeaderSource =
+  | "search"
   | "sale"
   | "custom_catalog"
   | "designer"

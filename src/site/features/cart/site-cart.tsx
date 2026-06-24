@@ -1,3 +1,6 @@
+import { Link } from "react-router-dom";
+import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
+import { SiteWindowShell } from "../window-shell/site-window-shell";
 import type { SiteCartItem } from "../../runtime/site-cart-mock";
 import "./site-cart.css";
 
@@ -38,8 +41,11 @@ function SiteCartCard({
   onDecrement: () => void;
   onRemove: () => void;
 }) {
+  const designerHref = buildDesignerCatalogHref(item.designerId);
+  const productHref = `/show/${item.productId}`;
+
   return (
-    <article className="site-cart-card">
+    <SiteWindowShell as="article" className="site-cart-card" frameClassName="site-cart-card__frame">
       <div className="site-cart-card__window-bar">
         <p className="site-cart-card__availability">{item.availabilityLabel.toUpperCase()}</p>
         <button type="button" className="site-cart-card__close" aria-label={`Убрать ${item.name} из корзины`} onClick={onRemove}>
@@ -54,8 +60,12 @@ function SiteCartCard({
 
         <div className="site-cart-card__content">
           <div className="site-cart-card__copy">
-            <p className="site-cart-card__brand">{item.brand}</p>
-            <p className="site-cart-card__name">{item.name.toUpperCase()}</p>
+            <Link to={designerHref} className="site-cart-card__brand-link">
+              {item.brand}
+            </Link>
+            <Link to={productHref} className="site-cart-card__name-link">
+              {item.name.toUpperCase()}
+            </Link>
           </div>
 
           <div className="site-cart-card__footer">
@@ -82,7 +92,7 @@ function SiteCartCard({
           </div>
         </div>
       </div>
-    </article>
+    </SiteWindowShell>
   );
 }
 
@@ -128,14 +138,14 @@ export function SiteCartView({
           )}
         </div>
 
-        <aside className="site-cart-summary" aria-label="Итог и отправка запроса">
+        <aside className={hasItems ? "site-cart-summary" : "site-cart-summary site-cart-summary--empty"} aria-label="Итог и отправка запроса">
           <p className="site-cart-summary__total">Итого: {formatRubles(totalPriceRub)} ₽</p>
           <p className="site-cart-summary__description">
             {hasItems
               ? "После нажатия кнопки «Отправить запрос» откроется чат в Telegram. Сообщение с выбранными товарами сформируется автоматически. Отправьте его в чат для оформления заказа. Если сообщение не появилось автоматически, нажмите кнопку:"
               : "Добавьте товары в корзину, чтобы сформировать запрос на заказ и отправить его в Telegram."}
           </p>
-          <button type="button" className="site-cart-summary__copy" onClick={onCopyRequest}>
+          <button type="button" className="site-cart-summary__copy" onClick={onCopyRequest} disabled={!hasItems}>
             <CopyIcon />
             <span>Скопировать запрос вручную</span>
           </button>

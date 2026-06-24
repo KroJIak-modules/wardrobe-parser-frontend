@@ -8,7 +8,8 @@ const tabs: { key: AdminTab; label: string }[] = [
   { key: "sources", label: "Источники" },
   { key: "pricing", label: "Ценообразование" },
   { key: "weight", label: "Вес" },
-  { key: "settings", label: "Настройки" },
+  { key: "content", label: "Контент" },
+  { key: "security", label: "Безопасность" },
 ];
 
 const tabKeys = new Set<AdminTab>(tabs.map((item) => item.key));

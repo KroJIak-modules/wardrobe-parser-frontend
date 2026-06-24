@@ -3,7 +3,7 @@ import { AdminTabContent } from "../admin-tab-content";
 
 type TabContentProps = ComponentProps<typeof AdminTabContent>;
 
-type Params = Omit<TabContentProps, "productsTabProps" | "dedupTabProps" | "filtersCategoriesTabProps" | "designersTabProps" | "sourcesTabProps" | "pricingTabProps" | "weightTabProps" | "settingsTabProps"> & {
+type Params = Omit<TabContentProps, "productsTabProps" | "dedupTabProps" | "filtersCategoriesTabProps" | "designersTabProps" | "sourcesTabProps" | "pricingTabProps" | "weightTabProps" | "settingsTabProps" | "securityTabProps"> & {
   productsTabProps: TabContentProps["productsTabProps"];
   designersTabProps: TabContentProps["designersTabProps"];
   filtersCategoriesTabProps: TabContentProps["filtersCategoriesTabProps"];
@@ -20,6 +20,7 @@ export function useAdminTabContentProps(params: Params): TabContentProps {
     pricingTabProps,
     weightTabProps,
     settingsTabProps,
+    securityTabProps,
   } = params;
 
   return {
@@ -32,5 +33,6 @@ export function useAdminTabContentProps(params: Params): TabContentProps {
     pricingTabProps,
     weightTabProps,
     settingsTabProps,
+    securityTabProps,
   };
 }

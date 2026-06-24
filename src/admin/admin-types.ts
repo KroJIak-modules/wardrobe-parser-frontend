@@ -1,4 +1,4 @@
-export type AdminTab = "products" | "dedup" | "showcase-structure" | "designers" | "sources" | "pricing" | "weight" | "settings";
+export type AdminTab = "products" | "dedup" | "showcase-structure" | "designers" | "sources" | "pricing" | "weight" | "content" | "security";
 
 export type UploadPreview = {
   file: File;
@@ -111,11 +111,8 @@ export type AdminFinalDesigner = {
   id: string;
   name: string;
   description: string;
-  logo_image_asset_id: number | null;
 };
 
 export type AdminUiSettings = {
-  designers_min_products: number;
-  designers_exclude_store_names: boolean;
   auto_sync_period_minutes?: number;
 };

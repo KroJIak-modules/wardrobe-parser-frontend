@@ -45,6 +45,7 @@ export function AdminShowcaseMediaSection({
     <div className="showcase-media-settings">
       <div className="showcase-media-block">
         <h3 className="settings-subtitle">Заставка на главном экране</h3>
+        <p className="admin-settings-media-help">Один главный кадр. Лучше работает крупное вертикальное или широкое фото без текста.</p>
         <div
           className="showcase-hero-tile"
           onClick={() => heroInputRef.current?.click()}
@@ -71,7 +72,11 @@ export function AdminShowcaseMediaSection({
               </button>
             </>
           ) : (
-            <IconPlus className="icon-svg icon-svg--sm" />
+            <div className="admin-settings-upload-empty">
+              <IconPlus className="icon-svg icon-svg--sm" />
+              <strong>Загрузить заставку</strong>
+              <span>PNG, JPG, WebP</span>
+            </div>
           )}
         </div>
         <input ref={heroInputRef} type="file" accept="image/*" className="input-hidden" onChange={(event) => void onPickHeroImage(event)} />
@@ -79,6 +84,7 @@ export function AdminShowcaseMediaSection({
 
       <div className="showcase-media-block">
         <h3 className="settings-subtitle">{`Карусель (${showcaseCarousel.length}/${SHOWCASE_CAROUSEL_LIMIT})`}</h3>
+        <p className="admin-settings-media-help">Порядок слайдов идет слева направо. Обычно здесь достаточно 4-8 кадров.</p>
         <div className="showcase-carousel-grid">
           {showcaseCarousel.map((item) => (
             <div
@@ -98,7 +104,11 @@ export function AdminShowcaseMediaSection({
           ))}
           {showcaseCarousel.length < SHOWCASE_CAROUSEL_LIMIT ? (
             <button type="button" className="showcase-carousel-add" onClick={() => carouselInputRef.current?.click()} disabled={showcaseSaving}>
-              <IconPlus className="icon-svg icon-svg--sm" />
+              <span className="admin-settings-upload-empty">
+                <IconPlus className="icon-svg icon-svg--sm" />
+                <strong>Добавить слайды</strong>
+                <span>{`${SHOWCASE_CAROUSEL_LIMIT - showcaseCarousel.length} мест свободно`}</span>
+              </span>
             </button>
           ) : null}
         </div>

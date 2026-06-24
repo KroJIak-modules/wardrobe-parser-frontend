@@ -14,14 +14,14 @@ export type SiteHomeNotificationPayload = {
 
 export const siteHomeNotificationMockPayload: SiteHomeNotificationPayload = {
   id: "telegram-updates",
-  version: "v1",
+  version: "v3",
   enabled: true,
   delayMs: 2600,
   windowLabel: "УВЕДОМЛЕНИЕ",
   title: "ОБНОВЛЕНИЯ И НАХОДКИ",
   description: "Следите за новостями модной индустрии и любимых брендов вместе со мной",
-  imageSrc: "/site-mock/about-photo-cropped.png",
-  imageAlt: "Anton Shell в интерьерной съемке",
+  imageSrc: "/site-mock/home-notification/notification-hero-figma.png",
+  imageAlt: "Превью telegram-канала Anton Shell",
   ctaLabel: "ПЕРЕЙТИ В TELEGRAM",
   ctaHref: "https://t.me/antonshellog",
 };

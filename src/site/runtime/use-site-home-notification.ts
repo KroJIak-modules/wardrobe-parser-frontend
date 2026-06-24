@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { siteHomeNotificationMockPayload } from "./site-home-notification-mock";
 
-const SITE_HOME_NOTIFICATION_STORAGE_PREFIX = "site-home-notification-dismissed";
+const SITE_HOME_NOTIFICATION_STORAGE_PREFIX = "site-home-notification-seen";
 
 function buildStorageKey(id: string) {
   return `${SITE_HOME_NOTIFICATION_STORAGE_PREFIX}:${id}`;
 }
 
-function readDismissedVersion(id: string) {
+function readSeenVersion(id: string) {
   if (typeof window === "undefined") {
     return null;
   }
@@ -19,7 +19,7 @@ function readDismissedVersion(id: string) {
   }
 }
 
-function writeDismissedVersion(id: string, version: string) {
+function writeSeenVersion(id: string, version: string) {
   if (typeof window === "undefined") {
     return;
   }
@@ -41,13 +41,14 @@ export function useSiteHomeNotification(isEnabled: boolean) {
       return undefined;
     }
 
-    const dismissedVersion = readDismissedVersion(payload.id);
-    if (dismissedVersion === payload.version) {
+    const seenVersion = readSeenVersion(payload.id);
+    if (seenVersion === payload.version) {
       setIsOpen(false);
       return undefined;
     }
 
     const timeoutId = window.setTimeout(() => {
+      writeSeenVersion(payload.id, payload.version);
       setIsOpen(true);
     }, Math.max(0, payload.delayMs));
 
@@ -57,9 +58,8 @@ export function useSiteHomeNotification(isEnabled: boolean) {
   }, [isEnabled, payload]);
 
   const dismiss = useCallback(() => {
-    writeDismissedVersion(payload.id, payload.version);
     setIsOpen(false);
-  }, [payload.id, payload.version]);
+  }, []);
 
   return {
     payload,

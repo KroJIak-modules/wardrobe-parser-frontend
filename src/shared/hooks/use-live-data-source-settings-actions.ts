@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { API_BASE } from "../admin-auth";
+import { API_BASE, authFetch } from "../admin-auth";
 import { errResult, okResult } from "../action-result";
 import { apiJson, apiNoContent } from "../api-client";
 import type { DescriptionMode, PricingExampleProduct, PricingSettings, SettingsTransferPayload, Source } from "../live-data-types";
@@ -141,6 +141,48 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [patchSource]);
 
+  const uploadSourceLogo = useCallback(async (sourceKey: string, file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadResponse = await authFetch(`${API_BASE}/sources/logo/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error(`Source logo upload failed: ${uploadResponse.status}`);
+      }
+      const uploadPayload = await uploadResponse.json() as { image_asset_id?: number };
+      const imageAssetId = Math.trunc(Number(uploadPayload.image_asset_id) || 0);
+      if (imageAssetId <= 0) {
+        throw new Error("Source logo upload did not return image_asset_id");
+      }
+      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/logo`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logo_image_asset_id: imageAssetId }),
+      });
+      patchSource(sourceKey, updated);
+      return okResult("Логотип источника обновлен");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [patchSource]);
+
+  const clearSourceLogo = useCallback(async (sourceKey: string) => {
+    try {
+      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/logo`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logo_image_asset_id: null }),
+      });
+      patchSource(sourceKey, updated);
+      return okResult("Логотип источника удален");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [patchSource]);
+
   const updateSourceAttributeVisibility = useCallback(async (sourceKey: string, payload: { description_mode?: DescriptionMode; show_images?: boolean }) => {
     try {
       const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/attribute-visibility`, {
@@ -165,9 +207,12 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [setPricingSettings]);
 
-  const fetchPricingExampleProduct = useCallback(async (): Promise<{ product: PricingExampleProduct | null; errorMessage: string | null }> => {
+  const fetchPricingExampleProduct = useCallback(async (productId?: number | null): Promise<{ product: PricingExampleProduct | null; errorMessage: string | null }> => {
     try {
-      const product = await apiJson<PricingExampleProduct>(`${API_BASE}/products/pricing-example`);
+      const query = typeof productId === "number" && Number.isFinite(productId) && productId > 0
+        ? `?product_id=${Math.trunc(productId)}`
+        : "";
+      const product = await apiJson<PricingExampleProduct>(`${API_BASE}/products/pricing-example${query}`);
       return { product, errorMessage: null };
     } catch (e) {
       const text = e instanceof Error ? e.message : "Unknown error";
@@ -331,6 +376,8 @@ export function useLiveDataSourceSettingsActions(params: {
     toggleSourceSyncEnabled,
     toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
+    uploadSourceLogo,
+    clearSourceLogo,
     updateSourceAttributeVisibility,
     assignSourceSupplier,
     createWeightRule,

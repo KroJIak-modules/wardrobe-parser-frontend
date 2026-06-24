@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { patchCatalogSearchParams, readCatalogListParam } from "../catalog/site-catalog-query";
+import type { SiteDesignersEntryMode } from "./site-designers-navigation";
 import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers-mock";
 import "./site-designers.css";
 
@@ -105,13 +106,17 @@ function ScrollTopArrowIcon() {
 export function SiteDesignersDirectory({
   alphabet,
   entries,
+  mode,
   searchParams,
   onApply,
+  onBrowseSelect,
 }: {
   alphabet: readonly string[];
   entries: readonly SiteDesignersDirectoryEntry[];
+  mode: SiteDesignersEntryMode;
   searchParams: URLSearchParams;
   onApply: (next: URLSearchParams) => void;
+  onBrowseSelect: (designerId: string) => void;
 }) {
   const groupedEntries = useMemo(() => buildGroupedEntries(alphabet, entries), [alphabet, entries]);
   const rows = useMemo(() => buildGridRows(groupedEntries, 6), [groupedEntries]);
@@ -228,6 +233,11 @@ export function SiteDesignersDirectory({
                               : "site-designers-shell__designer"
                           }
                           onClick={() => {
+                            if (mode === "browse") {
+                              onBrowseSelect(entry.id);
+                              return;
+                            }
+
                             setSelectedDesignerIds((current) =>
                               current.includes(entry.id)
                                 ? current.filter((value) => value !== entry.id)
@@ -252,38 +262,42 @@ export function SiteDesignersDirectory({
 
       <div className="site-designers-actions">
         <div className="site-designers-actions__inner" style={{ bottom: `${actionsBottomOffset}px` }}>
-          <button
-            type="button"
-            className="site-designers-actions__button site-designers-actions__button--apply"
-            onClick={() =>
-              onApply(
-                patchCatalogSearchParams(searchParams, {
-                  designer: selectedDesignerIds,
-                  page: null,
-                }),
-              )
-            }
-          >
-            ПРИМЕНИТЬ
-          </button>
-          <button
-            type="button"
-            className={
-              hasSelection
-                ? "site-designers-actions__button site-designers-actions__button--clear"
-                : "site-designers-actions__button site-designers-actions__button--clear site-designers-actions__button--disabled"
-            }
-            disabled={!hasSelection}
-            onClick={() => {
-              if (!hasSelection) {
-                return;
-              }
+          {mode === "catalog-filter" ? (
+            <>
+              <button
+                type="button"
+                className="site-designers-actions__button site-designers-actions__button--apply"
+                onClick={() =>
+                  onApply(
+                    patchCatalogSearchParams(searchParams, {
+                      designer: selectedDesignerIds,
+                      page: null,
+                    }),
+                  )
+                }
+              >
+                ПРИМЕНИТЬ
+              </button>
+              <button
+                type="button"
+                className={
+                  hasSelection
+                    ? "site-designers-actions__button site-designers-actions__button--clear"
+                    : "site-designers-actions__button site-designers-actions__button--clear site-designers-actions__button--disabled"
+                }
+                disabled={!hasSelection}
+                onClick={() => {
+                  if (!hasSelection) {
+                    return;
+                  }
 
-              setSelectedDesignerIds([]);
-            }}
-          >
-            ОЧИСТИТЬ
-          </button>
+                  setSelectedDesignerIds([]);
+                }}
+              >
+                ОЧИСТИТЬ
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
             className="site-designers-actions__scroll-top"

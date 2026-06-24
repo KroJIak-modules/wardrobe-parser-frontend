@@ -6,7 +6,7 @@ import type { BybitWorkerInfo, PricingExampleView } from "../admin-types";
 type UseAdminPricingRuntimeParams = {
   tab: string;
   pricingSettings: PricingSettings | null;
-  fetchPricingExampleProduct: () => Promise<PricingExampleFetchResult>;
+  fetchPricingExampleProduct: (productId?: number | null) => Promise<PricingExampleFetchResult>;
   pushToast: (message: string) => void;
 };
 
@@ -23,6 +23,7 @@ export function useAdminPricingRuntime({
   const [pricingExampleLoading, setPricingExampleLoading] = useState<boolean>(false);
   const bybitWarnToastShownRef = useRef<string | null>(null);
   const pricingBlockedToastShownRef = useRef<boolean>(false);
+  const pinnedProductIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const warning = pricingSettings?.bybit_rate_warning?.trim();
@@ -74,16 +75,33 @@ export function useAdminPricingRuntime({
 
   useEffect(() => {
     if (tab !== "pricing" || !pricingSettings || pricingBlockedByInitialBybit) {
+      pinnedProductIdRef.current = null;
       setPricingExampleProduct(null);
       setPricingExampleError(null);
       setPricingExampleLoading(false);
       return;
     }
     let aborted = false;
+    const requestedProductId = pinnedProductIdRef.current;
     setPricingExampleLoading(true);
-    void fetchPricingExampleProduct()
+    void fetchPricingExampleProduct(requestedProductId)
       .then((result) => {
         if (!aborted) {
+          const resolvedProductId =
+            typeof result.product?.product_id === "number" && Number.isFinite(result.product.product_id) && result.product.product_id > 0
+              ? Math.trunc(result.product.product_id)
+              : null;
+          if (requestedProductId !== null && requestedProductId > 0) {
+            if (resolvedProductId !== requestedProductId) {
+              setPricingExampleError(result.errorMessage ?? "Не удалось обновить пример ценообразования для текущего товара.");
+              return;
+            }
+            pinnedProductIdRef.current = resolvedProductId;
+            setPricingExampleProduct(result.product);
+            setPricingExampleError(result.errorMessage);
+            return;
+          }
+          pinnedProductIdRef.current = resolvedProductId;
           setPricingExampleProduct(result.product);
           setPricingExampleError(result.errorMessage);
         }

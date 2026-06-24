@@ -96,6 +96,8 @@ export function AdminPage() {
     toggleSourceSyncEnabled,
     toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
+    uploadSourceLogo,
+    clearSourceLogo,
     updateSourceAttributeVisibility,
     weightRules,
     weightMissingProducts,
@@ -287,15 +289,8 @@ export function AdminPage() {
     setMarkupRateDraft,
     finalRoundingModeDraft,
     setFinalRoundingModeDraft,
-    designersMinProductsDraft,
-    setDesignersMinProductsDraft,
     pricingFormulaHtml,
   } = useAdminPricingLocalState({ pricingSettings });
-  useEffect(() => {
-    if (!adminUiSettings) return;
-    const nextValue = Math.max(1, Math.trunc(Number(adminUiSettings.designers_min_products || 1)));
-    setDesignersMinProductsDraft(String(nextValue));
-  }, [adminUiSettings?.designers_min_products, setDesignersMinProductsDraft]);
   const [pricingTabLoading, setPricingTabLoading] = useState<boolean>(false);
   const [weightTabLoading, setWeightTabLoading] = useState<boolean>(false);
   const heroInputRef = useRef<HTMLInputElement | null>(null);
@@ -331,7 +326,7 @@ export function AdminPage() {
       aborted = true;
       window.clearInterval(timer);
     };
-  }, [tab, ensurePricingLoaded, pricingSettings]);
+  }, [tab, ensurePricingLoaded]);
 
   const {
     newWeightRuleGrams,
@@ -415,7 +410,7 @@ export function AdminPage() {
     onStartCarouselDrag,
     onEndCarouselDrag,
   } = useAdminShowcase({
-    enabled: tab === "settings",
+    enabled: tab === "content",
     uploadShowcaseHeroImage,
     uploadShowcaseCarouselImage,
     updateShowcaseMediaSettings,
@@ -464,8 +459,6 @@ export function AdminPage() {
     onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
     onChangeFinalDesignerName,
     onChangeFinalDesignerDescription,
-    onUploadDesignerLogo,
-    onClearDesignerLogo,
     onCreateDesigner,
     onDeleteDesigner,
   } = useAdminDesignerMappings(tab, pushToast);
@@ -540,8 +533,6 @@ export function AdminPage() {
       onToggleIncludeInDesigners: onToggleDesignerIncludeInDesigners,
       onChangeFinalDesignerName,
       onChangeFinalDesignerDescription,
-      onUploadDesignerLogo,
-      onClearDesignerLogo,
       onCreateDesigner,
       onDeleteDesigner,
     },
@@ -555,6 +546,8 @@ export function AdminPage() {
       toggleSourceSyncEnabled,
       toggleSourceDedupEnabled,
       toggleSourceAutoHideProducts,
+      uploadSourceLogo,
+      clearSourceLogo,
       updateSourceAttributeVisibility,
       autoSyncPeriodMinutes: Math.max(60, Number(adminUiSettings?.auto_sync_period_minutes || 60)),
       autoSyncNextRunAt: adminUiSettings?.auto_sync_next_run_at || null,
@@ -624,10 +617,6 @@ export function AdminPage() {
     settingsTabProps: {
       pricingTabLoading,
       adminUiSettings,
-      designersMinProductsDraft,
-      setDesignersMinProductsDraft,
-      updateAdminUiSettings,
-      pushToast,
       showcaseHeroImageId,
       heroInputRef,
       showcaseSaving,
@@ -645,17 +634,20 @@ export function AdminPage() {
       onRemoveCarouselImage,
       carouselInputRef,
       onPickCarouselImages,
+    },
+    securityTabProps: {
       settingsExportInProgress,
       settingsImportInProgress,
+      settingsResetInProgress,
+      resetConfirmOpen,
       onExportSettings,
       onOpenImportDialog,
       settingsImportInputRef,
       onImportSettingsFile,
-      settingsResetInProgress,
-      resetConfirmOpen,
       onRequestResetSettings,
       onCancelResetSettings,
       onConfirmResetSettings,
+      pushToast,
     },
   });
 

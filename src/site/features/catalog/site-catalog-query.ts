@@ -53,7 +53,6 @@ export function buildCatalogHref(patch: Record<string, CatalogPatchValue>): stri
 
 export function buildDesignerCatalogHref(designerId: string): string {
   return buildCatalogHref({
-    top: "designers",
     collection: null,
     multi: null,
     availability: null,

@@ -1,0 +1,411 @@
+.admin-settings-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-settings-subtabs {
+  margin-bottom: 0;
+}
+
+.admin-settings-subtab {
+  margin-top: 0;
+}
+
+.admin-settings-subtab__label {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1.1;
+}
+
+.admin-settings-pane {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-settings-panel {
+  padding: 14px 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.admin-settings-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-settings-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-settings-panel__head h2,
+.admin-settings-panel__head h3,
+.admin-settings-panel > h3 {
+  margin: 0;
+  color: #1b2738;
+}
+
+.admin-settings-panel__head p {
+  margin: 4px 0 0;
+  max-width: 720px;
+  color: #5c687b;
+}
+
+.admin-settings-split-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.admin-settings-form-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-settings-field {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-settings-field > span,
+.admin-settings-field__head > span {
+  font-size: 14px;
+  font-weight: 700;
+  color: #243247;
+}
+
+.admin-settings-field__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-settings-field textarea {
+  width: 100%;
+  min-height: 128px;
+  resize: vertical;
+  border: 1px solid #d8dfeb;
+  border-radius: 14px;
+  padding: 13px 15px;
+  background: #ffffff;
+  color: #243247;
+  font: inherit;
+  line-height: 1.55;
+}
+
+.admin-settings-field textarea:focus,
+.admin-settings-field .input:focus {
+  outline: none;
+  border-color: #b9c6db;
+  box-shadow: 0 0 0 4px rgba(189, 201, 223, 0.22);
+}
+
+.admin-settings-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.admin-settings-photo-card,
+.admin-settings-photo-add {
+  border: 1px solid #dde3ed;
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.admin-settings-photo-card {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+}
+
+.admin-settings-photo-card__media {
+  position: relative;
+  min-height: 144px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.admin-settings-photo-card__media img {
+  width: 100%;
+  height: 144px;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-settings-photo-card__media--ink {
+  background: linear-gradient(135deg, #1f2530 0%, #39455c 100%);
+}
+
+.admin-settings-photo-card__media--sand {
+  background: linear-gradient(135deg, #ddd0bd 0%, #f4ebe0 100%);
+}
+
+.admin-settings-photo-card__media--fog {
+  background: linear-gradient(135deg, #dae2ec 0%, #f6f8fb 100%);
+}
+
+.admin-settings-photo-card__media--clay {
+  background: linear-gradient(135deg, #8a6151 0%, #cda490 100%);
+}
+
+.admin-settings-photo-card__media--pearl {
+  background: linear-gradient(135deg, #f0f2f7 0%, #dbe3f0 100%);
+}
+
+.admin-settings-photo-card__placeholder {
+  width: 100%;
+  min-height: 144px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.admin-settings-photo-card__meta {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-settings-photo-card__meta strong {
+  font-size: 14px;
+  color: #1b2738;
+}
+
+.admin-settings-photo-card__actions,
+.admin-settings-question__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-settings-photo-add {
+  min-height: 228px;
+  border-style: dashed;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  color: #506079;
+  background: linear-gradient(180deg, #fbfcff 0%, #f5f7fb 100%);
+  text-align: center;
+}
+
+.admin-settings-photo-add span {
+  font-weight: 700;
+}
+
+.admin-settings-ghost-btn {
+  border: 1px solid #d7deeb;
+  border-radius: 999px;
+  background: #fff;
+  color: #243247;
+  padding: 8px 14px;
+  font-weight: 700;
+}
+
+.admin-settings-question-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-settings-question {
+  border: 1px solid #dde4ef;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.admin-settings-question--open {
+  border-color: #c7d2e6;
+  box-shadow: 0 10px 18px rgba(28, 44, 72, 0.04);
+}
+
+.admin-settings-question__head {
+  width: 100%;
+  border: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafd 100%);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+}
+
+.admin-settings-question__title-wrap {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-settings-question__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-settings-question__state {
+  color: #5f6d81;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.admin-settings-question__toggle-label {
+  color: #304258;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-settings-question__body {
+  padding: 12px 16px 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.admin-settings-question__switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+}
+
+.admin-settings-question__body .admin-settings-field textarea {
+  min-height: 132px;
+}
+
+.admin-settings-panel--home .showcase-media-settings {
+  grid-template-columns: minmax(360px, 0.92fr) minmax(280px, 0.78fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.admin-settings-panel--home .showcase-hero-tile {
+  width: 100%;
+}
+
+.admin-settings-panel--home .showcase-carousel-grid {
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+}
+
+.admin-settings-panel--home .showcase-carousel-add {
+  min-height: 164px;
+}
+
+.admin-settings-panel--utility {
+  max-width: 920px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfd 100%);
+}
+
+.admin-settings-preview-card {
+  border: 1px solid #e6ebf3;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-settings-preview-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-settings-preview-card__head strong {
+  color: #1e2d40;
+}
+
+.admin-settings-preview-card__title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #182536;
+}
+
+.admin-settings-preview-card__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.admin-settings-preview-card__columns p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.admin-settings-media-help {
+  margin: -2px 0 0;
+  color: #637287;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-settings-upload-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.admin-settings-upload-empty strong {
+  color: #27364a;
+  font-size: 14px;
+}
+
+.admin-settings-upload-empty span {
+  color: #738196;
+  font-size: 11px;
+}
+
+@media (max-width: 1080px) {
+  .admin-settings-split-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings-panel--home .showcase-media-settings {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-settings-panel,
+  .admin-settings-question__body,
+  .admin-settings-question__head {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .admin-settings-panel__head,
+  .admin-settings-question__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-settings-panel__actions {
+    justify-content: stretch;
+  }
+
+  .admin-settings-question__badges {
+    justify-content: flex-start;
+  }
+
+  .admin-settings-preview-card__columns {
+    grid-template-columns: 1fr;
+  }
+
+}

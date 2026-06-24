@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
+import { SiteWindowShell } from "../window-shell/site-window-shell";
 import type { SiteProductDetailItem } from "../../runtime/site-product-detail-mock";
 import {
   buildSiteCartItemFromProduct,
@@ -71,8 +72,13 @@ function SiteSizeSelector({
     setActiveSize(selectedSize ?? sizes[0] ?? null);
   }, [isOpen, selectedSize, sizes]);
 
-  const panelHeight = Math.max(170, sizes.length * 31 + 15);
-  const shellHeight = panelHeight + 23;
+  const optionHeight = 21;
+  const optionGap = 10;
+  const listTopInset = 22;
+  const listBottomInset = 7;
+  const listHeight = sizes.length > 0 ? sizes.length * optionHeight + (sizes.length - 1) * optionGap : 0;
+  const panelHeight = Math.max(134, listTopInset + listHeight + listBottomInset);
+  const shellHeight = panelHeight + 2;
 
   return (
     <div
@@ -180,20 +186,8 @@ function SiteProductSourcesDialog({
         aria-labelledby="site-product-detail-sources-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="site-product-detail__sources-window">
-          <img
-            src="/site-mock/product-detail/sources-modal/window-shell.svg"
-            alt=""
-            aria-hidden="true"
-            className="site-product-detail__sources-window-shell"
-          />
+        <SiteWindowShell className="site-product-detail__sources-window" frameClassName="site-product-detail__sources-frame">
           <div className="site-product-detail__sources-titlebar">
-            <img
-              src="/site-mock/product-detail/sources-modal/titlebar.png"
-              alt=""
-              aria-hidden="true"
-              className="site-product-detail__sources-titlebar-image"
-            />
             <p id="site-product-detail-sources-title" className="site-product-detail__sources-title">
               ИСТОЧНИКИ
             </p>
@@ -283,7 +277,7 @@ function SiteProductSourcesDialog({
               )}
             </div>
           </div>
-        </div>
+        </SiteWindowShell>
       </div>
     </div>
   );
@@ -469,7 +463,7 @@ function SiteProductHero({
             ) : (
               <p className="site-product-detail__brand">{product.brand}</p>
             )}
-            <h1 className="site-product-detail__name">{product.name}</h1>
+            <h1 className="site-product-detail__name">{product.name.toUpperCase()}</h1>
           </div>
           <div className="site-product-detail__price-line">
             <span className="site-product-detail__price">{formatRubles(product.priceRub)} ₽</span>
@@ -533,9 +527,11 @@ function SiteProductHero({
 export function SiteProductDetailView({
   product,
   recommendations,
+  returnTarget,
 }: {
   product: SiteProductDetailItem | null;
   recommendations: readonly SiteProductDetailItem[];
+  returnTarget: { pathname: string; search: string } | null;
 }) {
   const recommendationCards = useMemo(() => recommendations.slice(0, 8), [recommendations]);
 
@@ -543,7 +539,7 @@ export function SiteProductDetailView({
     return (
       <section className="site-product-detail site-product-detail--empty">
         <p className="site-product-detail__empty-title">ТОВАР НЕ НАЙДЕН</p>
-        <Link to="/catalog" className="site-product-detail__empty-link">
+        <Link to={returnTarget ?? "/catalog"} className="site-product-detail__empty-link">
           Вернуться в каталог
         </Link>
       </section>

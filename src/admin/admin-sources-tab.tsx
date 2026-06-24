@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { AdminSourcesSkeleton } from "../shared/skeleton";
 import { IconClose } from "../shared/mono-icons";
 import { ImageWithFallback } from "../shared/image-with-fallback";
@@ -15,6 +15,7 @@ type SourceItem = {
   mode?: "auto" | "manual" | "personal";
   name: string;
   base_url: string;
+  logo_image_asset_id?: number | null;
   products_count: number;
   manual_products_count?: number;
   bound_sync_products_count?: number;
@@ -36,6 +37,8 @@ type Props = {
   toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceDedupEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  uploadSourceLogo: (sourceKey: string, file: File) => Promise<{ ok: boolean; message: string }>;
+  clearSourceLogo: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
   updateSourceAttributeVisibility: (key: string, payload: { description_mode?: "hidden" | "text" | "html"; show_images?: boolean }) => Promise<{ ok: boolean; message: string }>;
   autoSyncPeriodMinutes: number;
   autoSyncNextRunAt: string | null;
@@ -90,6 +93,95 @@ function getSourceModeLabel(mode: "auto" | "manual" | "personal"): string {
   return "Авто";
 }
 
+function getSourceLogoUrl(logoImageAssetId: number | null | undefined) {
+  return logoImageAssetId && logoImageAssetId > 0 ? `/api/v1/sources/images/${logoImageAssetId}` : null;
+}
+
+function AdminSourceLogoField({
+  source,
+  canEdit,
+  onUploadSourceLogo,
+  onClearSourceLogo,
+  onZoomImage,
+  pushToast,
+}: {
+  source: SourceItem;
+  canEdit: boolean;
+  onUploadSourceLogo: (sourceKey: string, file: File) => Promise<{ ok: boolean; message: string }>;
+  onClearSourceLogo: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
+  onZoomImage: (url: string) => void;
+  pushToast: (message: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
+
+  useEffect(() => {
+    setPreviewFailed(false);
+  }, [source.logo_image_asset_id]);
+
+  const logoUrl = getSourceLogoUrl(source.logo_image_asset_id);
+  const hasLogo = Boolean(logoUrl && !previewFailed);
+
+  const onPickLogo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    const result = await onUploadSourceLogo(source.key, file);
+    pushToast(result.message);
+  };
+
+  return (
+    <div className="source-card-logo">
+      <button type="button" className="source-card-logo__upload" onClick={() => inputRef.current?.click()} disabled={!canEdit}>
+        Загрузить логотип (svg / png / jpg)
+      </button>
+      {hasLogo ? (
+        <>
+          <button
+            type="button"
+            className="source-card-logo__preview"
+            onClick={() => {
+              if (logoUrl) {
+                onZoomImage(logoUrl);
+              }
+            }}
+          >
+            <img
+              src={logoUrl}
+              alt={source.name ? `Логотип ${source.name}` : "Логотип источника"}
+              loading="lazy"
+              decoding="async"
+              onError={() => setPreviewFailed(true)}
+            />
+          </button>
+          <button
+            type="button"
+            className="source-card-logo__clear"
+            disabled={!canEdit}
+            onClick={() => {
+              void (async () => {
+                const result = await onClearSourceLogo(source.key);
+                pushToast(result.message);
+              })();
+            }}
+          >
+            Удалить логотип
+          </button>
+        </>
+      ) : null}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/svg+xml,image/png,image/jpeg"
+        className="input-hidden"
+        onChange={(event) => void onPickLogo(event)}
+      />
+    </div>
+  );
+}
+
 export function AdminSourcesTab({
   sources,
   loading,
@@ -97,6 +189,8 @@ export function AdminSourcesTab({
   toggleSourceSyncEnabled,
   toggleSourceDedupEnabled,
   toggleSourceAutoHideProducts,
+  uploadSourceLogo,
+  clearSourceLogo,
   updateSourceAttributeVisibility,
   autoSyncPeriodMinutes,
   autoSyncNextRunAt,
@@ -616,9 +710,19 @@ export function AdminSourcesTab({
                     <a className="source-card-link" href={href} target="_blank" rel="noreferrer">
                       {label}
                     </a>
-                  ) : null}
+                  ) : (
+                    <div className="source-card-link-spacer" aria-hidden="true" />
+                  )}
                 </div>
                 <div className="source-card-foot">
+                  <AdminSourceLogoField
+                    source={source}
+                    canEdit={canEditSources}
+                    onUploadSourceLogo={uploadSourceLogo}
+                    onClearSourceLogo={clearSourceLogo}
+                    onZoomImage={onZoomImage}
+                    pushToast={pushToast}
+                  />
                   <div className="source-card-meta">
                     <span className="source-pill">Товары: {source.products_count}</span>
                     {sourceMode === "auto" ? (

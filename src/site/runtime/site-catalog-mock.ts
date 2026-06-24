@@ -397,7 +397,6 @@ export const siteCatalogFilterGroups: readonly SiteCatalogFilterGroup[] = [
 
 function buildSectionLink(sectionId: string) {
   return buildCatalogHref({
-    top: "new",
     collection: null,
     multi: null,
     section: [sectionId],
@@ -405,11 +404,12 @@ function buildSectionLink(sectionId: string) {
 }
 
 function buildMultiLink(top: SiteCatalogTopKey, multiId: string) {
+  const gender = top === "men" || top === "women" ? [top] : null;
   return buildCatalogHref({
-    top,
     multi: multiId,
     collection: null,
     section: null,
+    gender,
   });
 }
 
@@ -426,10 +426,10 @@ export const siteCatalogMenuConfig: SiteCatalogMenuConfig = {
       {
         title: "Коллекции",
         items: [
-          { label: "В наличии", to: buildCatalogHref({ top: "new", collection: "in-stock", availability: "in-stock" }) },
-          { label: "Под заказ", to: buildCatalogHref({ top: "new", collection: "preorder", availability: "preorder" }) },
-          { label: "Мой выбор", to: buildCatalogHref({ top: "new", collection: "my-choice" }) },
-          { label: "Все товары", to: buildCatalogHref({ top: "new", collection: "all-products" }) },
+          { label: "В наличии", to: buildCatalogHref({ collection: "in-stock", availability: "in-stock" }) },
+          { label: "Под заказ", to: buildCatalogHref({ collection: "preorder", availability: "preorder" }) },
+          { label: "Мой выбор", to: buildCatalogHref({ collection: "my-choice" }) },
+          { label: "Все товары", to: buildCatalogHref({ collection: "all-products" }) },
         ],
       },
       {
@@ -441,10 +441,10 @@ export const siteCatalogMenuConfig: SiteCatalogMenuConfig = {
       {
         title: "Каталог дизайнеров",
         items: [
-          { label: "Все дизайнеры", to: buildCatalogHref({ top: "designers" }) },
+          { label: "Все дизайнеры", to: "/designers" },
           ...siteCatalogDesigners.map((designer) => ({
             label: designer.label,
-            to: buildCatalogHref({ top: "designers", designer: [designer.id] }),
+            to: buildCatalogHref({ designer: [designer.id] }),
           })),
         ],
       },
@@ -470,7 +470,7 @@ export const siteCatalogMenuConfig: SiteCatalogMenuConfig = {
     "Скидки": [
       {
         title: "Коллекция",
-        items: [{ label: "Все скидки", to: buildCatalogHref({ top: "sale" }) }],
+        items: [{ label: "Все скидки", to: "/sale" }],
       },
     ],
   } satisfies SiteCatalogDropdownMenuMap,

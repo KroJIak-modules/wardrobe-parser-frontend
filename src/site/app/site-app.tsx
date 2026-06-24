@@ -19,7 +19,7 @@ export function SiteApp() {
         <Route path="/catalog" element={<SiteCatalogPage />} />
         <Route path="/cart" element={<SiteCartPage />} />
         <Route path="/sale" element={<SiteCatalogPage forcedTop="sale" />} />
-        <Route path="/catalog/sale" element={<Navigate to="/catalog?top=sale" replace />} />
+        <Route path="/catalog/sale" element={<Navigate to="/sale" replace />} />
         <Route path="/designers" element={<SiteDesignersPage />} />
         <Route path="/questions" element={<SiteQuestionsPage />} />
         <Route path="/logo-test" element={<SiteLogoTestPage />} />

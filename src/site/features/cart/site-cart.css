@@ -43,7 +43,13 @@
 
 .site-cart-card {
   width: 719px;
-  background: #fff;
+  --site-window-shell-radius: 5px;
+  --site-window-shell-gap: 2px;
+  --site-cart-card-inner-radius: 4px;
+}
+
+.site-cart-card__frame {
+  width: 100%;
 }
 
 .site-cart-card__window-bar {
@@ -54,14 +60,15 @@
   justify-content: space-between;
   height: 33px;
   padding: 7px;
-  border: 1px solid #9c9c9c;
-  border-radius: 3px 3px 0 0;
+  border-radius: var(--site-cart-card-inner-radius);
   background: center / 100% 100% no-repeat url("/site-mock/cart-window-bar.png");
 }
 
 .site-cart-card__availability,
 .site-cart-card__brand,
+.site-cart-card__brand-link,
 .site-cart-card__name,
+.site-cart-card__name-link,
 .site-cart-card__meta-label,
 .site-cart-card__meta-value,
 .site-cart-card__qty-btn,
@@ -106,14 +113,15 @@
   display: grid;
   grid-template-columns: 164px 1fr;
   min-height: 217px;
-  border-inline: 1px solid #9c9c9c;
-  border-bottom: 1px solid #9c9c9c;
+  background: #fff;
+  border-radius: var(--site-cart-card-inner-radius);
+  overflow: hidden;
 }
 
 .site-cart-card__media {
   position: relative;
   min-height: 217px;
-  border-right: 1px solid #d9d9d9;
+  border-right: 2px solid #d9d9d9;
   background: #fff;
   overflow: hidden;
 }
@@ -146,9 +154,21 @@
   font-weight: 500;
 }
 
+.site-cart-card__brand-link {
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
 .site-cart-card__name {
   font-size: 16px;
   font-weight: 300;
+}
+
+.site-cart-card__name-link {
+  font-size: 16px;
+  font-weight: 300;
+  text-decoration: none;
 }
 
 .site-cart-card__footer {
@@ -214,6 +234,10 @@
   align-content: start;
 }
 
+.site-cart-summary--empty {
+  align-content: center;
+}
+
 .site-cart-summary__total {
   font-size: 24px;
   font-weight: 500;
@@ -243,6 +267,11 @@
   font-size: 14px;
   font-weight: 400;
   cursor: pointer;
+}
+
+.site-cart-summary__copy:disabled {
+  cursor: default;
+  opacity: 0.38;
 }
 
 .site-cart-summary__copy-icon {
@@ -277,12 +306,16 @@
 .site-cart-card__close:focus-visible,
 .site-cart-card__qty-btn:hover,
 .site-cart-card__qty-btn:focus-visible,
-.site-cart-summary__copy:hover,
-.site-cart-summary__copy:focus-visible,
-.site-cart-summary__send:hover,
-.site-cart-summary__send:focus-visible {
+.site-cart-summary__copy:not(:disabled):hover,
+.site-cart-summary__copy:not(:disabled):focus-visible {
   outline: none;
   opacity: 0.62;
+}
+
+.site-cart-summary__send:not(:disabled):hover,
+.site-cart-summary__send:not(:disabled):focus-visible {
+  outline: none;
+  opacity: 0.78;
 }
 
 @media (max-width: 1320px) {

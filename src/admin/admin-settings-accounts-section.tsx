@@ -56,7 +56,7 @@ const SCOPE_LABELS: Record<string, string> = {
   "control.designers": "Дизайнеры",
   "control.pricing": "Ценообразование",
   "control.weight": "Вес",
-  "control.settings": "Настройки",
+  "control.settings": "Контент",
   accounts: "Аккаунты и роли",
 };
 
@@ -706,6 +706,7 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
           {bootstrap.users.length === 0 ? <p className="muted">Пользователей пока нет.</p> : null}
         </div>
       </section>
+
     </div>
   );
 }

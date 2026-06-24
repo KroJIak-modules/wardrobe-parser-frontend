@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { siteMenuItems } from "../../app/site-static-content";
 import { SiteDesignersDirectory } from "../../features/designers/site-designers";
+import {
+  buildBrowseDesignerCatalogSearchParams,
+  resolveSiteDesignersEntryMode,
+} from "../../features/designers/site-designers-navigation";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { patchCatalogSearchParams } from "../../features/catalog/site-catalog-query";
@@ -10,12 +14,17 @@ import { useSiteActionItems } from "../../runtime/use-site-cart";
 import "./site-designers-page.css";
 
 export function SiteDesignersPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
   const persistedSearchParams = useMemo(() => new URLSearchParams(searchParams), [searchParams]);
+  const entryMode = useMemo(
+    () => resolveSiteDesignersEntryMode(location.state, persistedSearchParams),
+    [location.state, persistedSearchParams],
+  );
 
   useEffect(() => {
     document.title = "Anton Shell — Дизайнеры";
@@ -44,6 +53,7 @@ export function SiteDesignersPage() {
         menuItems={siteMenuItems}
         actionItems={actionItems}
         searchValue={searchValue}
+        allowEmptySearchSubmit
         onSearchValueChange={setSearchValue}
         onSearchSubmit={(value) => {
           navigateToCatalog(
@@ -58,8 +68,12 @@ export function SiteDesignersPage() {
       <SiteDesignersDirectory
         alphabet={siteDesignersAlphabet}
         entries={siteDesignersDirectoryEntries}
+        mode={entryMode}
         searchParams={persistedSearchParams}
         onApply={navigateToCatalog}
+        onBrowseSelect={(designerId) => {
+          navigateToCatalog(buildBrowseDesignerCatalogSearchParams(designerId));
+        }}
       />
 
       <SiteFooterSection />

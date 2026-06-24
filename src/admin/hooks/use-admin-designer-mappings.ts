@@ -3,7 +3,6 @@ import {
   fetchAdminDesignerMappings,
   readAdminDesignerMappingsState,
   saveAdminDesignerMappings,
-  uploadAdminDesignerLogo,
 } from "../admin-designers-api";
 import type { AdminFinalDesigner, AdminDesignerSourceRow } from "../admin-types";
 
@@ -34,22 +33,17 @@ function createDesignersSignature(designers: readonly AdminFinalDesigner[]) {
       const id = String(designer.id || "").trim();
       const name = String(designer.name || "").trim();
       const description = String(designer.description || "").trim();
-      const logo = Number.isFinite(Number(designer.logo_image_asset_id)) ? Math.trunc(Number(designer.logo_image_asset_id)) : 0;
-      return `${id}|${name}|${description}|${logo > 0 ? logo : 0}`;
+      return `${id}|${name}|${description}`;
     })
     .sort()
     .join("||");
 }
 
 function normalizeDesigner(designer: AdminFinalDesigner): AdminFinalDesigner {
-  const logoImageAssetId = Number.isFinite(Number(designer.logo_image_asset_id)) && Number(designer.logo_image_asset_id) > 0
-    ? Math.trunc(Number(designer.logo_image_asset_id))
-    : null;
   return {
     id: String(designer.id || "").trim(),
     name: String(designer.name || "").trim(),
     description: String(designer.description || "").trim(),
-    logo_image_asset_id: logoImageAssetId,
   };
 }
 
@@ -131,25 +125,6 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     );
   }, []);
 
-  const onChangeFinalDesignerLogo = useCallback((designerId: string, logoImageAssetId: number | null) => {
-    setDesigners((prev) =>
-      prev.map((designer) => (designer.id === designerId ? { ...designer, logo_image_asset_id: logoImageAssetId } : designer))
-    );
-  }, []);
-
-  const onUploadDesignerLogo = useCallback(async (designerId: string, file: File) => {
-    const uploaded = await uploadAdminDesignerLogo(file);
-    if (!uploaded.ok || !uploaded.imageAssetId) {
-      pushToast(uploaded.message || "Не удалось загрузить логотип");
-      return;
-    }
-    onChangeFinalDesignerLogo(designerId, uploaded.imageAssetId);
-  }, [onChangeFinalDesignerLogo, pushToast]);
-
-  const onClearDesignerLogo = useCallback((designerId: string) => {
-    onChangeFinalDesignerLogo(designerId, null);
-  }, [onChangeFinalDesignerLogo]);
-
   const onCreateDesigner = useCallback((designerName: string) => {
     const normalizedDesignerName = String(designerName || "").trim();
     setDesigners((prev) => [
@@ -157,7 +132,6 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
         id: createDesignerId(),
         name: normalizedDesignerName,
         description: "",
-        logo_image_asset_id: null,
       },
       ...prev,
     ]);
@@ -239,8 +213,6 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     onToggleIncludeInDesigners,
     onChangeFinalDesignerName,
     onChangeFinalDesignerDescription,
-    onUploadDesignerLogo,
-    onClearDesignerLogo,
     onCreateDesigner,
     onDeleteDesigner,
   };

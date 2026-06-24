@@ -22,7 +22,7 @@
 }
 
 .site-catalog-shell__title {
-  width: auto;
+  width: 100%;
   min-height: 48px;
   color: rgba(0, 0, 0, 0.8);
   font-family: "SF Compact Rounded", var(--site-font-ui);
@@ -32,6 +32,8 @@
   letter-spacing: 0;
   text-transform: uppercase;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .site-catalog-shell__description-block {

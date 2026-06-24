@@ -1,0 +1,13 @@
+.site-window-shell {
+  box-sizing: border-box;
+  padding: var(--site-window-shell-border-width, 2px);
+  border-radius: var(--site-window-shell-radius, 6px);
+  overflow: hidden;
+  background: var(--site-window-shell-background, linear-gradient(180deg, #9c9c9c 0%, #f0f0f0 100%));
+  box-shadow: var(--site-window-shell-shadow, none);
+}
+
+.site-window-shell__frame {
+  display: grid;
+  gap: var(--site-window-shell-gap, 2px);
+}

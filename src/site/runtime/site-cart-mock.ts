@@ -2,6 +2,8 @@ import { siteCatalogProducts } from "./site-catalog-mock";
 
 export type SiteCartItem = {
   id: string;
+  productId: string;
+  designerId: string;
   brand: string;
   name: string;
   imageSrc: string | null;
@@ -29,6 +31,8 @@ const trucker = getCatalogProduct("product-trucker");
 export const siteCartMockItems: readonly SiteCartItem[] = [
   {
     id: "cart-trucker-l",
+    productId: trucker.id,
+    designerId: trucker.designerId,
     brand: trucker.brand,
     name: trucker.name,
     imageSrc: trucker.imageSrc,
@@ -43,6 +47,8 @@ export const siteCartMockItems: readonly SiteCartItem[] = [
   },
   {
     id: "cart-trucker-m",
+    productId: trucker.id,
+    designerId: trucker.designerId,
     brand: trucker.brand,
     name: trucker.name,
     imageSrc: trucker.imageSrc,

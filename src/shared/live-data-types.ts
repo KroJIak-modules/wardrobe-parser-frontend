@@ -12,6 +12,7 @@ export type Source = {
   mode?: SourceMode;
   name: string;
   base_url: string;
+  logo_image_asset_id?: number | null;
   enabled: boolean;
   sync_enabled: boolean;
   dedup_enabled: boolean;
@@ -396,8 +397,6 @@ export type PricingSettings = {
 };
 
 export type AdminUiSettings = {
-  designers_min_products: number;
-  designers_exclude_store_names: boolean;
   auto_sync_period_minutes?: number;
   auto_sync_next_run_at?: string | null;
   auto_sync_last_started_at?: string | null;
@@ -491,8 +490,6 @@ export type SettingsTransferPricingSettings = {
 };
 
 export type SettingsTransferAdminUiSettings = {
-  designers_min_products: number;
-  designers_exclude_store_names: boolean;
   auto_sync_period_minutes?: number;
 };
 
@@ -662,6 +659,8 @@ export type LiveDataContextValue = {
   toggleSourceSyncEnabled: (sourceKey: string, syncEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceDedupEnabled: (sourceKey: string, dedupEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (sourceKey: string, hideAutoAddedProducts: boolean) => Promise<{ ok: boolean; message: string }>;
+  uploadSourceLogo: (sourceKey: string, file: File) => Promise<{ ok: boolean; message: string }>;
+  clearSourceLogo: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
   updateSourceAttributeVisibility: (
     sourceKey: string,
     payload: { description_mode?: DescriptionMode; show_images?: boolean }
@@ -671,7 +670,7 @@ export type LiveDataContextValue = {
   deleteWeightRule: (id: number) => Promise<{ ok: boolean; message: string }>;
   addWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
   removeWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
-  fetchPricingExampleProduct: () => Promise<PricingExampleFetchResult>;
+  fetchPricingExampleProduct: (productId?: number | null) => Promise<PricingExampleFetchResult>;
   updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
   updateAdminUiSettings: (payload: Partial<AdminUiSettings>) => Promise<{ ok: boolean; message: string }>;
   updateShowcaseMediaSettings: (payload: {

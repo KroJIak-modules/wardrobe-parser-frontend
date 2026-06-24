@@ -1,5 +1,6 @@
 import { siteCatalogCustomCatalogs, siteCatalogSections } from "../../runtime/site-catalog-mock";
 import { buildCatalogHref } from "../catalog/site-catalog-query";
+import { createSiteDesignersLocationState, type SiteDesignersLocationState } from "../designers/site-designers-navigation";
 
 export type SiteHeaderMenuEntryPresentation = "heading" | "item";
 
@@ -8,6 +9,7 @@ export type SiteHeaderMenuEntry = {
   label: string;
   presentation: SiteHeaderMenuEntryPresentation;
   to?: string;
+  navigationState?: SiteDesignersLocationState;
 };
 
 export type SiteHeaderDropdownColumn = {
@@ -15,6 +17,7 @@ export type SiteHeaderDropdownColumn = {
   title?: {
     label: string;
     to?: string;
+    navigationState?: SiteDesignersLocationState;
   };
   align: "start" | "center";
   entries: readonly SiteHeaderMenuEntry[];
@@ -26,6 +29,7 @@ export type SiteHeaderDropdownMenu = {
   footerLink?: {
     label: string;
     to: string;
+    navigationState?: SiteDesignersLocationState;
   };
 };
 
@@ -36,23 +40,22 @@ function normalizeDesignerId(label: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function buildSectionHref(sectionLabel: string, top?: "men" | "women") {
+function buildSectionHref(sectionLabel: string, gender?: "men" | "women") {
   const section = siteCatalogSections.find((item) => item.label === sectionLabel);
   if (!section) {
     return "/catalog";
   }
 
   return buildCatalogHref({
-    top,
     multi: null,
     collection: null,
     section: [section.id],
+    gender: gender ? [gender] : null,
   });
 }
 
 function buildAvailabilityHref(availability: "in-stock" | "preorder") {
   return buildCatalogHref({
-    top: "new",
     collection: null,
     multi: null,
     availability,
@@ -66,7 +69,6 @@ function buildAvailabilityHref(availability: "in-stock" | "preorder") {
 
 function buildCollectionHref(collectionId: string | null) {
   return buildCatalogHref({
-    top: "new",
     collection: collectionId,
     multi: null,
     availability: null,
@@ -78,19 +80,18 @@ function buildCollectionHref(collectionId: string | null) {
   });
 }
 
-function buildMultiHref(top: "men" | "women", multiId: string) {
+function buildMultiHref(gender: "men" | "women", multiId: string) {
   const sectionIds = siteCatalogSections
     .filter((section) => section.multiFilterIds.includes(multiId))
     .map((section) => section.id);
 
   return buildCatalogHref({
-    top,
     multi: multiId,
     collection: null,
     availability: null,
     section: sectionIds,
     designer: null,
-    gender: null,
+    gender: [gender],
     sort: null,
     q: null,
   });
@@ -129,7 +130,6 @@ function createDesignerEntries(labels: readonly string[], suffix: "left" | "righ
     label,
     presentation: "item" as const,
     to: buildCatalogHref({
-      top: "designers",
       collection: null,
       multi: null,
       availability: null,
@@ -197,6 +197,7 @@ const siteHeaderDropdownMenus = {
     footerLink: {
       label: "Смотреть все",
       to: "/designers",
+      navigationState: createSiteDesignersLocationState("browse"),
     },
   },
   "Мужское": {

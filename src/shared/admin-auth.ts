@@ -37,6 +37,16 @@ function markAuthExpired(): void {
 
 let refreshInFlight: Promise<boolean> | null = null;
 
+function shouldSkipRefresh(requestUrl: string): boolean {
+  try {
+    const origin = globalThis.location?.origin || "http://localhost";
+    const { pathname } = new URL(requestUrl, origin);
+    return pathname === `${API_BASE}/auth/login` || pathname === `${API_BASE}/auth/refresh` || pathname === `${API_BASE}/auth/logout`;
+  } catch {
+    return requestUrl === `${API_BASE}/auth/login` || requestUrl === `${API_BASE}/auth/refresh` || requestUrl === `${API_BASE}/auth/logout`;
+  }
+}
+
 async function refreshAdminSession(): Promise<boolean> {
   if (refreshInFlight) {
     return refreshInFlight;
@@ -58,7 +68,7 @@ async function refreshAdminSession(): Promise<boolean> {
 export async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
   const response = await globalThis.fetch(input, { ...init, credentials: "include" });
-  if (response.status !== 401 || requestUrl.startsWith(`${API_BASE}/auth/`)) {
+  if (response.status !== 401 || shouldSkipRefresh(requestUrl)) {
     return response;
   }
 

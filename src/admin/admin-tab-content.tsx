@@ -7,6 +7,7 @@ import { AdminSourcesTab } from "./admin-sources-tab";
 import { AdminPricingTab } from "./admin-pricing-tab";
 import { AdminWeightTab } from "./admin-weight-tab";
 import { AdminSettingsTab } from "./admin-settings-tab";
+import { AdminSecurityTab } from "./admin-security-tab";
 import type { AdminTab } from "./admin-types";
 
 type AdminTabContentProps = {
@@ -19,6 +20,7 @@ type AdminTabContentProps = {
   pricingTabProps: ComponentProps<typeof AdminPricingTab>;
   weightTabProps: ComponentProps<typeof AdminWeightTab>;
   settingsTabProps: ComponentProps<typeof AdminSettingsTab>;
+  securityTabProps: ComponentProps<typeof AdminSecurityTab>;
 };
 
 export function AdminTabContent({
@@ -31,6 +33,7 @@ export function AdminTabContent({
   pricingTabProps,
   weightTabProps,
   settingsTabProps,
+  securityTabProps,
 }: AdminTabContentProps) {
   if (tab === "products") {
     return <AdminProductsTab {...productsTabProps} />;
@@ -53,8 +56,11 @@ export function AdminTabContent({
   if (tab === "weight") {
     return <AdminWeightTab {...weightTabProps} />;
   }
-  if (tab === "settings") {
+  if (tab === "content") {
     return <AdminSettingsTab {...settingsTabProps} />;
+  }
+  if (tab === "security") {
+    return <AdminSecurityTab {...securityTabProps} />;
   }
   return null;
 }

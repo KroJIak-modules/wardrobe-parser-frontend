@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { AdminFinalDesigner, AdminDesignerSourceRow } from "./admin-types";
 import { EmptyState } from "../shared/empty-state";
 import { AdminDesignersSkeleton } from "../shared/skeleton";
@@ -17,8 +17,6 @@ type Props = {
   onToggleIncludeInDesigners: (sourceBrand: string, includeInDesigners: boolean) => void;
   onChangeFinalDesignerName: (designerId: string, designerName: string) => void;
   onChangeFinalDesignerDescription: (designerId: string, description: string) => void;
-  onUploadDesignerLogo: (designerId: string, file: File) => Promise<void>;
-  onClearDesignerLogo: (designerId: string) => void;
   onCreateDesigner: (designerName: string) => void;
   onDeleteDesigner: (designerId: string) => void;
 };
@@ -45,10 +43,6 @@ function getProductCountLabel(count: number) {
 
 function formatProductCount(count: number) {
   return `${count} ${getProductCountLabel(count)}`;
-}
-
-function getDesignerLogoUrl(logoImageAssetId: number | null) {
-  return logoImageAssetId && logoImageAssetId > 0 ? `/api/v1/products/images/${logoImageAssetId}` : null;
 }
 
 function RelatedBrandsField({
@@ -97,74 +91,6 @@ function RelatedBrandsField({
   );
 }
 
-function AdminDesignerLogoField({
-  designerId,
-  designerName,
-  logoImageAssetId,
-  onUploadDesignerLogo,
-  onClearDesignerLogo,
-}: {
-  designerId: string;
-  designerName: string;
-  logoImageAssetId: number | null;
-  onUploadDesignerLogo: (designerId: string, file: File) => Promise<void>;
-  onClearDesignerLogo: (designerId: string) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
-
-  useEffect(() => {
-    setLogoLoadFailed(false);
-  }, [logoImageAssetId]);
-
-  const logoUrl = getDesignerLogoUrl(logoImageAssetId);
-
-  const onPickLogo = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    event.target.value = "";
-    if (!file) {
-      return;
-    }
-    await onUploadDesignerLogo(designerId, file);
-  };
-
-  return (
-    <div className="designers-item__field designers-item__field--logo">
-      <span className="designers-item__label">Логотип</span>
-        <div className="designers-item__logo-stack">
-          <button type="button" className="designers-item__logo-upload" onClick={() => inputRef.current?.click()}>
-            Загрузить SVG / PNG / JPG
-          </button>
-        <div className="designers-item__logo-preview">
-          {logoUrl && !logoLoadFailed ? (
-            <img
-              src={logoUrl}
-              alt={designerName ? `Логотип ${designerName}` : "Логотип дизайнера"}
-              loading="lazy"
-              decoding="async"
-              onError={() => setLogoLoadFailed(true)}
-            />
-          ) : (
-            <span>{logoImageAssetId ? "Не удалось загрузить превью" : "Превью логотипа появится здесь"}</span>
-          )}
-        </div>
-        <div className="designers-item__logo-actions">
-          <button type="button" className="designers-item__logo-clear" onClick={() => onClearDesignerLogo(designerId)} disabled={!logoImageAssetId}>
-            Удалить логотип
-          </button>
-        </div>
-      </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/svg+xml,image/png,image/jpeg"
-        className="input-hidden"
-        onChange={(event) => void onPickLogo(event)}
-      />
-    </div>
-  );
-}
-
 export function AdminDesignersTab({
   loading,
   rows,
@@ -173,8 +99,6 @@ export function AdminDesignersTab({
   onToggleIncludeInDesigners,
   onChangeFinalDesignerName,
   onChangeFinalDesignerDescription,
-  onUploadDesignerLogo,
-  onClearDesignerLogo,
   onCreateDesigner,
   onDeleteDesigner,
 }: Props) {
@@ -515,7 +439,9 @@ export function AdminDesignersTab({
                           onChange={(event) => onChangeFinalDesignerName(item.designer.id, event.target.value)}
                         >
                           <option value="" disabled={item.hasValidName}>
-                            {!normalizeText(item.designer.name) ? "Выберите имя" : "Имя больше недоступно"}
+                            {!normalizeText(item.designer.name)
+                              ? "Выберите имя"
+                              : `Имя больше недоступно (${normalizeText(item.designer.name)})`}
                           </option>
                           {item.selectableNames.map((title) => (
                             <option
@@ -527,7 +453,6 @@ export function AdminDesignersTab({
                             </option>
                           ))}
                         </select>
-                        <span className="designers-item__count-pill">{formatProductCount(item.totalProductCount)}</span>
                       </div>
                     </label>
 
@@ -540,15 +465,6 @@ export function AdminDesignersTab({
                         placeholder="Описание дизайнера."
                       />
                     </label>
-
-                    <AdminDesignerLogoField
-                      designerId={item.designer.id}
-                      designerName={item.designer.name}
-                      logoImageAssetId={item.designer.logo_image_asset_id}
-                      onUploadDesignerLogo={onUploadDesignerLogo}
-                      onClearDesignerLogo={onClearDesignerLogo}
-                    />
-
                     <RelatedBrandsField designerId={item.designer.id} rows={item.linkedRows} />
                   </div>
                 </article>
