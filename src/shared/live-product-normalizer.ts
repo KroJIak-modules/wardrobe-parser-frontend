@@ -1,12 +1,21 @@
-import type { ServiceProduct } from "./live-data-types";
+import type { ProductPriceSummary, ServiceProduct } from "./live-data-types";
+import { buildProductPriceSummaryFromVariants } from "./product-pricing";
 
 type RawVariant = {
+  id?: number | null;
   title?: string | null;
   available?: boolean;
   price?: number | string | null;
   currency?: string | null;
   sku?: string | null;
   compare_at_price?: number | string | null;
+  final_price?: number | null;
+  final_currency?: string | null;
+  final_compare_at_price?: number | null;
+  final_compare_at_currency?: string | null;
+  pricing_manual_required?: boolean | null;
+  pricing_reason?: string | null;
+  pricing_components?: Record<string, unknown> | null;
 };
 
 type RawGalleryRow = {
@@ -21,6 +30,8 @@ type RawGalleryRow = {
 type RawProduct = {
   id: number;
   source_id?: number | null;
+  source_mode?: "auto" | "manual" | "personal" | null;
+  has_sync_listing?: boolean | null;
   primary_listing_id?: number | null;
   source_name?: string | null;
   handle?: string | null;
@@ -29,18 +40,16 @@ type RawProduct = {
   designer_name?: string | null;
   source_designer_name?: string | null;
   display_designer_name?: string | null;
+  brand_name?: string | null;
+  brand_name_is_manual?: boolean | null;
   source_category_name?: string | null;
   url?: string | null;
-  price?: number | null;
-  currency?: string | null;
-  source_price?: number | null;
-  source_currency?: string | null;
-  final_price?: number | null;
-  final_currency?: string | null;
+  price_summary?: ProductPriceSummary | null;
   pricing_components?: Record<string, unknown> | null;
   visibility_status?: string | null;
   availability_mode?: string | null;
   orderability_status?: string | null;
+  status_reason?: string | null;
   lifecycle_status?: string | null;
   image_urls?: string[];
   variants?: RawVariant[];
@@ -51,10 +60,10 @@ type RawProduct = {
   description_html?: string | null;
   effective_weight_grams?: number | null;
   manual_weight_grams?: number | null;
-  price_override?: {
-    manual_price_rub?: number | null;
-    manual_compare_at_price_rub?: number | null;
-  } | null;
+  auto_weight_grams?: number | null;
+  gender_is_manual?: boolean | null;
+  filter_name?: string | null;
+  custom_catalog_names?: string[];
   taxonomy?: {
     filter_slugs?: string[];
     custom_catalog_slugs?: string[];
@@ -69,6 +78,7 @@ type RawProduct = {
   } | null;
   presentation?: {
     title_override?: string | null;
+    brand_override_name?: string | null;
     description_text?: string | null;
     description_html?: string | null;
     description_visibility?: boolean | null;
@@ -95,6 +105,27 @@ type RawProduct = {
   created_at?: string;
   updated_at?: string;
 };
+
+function normalizePriceSummary(summary: ProductPriceSummary | null | undefined): ProductPriceSummary | null {
+  if (!summary) {
+    return null;
+  }
+  return {
+    source_display_price: summary.source_display_price ?? null,
+    source_currency: summary.source_currency ?? null,
+    source_compare_at_price: summary.source_compare_at_price ?? null,
+    source_has_range: Boolean(summary.source_has_range),
+    final_display_price: summary.final_display_price ?? null,
+    final_currency: summary.final_currency ?? null,
+    final_compare_at_price: summary.final_compare_at_price ?? null,
+    final_has_range: Boolean(summary.final_has_range),
+    pricing_manual_required: Boolean(summary.pricing_manual_required),
+    pricing_reason: String(summary.pricing_reason || "").trim() || null,
+    representative_variant_id: summary.representative_variant_id ?? null,
+    representative_listing_id: summary.representative_listing_id ?? null,
+    representative_source_ref_id: String(summary.representative_source_ref_id || "").trim() || null,
+  };
+}
 
 function normalizeStringArray(value: string[] | null | undefined): string[] {
   return Array.isArray(value)
@@ -142,12 +173,22 @@ export function normalizeServiceProduct(payload: RawProduct): ServiceProduct {
   const variants = Array.isArray(payload.variants)
     ? payload.variants.map((variant) => ({
         title: String(variant.title || "").trim(),
+        id: variant.id === null || variant.id === undefined ? null : Number(variant.id),
         option1: null,
         option2: null,
         option3: null,
         available: Boolean(variant.available),
         price: variant.price ?? null,
+        currency: variant.currency ?? null,
         compare_at_price: variant.compare_at_price ?? null,
+        final_price: variant.final_price ?? null,
+        final_currency: variant.final_currency ?? null,
+        final_compare_at_price: variant.final_compare_at_price ?? null,
+        final_compare_at_currency: variant.final_compare_at_currency ?? null,
+        pricing_mode: (variant as { pricing_mode?: string | null }).pricing_mode ?? null,
+        pricing_manual_required: Boolean(variant.pricing_manual_required),
+        pricing_reason: String(variant.pricing_reason || "").trim() || null,
+        pricing_components: variant.pricing_components || null,
         inventory_quantity: Boolean(variant.available) ? 1 : 0,
         sku: variant.sku ?? null,
         source_id: (variant as { source_id?: number | null }).source_id ?? null,
@@ -160,6 +201,8 @@ export function normalizeServiceProduct(payload: RawProduct): ServiceProduct {
   return {
     id: Number(payload.id),
     source_id: payload.source_id === null || payload.source_id === undefined ? null : Number(payload.source_id),
+    source_mode: payload.source_mode === "auto" || payload.source_mode === "manual" || payload.source_mode === "personal" ? payload.source_mode : null,
+    has_sync_listing: Boolean(payload.has_sync_listing),
     primary_listing_id: payload.primary_listing_id === null || payload.primary_listing_id === undefined ? null : Number(payload.primary_listing_id),
     handle: String(payload.handle || ""),
     title: String(payload.title || ""),
@@ -167,21 +210,23 @@ export function normalizeServiceProduct(payload: RawProduct): ServiceProduct {
     designer_name: String(payload.designer_name || "").trim() || null,
     source_designer_name: String(payload.source_designer_name || "").trim() || null,
     display_designer_name: String(payload.display_designer_name || payload.designer_name || payload.source_designer_name || "").trim() || null,
+    brand_name: String(payload.brand_name || payload.presentation?.brand_override_name || payload.source_designer_name || "").trim() || null,
+    brand_name_is_manual: Boolean(payload.brand_name_is_manual ?? Boolean(payload.presentation?.brand_override_name)),
     source_category_name: String(payload.source_category_name || "").trim() || null,
     url: String(payload.url || ""),
-    price: payload.price ?? null,
-    currency: String(payload.currency || payload.final_currency || payload.source_currency || "RUB"),
-    source_price: payload.source_price ?? null,
-    source_currency: payload.source_currency ?? null,
-    final_price: payload.final_price ?? null,
-    final_currency: payload.final_currency ?? null,
-    pricing_manual_required: Boolean((payload.pricing_components as { manual_required?: unknown } | null | undefined)?.manual_required),
-    pricing_reason: String((payload.pricing_components as { reason?: unknown } | null | undefined)?.reason || "") || null,
+    price_summary: normalizePriceSummary(payload.price_summary) ?? buildProductPriceSummaryFromVariants(variants),
+    pricing_manual_required:
+      normalizePriceSummary(payload.price_summary)?.pricing_manual_required
+      ?? Boolean((payload.pricing_components as { manual_required?: unknown } | null | undefined)?.manual_required),
+    pricing_reason:
+      normalizePriceSummary(payload.price_summary)?.pricing_reason
+      ?? (String((payload.pricing_components as { reason?: unknown } | null | undefined)?.reason || "") || null),
     pricing_components: payload.pricing_components || {},
     buyout_price_rub: null,
     visibility_status: payload.visibility_status ?? null,
     availability_mode: payload.availability_mode ?? null,
     orderability_status: payload.orderability_status ?? null,
+    status_reason: String(payload.status_reason || "").trim() || null,
     lifecycle_status: payload.lifecycle_status ?? null,
     image_count: imageUrls.length,
     image_urls: imageUrls,
@@ -196,7 +241,12 @@ export function normalizeServiceProduct(payload: RawProduct): ServiceProduct {
     source_name: String(payload.source_name || "").trim() || null,
     weight_grams: payload.effective_weight_grams ?? null,
     manual_weight_grams: payload.manual_weight_grams ?? null,
+    auto_weight_grams: payload.auto_weight_grams ?? null,
+    gender_is_manual: Boolean(payload.gender_is_manual),
     filter_slugs: filterSlugs,
+    filter_name: String(payload.filter_name || "").trim() || null,
+    custom_catalog_slugs: customCatalogSlugs,
+    custom_catalog_names: Array.isArray(payload.custom_catalog_names) ? payload.custom_catalog_names.map((item) => String(item).trim()).filter(Boolean) : [],
     internal_category_names: Array.isArray(payload.internal_category_names) ? payload.internal_category_names.map((item) => String(item)) : [],
     gallery: {
       display_image_urls: displayImageUrls,
@@ -209,19 +259,11 @@ export function normalizeServiceProduct(payload: RawProduct): ServiceProduct {
     },
     presentation: {
       title_override: payload.presentation?.title_override ?? null,
+      brand_override_name: payload.presentation?.brand_override_name ?? null,
       description_text: payload.presentation?.description_text ?? null,
       description_html: payload.presentation?.description_html ?? null,
       description_visibility: payload.presentation?.description_visibility ?? null,
     },
-    price_override: payload.price_override?.manual_price_rub === null || payload.price_override?.manual_price_rub === undefined
-      ? null
-      : {
-          manual_price_rub: Number(payload.price_override.manual_price_rub),
-          manual_compare_at_price_rub:
-            payload.price_override.manual_compare_at_price_rub === null || payload.price_override.manual_compare_at_price_rub === undefined
-              ? null
-              : Number(payload.price_override.manual_compare_at_price_rub),
-        },
     listings: Array.isArray(payload.listings)
       ? payload.listings
           .map((listing) => ({
@@ -252,12 +294,22 @@ export function normalizeServiceProduct(payload: RawProduct): ServiceProduct {
             variants: Array.isArray(listing?.variants)
               ? listing.variants.map((variant) => ({
                   title: String(variant?.title || "").trim(),
+                  id: variant?.id === null || variant?.id === undefined ? null : Number(variant.id),
                   option1: null,
                   option2: null,
                   option3: null,
                   available: Boolean(variant?.available),
                   price: variant?.price ?? null,
+                  currency: variant?.currency ?? null,
                   compare_at_price: variant?.compare_at_price ?? null,
+                  final_price: variant?.final_price ?? null,
+                  final_currency: variant?.final_currency ?? null,
+                  final_compare_at_price: variant?.final_compare_at_price ?? null,
+                  final_compare_at_currency: variant?.final_compare_at_currency ?? null,
+                  pricing_mode: (variant as { pricing_mode?: string | null })?.pricing_mode ?? null,
+                  pricing_manual_required: Boolean(variant?.pricing_manual_required),
+                  pricing_reason: String(variant?.pricing_reason || "").trim() || null,
+                  pricing_components: variant?.pricing_components || null,
                   inventory_quantity: Boolean(variant?.available) ? 1 : 0,
                   sku: variant?.sku ?? null,
                   source_id: listing?.source_id === null || listing?.source_id === undefined ? null : Number(listing.source_id),

@@ -6,6 +6,8 @@ export type AdminRuleManualProduct = {
   title: string;
   image_url: string | null;
   visibility_status: "visible" | "hidden";
+  orderability_status: "orderable" | "sold_out" | "unavailable";
+  status_reason?: string | null;
   assigned_filter_titles: string[];
 };
 
@@ -34,6 +36,7 @@ type AdminRuleTreeNodeBase = {
 export type AdminFilterTreeNode = AdminRuleTreeNodeBase & {
   slug: string | null;
   display_label: string;
+  mobile_pair_root_id: number | null;
   node_kind: "filter" | "multifilter";
   is_enabled: boolean;
   rules: AdminRuleSet;

@@ -81,6 +81,7 @@ export function AdminPricingSourcesSection({
                   }));
                 }}
               >
+                <option value="">Не выбран</option>
                 {pricingSuppliers.map((supplier) => (
                   <option key={`source-${source.key}-supplier-${supplier.id}`} value={supplier.id}>
                     {supplier.name}

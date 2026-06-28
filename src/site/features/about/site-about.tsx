@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { SiteImage } from "../image/site-image";
 import type { SiteCarouselSlide } from "../storefront/site-storefront-contracts";
@@ -15,12 +15,36 @@ function getOrbitDirection(previousIndex: number, nextIndex: number, totalSlides
   return forwardDistance <= backwardDistance ? "next" : "prev";
 }
 
+function SiteAboutTextBody({ panel }: { panel: SiteAboutTextPanelViewModel }) {
+  return (
+    <>
+      {panel.paragraphs.map((paragraph, paragraphIndex) => {
+        const lines = paragraph.split("\n");
+
+        return (
+          <Fragment key={`${panel.id}-${paragraphIndex + 1}`}>
+            <p className="site-about__text-paragraph">
+              {lines.map((line, lineIndex) => (
+                <span key={`${panel.id}-${paragraphIndex + 1}-${lineIndex + 1}`}>
+                  {line}
+                  {lineIndex < lines.length - 1 ? <br /> : null}
+                </span>
+              ))}
+            </p>
+            {paragraphIndex < panel.paragraphs.length - 1 ? <div className="site-about__text-spacer" aria-hidden="true" /> : null}
+          </Fragment>
+        );
+      })}
+    </>
+  );
+}
+
 function SiteAboutTextCard({ panel }: { panel: SiteAboutTextPanelViewModel }) {
   return (
     <article className="site-about__text-shell">
       <div className="site-about__text-card">
         <div className="site-about__text-copy">
-          <p className="site-about__text-paragraph">{panel.displayText}</p>
+          <SiteAboutTextBody panel={panel} />
         </div>
       </div>
     </article>
@@ -188,6 +212,12 @@ export function SiteAboutView({
         <SiteAboutPhotoCarousel slides={photoSlides} />
         {rightPanel ? <SiteAboutTextCard panel={rightPanel} /> : <div className="site-about__text-shell" aria-hidden="true" />}
       </div>
+
+      {leftPanel ? (
+        <div className="site-about__mobile-text" aria-label="Описание">
+          <SiteAboutTextBody panel={leftPanel} />
+        </div>
+      ) : null}
     </section>
   );
 }

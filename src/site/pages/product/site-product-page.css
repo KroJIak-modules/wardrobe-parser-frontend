@@ -6,3 +6,9 @@
 .site-product-page__footer {
   margin-top: 80px;
 }
+
+@media (max-width: 640px) {
+  .site-product-page__footer {
+    margin-top: 32px;
+  }
+}

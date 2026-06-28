@@ -3,10 +3,16 @@ import { EmptyState } from "../shared/empty-state";
 import { toExternalHttpUrl } from "../shared/external-links";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { optimizeImageUrl } from "../shared/product-image";
+import { getProductPriceSummary, withPriceRangePrefix } from "../shared/product-pricing";
 import { SkeletonBlock } from "../shared/skeleton";
 import { IconClose, IconExternalLink, IconEye, IconEyeOff, IconPencil, IconPlus, IconStar } from "../shared/mono-icons";
 import type { ServiceProduct } from "../shared/live-data-types";
 import type { ProductCreateVariant } from "./hooks/use-admin-product-create";
+import {
+  isManualVariantCompareAtEnabled,
+  MANUAL_VARIANT_CURRENCY_OPTIONS,
+  normalizeManualVariantCompareAtValue,
+} from "./manual-variant-pricing";
 
 type MatchedSourceDomain = {
   host: string;
@@ -25,15 +31,12 @@ type ProductCreateDraft = {
   sourceUrl: string;
   title: string;
   description: string;
-  descriptionHtml: string;
   weightGrams: string;
   gender: "male" | "female" | "unisex";
   availabilityMode: "in_stock" | "by_order";
   favorite: boolean;
   bindSync: boolean;
   designerName: string;
-  manualPriceRub: string;
-  manualCompareAtPriceRub: string;
   images: ProductCreateImage[];
   variants: ProductCreateVariant[];
 };
@@ -99,28 +102,13 @@ function formatRub(value: number | null | undefined): string {
   }).format(Number(value));
 }
 
-function resolveProductRubPrice(product: ServiceProduct): number | null {
-  const variants = Array.isArray(product.variants) ? product.variants : [];
-  let variantCurrency = "";
-  for (const variant of variants) {
-    const raw = String((variant as { currency?: unknown }).currency || "").toUpperCase();
-    if (raw.length === 3) {
-      variantCurrency = raw;
-      break;
-    }
+function parseOptionalDecimal(rawValue: unknown): number | null {
+  const normalized = String(rawValue ?? "").trim().replace(",", ".");
+  if (!normalized) {
+    return null;
   }
-  if (product.final_price !== null && product.final_price !== undefined && Number.isFinite(Number(product.final_price))) {
-    return Number(product.final_price);
-  }
-  if (product.price !== null && product.price !== undefined && Number.isFinite(Number(product.price))) {
-    const currency = variantCurrency || "USD";
-    if (currency === "RUB") return Number(product.price);
-    if (currency === "USD") return Number(product.price) * 92;
-    if (currency === "EUR") return Number(product.price) * 103;
-    if (currency === "GBP") return Number(product.price) * 121;
-    if (currency === "JPY") return Number(product.price) * 0.64;
-  }
-  return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function ProductThumb({ src, alt }: { src: string; alt: string }) {
@@ -145,12 +133,17 @@ function prettyHostLabel(rawUrl: string): string {
   }
 }
 
-const CURRENCY_OPTIONS: Array<{ value: ProductCreateVariant["currency"]; label: string }> = [
-  { value: "USD", label: "USD" },
-  { value: "EUR", label: "EUR" },
-  { value: "GBP", label: "GBP" },
-  { value: "JPY", label: "JPY" },
-];
+function resolveFlowLabel(params: {
+  sourceUrl: string;
+  lookupState: LookupState;
+  hasExistingLookupProduct: boolean;
+  bindSync: boolean;
+}): string {
+  if (params.bindSync) return "Импорт с привязкой";
+  if (params.hasExistingLookupProduct) return "Копия из базы";
+  if (params.lookupState === "found" && params.sourceUrl.trim()) return "Импорт из источника";
+  return "Ручное заполнение";
+}
 
 export function AdminProductCreateModal({
   open,
@@ -184,34 +177,34 @@ export function AdminProductCreateModal({
   const [showValidation, setShowValidation] = useState<boolean>(false);
   const originalPrice = useMemo(() => {
     if (!lookup.product) return "—";
-    const variants = Array.isArray(lookup.product.variants) ? lookup.product.variants : [];
-    let currency = "";
-    for (const variant of variants) {
-      const raw = String((variant as { currency?: unknown }).currency || "").toUpperCase();
-      if (raw.length === 3) {
-        currency = raw;
-        break;
-      }
-    }
-    return formatPrice(lookup.product.price, currency || "USD");
+    const summary = getProductPriceSummary(lookup.product);
+    return withPriceRangePrefix(
+      formatPrice(summary?.source_display_price ?? null, summary?.source_currency ?? "USD"),
+      Boolean(summary?.source_has_range),
+    );
   }, [lookup.product]);
 
   const rubPrice = useMemo(() => {
     if (!lookup.product) return "—";
-    return formatRub(resolveProductRubPrice(lookup.product));
+    const summary = getProductPriceSummary(lookup.product);
+    return withPriceRangePrefix(
+      formatRub(summary?.final_display_price ?? null),
+      Boolean(summary?.final_has_range),
+    );
   }, [lookup.product]);
   const titleRequiredError = showValidation && !draft.title.trim();
   const validVariantsCount = useMemo(
     () =>
       draft.variants.filter((variant) => {
         const hasTitle = String(variant.title || "").trim().length > 0;
-        const price = Number(String(variant.price || "").replace(",", "."));
-        return hasTitle && Number.isFinite(price);
+        const price = parseOptionalDecimal(variant.price);
+        return hasTitle && price !== null;
       }).length,
     [draft.variants]
   );
   const canCreate = Boolean(draft.title.trim() && validVariantsCount > 0) && !isHydrating && !isCreating;
   const hasExistingLookupProduct = lookup.state === "found" && Number(lookup.product?.id || 0) > 0;
+  const hasSourcePreview = lookup.state === "found" && Boolean(lookup.product) && !hasExistingLookupProduct;
   const lookupSourceHref = toExternalHttpUrl(lookup.product?.url);
   const isExistingProductHidden = Boolean(
     lookup.product
@@ -244,9 +237,17 @@ export function AdminProductCreateModal({
 
   if (!open) return null;
 
+  const flowLabel = resolveFlowLabel({
+    sourceUrl: draft.sourceUrl,
+    lookupState: lookup.state,
+    hasExistingLookupProduct,
+    bindSync: draft.bindSync,
+  });
+  const favoriteSummary = "Кастомные каталоги";
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal product-create-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="modal product-create-modal product-create-modal--add" onClick={(event) => event.stopPropagation()}>
         <div className="modal-head">
           <h3>Добавить товар</h3>
           <button type="button" className="icon-btn" aria-label="Закрыть" onClick={onClose}>
@@ -254,45 +255,94 @@ export function AdminProductCreateModal({
           </button>
         </div>
 
-        <section className="product-create__source">
-          <div className="url-fetch-row product-create__source-row">
-            <input
-              value={draft.sourceUrl}
-              onChange={(event) => onSetField("sourceUrl", event.target.value)}
-              placeholder="Ссылка на товар магазина-продавца"
-              disabled={isHydrating || isCreating}
-            />
-            <button
-              type="button"
-              className="mini-btn icon-btn"
-              aria-label="Выгрузить товар по ссылке"
-              disabled={!canRunLookup || isHydrating || isCreating}
-              onClick={() => {
-                void onHydrateFromSourceUrl();
-              }}
-            >
-              <IconPencil className="icon-svg" />
-            </button>
+        <section className="product-create__entry">
+          <div className="product-create__entry-head">
+            <div className="product-create__entry-copy">
+              <h4>Сценарий добавления</h4>
+              <p>Товар можно заполнить вручную, подтянуть из источника по ссылке или взять существующую карточку за основу.</p>
+            </div>
+            <span className="product-create__flow-pill">{flowLabel}</span>
           </div>
 
-          {sourceDomainError ? <p className="product-create__error">{sourceDomainError}</p> : null}
-          {matchedSourceDomain ? <p className="product-create__source-meta">{matchedSourceDomain.sourceName}</p> : null}
+          <div className="product-create__entry-grid">
+            <article className="product-create__route-card product-create__route-card--primary">
+              <div className="product-create__route-head">
+                <div>
+                  <h5>Импорт из источника</h5>
+                  <p>Вставь ссылку магазина, проверь совпадение и при необходимости подтяни поля из источника.</p>
+                </div>
+              </div>
+              <div className="url-fetch-row product-create__source-row">
+                <input
+                  value={draft.sourceUrl}
+                  onChange={(event) => onSetField("sourceUrl", event.target.value)}
+                  placeholder="Ссылка на товар магазина-продавца"
+                  disabled={isHydrating || isCreating}
+                />
+                <button
+                  type="button"
+                  className="mini-btn icon-btn product-create__source-action"
+                  aria-label="Заполнить форму данными по ссылке"
+                  disabled={!canRunLookup || isHydrating || isCreating}
+                  onClick={() => {
+                    void onHydrateFromSourceUrl();
+                  }}
+                >
+                  <IconExternalLink className="icon-svg" />
+                  <span>Заполнить из ссылки</span>
+                </button>
+              </div>
 
-          {!sourceDomainError && draft.sourceUrl.trim() ? (
-            <div className="product-create__lookup">
-              {lookup.state === "loading" ? (
-                <div className="product-create__lookup-skeleton">
-                  <SkeletonBlock className="product-create__lookup-skeleton-thumb" />
-                  <div className="product-create__lookup-skeleton-body">
-                    <SkeletonBlock className="product-create__lookup-skeleton-line" />
-                    <SkeletonBlock className="product-create__lookup-skeleton-line product-create__lookup-skeleton-line--short" />
-                  </div>
+              {sourceDomainError ? <p className="product-create__error">{sourceDomainError}</p> : null}
+              {matchedSourceDomain ? (
+                <div className="product-create__source-meta">
+                  <span className="product-create__source-name">{matchedSourceDomain.sourceName}</span>
+                  <span className="product-create__source-mode">{matchedSourceDomain.modeLabel}</span>
                 </div>
               ) : null}
 
-              {lookup.state === "not_found" ? <EmptyState compact title="Товар еще не существует в базе." /> : null}
+              {!sourceDomainError && draft.sourceUrl.trim() ? (
+                <div className="product-create__lookup">
+                  {lookup.state === "loading" ? (
+                    <div className="product-create__lookup-skeleton">
+                      <SkeletonBlock className="product-create__lookup-skeleton-thumb" />
+                      <div className="product-create__lookup-skeleton-body">
+                        <SkeletonBlock className="product-create__lookup-skeleton-line" />
+                        <SkeletonBlock className="product-create__lookup-skeleton-line product-create__lookup-skeleton-line--short" />
+                      </div>
+                    </div>
+                  ) : null}
 
-              {lookup.state === "found" && lookup.product ? (
+                  {lookup.state === "not_found" ? (
+                    <div className="product-create__lookup-state">
+                      <strong>В базе такой карточки пока нет.</strong>
+                      <span>Можно импортировать данные из источника или просто заполнить форму вручную.</span>
+                    </div>
+                  ) : null}
+
+                  {hasSourcePreview ? (
+                    <div className="product-create__lookup-state product-create__lookup-state--success">
+                      <strong>Источник распознан.</strong>
+                      <span>Нажми «Заполнить из ссылки», чтобы подтянуть описание, фото и варианты.</span>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="product-create__route-note">
+                  Если ссылка не нужна, оставь поле пустым и переходи к ручному заполнению.
+                </div>
+              )}
+            </article>
+
+            <article className="product-create__route-card">
+              <div className="product-create__route-head">
+                <div>
+                  <h5>Копия существующего товара</h5>
+                  <p>Если эта ссылка уже есть в базе, можно взять текущую карточку как основу и переделать ее вручную.</p>
+                </div>
+              </div>
+
+              {hasExistingLookupProduct && lookup.product ? (
                 <div className="product-create__found-row">
                   {lookup.product.image_urls?.[0] ? (
                     <ProductThumb src={lookup.product.image_urls[0]} alt={lookup.product.title || "preview"} />
@@ -303,12 +353,18 @@ export function AdminProductCreateModal({
                   )}
 
                   <div className="product-create__found-body">
-                    <a
-                      className="product-create__found-title"
-                      href={`/product/${lookup.product.id}?from=admin`}
-                    >
-                      {lookup.product.title || `Товар #${lookup.product.id}`}
-                    </a>
+                    {hasExistingLookupProduct ? (
+                      <a
+                        className="product-create__found-title"
+                        href={`/product/${lookup.product.id}?from=admin`}
+                      >
+                        {lookup.product.title || `Товар #${lookup.product.id}`}
+                      </a>
+                    ) : (
+                      <span className="product-create__found-title">
+                        {lookup.product.title || "Данные источника готовы"}
+                      </span>
+                    )}
                     {lookupSourceHref ? (
                       <a
                         className="product-create__found-link"
@@ -331,42 +387,77 @@ export function AdminProductCreateModal({
                   </div>
 
                   <div className="product-create__found-actions">
-                    <button
-                      type="button"
-                      className={`icon-btn ${isExistingProductHidden ? "icon-btn--danger" : ""}`}
-                      aria-label="Скрыть существующий товар"
-                      onClick={onToggleHideExisting}
-                    >
-                      {isExistingProductHidden ? (
-                        <IconEyeOff className="icon-svg" />
-                      ) : (
-                        <IconEye className="icon-svg" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      aria-label="Выгрузить существующий товар"
-                      disabled={isHydrating || isCreating}
-                      onClick={() => {
-                        void onHydrateFromExisting();
-                      }}
-                    >
-                      <IconPencil className="icon-svg" />
-                    </button>
+                    {hasExistingLookupProduct ? (
+                      <>
+                        <button
+                          type="button"
+                          className={`icon-btn ${isExistingProductHidden ? "icon-btn--danger" : ""}`}
+                          aria-label="Скрыть существующий товар"
+                          onClick={onToggleHideExisting}
+                        >
+                          {isExistingProductHidden ? (
+                            <IconEyeOff className="icon-svg" />
+                          ) : (
+                            <IconEye className="icon-svg" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label="Скопировать существующий товар"
+                          disabled={isHydrating || isCreating}
+                          onClick={() => {
+                            void onHydrateFromExisting();
+                          }}
+                        >
+                          <IconPencil className="icon-svg" />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="product-create__copy-placeholder">Сначала проверь ссылку</span>
+                    )}
                   </div>
                 </div>
-              ) : null}
-            </div>
-          ) : null}
+              ) : hasSourcePreview ? (
+                <div className="product-create__route-empty product-create__route-empty--centered">
+                  <EmptyState compact title="В базе такого товара пока нет." description="Скопировать можно только уже существующий товар." />
+                </div>
+              ) : lookup.state === "loading" ? (
+                <div className="product-create__route-empty product-create__route-empty--centered">
+                  <EmptyState compact title="Ищем товар в базе..." />
+                </div>
+              ) : (
+                <div className="product-create__route-empty product-create__route-empty--centered">
+                  <EmptyState compact title="Ссылка еще не проверена." />
+                </div>
+              )}
+            </article>
+
+            <article className="product-create__route-card product-create__route-card--manual">
+              <div className="product-create__route-head">
+                <div>
+                  <h5>Ручное заполнение</h5>
+                  <p>Подходит для личного товара или когда карточку нужно собрать с нуля без привязки к синхронизации.</p>
+                </div>
+              </div>
+              <div className="product-create__route-note product-create__route-note--manual">
+                Ручной товар можно создать вообще без ссылки. Если включить привязку, фото и варианты будут управляться источником.
+              </div>
+            </article>
+          </div>
         </section>
 
         <div className="product-create__divider" aria-hidden="true" />
 
         <section className="product-create__editor">
+          <div className="product-create__section-head">
+            <div>
+              <h4>Карточка товара</h4>
+            </div>
+          </div>
           <div className="product-create__editor-grid">
             <div className="product-create__editor-left">
-              <label className="product-create__field">
+              <label className="product-create__field product-create__field--title">
                 <span>Название товара</span>
                 <input
                   value={draft.title}
@@ -377,16 +468,7 @@ export function AdminProductCreateModal({
                 {titleRequiredError ? <span className="product-create__field-error">Название товара обязательно.</span> : null}
               </label>
 
-              <div className="product-create__line3">
-                <label className="product-create__field">
-                  <span>Вес (граммы)</span>
-                  <input
-                    value={draft.weightGrams}
-                    onChange={(event) => onSetField("weightGrams", event.target.value)}
-                    inputMode="numeric"
-                    disabled={isHydrating || isCreating}
-                  />
-                </label>
+              <div className="product-create__line2 product-create__line2--wide">
                 <div className="designers-combobox-wrap product-create__brand-wrap" onBlur={scheduleDesignerClose}>
                   <label className="product-create__field">
                     <span>Дизайнер</span>
@@ -432,7 +514,19 @@ export function AdminProductCreateModal({
                   ) : null}
                 </div>
                 <label className="product-create__field">
-                  <span>Gender</span>
+                  <span>Вес (граммы)</span>
+                  <input
+                    value={draft.weightGrams}
+                    onChange={(event) => onSetField("weightGrams", event.target.value)}
+                    inputMode="numeric"
+                    disabled={isHydrating || isCreating}
+                  />
+                </label>
+              </div>
+
+              <div className="product-create__line2">
+                <label className="product-create__field">
+                  <span>Гендер</span>
                   <select
                     value={draft.gender}
                     onChange={(event) => onSetField("gender", event.target.value as "male" | "female" | "unisex")}
@@ -454,7 +548,6 @@ export function AdminProductCreateModal({
                     <option value="by_order">Под заказ</option>
                   </select>
                 </label>
-
               </div>
 
               <div className="product-create__favorite">
@@ -473,17 +566,18 @@ export function AdminProductCreateModal({
                 </label>
                 <button
                   type="button"
-                  className={draft.favorite ? "icon-btn icon-btn--active" : "icon-btn"}
-                  title="Выбрать избранные категории"
+                  className={draft.favorite ? "btn btn-light product-create__favorite-action product-create__favorite-action--active" : "btn btn-light product-create__favorite-action"}
+                  title="Кастомные каталоги"
                   onClick={() => setFavoritePickerOpen((prev) => !prev)}
                   disabled={isHydrating || isCreating}
                 >
                   <IconStar className="icon-svg" />
+                  <span>{favoriteSummary}</span>
                 </button>
                 {favoritePickerOpen ? (
-                  <div className="star-picker" role="dialog" aria-label="Выбор избранных категорий">
+                  <div className="star-picker" role="dialog" aria-label="Выбор личных каталогов">
                     <div className="star-picker-head">
-                      <strong>Избранные категории</strong>
+                      <strong>Кастомные каталоги</strong>
                       <button type="button" className="icon-btn" onClick={() => setFavoritePickerOpen(false)} title="Закрыть">
                         <IconClose className="icon-svg" />
                       </button>
@@ -507,51 +601,31 @@ export function AdminProductCreateModal({
                   </div>
                 ) : null}
               </div>
+              <span className="product-create__bind-sync-note">
+                При включении блокируются фото и варианты.
+              </span>
             </div>
 
             <div className="product-create__editor-right">
               <label className="product-create__field product-create__field--description">
-                <span>Описание товара (text)</span>
+                <span>Описание товара</span>
                 <textarea
                   value={draft.description}
                   onChange={(event) => onSetField("description", event.target.value)}
                   disabled={isHydrating || isCreating}
                 />
               </label>
-              <label className="product-create__field product-create__field--description">
-                <span>Описание товара (HTML)</span>
-                <textarea
-                  value={draft.descriptionHtml}
-                  onChange={(event) => onSetField("descriptionHtml", event.target.value)}
-                  disabled={isHydrating || isCreating}
-                />
-              </label>
-              <div className="product-create__line3">
-                <label className="product-create__field">
-                  <span>Ручная цена, RUB</span>
-                  <input
-                    value={draft.manualPriceRub}
-                    onChange={(event) => onSetField("manualPriceRub", event.target.value)}
-                    inputMode="decimal"
-                    disabled={isHydrating || isCreating}
-                  />
-                </label>
-                <label className="product-create__field">
-                  <span>Старая цена, RUB</span>
-                  <input
-                    value={draft.manualCompareAtPriceRub}
-                    onChange={(event) => onSetField("manualCompareAtPriceRub", event.target.value)}
-                    inputMode="decimal"
-                    disabled={isHydrating || isCreating}
-                  />
-                </label>
-              </div>
             </div>
           </div>
         </section>
 
         <section className={`product-create__images${draft.bindSync ? " product-create__section-disabled" : ""}`}>
-          <h4 className="product-create__images-title">Фотографии</h4>
+          <div className="product-create__section-head">
+            <div>
+              <h4 className="product-create__images-title">Фотографии</h4>
+              {draft.bindSync ? <p>Фото управляются источником и поэтому временно недоступны для ручного редактирования.</p> : null}
+            </div>
+          </div>
           <div className="product-create__images-grid">
             {draft.images.map((image) => (
               <div key={image.id} className="product-create__image-tile">
@@ -606,15 +680,20 @@ export function AdminProductCreateModal({
 
         <section className={`product-create__variants${draft.bindSync ? " product-create__section-disabled" : ""}`}>
           <div className="product-create__variants-head">
-            <h4 className="product-create__images-title">Варианты</h4>
+            <div className="product-create__variants-copy">
+              <h4 className="product-create__images-title">Варианты</h4>
+              <p>Цена в RUB считается уже финальной и не проходит через формулу. Старая цена доступна для любой валюты.</p>
+              {draft.bindSync ? <p>При активной синхронизации список вариантов берется из источника.</p> : null}
+            </div>
             <button
               type="button"
               className="btn btn-light"
               disabled={isHydrating || isCreating || draft.bindSync}
               onClick={() => {
+                const lastCurrency = draft.variants[draft.variants.length - 1]?.currency ?? "RUB";
                 onSetField("variants", [
                   ...draft.variants,
-                  { id: `v-${Date.now()}`, title: "", price: "", currency: "USD", available: true },
+                  { id: `v-${Date.now()}`, title: "", price: "", compareAtPrice: "", currency: lastCurrency, available: true },
                 ]);
               }}
             >
@@ -622,77 +701,120 @@ export function AdminProductCreateModal({
             </button>
           </div>
           <div className="product-create__variants-list">
-            {draft.variants.map((variant) => (
-              <div key={variant.id} className="product-create__variant-row">
-                <input
-                  className="input"
-                  placeholder="Название варианта"
-                  value={variant.title}
-                  onChange={(event) =>
-                    onSetField(
-                      "variants",
-                      draft.variants.map((item) => (item.id === variant.id ? { ...item, title: event.target.value } : item))
-                    )
-                  }
-                  disabled={isHydrating || isCreating || draft.bindSync}
-                />
-                <input
-                  className="input"
-                  placeholder="Цена"
-                  inputMode="decimal"
-                  value={variant.price}
-                  onChange={(event) =>
-                    onSetField(
-                      "variants",
-                      draft.variants.map((item) => (item.id === variant.id ? { ...item, price: event.target.value } : item))
-                    )
-                  }
-                  disabled={isHydrating || isCreating || draft.bindSync}
-                />
-                <select
-                  className="input"
-                  value={variant.currency}
-                  onChange={(event) =>
-                    onSetField(
-                      "variants",
-                      draft.variants.map((item) =>
-                        item.id === variant.id ? { ...item, currency: event.target.value as ProductCreateVariant["currency"] } : item
-                      )
-                    )
-                  }
-                  disabled={isHydrating || isCreating || draft.bindSync}
-                >
-                  {CURRENCY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <label className="ui-switch ui-switch--compact">
+            {draft.variants.map((variant) => {
+              const compareAtEnabled = isManualVariantCompareAtEnabled({
+                price: variant.price,
+                currency: variant.currency,
+              });
+              const pricePlaceholder = variant.currency === "RUB" ? "Финальная цена, RUB" : "Цена источника";
+              return (
+                <div key={variant.id} className="product-create__variant-row">
                   <input
-                    type="checkbox"
-                    checked={variant.available}
+                    className="input product-create__variant-input product-create__variant-input--title"
+                    placeholder="Название варианта"
+                    value={variant.title}
                     onChange={(event) =>
                       onSetField(
                         "variants",
-                        draft.variants.map((item) => (item.id === variant.id ? { ...item, available: event.target.checked } : item))
+                        draft.variants.map((item) => (item.id === variant.id ? { ...item, title: event.target.value } : item))
                       )
                     }
                     disabled={isHydrating || isCreating || draft.bindSync}
                   />
-                  <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
-                  <span className="ui-switch-text">В наличии</span>
-                </label>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => onSetField("variants", draft.variants.filter((item) => item.id !== variant.id))}
-                  disabled={isHydrating || isCreating || draft.bindSync || draft.variants.length <= 1}
-                >
-                  <IconClose className="icon-svg" />
-                </button>
-              </div>
-            ))}
+                  <input
+                    className="input product-create__variant-input"
+                    placeholder={pricePlaceholder}
+                    inputMode="decimal"
+                    value={variant.price}
+                    onChange={(event) =>
+                      onSetField(
+                        "variants",
+                        draft.variants.map((item) => (
+                          item.id === variant.id
+                            ? {
+                                ...item,
+                                price: event.target.value,
+                                compareAtPrice: normalizeManualVariantCompareAtValue({
+                                  compareAtPrice: item.compareAtPrice,
+                                  price: event.target.value,
+                                  currency: item.currency,
+                                }),
+                              }
+                            : item
+                        ))
+                      )
+                    }
+                    disabled={isHydrating || isCreating || draft.bindSync}
+                  />
+                  <input
+                    className="input product-create__variant-input"
+                    placeholder="Старая цена"
+                    inputMode="decimal"
+                    value={compareAtEnabled ? variant.compareAtPrice : ""}
+                    onChange={(event) =>
+                      onSetField(
+                        "variants",
+                        draft.variants.map((item) => (item.id === variant.id ? { ...item, compareAtPrice: event.target.value } : item))
+                      )
+                    }
+                    disabled={isHydrating || isCreating || draft.bindSync || !compareAtEnabled}
+                    title={compareAtEnabled ? undefined : "Сначала укажи цену варианта."}
+                  />
+                  <select
+                    className="input product-create__variant-input product-create__variant-input--currency"
+                    value={variant.currency}
+                    onChange={(event) =>
+                      onSetField(
+                        "variants",
+                        draft.variants.map((item) =>
+                          item.id === variant.id
+                            ? {
+                                ...item,
+                                currency: event.target.value as ProductCreateVariant["currency"],
+                                compareAtPrice: normalizeManualVariantCompareAtValue({
+                                  compareAtPrice: item.compareAtPrice,
+                                  price: item.price,
+                                  currency: event.target.value,
+                                }),
+                              }
+                            : item
+                        )
+                      )
+                    }
+                    disabled={isHydrating || isCreating || draft.bindSync}
+                  >
+                    {MANUAL_VARIANT_CURRENCY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <label className="ui-switch ui-switch--compact product-create__variant-switch">
+                    <input
+                      type="checkbox"
+                      checked={variant.available}
+                      onChange={(event) =>
+                        onSetField(
+                          "variants",
+                          draft.variants.map((item) => (item.id === variant.id ? { ...item, available: event.target.checked } : item))
+                        )
+                      }
+                      disabled={isHydrating || isCreating || draft.bindSync}
+                    />
+                    <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
+                    <span className="ui-switch-text">В наличии</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="icon-btn product-create__variant-remove"
+                    onClick={() => onSetField("variants", draft.variants.filter((item) => item.id !== variant.id))}
+                    disabled={isHydrating || isCreating || draft.bindSync || draft.variants.length <= 1}
+                  >
+                    <IconClose className="icon-svg" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
           {showValidation && validVariantsCount === 0 ? (
             <span className="product-create__field-error">Добавь хотя бы один вариант с названием и ценой.</span>

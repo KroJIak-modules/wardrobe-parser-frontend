@@ -58,6 +58,47 @@ function flattenFilters(nodes: AdminFilterTreeNode[]): AdminFilterTreeNode[] {
   return result;
 }
 
+function collectRootMultifilterIds(nodes: AdminFilterTreeNode[]): Set<number> {
+  return new Set(
+    nodes
+      .filter((node) => node.children.length > 0)
+      .map((node) => node.id),
+  );
+}
+
+function normalizeMobileMenuPairs(nodes: AdminFilterTreeNode[]): AdminFilterTreeNode[] {
+  const rootMultifilterIds = collectRootMultifilterIds(nodes);
+  const pairById = new Map<number, number | null>();
+  for (const node of nodes) {
+    pairById.set(
+      node.id,
+      rootMultifilterIds.has(node.id) && Number.isFinite(node.mobile_pair_root_id)
+        ? Number(node.mobile_pair_root_id)
+        : null,
+    );
+  }
+
+  const rewrite = (items: AdminFilterTreeNode[], isRootLevel: boolean): AdminFilterTreeNode[] => (
+    items.map((node) => {
+      const nextChildren = rewrite(node.children, false);
+      const isRootMultifilter = isRootLevel && nextChildren.length > 0;
+      const currentPairId = isRootMultifilter ? pairById.get(node.id) ?? null : null;
+      const isMutualPair =
+        currentPairId !== null
+        && currentPairId !== node.id
+        && rootMultifilterIds.has(currentPairId)
+        && (pairById.get(currentPairId) ?? null) === node.id;
+      return {
+        ...node,
+        mobile_pair_root_id: isMutualPair ? currentPairId : null,
+        children: nextChildren,
+      };
+    })
+  );
+
+  return rewrite(nodes, true);
+}
+
 function isMultifilterNode(node: AdminFilterTreeNode): boolean {
   return node.children.length > 0;
 }
@@ -79,6 +120,39 @@ function updateFilterById(
       children: updateFilterById(node.children, id, updater),
     };
   });
+}
+
+function setRootMobilePair(nodes: AdminFilterTreeNode[], filterId: number, pairRootId: number | null): AdminFilterTreeNode[] {
+  const currentNode = nodes.find((node) => node.id === filterId) ?? null;
+  if (!currentNode || currentNode.children.length === 0) {
+    return normalizeMobileMenuPairs(nodes);
+  }
+
+  const nextPairRootId = pairRootId && pairRootId !== filterId ? pairRootId : null;
+  const targetNode = nextPairRootId !== null ? nodes.find((node) => node.id === nextPairRootId) ?? null : null;
+  if (nextPairRootId !== null && (!targetNode || targetNode.children.length === 0)) {
+    return normalizeMobileMenuPairs(nodes);
+  }
+
+  let nextNodes = nodes.map((node) => {
+    if (node.id === filterId) {
+      return { ...node, mobile_pair_root_id: nextPairRootId };
+    }
+    if (node.mobile_pair_root_id === filterId || (nextPairRootId !== null && node.mobile_pair_root_id === nextPairRootId)) {
+      return { ...node, mobile_pair_root_id: null };
+    }
+    return node;
+  });
+
+  if (nextPairRootId !== null) {
+    nextNodes = nextNodes.map((node) => (
+      node.id === nextPairRootId
+        ? { ...node, mobile_pair_root_id: filterId }
+        : node
+    ));
+  }
+
+  return normalizeMobileMenuPairs(nextNodes);
 }
 
 function updateCategoryById(
@@ -336,7 +410,7 @@ export function useAdminFiltersCategories() {
         const nextCategories = Array.isArray(payload.categories) ? payload.categories : [];
         const nextCustomCatalogs = Array.isArray(payload.custom_catalogs) ? payload.custom_catalogs : [];
         const nextDesignerDirectory = Array.isArray(payload.designer_directory) ? payload.designer_directory : [];
-        setFilters(nextFilters);
+        setFilters(normalizeMobileMenuPairs(nextFilters));
         setCategories(nextCategories);
         setCustomCatalogs(nextCustomCatalogs);
         setDesignerDirectory(nextDesignerDirectory);
@@ -354,7 +428,7 @@ export function useAdminFiltersCategories() {
           )
         );
         lastSavedSignatureRef.current = JSON.stringify({
-          filters: nextFilters,
+          filters: normalizeMobileMenuPairs(nextFilters),
           categories: nextCategories,
           custom_catalogs: nextCustomCatalogs,
           hidden_product_ids: nextHiddenProductIds,
@@ -414,6 +488,12 @@ export function useAdminFiltersCategories() {
   }, [categories, customCatalogs, filters, hiddenProductIds, loading]);
 
   const flatFilters = useMemo(() => flattenFilters(filters), [filters]);
+  const rootMultifilterOptions = useMemo(
+    () => filters
+      .filter((node) => node.children.length > 0)
+      .map((node) => ({ id: node.id, label: node.label.trim() || "Без названия" })),
+    [filters],
+  );
   const selectedFilter = useMemo(() => findFilterById(filters, selectedFilterId), [filters, selectedFilterId]);
   const selectedCategory = useMemo(() => findCategoryById(categories, selectedCategoryId), [categories, selectedCategoryId]);
   const selectedCustomCatalog = useMemo(
@@ -698,7 +778,7 @@ export function useAdminFiltersCategories() {
     if (!selectedFilterId) {
       return;
     }
-    setFilters((prev) => removeFilterById(prev, selectedFilterId));
+    setFilters((prev) => normalizeMobileMenuPairs(removeFilterById(prev, selectedFilterId)));
     setCategories((prev) => prev.map((category) => ({
       ...category,
       attachments: category.attachments.filter((attachment) => !(attachment.kind === "filter" && attachment.ref_id === selectedFilterId)),
@@ -713,6 +793,7 @@ export function useAdminFiltersCategories() {
       slug: null,
       label: DEFAULT_FILTER_LABEL,
       display_label: "",
+      mobile_pair_root_id: null,
       node_kind: "filter",
       is_enabled: true,
       rules: {
@@ -722,7 +803,7 @@ export function useAdminFiltersCategories() {
       },
       children: [],
     };
-    setFilters((prev) => appendFilterNode(prev, parentId, newNode));
+    setFilters((prev) => normalizeMobileMenuPairs(appendFilterNode(prev, parentId, newNode)));
     setSelectedFilterId(nextId);
     setSelectedCategoryId(null);
     setSelectedCustomCatalogId(null);
@@ -862,9 +943,9 @@ export function useAdminFiltersCategories() {
         return prev;
       }
       if (hasFilterNode(detached.detachedNode.children, targetId)) {
-        return prev;
+        return normalizeMobileMenuPairs(prev);
       }
-      return insertFilterNodeBefore(detached.nextNodes, targetId, detached.detachedNode);
+      return normalizeMobileMenuPairs(insertFilterNodeBefore(detached.nextNodes, targetId, detached.detachedNode));
     });
   };
 
@@ -878,9 +959,9 @@ export function useAdminFiltersCategories() {
         return prev;
       }
       if (hasFilterNode(detached.detachedNode.children, targetId)) {
-        return prev;
+        return normalizeMobileMenuPairs(prev);
       }
-      return insertFilterNodeAsChild(detached.nextNodes, targetId, detached.detachedNode);
+      return normalizeMobileMenuPairs(insertFilterNodeAsChild(detached.nextNodes, targetId, detached.detachedNode));
     });
   };
 
@@ -890,8 +971,15 @@ export function useAdminFiltersCategories() {
       if (!detached.detachedNode) {
         return prev;
       }
-      return [...detached.nextNodes, detached.detachedNode];
+      return normalizeMobileMenuPairs([...detached.nextNodes, detached.detachedNode]);
     });
+  };
+
+  const setFilterMobilePairRootId = (pairRootId: number | null) => {
+    if (!selectedFilterId) {
+      return;
+    }
+    setFilters((prev) => setRootMobilePair(prev, selectedFilterId, pairRootId));
   };
 
   const moveCustomCatalogBefore = (draggedId: number, targetId: number) => {
@@ -906,6 +994,7 @@ export function useAdminFiltersCategories() {
     loading,
     filters,
     flatFilters,
+    rootMultifilterOptions,
     categories,
     customCatalogs,
     designerDirectory,
@@ -928,6 +1017,7 @@ export function useAdminFiltersCategories() {
     catalogSearchResults,
     updateFilterLabel,
     updateFilterDisplayLabel,
+    setFilterMobilePairRootId,
     setFilterEnabled,
     deleteSelectedFilter,
     createFilterNode,

@@ -4,10 +4,24 @@
   background: #0b0a09;
 }
 
+.site-landing[data-phase="entered"] {
+  height: auto;
+  overflow: visible;
+  background: #fff;
+}
+
 .site-landing__track {
   height: calc(100svh + 100svh);
   transition: transform var(--site-intro-duration) cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
+}
+
+.site-landing[data-phase="entered"] .site-landing__track {
+  height: auto;
+  min-height: 100svh;
+  transform: none;
+  transition: none;
+  will-change: auto;
 }
 
 .site-landing__track--shifted {
@@ -20,15 +34,29 @@
   height: 100svh;
 }
 
+.site-landing[data-phase="entered"] .site-landing__preview {
+  height: auto;
+  min-height: 100svh;
+}
+
 .site-landing__hero {
   overflow: hidden;
   background: #0b0a09;
+}
+
+.site-landing[data-phase="entered"] .site-landing__hero {
+  position: absolute;
+  inset: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .site-landing__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center center;
 }
 
 .site-landing__image--placeholder {
@@ -55,24 +83,72 @@
   background: #fff;
 }
 
+.site-home-surface--mobile .site-home-surface__content {
+  padding-top: 60px;
+  width: 100%;
+  margin: 0;
+}
+
 .site-home-surface__carousel {
   margin-bottom: 49px;
+}
+
+.site-home-surface__carousel-placeholder {
+  width: 100%;
+  min-height: 573px;
+  background: #fff;
 }
 
 .site-home-surface__products {
   margin-bottom: 78px;
 }
 
+.site-home-surface--mobile .site-home-surface__products {
+  margin-bottom: 31px;
+}
+
+.site-home-surface--mobile .site-home-surface__footer {
+  padding-top: 0;
+}
+
+.site-home-surface__mobile-hero {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 360 / 517;
+  background: #fff;
+  overflow: hidden;
+}
+
+.site-home-surface__mobile-hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+}
+
+.site-home-surface__mobile-hero-placeholder {
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(180deg, #f2f2f2 0%, #d8d8d8 100%);
+}
+
 @media (max-width: 640px) {
-  .site-home-surface__content {
-    padding-top: 88px;
-  }
-
   .site-home-surface__carousel {
-    margin-bottom: 36px;
+    margin-bottom: 10px;
   }
 
-  .site-home-surface__products {
-    margin-bottom: 54px;
+  .site-landing-cta {
+    bottom: 60px;
+  }
+
+  .site-landing-cta__button {
+    font-family: var(--site-font-ui);
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  .site-home-surface__content {
+    padding-top: 60px;
   }
 }

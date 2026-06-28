@@ -18,6 +18,10 @@ type Props = {
 export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml, pricingExample, pricingExampleLoading, pricingExampleError }: Props) {
   const pricingExampleHref = pricingExample?.productId ? `/product/${pricingExample.productId}?from=admin` : null;
   const pricingExampleSourceHref = toExternalHttpUrl(pricingExample?.url);
+  const formatMetricMoney = (value: number, currency: string, hasRange: boolean) => {
+    const formatted = formatDisplayMoney(value, currency);
+    return hasRange ? `От ${formatted}` : formatted;
+  };
 
   return (
     <div className="pricing-formula-box">
@@ -83,15 +87,15 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
           <div className="pricing-example-summary">
             <div className="pricing-example-metric">
               <div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summarySpLatex }} />
-              <div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.sourcePrice, pricingExample.sourceCurrency)}</div>
+              <div className="pricing-example-metric-value">{formatMetricMoney(pricingExample.sourcePrice, pricingExample.sourceCurrency, pricingExample.sourceHasRange)}</div>
             </div>
             <div className="pricing-example-metric">
               <div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summaryRubLatex }} />
-              <div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.sourcePriceRub, "RUB")}</div>
+              <div className="pricing-example-metric-value">{formatMetricMoney(pricingExample.sourcePriceRub, "RUB", pricingExample.sourceHasRange)}</div>
             </div>
             <div className="pricing-example-metric">
               <div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summaryFpLatex }} />
-              <div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.finalPrice, "RUB")}</div>
+              <div className="pricing-example-metric-value">{formatMetricMoney(pricingExample.finalPrice, "RUB", pricingExample.finalHasRange)}</div>
             </div>
             <div className="pricing-example-metric">
               <div className="pricing-example-metric-key">Моржа</div>

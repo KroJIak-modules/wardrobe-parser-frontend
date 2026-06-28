@@ -113,19 +113,26 @@ const pricingFieldMeta: Array<{ key: PricingFieldKey; symbolLatex: string; label
 ];
 
 const dedupReasonLabelMap: Record<string, string> = {
+  same_title: "Одинаковое название",
   title_match: "Название",
   title_similar: "Похожее название",
+  close_title: "Близкое название",
   same_designer: "Дизайнер",
+  same_weight: "Одинаковый вес",
   price_close: "Цена",
-  handle_match: "Handle",
-  handle_similar: "Похожий handle",
+  handle_match: "Совпадение ссылки",
+  handle_similar: "Похожая ссылка",
+  shared_tokens: "Общие слова",
   image_overlap: "Фото",
   variant_overlap: "Варианты",
   auto_match: "Автосопоставление",
 };
 
 const dedupActionLabelMap: Record<string, string> = {
-  merge: "Оставлен один",
+  combine: "Соединены",
+  keep_left: "Оставлен левый",
+  keep_right: "Оставлен правый",
+  merge: "Объединение",
   reject: "Не дубль",
 };
 

@@ -209,7 +209,19 @@ export function resolveCatalogExperience(searchParams: URLSearchParams): SiteCat
   };
 }
 
-export function getCatalogTriggerLabel(group: SiteCatalogFilterGroup, selectedValues: readonly string[]) {
+export function getCatalogTriggerLabel(
+  searchParams: URLSearchParams,
+  group: SiteCatalogFilterGroup,
+  selectedValues: readonly string[],
+) {
+  if (group.key === "section") {
+    const multiId = String(searchParams.get("multi") || "").trim();
+    const multi = multiId ? siteCatalogMultiFilters.find((item) => item.id === multiId) ?? null : null;
+    if (multi) {
+      return multi.label.toUpperCase();
+    }
+  }
+
   if ((group.key === "section" || group.key === "designer") && selectedValues.length > 0) {
     return group.label.toUpperCase();
   }

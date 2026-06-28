@@ -23,6 +23,14 @@ type SyncSummaryProps = {
 
 const clampPercent = (value: number | null | undefined): number => Math.max(0, Math.min(100, value || 0));
 
+function ensureSentenceEnd(value: string): string {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  return /[.!?…]$/.test(text) ? text : `${text}.`;
+}
+
 export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, formatSyncStatusRu }: SyncSummaryProps) {
   const [, setNowTick] = useState<number>(() => Date.now());
   useEffect(() => {
@@ -87,7 +95,7 @@ export function SyncSummary({ latestJob, isSyncInProgress, formatDateTime, forma
         </>
       ) : (
         <div className="sync-last-run">
-          Статус последнего запуска: {failedStatusText}. Дата: {formatDateTime(lastAtRaw)}
+          Статус последнего запуска: {ensureSentenceEnd(failedStatusText)} Дата: {formatDateTime(lastAtRaw)}
           {formatElapsedRu(lastAtRaw) ? `, ${formatElapsedRu(lastAtRaw)} назад` : ""}
         </div>
       )}

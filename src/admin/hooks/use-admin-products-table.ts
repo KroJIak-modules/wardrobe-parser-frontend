@@ -1,10 +1,13 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { API_BASE, authFetch } from "../auth-fetch";
 import { PAGE_SIZE } from "../admin-constants";
 import { buildProductsApiQuery, type ProductsQueryState } from "../products-query";
 import type { AdminFilterFacetOption, AdminProductsTableItem } from "../admin-types";
 import { useDebouncedValue } from "../../shared/hooks/use-debounced-value";
 import { normalizeServiceProduct } from "../../shared/live-product-normalizer";
+import type { ProductWriteState } from "../../shared/product-state";
+import { markAdminProductsReturnStateRestored, readAdminProductsReturnState } from "../admin-products-return-state";
 
 type ProductsTablePayload = {
   items: Record<string, unknown>[];
@@ -53,13 +56,10 @@ function mapAdminTableItem(raw: Record<string, unknown>): AdminProductsTableItem
     image_count: normalized.image_count,
     image_urls: normalized.image_urls,
     image_ids: Array.isArray(normalized.image_ids) ? normalized.image_ids : [],
-    source_price: normalized.source_price ?? null,
-    source_currency: normalized.source_currency ?? null,
-    final_price: normalized.final_price ?? null,
-    final_currency: normalized.final_currency ?? null,
-    pricing_reason: String(raw.pricing_reason || "").trim() || null,
+    price_summary: normalized.price_summary ?? null,
+    pricing_reason: String(raw.pricing_reason || normalized.pricing_reason || "").trim() || null,
     pricing_manual_required:
-      typeof raw.pricing_manual_required === "boolean" ? raw.pricing_manual_required : null,
+      typeof raw.pricing_manual_required === "boolean" ? raw.pricing_manual_required : normalized.pricing_manual_required ?? null,
     internal_category_name: String(raw.internal_category_name || internalCategoryNames[0] || "").trim() || null,
     internal_category_names: internalCategoryNames,
   };
@@ -70,16 +70,25 @@ type UseAdminProductsTableParams = {
   latestJobStatus?: string | null;
   query: ProductsQueryState;
   pushToast: (message: string) => void;
+  deleteProduct: (productId: number) => Promise<{ ok: boolean; message: string }>;
 };
 
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload.detail === "string" && payload.detail.trim()) {
+      return payload.detail.trim();
+    }
+  } catch {
+    // Ignore invalid error payloads and keep fallback.
+  }
+  return fallback;
+}
+
 function getStatusRank(item: AdminProductsTableItem): number {
-  const lifecycle = String(item.lifecycle_status || "").trim().toLowerCase();
   const visibility = String(item.visibility_status || "").trim().toLowerCase();
   const orderability = String(item.orderability_status || "").trim().toLowerCase();
   const availability = String(item.availability_mode || "").trim().toLowerCase();
-  if (lifecycle === "merged") {
-    return 5;
-  }
   if (visibility === "hidden") {
     return 4;
   }
@@ -95,7 +104,7 @@ function getStatusRank(item: AdminProductsTableItem): number {
   if (availability === "in_stock") {
     return 0;
   }
-  return 6;
+  return 5;
 }
 
 function getDesignerSortValue(item: AdminProductsTableItem): string {
@@ -123,7 +132,8 @@ function sortProductsForAdminTable(items: AdminProductsTableItem[]): AdminProduc
 }
 
 export function useAdminProductsTable(params: UseAdminProductsTableParams) {
-  const { tab, latestJobStatus, query, pushToast } = params;
+  const { tab, latestJobStatus, query, pushToast, deleteProduct } = params;
+  const location = useLocation();
   const debouncedQuery = useDebouncedValue(query, 220);
 
   const productsSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -134,6 +144,8 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [tableOffset, setTableOffset] = useState<number>(0);
   const [tableLoading, setTableLoading] = useState<boolean>(false);
   const [tableLoadingMore, setTableLoadingMore] = useState<boolean>(false);
+  const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
+  const [statusUpdatingProductId, setStatusUpdatingProductId] = useState<number | null>(null);
   const [productSources, setProductSources] = useState<AdminFilterFacetOption[]>([]);
   const [productDesigners, setProductDesigners] = useState<AdminFilterFacetOption[]>([]);
   const [productCatalogs, setProductCatalogs] = useState<AdminFilterFacetOption[]>([]);
@@ -143,6 +155,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const fullReloadInFlightRef = useRef(false);
   const backgroundReloadInFlightRef = useRef(false);
   const previousJobStatusRef = useRef<string | null>(latestJobStatus ?? null);
+  const restoreRequestInFlightRef = useRef(false);
 
   const loadMoreTableProducts = useCallback(async () => {
     if (!tableHasMore || tableLoadingMore) {
@@ -340,6 +353,99 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     return () => observer.disconnect();
   }, [tab, tableHasMore, tableLoadingMore, loadMoreTableProducts]);
 
+  useEffect(() => {
+    if (tab !== "products" || tableLoading) {
+      return;
+    }
+    const currentHref = `${location.pathname}${location.search}`;
+    const returnState = readAdminProductsReturnState();
+    if (!returnState?.pending || returnState.href !== currentHref) {
+      restoreRequestInFlightRef.current = false;
+      return;
+    }
+    const viewportBottom = returnState.scrollY + window.innerHeight;
+    const pageHeight = document.documentElement.scrollHeight;
+    const needsMoreRows = tableProducts.length < returnState.loadedCount;
+    const needsMoreHeight = pageHeight + 24 < viewportBottom;
+    if ((needsMoreRows || needsMoreHeight) && tableHasMore) {
+      if (!tableLoadingMore && !restoreRequestInFlightRef.current) {
+        restoreRequestInFlightRef.current = true;
+        void loadMoreTableProducts().finally(() => {
+          restoreRequestInFlightRef.current = false;
+        });
+      }
+      return;
+    }
+    if (tableLoadingMore) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const maxScrollTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      window.scrollTo({ top: Math.min(returnState.scrollY, maxScrollTop), left: 0, behavior: "auto" });
+      markAdminProductsReturnStateRestored();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    tab,
+    tableLoading,
+    tableLoadingMore,
+    tableHasMore,
+    tableProducts.length,
+    loadMoreTableProducts,
+    location.pathname,
+    location.search,
+  ]);
+
+  const deleteTableProduct = useCallback(async (productId: number) => {
+    const normalizedProductId = Number(productId);
+    if (!Number.isFinite(normalizedProductId) || normalizedProductId <= 0) {
+      pushToast("Некорректный ID товара");
+      return false;
+    }
+    setDeletingProductId(normalizedProductId);
+    try {
+      const result = await deleteProduct(normalizedProductId);
+      if (!result.ok) {
+        throw new Error(result.message || "Не удалось удалить товар");
+      }
+      await reloadTableData();
+      pushToast(result.message || "Товар удален");
+      return true;
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Не удалось удалить товар");
+      return false;
+    } finally {
+      setDeletingProductId((current) => (current === normalizedProductId ? null : current));
+    }
+  }, [deleteProduct, pushToast, reloadTableData]);
+
+  const updateTableProductStatus = useCallback(async (productId: number, state: ProductWriteState) => {
+    const normalizedProductId = Number(productId);
+    if (!Number.isFinite(normalizedProductId) || normalizedProductId <= 0) {
+      pushToast("Некорректный ID товара");
+      return false;
+    }
+    setStatusUpdatingProductId(normalizedProductId);
+    try {
+      const response = await authFetch(`${API_BASE}/products/${normalizedProductId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state),
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Не удалось обновить состояние товара"));
+      }
+      await reloadTableData();
+      pushToast("Состояние товара обновлено");
+      return true;
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Не удалось обновить состояние товара");
+      return false;
+    } finally {
+      setStatusUpdatingProductId((current) => (current === normalizedProductId ? null : current));
+    }
+  }, [pushToast, reloadTableData]);
+
   return {
     productsSentinelRef,
     tableProducts,
@@ -352,5 +458,9 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     productCatalogs,
     productSections,
     productGenders,
+    deletingProductId,
+    statusUpdatingProductId,
+    deleteTableProduct,
+    updateTableProductStatus,
   };
 }

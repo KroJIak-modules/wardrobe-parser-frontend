@@ -14,6 +14,10 @@ type TaxonomyState = {
     title?: string | null;
     children?: TaxonomyState["filters"];
   }>;
+  custom_catalogs?: Array<{
+    slug?: string | null;
+    title?: string | null;
+  }>;
 };
 
 function flattenFilterOptions(nodes: TaxonomyState["filters"], items: Array<{ slug: string; name: string }> = []) {
@@ -24,6 +28,20 @@ function flattenFilterOptions(nodes: TaxonomyState["filters"], items: Array<{ sl
       items.push({ slug, name: title });
     }
     flattenFilterOptions(node?.children, items);
+  }
+  return items;
+}
+
+function flattenCustomCatalogOptions(
+  catalogs: TaxonomyState["custom_catalogs"],
+  items: Array<{ slug: string; name: string }> = [],
+) {
+  for (const catalog of catalogs || []) {
+    const slug = String(catalog?.slug || "").trim();
+    const title = String(catalog?.title || "").trim();
+    if (slug && title) {
+      items.push({ slug, name: title });
+    }
   }
   return items;
 }
@@ -75,7 +93,7 @@ export function useLiveDataProductActions(params: {
   }, []);
 
   const addProductByUrl = useCallback(async (url: string, payload?: {
-    title?: string; designer_name?: string | null; source_category_name?: string | null; price?: number | null; currency?: string; image_count?: number;
+    title?: string; designer_name?: string | null; source_category_name?: string | null; image_count?: number;
   }) => {
     try {
       await apiJson(`${API_BASE}/products/add-by-url`, {
@@ -97,15 +115,11 @@ export function useLiveDataProductActions(params: {
     designer_name?: string | null;
     source_category_name: string | null;
     gender?: "male" | "female" | "unisex" | null;
-    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; compare_at_price?: number | null; currency: string; pricing_mode?: string | null; available: boolean }>;
     manual_image_asset_ids: number[];
     manual_weight_grams?: number | null;
-    price_override?: {
-      manual_price_rub?: number | null;
-      manual_compare_at_price_rub?: number | null;
-    } | null;
     state?: ProductWriteState;
-    filter_slugs?: string[];
+    custom_catalog_slugs?: string[];
     bind_sync?: boolean;
     bind_url?: string | null;
   }) => {
@@ -123,9 +137,9 @@ export function useLiveDataProductActions(params: {
           variants: payload.variants,
           manual_image_asset_ids: payload.manual_image_asset_ids,
           manual_weight_grams: payload.manual_weight_grams ?? null,
-          ...(payload.price_override !== undefined ? { price_override: payload.price_override } : {}),
-          filter_slugs: payload.filter_slugs ?? [],
-          bind_source_url: payload.bind_url ?? null,
+          custom_catalog_slugs: payload.custom_catalog_slugs ?? [],
+          bind_source_url: payload.bind_sync && payload.bind_url ? payload.bind_url : null,
+          bind_source_as_primary: false,
           ...(payload.state || {}),
         }),
       });
@@ -143,15 +157,11 @@ export function useLiveDataProductActions(params: {
     designer_name?: string | null;
     source_category_name: string | null;
     gender?: "male" | "female" | "unisex" | null;
-    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; compare_at_price?: number | null; currency: string; pricing_mode?: string | null; available: boolean }>;
     manual_image_asset_ids: number[];
     manual_weight_grams?: number | null;
-    price_override?: {
-      manual_price_rub?: number | null;
-      manual_compare_at_price_rub?: number | null;
-    } | null;
     state?: ProductWriteState;
-    filter_slugs?: string[];
+    custom_catalog_slugs?: string[];
     bind_sync?: boolean;
     bind_url?: string | null;
   }) => {
@@ -169,8 +179,7 @@ export function useLiveDataProductActions(params: {
           variants: payload.variants,
           manual_image_asset_ids: payload.manual_image_asset_ids,
           manual_weight_grams: payload.manual_weight_grams ?? null,
-          ...(payload.price_override !== undefined ? { price_override: payload.price_override } : {}),
-          filter_slugs: payload.filter_slugs ?? [],
+          custom_catalog_slugs: payload.custom_catalog_slugs ?? [],
           ...(payload.state || {}),
         }),
       });
@@ -196,10 +205,21 @@ export function useLiveDataProductActions(params: {
     }
   }, [refreshProductsOnly, refreshSourcesOnly]);
 
+  const deleteProduct = useCallback(async (productId: number) => {
+    try {
+      await apiJson(`${API_BASE}/products/manual/${productId}`, { method: "DELETE" });
+      setProducts((prev) => prev.filter((item) => item.id !== productId));
+      await Promise.all([refreshProductsOnly(), refreshSourcesOnly()]);
+      return okResult("Товар удален");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [refreshProductsOnly, refreshSourcesOnly, setProducts]);
+
   const getStarredCategoryOptions = useCallback(async () => {
     try {
       const payload = await apiJson<TaxonomyState>(`${API_BASE}/taxonomy/state`);
-      return { ok: true, items: flattenFilterOptions(payload.filters) };
+      return { ok: true, items: flattenCustomCatalogOptions(payload.custom_catalogs) };
     } catch {
       return { ok: false, items: [] as Array<{ slug: string; name: string }> };
     }
@@ -266,6 +286,7 @@ export function useLiveDataProductActions(params: {
 
   const updateProductOverrides = useCallback(async (productId: number, payload: {
     title?: string;
+    brand_override_name?: string | null;
     description?: string;
     description_text?: string;
     description_html?: string;
@@ -273,13 +294,9 @@ export function useLiveDataProductActions(params: {
     gender?: "male" | "female" | "unisex" | null;
     availability_mode?: "in_stock" | "by_order" | null;
     manual_weight_grams?: number | null;
-    price_override?: {
-      manual_price_rub?: number | null;
-      manual_compare_at_price_rub?: number | null;
-    } | null;
     gallery_listing_id?: number | null;
     images?: { hidden_source_image_urls?: string[]; manual_image_urls?: string[]; manual_image_order?: string[] };
-    reset_to_default?: Array<"title" | "description" | "images" | "description_visibility" | "manual_weight_grams" | "price_override">;
+    reset_to_default?: Array<"title" | "brand_override_name" | "description" | "images" | "description_visibility" | "manual_weight_grams" | "gender">;
   }) => {
     try {
       const nextProduct = await apiJson<ServiceProduct>(`${API_BASE}/products/${productId}`, {
@@ -287,13 +304,13 @@ export function useLiveDataProductActions(params: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title_override: payload.title,
+          ...(payload.brand_override_name !== undefined ? { brand_override_name: payload.brand_override_name } : {}),
           description_text: payload.description_text ?? payload.description,
           description_html: payload.description_html,
           description_visibility: payload.description_visible,
           ...(payload.gender !== undefined ? { gender: payload.gender } : {}),
           ...(payload.availability_mode !== undefined ? { availability_mode: payload.availability_mode } : {}),
           ...(payload.manual_weight_grams !== undefined ? { manual_weight_grams: payload.manual_weight_grams } : {}),
-          ...(payload.price_override !== undefined ? { price_override: payload.price_override } : {}),
           ...(payload.gallery_listing_id !== undefined ? { gallery_listing_id: payload.gallery_listing_id } : {}),
           images: payload.images
             ? {
@@ -305,10 +322,11 @@ export function useLiveDataProductActions(params: {
             : payload.images,
           reset_to_default: (payload.reset_to_default || []).flatMap((item) => {
             if (item === "title") return ["title_override"];
+            if (item === "brand_override_name") return ["brand_override_name"];
             if (item === "description") return ["description_text", "description_html"];
             if (item === "description_visibility") return ["description_visibility"];
             if (item === "manual_weight_grams") return ["manual_weight_grams"];
-            if (item === "price_override") return ["price_override"];
+            if (item === "gender") return ["gender"];
             return [item];
           }),
         }),
@@ -318,6 +336,24 @@ export function useLiveDataProductActions(params: {
         setProducts((prev) => prev.map((item) => (item.id === normalizedProduct.id ? { ...item, ...normalizedProduct } : item)));
       }
       return { ok: true, message: "Товар обновлен", product: normalizedProduct };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", product: null };
+    }
+  }, [setProducts]);
+
+  const updateManualProductVariants = useCallback(async (productId: number, variants: Array<{ title: string; price: number | null; compare_at_price?: number | null; currency: string; pricing_mode?: string | null; available: boolean }>) => {
+    try {
+      const payload = await apiJson<{ product?: ServiceProduct | null }>(`${API_BASE}/products/${productId}/variants`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variants }),
+      });
+      const nextProduct = payload?.product || null;
+      const normalizedProduct = nextProduct?.id ? normalizeServiceProduct(nextProduct as never) : null;
+      if (normalizedProduct?.id) {
+        setProducts((prev) => prev.map((item) => (item.id === normalizedProduct.id ? { ...item, ...normalizedProduct } : item)));
+      }
+      return { ok: true, message: "Варианты товара обновлены", product: normalizedProduct };
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Unknown error", product: null };
     }
@@ -346,35 +382,37 @@ export function useLiveDataProductActions(params: {
         apiJson<ServiceProduct>(`${API_BASE}/admin/products/${productId}`),
         apiJson<TaxonomyState>(`${API_BASE}/taxonomy/state`),
       ]);
-      const available = flattenFilterOptions(taxonomyPayload.filters);
-      const assignedSlugs = Array.isArray((productPayload as ServiceProduct).filter_slugs) ? (productPayload as ServiceProduct).filter_slugs || [] : [];
+      const available = flattenCustomCatalogOptions(taxonomyPayload.custom_catalogs);
+      const assignedSlugs = Array.isArray((productPayload as ServiceProduct).custom_catalog_slugs)
+        ? (productPayload as ServiceProduct).custom_catalog_slugs || []
+        : [];
       return {
         ok: true,
         message: "OK",
-        assignedFilterSlugs: assignedSlugs,
+        assignedCatalogSlugs: assignedSlugs,
         availableCategories: available as ProductStarredCategoryOption[],
       };
     } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedFilterSlugs: [], availableCategories: [] };
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCatalogSlugs: [], availableCategories: [] };
     }
   }, []);
 
-  const setProductStarredCategories = useCallback(async (productId: number, filterSlugs: string[]) => {
+  const setProductStarredCategories = useCallback(async (productId: number, catalogSlugs: string[]) => {
     try {
-      const normalizedFilterSlugs = [...new Set(filterSlugs.map((item) => String(item || "").trim()).filter(Boolean))];
+      const normalizedCatalogSlugs = [...new Set(catalogSlugs.map((item) => String(item || "").trim()).filter(Boolean))];
       await apiJson(`${API_BASE}/products/${productId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filter_slugs: normalizedFilterSlugs }),
+        body: JSON.stringify({ custom_catalog_slugs: normalizedCatalogSlugs }),
       });
       setProducts((prev) => prev.map((item) => (
         item.id === productId
-          ? { ...item, filter_slugs: normalizedFilterSlugs, is_favorite: normalizedFilterSlugs.length > 0 }
+          ? { ...item, custom_catalog_slugs: normalizedCatalogSlugs, is_favorite: normalizedCatalogSlugs.length > 0 }
           : item
       )));
-      return { ok: true, message: "Избранные категории сохранены", assignedFilterSlugs: normalizedFilterSlugs };
+      return { ok: true, message: "Кастомные каталоги сохранены", assignedCatalogSlugs: normalizedCatalogSlugs };
     } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedFilterSlugs: [] };
+      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", assignedCatalogSlugs: [] };
     }
   }, [setProducts]);
 
@@ -384,6 +422,7 @@ export function useLiveDataProductActions(params: {
     addProductByUrl,
     createManualProduct,
     updateManualProduct,
+    deleteProduct,
     uploadProductImage,
     uploadProductImageByUrl,
     bulkUpdateProducts,
@@ -392,5 +431,6 @@ export function useLiveDataProductActions(params: {
     getProductStarredCategories,
     setProductStarredCategories,
     getStarredCategoryOptions,
+    updateManualProductVariants,
   };
 }

@@ -1,7 +1,9 @@
+import { SITE_HERO_DESKTOP_URL, SITE_HERO_MOBILE_URL } from "../app/site-public-asset";
 import type { SiteProduct, SiteShowcaseMedia } from "../features/storefront/site-storefront-contracts";
 
 export const siteShowcaseMockMedia: SiteShowcaseMedia = {
-  heroImageSrc: "/site-mock/landing-hero.jpg",
+  heroImageSrcDesktop: SITE_HERO_DESKTOP_URL,
+  heroImageSrcMobile: SITE_HERO_MOBILE_URL,
   carouselSlidesDesktop: [
     {
       id: "carousel-128",
@@ -22,6 +24,48 @@ export const siteShowcaseMockMedia: SiteShowcaseMedia = {
       id: "carousel-127",
       imageSrc: "/site-mock/home-carousel/127.jpg",
       alt: "Кадр витрины Anton Shell 4",
+    },
+  ],
+  carouselSlidesMobile: [
+    {
+      id: "carousel-mobile-01",
+      imageSrc: "/site-mock/home-carousel-mobile/01.jpg",
+      alt: "Мобильный кадр витрины Anton Shell 1",
+    },
+    {
+      id: "carousel-mobile-02",
+      imageSrc: "/site-mock/home-carousel-mobile/02.jpg",
+      alt: "Мобильный кадр витрины Anton Shell 2",
+    },
+    {
+      id: "carousel-mobile-03",
+      imageSrc: "/site-mock/home-carousel-mobile/03.jpg",
+      alt: "Мобильный кадр витрины Anton Shell 3",
+    },
+    {
+      id: "carousel-mobile-04",
+      imageSrc: "/site-mock/home-carousel-mobile/04.jpg",
+      alt: "Мобильный кадр витрины Anton Shell 4",
+    },
+    {
+      id: "carousel-mobile-05",
+      imageSrc: "/site-mock/home-carousel-mobile/05.jpg",
+      alt: "Мобильный кадр витрины Anton Shell 5",
+    },
+    {
+      id: "carousel-mobile-06",
+      imageSrc: "/site-mock/home-carousel-mobile/06.jpg",
+      alt: "Мобильный кадр витрины Anton Shell 6",
+    },
+    {
+      id: "carousel-mobile-07",
+      imageSrc: "/site-mock/home-carousel-mobile/07.jpg",
+      alt: "Мобильный кадр витрины Anton Shell 7",
+    },
+    {
+      id: "carousel-mobile-08",
+      imageSrc: "/site-mock/home-carousel-mobile/08.jpg",
+      alt: "Мобильный кадр витрины Anton Shell 8",
     },
   ],
 };

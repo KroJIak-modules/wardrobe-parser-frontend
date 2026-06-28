@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import type { DedupDecision } from "../shared/live-data-context";
 import { AdminDedupSkeleton } from "../shared/skeleton";
 import { EmptyState } from "../shared/empty-state";
@@ -27,6 +28,7 @@ export function AdminDedupDecisionsView({
   onUndoDecision,
   onLoadMore,
 }: Props) {
+  const navigate = useNavigate();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [autoLoadArmed, setAutoLoadArmed] = useState(false);
 
@@ -63,6 +65,10 @@ export function AdminDedupDecisionsView({
       <div className="dedup-list">
         {dedupDecisions.map((decision) => {
           const members = Array.isArray(decision.members) ? decision.members : [];
+          const createdProductId = Number(decision.created_product?.id || 0);
+          const canOpenCreatedProduct =
+            String(decision.action || "").trim().toLowerCase() === "combine"
+            && createdProductId > 0;
           return (
             <div key={decision.pair_key} className="dedup-item">
               <div className="dedup-grid">
@@ -72,8 +78,7 @@ export function AdminDedupDecisionsView({
                     id={member.id}
                     title={member.title}
                     designerName={member.display_designer_name || member.designer_name || member.source_designer_name || null}
-                    price={member.price}
-                    currency={member.currency}
+                    priceSummary={member.price_summary}
                     imageCount={member.image_count}
                     imageUrls={member.image_urls}
                     imageIds={member.image_ids}
@@ -90,6 +95,14 @@ export function AdminDedupDecisionsView({
                 ) : null}
               </div>
               <div className="actions dedup-actions">
+                {canOpenCreatedProduct ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/product/${createdProductId}?from=admin`)}
+                  >
+                    Новый товар
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   disabled={dedupBusyPairKeys.has(`undo:${decision.id}`) || decision.can_undo === false}

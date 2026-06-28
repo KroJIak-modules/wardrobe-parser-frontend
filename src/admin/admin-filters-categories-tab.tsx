@@ -12,6 +12,7 @@ import { useAdminFiltersCategories } from "./hooks/use-admin-filters-categories"
 import { AdminTaxonomySkeleton, SkeletonBlock } from "../shared/skeleton";
 import { IconEye, IconEyeOff } from "../shared/mono-icons";
 import { TagRemoveButton } from "../shared/tag-remove-button";
+import "./admin-filters-categories-tab.css";
 
 type TaxonomyNode = AdminFilterTreeNode | AdminCategoryTreeNode | AdminCustomCatalog;
 type TaxonomyKind = "filter" | "multifilter" | "category" | "customCatalog";
@@ -79,6 +80,35 @@ function getSourceDomainLabel(sourceUrl: string, fallbackLabel: string): string 
 
 function getCategoryGenderLabel(category: AdminCategoryTreeNode): string {
   return category.system_filter_value === "women" ? "женское" : "мужское";
+}
+
+function unavailableReasonRu(reason: string | null | undefined): string {
+  const normalized = String(reason || "").trim().toLowerCase();
+  if (!normalized) {
+    return "Причина недоступности не указана";
+  }
+  if (normalized === "missing_weight") {
+    return "Товар недоступен: не указан вес";
+  }
+  if (normalized === "missing_currency") {
+    return "Товар недоступен: не указана валюта";
+  }
+  if (normalized === "source_removed") {
+    return "Товар недоступен: он пропал в источнике";
+  }
+  if (normalized === "missing_variants") {
+    return "Товар недоступен: нет доступных вариантов";
+  }
+  if (normalized === "product_not_found") {
+    return "Товар недоступен: он не найден";
+  }
+  if (normalized === "dedup_combined_source") {
+    return "Товар недоступен: отключен после объединения дублей";
+  }
+  if (normalized === "dedup_hidden_by_keep") {
+    return "Товар недоступен: отключен решением по дублям";
+  }
+  return `Товар недоступен: ${normalized}`;
 }
 
 function collectLeafFilters(nodes: readonly AdminFilterTreeNode[]): AdminFilterTreeNode[] {
@@ -798,44 +828,59 @@ function ManualProductList({
 }) {
   return (
     <>
-      {items.map((item) => (
-        <div
-          key={`${actionLabel}-${item.product_id}`}
-          className={[
-            "manual-product-row",
-            disabled ? "manual-product-row--disabled" : "",
-            item.visibility_status === "hidden" ? "manual-product-row--hidden" : "",
-          ].filter(Boolean).join(" ")}
-        >
-          <Link className="manual-product-thumb-link" to={`/product/${item.product_id}?from=admin`}>
-            <div className="manual-product-media">
-              {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" decoding="async" /> : <span className="manual-product-media-placeholder photo-placeholder">Нет фото</span>}
-            </div>
-          </Link>
-          <div className="manual-product-main">
-            <a className="btn-link manual-product-title-link" href={`/product/${item.product_id}?from=admin`} target="_blank" rel="noreferrer">
-              {item.designer_name} {item.title}
-            </a>
-            <div className="manual-product-meta-stack">
-              <a className="manual-product-meta-link" href={item.url} target="_blank" rel="noreferrer">
-                {getSourceDomainLabel(item.url, item.source_name)}
+      {items.map((item) => {
+        const isUnavailable = String(item.orderability_status || "").trim().toLowerCase() === "unavailable";
+        const unavailableTitle = isUnavailable ? unavailableReasonRu(item.status_reason) : null;
+
+        return (
+          <div
+            key={`${actionLabel}-${item.product_id}`}
+            className={[
+              "manual-product-row",
+              disabled ? "manual-product-row--disabled" : "",
+              item.visibility_status === "hidden" ? "manual-product-row--hidden" : "",
+            ].filter(Boolean).join(" ")}
+          >
+            <Link className="manual-product-thumb-link" to={`/product/${item.product_id}?from=admin`} title={unavailableTitle || undefined}>
+              <div className="manual-product-media">
+                {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" decoding="async" /> : <span className="manual-product-media-placeholder photo-placeholder">Нет фото</span>}
+              </div>
+            </Link>
+            <div className="manual-product-main">
+              <a className="btn-link manual-product-title-link" href={`/product/${item.product_id}?from=admin`} target="_blank" rel="noreferrer" title={unavailableTitle || undefined}>
+                {item.designer_name} {item.title}
               </a>
-              <span className="manual-product-meta-link manual-product-meta-link--muted">
-                {item.assigned_filter_titles.join(" / ")}
-              </span>
+              <div className="manual-product-meta-stack">
+                <a className="manual-product-meta-link" href={item.url} target="_blank" rel="noreferrer">
+                  {getSourceDomainLabel(item.url, item.source_name)}
+                </a>
+                {item.assigned_filter_titles.length > 0 ? (
+                  <span className="manual-product-meta-link manual-product-meta-link--muted">
+                    {item.assigned_filter_titles.join(" / ")}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <div className="manual-product-actions">
+              <button
+                type="button"
+                className={[
+                  "manual-product-action-btn",
+                  actionLabel === "Удалить" && isUnavailable ? "manual-product-action-btn--danger" : "",
+                ].filter(Boolean).join(" ")}
+                disabled={disabled}
+                onClick={() => onAction(item.product_id)}
+              >
+                {actionLabel}
+              </button>
+              <button type="button" className="manual-product-action-btn manual-product-action-btn--secondary" disabled={disabled} onClick={() => onToggleHidden(item.product_id)}>
+                {item.visibility_status === "hidden" ? <IconEye className="icon-svg icon-svg--sm" /> : <IconEyeOff className="icon-svg icon-svg--sm" />}
+                {item.visibility_status === "hidden" ? "Показать" : "Скрыть"}
+              </button>
             </div>
           </div>
-          <div className="manual-product-actions">
-            <button type="button" className="manual-product-action-btn" disabled={disabled} onClick={() => onAction(item.product_id)}>
-              {actionLabel}
-            </button>
-            <button type="button" className="manual-product-action-btn manual-product-action-btn--secondary" disabled={disabled} onClick={() => onToggleHidden(item.product_id)}>
-              {item.visibility_status === "hidden" ? <IconEye className="icon-svg icon-svg--sm" /> : <IconEyeOff className="icon-svg icon-svg--sm" />}
-              {item.visibility_status === "hidden" ? "Показать" : "Скрыть"}
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 }
@@ -998,12 +1043,14 @@ function DeleteConfirmPopover({
 
 function FilterEditor({
   filter,
+  rootMultifilterOptions,
   manualSearchInput,
   setManualSearchInput,
   manualSearchLoading,
   manualSearchResults,
   updateFilterLabel,
   updateFilterDisplayLabel,
+  setFilterMobilePairRootId,
   setFilterEnabled,
   deleteSelectedFilter,
   onDelete,
@@ -1014,12 +1061,14 @@ function FilterEditor({
   toggleManualProductHidden,
 }: {
   filter: AdminFilterTreeNode | null;
+  rootMultifilterOptions: Array<{ id: number; label: string }>;
   manualSearchInput: string;
   setManualSearchInput: (value: string) => void;
   manualSearchLoading: boolean;
   manualSearchResults: AdminRuleManualProduct[];
   updateFilterLabel: (value: string) => void;
   updateFilterDisplayLabel: (value: string) => void;
+  setFilterMobilePairRootId: (value: number | null) => void;
   setFilterEnabled: (value: boolean) => void;
   deleteSelectedFilter: () => void;
   onDelete: () => void;
@@ -1037,6 +1086,8 @@ function FilterEditor({
   }
 
   const kind = getNodeKind(filter);
+  const isRootMultifilter = kind === "multifilter" && rootMultifilterOptions.some((item) => item.id === filter.id);
+  const mobilePairOptions = rootMultifilterOptions.filter((item) => item.id !== filter.id);
   const rulesLocked = kind === "multifilter";
   const requiresDeleteConfirm =
     kind === "multifilter"
@@ -1105,8 +1156,29 @@ function FilterEditor({
             value={filter.display_label}
             onChange={(event) => updateFilterDisplayLabel(event.target.value)}
             placeholder={filter.label}
+            disabled={kind === "multifilter"}
+            readOnly={kind === "multifilter"}
           />
         </label>
+        {isRootMultifilter ? (
+          <label className="taxonomy-field">
+            <span>Пара в мобильном меню</span>
+            <select
+              value={filter.mobile_pair_root_id ? String(filter.mobile_pair_root_id) : ""}
+              onChange={(event) => {
+                const nextValue = Number(event.target.value);
+                setFilterMobilePairRootId(Number.isFinite(nextValue) && nextValue > 0 ? nextValue : null);
+              }}
+            >
+              <option value="">Без объединения</option>
+              {mobilePairOptions.map((option) => (
+                <option key={option.id} value={String(option.id)}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </div>
 
       <KeywordField
@@ -1527,6 +1599,7 @@ export function AdminFiltersCategoriesTab() {
     selectedFilterId,
     setSelectedFilterId,
     selectedFilter,
+    rootMultifilterOptions,
     selectedCategoryId,
     setSelectedCategoryId,
     selectedCategory,
@@ -1543,6 +1616,7 @@ export function AdminFiltersCategoriesTab() {
     catalogSearchResults,
     updateFilterLabel,
     updateFilterDisplayLabel,
+    setFilterMobilePairRootId,
     setFilterEnabled,
     deleteSelectedFilter,
     createFilterNode,
@@ -1788,12 +1862,14 @@ export function AdminFiltersCategoriesTab() {
               {activeEditor === "filter" ? (
                 <FilterEditor
                   filter={selectedFilter}
+                  rootMultifilterOptions={rootMultifilterOptions}
                   manualSearchInput={manualSearchInput}
                   setManualSearchInput={setManualSearchInput}
                   manualSearchLoading={manualSearchLoading}
                   manualSearchResults={manualSearchResults}
                   updateFilterLabel={updateFilterLabel}
                   updateFilterDisplayLabel={updateFilterDisplayLabel}
+                  setFilterMobilePairRootId={setFilterMobilePairRootId}
                   setFilterEnabled={setFilterEnabled}
                   deleteSelectedFilter={deleteSelectedFilter}
                   onDelete={() => setActiveEditor(null)}

@@ -1,16 +1,75 @@
 import {
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
   type ImgHTMLAttributes,
   type SyntheticEvent,
 } from "react";
+import { resolveSitePublicAssetUrl } from "../../app/site-public-asset";
 import "./site-image.css";
 
 export type SiteImageSkeletonVariant = "spotlight" | "admin-image" | "pulse" | "shine" | "wave";
 
+const SITE_IMAGE_MOCK_NETWORK_DELAY_MS = 200;
+
+function clearTimer(timerRef: { current: number | null }) {
+  if (timerRef.current === null) {
+    return;
+  }
+
+  window.clearTimeout(timerRef.current);
+  timerRef.current = null;
+}
+
+function isLocalMockImageSource(src: string) {
+  return src.startsWith("/site-mock/");
+}
+
+function getResourceTiming(src: string) {
+  if (typeof performance === "undefined" || typeof performance.getEntriesByName !== "function") {
+    return null;
+  }
+
+  const entries = performance.getEntriesByName(src);
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry.entryType === "resource") {
+      return entry as PerformanceResourceTiming;
+    }
+  }
+
+  return null;
+}
+
+function isResourceServedFromCache(src: string) {
+  const timing = getResourceTiming(src);
+  if (!timing) {
+    return false;
+  }
+
+  if (timing.transferSize === 0 && timing.decodedBodySize > 0) {
+    return true;
+  }
+
+  return false;
+}
+
+function resolveAbsoluteImageUrl(src: string) {
+  if (typeof window === "undefined") {
+    return src;
+  }
+
+  try {
+    return new URL(src, window.location.origin).toString();
+  } catch {
+    return src;
+  }
+}
+
 type SiteImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "children"> & {
+  enableSkeleton?: boolean;
   fillContainer?: boolean;
   wrapperClassName?: string;
   wrapperStyle?: CSSProperties;
@@ -23,12 +82,13 @@ export function SiteImage({
   alt,
   className = "",
   decoding,
+  enableSkeleton = true,
   fillContainer = false,
   forceSkeletonVisible = false,
   onError,
   onLoad,
   skeletonClassName = "",
-  skeletonVariant = "wave",
+  skeletonVariant = "pulse",
   src,
   style,
   wrapperClassName = "",
@@ -36,33 +96,55 @@ export function SiteImage({
   ...restProps
 }: SiteImageProps) {
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const revealTimeoutRef = useRef<number | null>(null);
+  const loadStartTimeRef = useRef(0);
+  const [isImageVisible, setIsImageVisible] = useState(false);
+  const [isSkeletonVisible, setIsSkeletonVisible] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const resolvedSrc = useMemo(() => (typeof src === "string" ? resolveSitePublicAssetUrl(src) : src), [src]);
+  const isMockImage = typeof resolvedSrc === "string" && isLocalMockImageSource(resolvedSrc);
+
+  const showImage = (keepSkeleton = false) => {
+    setIsImageVisible(true);
+    if (!keepSkeleton) {
+      setIsSkeletonVisible(false);
+    }
+  };
 
   useLayoutEffect(() => {
+    clearTimer(revealTimeoutRef);
+
     if (forceSkeletonVisible) {
-      setIsLoaded(false);
+      setIsImageVisible(false);
+      setIsSkeletonVisible(true);
       setHasError(false);
-      return;
+      return () => {
+        clearTimer(revealTimeoutRef);
+      };
     }
 
-    setIsLoaded(false);
+    loadStartTimeRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();
+    setIsImageVisible(false);
+    setIsSkeletonVisible(false);
     setHasError(false);
 
     const imageNode = imageRef.current;
-    if (!imageNode) {
-      return;
+    if (imageNode?.complete && imageNode.naturalWidth > 0) {
+      showImage();
+    } else {
+      setIsSkeletonVisible(enableSkeleton);
     }
 
-    if (imageNode.complete && imageNode.naturalWidth > 0) {
-      setIsLoaded(true);
-    }
-  }, [forceSkeletonVisible, src]);
+    return () => {
+      clearTimer(revealTimeoutRef);
+    };
+  }, [enableSkeleton, forceSkeletonVisible, resolvedSrc]);
 
   const wrapperCls = [
     "site-image",
     fillContainer ? "site-image--fill" : "",
-    isLoaded ? "site-image--loaded" : "",
+    isImageVisible ? "site-image--visible" : "",
+    isSkeletonVisible ? "site-image--skeleton-visible" : "",
     hasError ? "site-image--error" : "",
     `site-image--${skeletonVariant}`,
     forceSkeletonVisible ? "site-image--forced-skeleton" : "",
@@ -81,22 +163,49 @@ export function SiteImage({
     }
 
     setHasError(false);
-    setIsLoaded(true);
+    clearTimer(revealTimeoutRef);
+
+    const currentImageSrc = event.currentTarget.currentSrc || (typeof resolvedSrc === "string" ? resolveAbsoluteImageUrl(resolvedSrc) : "");
+    const servedFromCache = currentImageSrc !== "" && isResourceServedFromCache(currentImageSrc);
+
+    if (servedFromCache || !isMockImage) {
+      showImage();
+      onLoad?.(event);
+      return;
+    }
+
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const elapsed = now - loadStartTimeRef.current;
+    const remainingDelay = Math.max(0, SITE_IMAGE_MOCK_NETWORK_DELAY_MS - elapsed);
+
+    if (remainingDelay <= 0) {
+      showImage();
+      onLoad?.(event);
+      return;
+    }
+
+    setIsSkeletonVisible(enableSkeleton);
+    revealTimeoutRef.current = window.setTimeout(() => {
+      revealTimeoutRef.current = null;
+      showImage();
+    }, remainingDelay);
     onLoad?.(event);
   };
 
   const handleError = (event: SyntheticEvent<HTMLImageElement>) => {
+    clearTimer(revealTimeoutRef);
     setHasError(true);
-    setIsLoaded(false);
+    setIsImageVisible(false);
+    setIsSkeletonVisible(enableSkeleton);
     onError?.(event);
   };
 
   return (
     <span className={wrapperCls} style={wrapperStyle}>
-      {!isLoaded ? <span className={skeletonCls} aria-hidden="true" /> : null}
+      {isSkeletonVisible ? <span className={skeletonCls} aria-hidden="true" /> : null}
       <img
         ref={imageRef}
-        src={src}
+        src={resolvedSrc}
         alt={alt}
         className={imageCls}
         decoding={decoding}

@@ -24,14 +24,16 @@ export function resolveSiteDesignersEntryMode(
   return searchParams.toString() === "" ? "browse" : "catalog-filter";
 }
 
-export function buildBrowseDesignerCatalogSearchParams(designerId: string): URLSearchParams {
-  return patchCatalogSearchParams(new URLSearchParams(), {
+export function buildBrowseDesignerCatalogSearchParams(
+  currentSearchParams: URLSearchParams,
+  designerId: string,
+): URLSearchParams {
+  return patchCatalogSearchParams(new URLSearchParams(currentSearchParams), {
     collection: null,
     multi: null,
     availability: null,
     section: null,
     designer: [designerId],
-    gender: null,
     sort: null,
     q: null,
     page: null,

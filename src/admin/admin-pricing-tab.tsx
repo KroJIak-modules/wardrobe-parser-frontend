@@ -156,7 +156,7 @@ export function AdminPricingTab({
           />
 
           <AdminPricingSourcesSection
-            sources={sources.filter((source) => String(source.mode || "auto") !== "personal")}
+            sources={sources}
             sourcePricingDrafts={sourcePricingDrafts}
             setSourcePricingDrafts={setSourcePricingDrafts}
             pricingSuppliers={sourcePricingSuppliers}

@@ -4,13 +4,14 @@ export type ProductWriteState = {
   orderability_status?: "orderable" | "sold_out" | "unavailable";
 };
 
+export type ProductOrderabilityStatus = ProductWriteState["orderability_status"];
+
 export type ProductStateKey =
   | "orderable"
   | "by_order"
   | "sold_out"
   | "unavailable"
-  | "hidden"
-  | "merged";
+  | "hidden";
 
 type ProductStateInput =
   | {
@@ -83,15 +84,51 @@ function variantIsAvailable(variant: unknown): boolean {
   return Number.isFinite(inventory) && inventory > 0;
 }
 
+export function normalizeOrderabilityStatus(raw: unknown): ProductOrderabilityStatus {
+  const normalized = String(raw || "").trim().toLowerCase();
+  if (normalized === "sold_out" || normalized === "unavailable") {
+    return normalized;
+  }
+  return "orderable";
+}
+
+export function canSwitchAvailabilityToInStock(orderabilityStatus: unknown): boolean {
+  return normalizeOrderabilityStatus(orderabilityStatus) === "orderable";
+}
+
+export function getAvailabilityModeLockedReason(orderabilityStatus: unknown): string | null {
+  const normalized = normalizeOrderabilityStatus(orderabilityStatus);
+  if (normalized === "sold_out") {
+    return "Нельзя переключить, пока товар распродан";
+  }
+  if (normalized === "unavailable") {
+    return "Нельзя переключить, пока товар недоступен";
+  }
+  return null;
+}
+
 export function deriveProductWriteStateFromVariants(
   variants: unknown,
   availabilityMode: "in_stock" | "by_order" = "in_stock",
+  options?: {
+    visibilityStatus?: "visible" | "hidden";
+    orderabilityStatus?: ProductOrderabilityStatus | null;
+  },
 ): ProductWriteState {
+  const visibilityStatus = options?.visibilityStatus === "hidden" ? "hidden" : "visible";
+  const lockedOrderability = normalizeOrderabilityStatus(options?.orderabilityStatus);
+  if (lockedOrderability === "unavailable") {
+    return {
+      visibility_status: visibilityStatus,
+      availability_mode: availabilityMode,
+      orderability_status: "unavailable",
+    };
+  }
   const hasAvailable = Array.isArray(variants) && variants.length > 0
     ? variants.some((variant) => variantIsAvailable(variant))
     : true;
   return {
-    visibility_status: "visible",
+    visibility_status: visibilityStatus,
     availability_mode: availabilityMode,
     orderability_status: hasAvailable ? "orderable" : "sold_out",
   };
@@ -141,12 +178,6 @@ export function buildVisibleProductWriteState(input: ProductStateInput, variants
 }
 
 export function getProductStateKey(input: ProductStateInput): ProductStateKey {
-  if (input && typeof input !== "string") {
-    const lifecycleStatus = String(input.lifecycle_status || "").trim().toLowerCase();
-    if (lifecycleStatus === "merged") {
-      return "merged";
-    }
-  }
   const resolved = resolveProductWriteState(input);
   if (resolved.visibility_status === "hidden") {
     return "hidden";
@@ -165,7 +196,6 @@ export function getProductStateKey(input: ProductStateInput): ProductStateKey {
 
 export function getProductStateLabel(input: ProductStateInput): string {
   const key = getProductStateKey(input);
-  if (key === "merged") return "Объединен";
   if (key === "hidden") return "Скрыт";
   if (key === "unavailable") return "Недоступен";
   if (key === "sold_out") return "Распродан";
@@ -175,7 +205,7 @@ export function getProductStateLabel(input: ProductStateInput): string {
 
 export function getProductStateClass(input: ProductStateInput): string {
   const key = getProductStateKey(input);
-  if (key === "merged" || key === "hidden") {
+  if (key === "hidden") {
     return "status-pill status-pill--muted";
   }
   if (key === "unavailable") {

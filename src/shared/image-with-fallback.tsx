@@ -37,8 +37,6 @@ function ImageWithFallbackBase({
 
   const loadingLabel = loadingText ?? placeholderText;
   const fallbackLabel = fallbackText ?? placeholderText;
-  const resolvedFetchPriority = fetchPriority === "auto" && loading === "lazy" ? "low" : fetchPriority;
-
   if (!normalizedSrc || failed) {
     return <div className={placeholderClassName}>{fallbackLabel}</div>;
   }
@@ -57,7 +55,6 @@ function ImageWithFallbackBase({
         alt={alt}
         loading={loading}
         decoding="async"
-        fetchPriority={resolvedFetchPriority}
         onLoad={() => setLoaded(true)}
         onError={() => {
           setLoaded(true);

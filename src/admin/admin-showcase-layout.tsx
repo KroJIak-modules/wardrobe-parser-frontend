@@ -8,7 +8,8 @@ export function AdminShowcaseLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  const isAdminOriginProduct = location.pathname.startsWith("/product/") && searchParams.get("from") === "admin";
+  const isProductDetailPage = location.pathname.startsWith("/product/");
+  const isAdminOriginProduct = isProductDetailPage && searchParams.get("from") === "admin";
 
   const ctaTo = isAdminOriginProduct ? "/" : "/control/products";
   const ctaLabel = isAdminOriginProduct ? "Витрина" : "Панель управления";
@@ -29,9 +30,9 @@ export function AdminShowcaseLayout() {
 
   return (
     <div className="shell">
-      <SiteHeader actions={actions} />
-      <main className="container">
-        <AdminShowcaseNav />
+      {isProductDetailPage ? null : <SiteHeader actions={actions} />}
+      <main className={isProductDetailPage ? "container container--product-detail" : "container"}>
+        {isProductDetailPage ? null : <AdminShowcaseNav />}
         <Outlet />
       </main>
     </div>

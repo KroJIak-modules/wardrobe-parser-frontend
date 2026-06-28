@@ -1,0 +1,75 @@
+.admin-action-popover {
+  position: fixed;
+  z-index: 1400;
+  width: min(320px, calc(100vw - 24px));
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e0e7f1;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 48px rgba(16, 24, 40, 0.18);
+}
+
+.admin-action-popover__title {
+  margin: 0;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.admin-action-popover__text {
+  margin: 0;
+  color: #475467;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.admin-action-popover__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-action-popover__button {
+  min-height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid #d5ddee;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2937;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.admin-action-popover__button:hover,
+.admin-action-popover__button:focus-visible {
+  border-color: #b7c3d6;
+  background: #f8fafc;
+  outline: none;
+}
+
+.admin-action-popover__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-action-popover__button--danger {
+  color: #fff;
+  border-color: #b42318;
+  background: #b42318;
+}
+
+.admin-action-popover__button--danger:hover,
+.admin-action-popover__button--danger:focus-visible {
+  border-color: #912018;
+  background: #912018;
+}

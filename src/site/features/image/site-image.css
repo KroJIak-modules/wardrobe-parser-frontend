@@ -26,24 +26,39 @@
 .site-image__img {
   display: block;
   border-radius: inherit;
+  opacity: 0;
+  transition: opacity 220ms ease;
 }
 
-.site-image:not(.site-image--loaded) .site-image__img,
+.site-image:not(.site-image--visible) .site-image__img,
 .site-image--forced-skeleton .site-image__img {
-  opacity: 0;
-  visibility: hidden;
+  pointer-events: none;
+}
+
+.site-image--visible .site-image__img {
+  opacity: 1;
 }
 
 .site-image__skeleton {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   border-radius: inherit;
   background: var(--site-image-skeleton-overlay);
   background-size: var(--site-image-skeleton-background-size);
   background-repeat: no-repeat;
   animation: var(--site-image-skeleton-animation);
   pointer-events: none;
+  opacity: 1;
+  transition: opacity 180ms ease;
+}
+
+.site-image--visible.site-image--skeleton-visible .site-image__skeleton {
+  opacity: 1;
+}
+
+.site-image--visible:not(.site-image--skeleton-visible) .site-image__skeleton {
+  opacity: 0;
 }
 
 .site-image--error .site-image__skeleton {

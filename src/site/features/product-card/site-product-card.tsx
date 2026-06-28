@@ -1,26 +1,29 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { formatSiteRubles } from "../../app/site-format";
 import { saveSiteCatalogReturnSnapshot } from "../catalog/site-catalog-return";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
 import { SiteImage, type SiteImageSkeletonVariant } from "../image/site-image";
 import type { SiteProduct } from "../storefront/site-storefront-contracts";
 import "./site-product-card.css";
 
-function formatRubles(value: number) {
-  return new Intl.NumberFormat("ru-RU").format(value);
-}
-
 export function SiteProductCard({
   product,
+  layout = "desktop",
   imageLoading = "lazy",
-  imageSkeletonVariant = "wave",
+  imageSkeletonVariant = "pulse",
   forceImageSkeleton = false,
 }: {
   product: SiteProduct;
+  layout?: "desktop" | "mobile";
   imageLoading?: "lazy" | "eager";
   imageSkeletonVariant?: SiteImageSkeletonVariant;
   forceImageSkeleton?: boolean;
 }) {
   const location = useLocation();
+  const isCompact = layout === "mobile";
+  const titleRef = useRef<HTMLSpanElement | null>(null);
+  const [titleLineCount, setTitleLineCount] = useState<1 | 2>(1);
   const designerHref = product.designerId ? buildDesignerCatalogHref(product.designerId) : null;
   const productHref = `/show/${product.id}`;
   const productLinkState =
@@ -45,8 +48,46 @@ export function SiteProductCard({
     });
   };
 
+  useLayoutEffect(() => {
+    if (!isCompact) {
+      setTitleLineCount(1);
+      return;
+    }
+
+    const titleNode = titleRef.current;
+    if (!titleNode) {
+      return;
+    }
+
+    const updateTitleLineCount = () => {
+      const computedStyle = window.getComputedStyle(titleNode);
+      const parsedLineHeight = Number.parseFloat(computedStyle.lineHeight);
+      const fallbackLineHeight = Number.parseFloat(computedStyle.fontSize) * 1.2;
+      const lineHeight = Number.isFinite(parsedLineHeight) ? parsedLineHeight : fallbackLineHeight;
+      const nextLineCount = titleNode.getBoundingClientRect().height > lineHeight * 1.5 ? 2 : 1;
+
+      setTitleLineCount((currentLineCount) =>
+        currentLineCount === nextLineCount ? currentLineCount : (nextLineCount as 1 | 2),
+      );
+    };
+
+    updateTitleLineCount();
+
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateTitleLineCount);
+    resizeObserver?.observe(titleNode);
+    window.addEventListener("resize", updateTitleLineCount);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateTitleLineCount);
+    };
+  }, [isCompact, product.name]);
+
   return (
-    <article className="site-product-tile">
+    <article
+      className={`site-product-tile${isCompact ? " site-product-tile--compact" : ""}`}
+      data-title-lines={isCompact ? titleLineCount : undefined}
+    >
       <div className="site-product-tile__shell">
         <Link
           to={productHref}
@@ -84,10 +125,12 @@ export function SiteProductCard({
           )}
           <Link to={productHref} state={productLinkState} className="site-product-tile__content-link" onClick={handleProductOpen}>
             <p className="site-product-tile__name">
-              <span className="site-product-tile__name-text">{product.name.toUpperCase()}</span>
+              <span ref={titleRef} className="site-product-tile__name-text">
+                {product.name.toUpperCase()}
+              </span>
             </p>
             <p className="site-product-tile__statusline">
-              <span className="site-product-tile__price">{formatRubles(product.priceRub)} ₽</span>
+              <span className="site-product-tile__price">{formatSiteRubles(product.priceRub)} ₽</span>
               <span className="site-product-tile__divider">-</span>
               <span className="site-product-tile__availability">{product.availability}</span>
             </p>

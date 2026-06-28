@@ -1,3 +1,4 @@
+import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import { siteCatalogCustomCatalogs, siteCatalogSections } from "../../runtime/site-catalog-mock";
 import { buildCatalogHref } from "../catalog/site-catalog-query";
 import { createSiteDesignersLocationState, type SiteDesignersLocationState } from "../designers/site-designers-navigation";
@@ -32,6 +33,14 @@ export type SiteHeaderDropdownMenu = {
     navigationState?: SiteDesignersLocationState;
   };
 };
+
+export const siteHeaderTopMenuItems: SiteNavItem[] = [
+  { label: "Новинки" },
+  { label: "Дизайнеры" },
+  { label: "Мужское" },
+  { label: "Женское" },
+  { label: "Скидки", to: "/sale" },
+];
 
 function normalizeDesignerId(label: string) {
   return label

@@ -5,7 +5,12 @@ import {
   deriveProductWriteStateFromVariants,
   resolveProductWriteState,
 } from "../../shared/product-state";
+import { buildProductPriceSummaryFromVariants, getProductPriceSummary } from "../../shared/product-pricing";
 import type { ProductStarredCategoryOption, ProductUrlPreview, ProductWriteState, ServiceProduct, Source } from "../../shared/live-data-types";
+import {
+  normalizeManualVariantCurrency,
+  resolveManualVariantPricingMode,
+} from "../manual-variant-pricing";
 
 export type ProductCreateImage = {
   id: string;
@@ -16,7 +21,8 @@ export type ProductCreateVariant = {
   id: string;
   title: string;
   price: string;
-  currency: "USD" | "EUR" | "GBP" | "JPY";
+  compareAtPrice: string;
+  currency: "RUB" | "USD" | "EUR" | "GBP" | "JPY";
   available: boolean;
 };
 
@@ -32,15 +38,12 @@ export type ProductCreateDraft = {
   sourceUrl: string;
   title: string;
   description: string;
-  descriptionHtml: string;
   weightGrams: string;
   gender: "male" | "female" | "unisex";
   availabilityMode: "in_stock" | "by_order";
   favorite: boolean;
   bindSync: boolean;
   designerName: string;
-  manualPriceRub: string;
-  manualCompareAtPriceRub: string;
   images: ProductCreateImage[];
   variants: ProductCreateVariant[];
 };
@@ -58,22 +61,16 @@ type Params = {
   sources: Source[];
   products: ServiceProduct[];
   onToast: (message: string, type?: "success" | "error") => void;
-  previewProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   probeProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   createManualProduct: (payload: {
     title: string;
     description?: string | null;
-    description_html?: string | null;
     designer_name?: string | null;
     source_category_name: string | null;
     gender?: "male" | "female" | "unisex" | null;
-    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; compare_at_price?: number | null; currency: string; pricing_mode?: string | null; available: boolean }>;
     manual_image_asset_ids: number[];
     manual_weight_grams?: number | null;
-    price_override?: {
-      manual_price_rub?: number | null;
-      manual_compare_at_price_rub?: number | null;
-    } | null;
     state?: {
       visibility_status: "visible" | "hidden";
       availability_mode?: "in_stock" | "by_order";
@@ -85,17 +82,12 @@ type Params = {
   updateManualProduct: (productId: number, payload: {
     title: string;
     description?: string | null;
-    description_html?: string | null;
     designer_name?: string | null;
     source_category_name: string | null;
     gender?: "male" | "female" | "unisex" | null;
-    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; compare_at_price?: number | null; currency: string; pricing_mode?: string | null; available: boolean }>;
     manual_image_asset_ids: number[];
     manual_weight_grams?: number | null;
-    price_override?: {
-      manual_price_rub?: number | null;
-      manual_compare_at_price_rub?: number | null;
-    } | null;
     state?: {
       visibility_status: "visible" | "hidden";
       availability_mode?: "in_stock" | "by_order";
@@ -112,27 +104,26 @@ type Params = {
     orderability_status?: "orderable" | "sold_out" | "unavailable";
   }) => Promise<{ ok: boolean; message: string }>;
   getProductById: (id: number, opts?: { forceFetch?: boolean }) => Promise<ServiceProduct | null>;
-  getProductStarredCategories: (productId: number) => Promise<{ ok: boolean; message: string; assignedFilterSlugs: string[]; availableCategories: ProductStarredCategoryOption[] }>;
-  setProductStarredCategories: (productId: number, filterSlugs: string[]) => Promise<{ ok: boolean; message: string; assignedFilterSlugs: string[] }>;
+  getProductStarredCategories: (productId: number) => Promise<{ ok: boolean; message: string; assignedCatalogSlugs: string[]; availableCategories: ProductStarredCategoryOption[] }>;
+  setProductStarredCategories: (productId: number, catalogSlugs: string[]) => Promise<{ ok: boolean; message: string; assignedCatalogSlugs: string[] }>;
   getStarredCategoryOptions: () => Promise<{ ok: boolean; items: Array<{ slug: string; name: string }> }>;
 };
 
-const INITIAL_DRAFT: ProductCreateDraft = {
-  sourceUrl: "",
-  title: "",
-  description: "",
-  descriptionHtml: "",
-  weightGrams: "",
-  gender: "unisex",
-  availabilityMode: "in_stock",
-  favorite: false,
-  bindSync: false,
-  designerName: "",
-  manualPriceRub: "",
-  manualCompareAtPriceRub: "",
-  images: [],
-  variants: [{ id: `v-${Date.now()}`, title: "Default", price: "", currency: "USD", available: true }],
-};
+function buildInitialDraft(): ProductCreateDraft {
+  return {
+    sourceUrl: "",
+    title: "",
+    description: "",
+    weightGrams: "",
+    gender: "unisex",
+    availabilityMode: "in_stock",
+    favorite: false,
+    bindSync: false,
+    designerName: "",
+    images: [],
+    variants: [{ id: `v-${Date.now()}`, title: "Default", price: "", compareAtPrice: "", currency: "RUB", available: true }],
+  };
+}
 
 function toHost(rawUrl: string): string | null {
   const clean = String(rawUrl || "").trim();
@@ -183,6 +174,27 @@ function normalizeImageUrl(rawUrl: string): string {
   return clean;
 }
 
+function parseOptionalDecimal(rawValue: unknown): number | null {
+  const normalized = String(rawValue ?? "").trim().replace(",", ".");
+  if (!normalized) {
+    return null;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sanitizeVariantCompareAtPrice(rawCompareAtPrice: unknown, rawPrice: unknown): string {
+  const priceNumber = parseOptionalDecimal(rawPrice);
+  const compareNumber = parseOptionalDecimal(rawCompareAtPrice);
+  if (compareNumber === null) {
+    return "";
+  }
+  if (priceNumber === null) {
+    return String(rawCompareAtPrice ?? "").trim();
+  }
+  return compareNumber > priceNumber ? String(rawCompareAtPrice ?? "").trim() : "";
+}
+
 function slugToTitle(rawUrl: string): string {
   const normalized = normalizeUrlLoose(rawUrl);
   try {
@@ -206,10 +218,9 @@ function productCurrencyFromVariants(product: ServiceProduct): ProductCreateVari
   const variants = Array.isArray(product.variants) ? product.variants : [];
   for (const variant of variants) {
     const raw = String((variant as { currency?: unknown }).currency || "").toUpperCase();
-    if (raw === "EUR" || raw === "GBP" || raw === "JPY") return raw;
-    if (raw === "USD") return "USD";
+    return normalizeManualVariantCurrency(raw, "USD");
   }
-  return "USD";
+  return "RUB";
 }
 
 function productToDraft(product: ServiceProduct): Omit<ProductCreateDraft, "sourceUrl"> {
@@ -218,13 +229,12 @@ function productToDraft(product: ServiceProduct): Omit<ProductCreateDraft, "sour
   const mappedVariants: ProductCreateVariant[] = Array.isArray(product.variants) && product.variants.length > 0
     ? product.variants.map((variant, idx) => {
         const vCurrencyRaw = String((variant as { currency?: unknown }).currency || currency || "USD").toUpperCase();
-        const vCurrency: ProductCreateVariant["currency"] =
-          vCurrencyRaw === "EUR" || vCurrencyRaw === "GBP" || vCurrencyRaw === "JPY" ? vCurrencyRaw : "USD";
         return {
           id: `pv-${product.id}-${idx + 1}`,
           title: String(variant.title || "").trim() || `Вариант ${idx + 1}`,
           price: variant.price === null || variant.price === undefined ? "" : String(variant.price),
-          currency: vCurrency,
+          compareAtPrice: sanitizeVariantCompareAtPrice(variant.compare_at_price, variant.price),
+          currency: normalizeManualVariantCurrency(vCurrencyRaw, currency),
           available: Boolean(variant.available),
         };
       })
@@ -232,7 +242,8 @@ function productToDraft(product: ServiceProduct): Omit<ProductCreateDraft, "sour
         {
           id: `pv-${product.id}`,
           title: "Default",
-          price: product.price === null || product.price === undefined ? "" : String(product.price),
+          price: "",
+          compareAtPrice: "",
           currency,
           available: resolvedState.orderability_status === "orderable",
         },
@@ -240,7 +251,6 @@ function productToDraft(product: ServiceProduct): Omit<ProductCreateDraft, "sour
   return {
     title: String(product.title || "").trim(),
     description: String(product.description || "").trim(),
-    descriptionHtml: String(product.description_html || "").trim(),
     weightGrams:
       product.weight_grams === null || product.weight_grams === undefined
         ? ""
@@ -254,14 +264,6 @@ function productToDraft(product: ServiceProduct): Omit<ProductCreateDraft, "sour
     availabilityMode: String(product.availability_mode || "").trim().toLowerCase() === "by_order" ? "by_order" : "in_stock",
     favorite: Boolean(product.is_favorite),
     designerName: String(product.display_designer_name || product.designer_name || product.source_designer_name || "").trim(),
-    manualPriceRub:
-      product.price_override?.manual_price_rub === null || product.price_override?.manual_price_rub === undefined
-        ? ""
-        : String(product.price_override.manual_price_rub),
-    manualCompareAtPriceRub:
-      product.price_override?.manual_compare_at_price_rub === null || product.price_override?.manual_compare_at_price_rub === undefined
-        ? ""
-        : String(product.price_override.manual_compare_at_price_rub),
     images: (product.image_urls || []).map((url, idx) => ({
       id: `db-${product.id}-${idx + 1}`,
       url: String(url),
@@ -271,11 +273,39 @@ function productToDraft(product: ServiceProduct): Omit<ProductCreateDraft, "sour
   };
 }
 
+function previewToSyntheticProduct(preview: ProductUrlPreview, fallbackUrl: string): ServiceProduct {
+  return {
+    id: Number(preview.id || 0),
+    source_id: Number(preview.source_id || 0),
+    handle: String(preview.handle || ""),
+    title: String(preview.title || ""),
+    description: String(preview.description_text || ""),
+    description_text: String(preview.description_text || "") || null,
+    description_html: String(preview.description_html || "") || null,
+    source_name: String(preview.source_name || ""),
+    weight_grams: preview.source_weight_grams ?? null,
+    visibility_status: preview.visibility_status ?? "visible",
+    availability_mode: preview.availability_mode ?? "in_stock",
+    orderability_status: preview.orderability_status ?? "orderable",
+    gender: preview.gender ?? null,
+    designer_name: preview.designer_name ?? null,
+    source_designer_name: preview.designer_name ?? null,
+    display_designer_name: preview.designer_name ?? null,
+    url: String(preview.product_url || fallbackUrl),
+    source_category_name: preview.source_category_name ?? null,
+    price_summary: preview.price_summary ?? buildProductPriceSummaryFromVariants(Array.isArray(preview.variants) ? preview.variants : []),
+    image_count: Array.isArray(preview.image_urls) ? preview.image_urls.length : 0,
+    image_urls: Array.isArray(preview.image_urls) ? preview.image_urls.map((item) => String(item)) : [],
+    variants: Array.isArray(preview.variants) ? preview.variants : [],
+    created_at: "",
+    updated_at: "",
+  };
+}
+
 export function useAdminProductCreate({
   sources,
   products,
   onToast,
-  previewProductByUrl,
   probeProductByUrl,
   createManualProduct,
   updateManualProduct,
@@ -291,7 +321,7 @@ export function useAdminProductCreate({
   const [mode, setMode] = useState<ProductCreateMode>("create");
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editingProductBoundSync, setEditingProductBoundSync] = useState<boolean>(false);
-  const [draft, setDraft] = useState<ProductCreateDraft>(INITIAL_DRAFT);
+  const [draft, setDraft] = useState<ProductCreateDraft>(() => buildInitialDraft());
   const [lookup, setLookup] = useState<ProductCreateLookupResult>({
     state: "idle",
     product: null,
@@ -311,6 +341,28 @@ export function useAdminProductCreate({
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const lookupTimerRef = useRef<number | null>(null);
   const lastLookupKeyRef = useRef<string>("");
+  const remotePreviewInFlightRef = useRef<{
+    key: string;
+    promise: Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
+  } | null>(null);
+
+  const loadRemotePreview = useCallback((url: string) => {
+    const normalizedUrl = normalizeUrlLoose(url);
+    const active = remotePreviewInFlightRef.current;
+    if (active && active.key === normalizedUrl) {
+      return active.promise;
+    }
+    const promise = probeProductByUrl(normalizedUrl).finally(() => {
+      if (remotePreviewInFlightRef.current?.key === normalizedUrl) {
+        remotePreviewInFlightRef.current = null;
+      }
+    });
+    remotePreviewInFlightRef.current = {
+      key: normalizedUrl,
+      promise,
+    };
+    return promise;
+  }, [probeProductByUrl]);
 
   const allowedDomains = useMemo<AllowedSourceDomain[]>(() => {
     const map = new Map<string, AllowedSourceDomain>();
@@ -387,7 +439,7 @@ export function useAdminProductCreate({
 
     setLookup({ state: "loading", product: null, error: null });
     lookupTimerRef.current = window.setTimeout(() => {
-      void (async () => {
+      (async () => {
         const normalizedInput = sourceLookupKey;
         const localFound =
           products.find((item) => normalizeUrlLoose(item.url) === normalizedInput) ||
@@ -404,40 +456,13 @@ export function useAdminProductCreate({
           setLookup({ state: "found", product: localFound, error: null });
           return;
         }
-        const remote = await previewProductByUrl(sourceLookupKey);
+        const remote = await loadRemotePreview(sourceLookupKey);
         if (!remote.ok || !remote.preview) {
           lastLookupKeyRef.current = sourceLookupKey;
           setLookup({ state: "not_found", product: null, error: null });
           return;
         }
-        const p = remote.preview;
-        const synthetic: ServiceProduct = {
-          id: Number(p.id || 0),
-          source_id: Number(p.source_id || 0),
-          handle: String(p.handle || ""),
-          title: String(p.title || ""),
-          description: String(p.description_text || ""),
-          description_text: String(p.description_text || "") || null,
-          description_html: String(p.description_html || "") || null,
-          source_name: String(p.source_name || ""),
-          weight_grams: p.source_weight_grams ?? null,
-          visibility_status: p.visibility_status ?? "visible",
-          availability_mode: p.availability_mode ?? "in_stock",
-          orderability_status: p.orderability_status ?? "orderable",
-          gender: p.gender ?? null,
-          designer_name: p.designer_name ?? null,
-          source_designer_name: p.designer_name ?? null,
-          display_designer_name: p.designer_name ?? null,
-          url: String(p.product_url || sourceLookupKey),
-          source_category_name: p.source_category_name ?? null,
-          price: p.price ?? null,
-          currency: String(p.currency || "USD"),
-          image_count: Array.isArray(p.image_urls) ? p.image_urls.length : 0,
-          image_urls: Array.isArray(p.image_urls) ? p.image_urls.map((x) => String(x)) : [],
-          variants: Array.isArray(p.variants) ? p.variants : [],
-          created_at: "",
-          updated_at: "",
-        };
+        const synthetic = previewToSyntheticProduct(remote.preview, sourceLookupKey);
         lastLookupKeyRef.current = sourceLookupKey;
         setLookup({ state: "found", product: synthetic, error: null });
       })();
@@ -449,7 +474,7 @@ export function useAdminProductCreate({
         lookupTimerRef.current = null;
       }
     };
-  }, [sourceLookupKey, canRunLookup, products, previewProductByUrl, draft.sourceUrl, lookup.state, lookup.product]);
+  }, [sourceLookupKey, canRunLookup, products, loadRemotePreview, draft.sourceUrl, lookup.state, lookup.product]);
 
   const setDraftField = useCallback(<K extends keyof ProductCreateDraft>(key: K, value: ProductCreateDraft[K]) => {
     setDraft((prev) => {
@@ -477,22 +502,23 @@ export function useAdminProductCreate({
     if (!canRunLookup || isHydrating) return;
     setIsHydrating(true);
     try {
-      const result = await probeProductByUrl(sourceLookupKey);
+      const result = await loadRemotePreview(sourceLookupKey);
       if (!result.ok || !result.preview) {
         onToast(`Не удалось выгрузить товар: ${result.message}`, "error");
         return;
       }
       const preview = result.preview;
+      const synthetic = previewToSyntheticProduct(preview, sourceLookupKey);
       const previewVariants: ProductCreateVariant[] =
         Array.isArray(preview.variants) && preview.variants.length > 0
           ? preview.variants.map((variant, idx) => {
-              const raw = String((variant as { currency?: unknown }).currency || preview.currency || "USD").toUpperCase();
-              const currency: ProductCreateVariant["currency"] =
-                raw === "EUR" || raw === "GBP" || raw === "JPY" ? raw : "USD";
+              const raw = String((variant as { currency?: unknown }).currency || preview.price_summary?.source_currency || "USD").toUpperCase();
+              const currency = normalizeManualVariantCurrency(raw, "USD");
               return {
                 id: `v-${Date.now()}-${idx + 1}`,
                 title: String(variant.title || "").trim() || `Вариант ${idx + 1}`,
                 price: variant.price === null || variant.price === undefined ? "" : String(variant.price),
+                compareAtPrice: sanitizeVariantCompareAtPrice(variant.compare_at_price, variant.price),
                 currency,
                 available: Boolean(variant.available),
               };
@@ -501,10 +527,9 @@ export function useAdminProductCreate({
               {
                 id: `v-${Date.now()}`,
                 title: String(preview.title || "").trim() || "Default",
-                price: preview.price === null || preview.price === undefined ? "" : String(preview.price),
-                currency: (["USD", "EUR", "GBP", "JPY"].includes(String(preview.currency || "").toUpperCase())
-                  ? String(preview.currency || "").toUpperCase()
-                  : "USD") as ProductCreateVariant["currency"],
+                price: "",
+                compareAtPrice: "",
+                currency: normalizeManualVariantCurrency(preview.price_summary?.source_currency, "USD"),
                 available: true,
               },
             ];
@@ -512,7 +537,6 @@ export function useAdminProductCreate({
         ...prev,
         title: String(preview.title || "").trim() || prev.title || slugToTitle(sourceLookupKey),
         description: String(preview.description_text || "").trim() || prev.description,
-        descriptionHtml: String(preview.description_html || "").trim() || prev.descriptionHtml,
         designerName: String(preview.designer_name || "").trim() || prev.designerName,
         weightGrams: preview.source_weight_grams === null || preview.source_weight_grams === undefined ? prev.weightGrams : String(preview.source_weight_grams),
         gender:
@@ -537,8 +561,11 @@ export function useAdminProductCreate({
         })),
         variants: previewVariants.map((item) => ({ ...item })),
       });
+      lastLookupKeyRef.current = sourceLookupKey;
+      setLookup({ state: "found", product: synthetic, error: null });
       setBoundFromSourceLookup(true);
-      const basePrice = Number(preview.price);
+      const previewSummary = preview.price_summary ?? getProductPriceSummary({ price_summary: null, variants: preview.variants || [] });
+      const basePrice = Number(previewSummary?.source_display_price);
       const buyerTotal = Number(preview.buyer_total_price);
       if (Number.isFinite(basePrice) && Number.isFinite(buyerTotal) && buyerTotal > basePrice) {
         const fee = buyerTotal - basePrice;
@@ -549,7 +576,7 @@ export function useAdminProductCreate({
     } finally {
       setIsHydrating(false);
     }
-  }, [canRunLookup, isHydrating, probeProductByUrl, sourceLookupKey, onToast]);
+  }, [canRunLookup, isHydrating, loadRemotePreview, sourceLookupKey, onToast]);
 
   const hydrateFromExistingProduct = useCallback(async () => {
     if (!hasFoundProduct || !lookup.product || isHydrating) return;
@@ -638,7 +665,7 @@ export function useAdminProductCreate({
   }, []);
 
   const onCreateDraft = useCallback(() => {
-    void (async () => {
+    (async () => {
       if (isCreating) return;
       setIsCreating(true);
       const title = String(draft.title || "").trim();
@@ -649,15 +676,6 @@ export function useAdminProductCreate({
       }
       const weightRaw = Number(String(draft.weightGrams || "").replace(",", "."));
       const weight = Number.isFinite(weightRaw) && weightRaw > 0 ? weightRaw : null;
-      const manualPriceRaw = Number(String(draft.manualPriceRub || "").replace(",", "."));
-      const manualCompareAtPriceRaw = Number(String(draft.manualCompareAtPriceRub || "").replace(",", "."));
-      const manualPrice = Number.isFinite(manualPriceRaw) && manualPriceRaw > 0 ? manualPriceRaw : null;
-      const manualCompareAtPrice = Number.isFinite(manualCompareAtPriceRaw) && manualCompareAtPriceRaw > 0 ? manualCompareAtPriceRaw : null;
-      if (manualPrice === null && String(draft.manualCompareAtPriceRub || "").trim()) {
-        onToast("Для скидки сначала укажи ручную цену", "error");
-        setIsCreating(false);
-        return;
-      }
       const manualImageAssetIds = draft.images
         .map((image) => {
           const mapped = manualImageAssetIdsById[image.id];
@@ -672,12 +690,15 @@ export function useAdminProductCreate({
           return null;
         })
         .filter((value): value is number => Number.isFinite(Number(value)) && Number(value) > 0);
-      // Ensure ALL images become backend-stored assets (manual or hydrated/external).
+      const shouldPersistSourceImagesAsManualAssets = !draft.bindSync;
       const failedImageUploads: string[] = [];
       for (const image of draft.images) {
         const m = /^manual-(\d+)-/.exec(String(image.id || ""));
         if (m && Number(m[1]) > 0) {
           if (!manualImageAssetIds.includes(Number(m[1]))) manualImageAssetIds.push(Number(m[1]));
+          continue;
+        }
+        if (!shouldPersistSourceImagesAsManualAssets) {
           continue;
         }
         const src = normalizeImageUrl(String(image.url || "").trim());
@@ -697,13 +718,19 @@ export function useAdminProductCreate({
       const normalizedVariants = draft.variants
         .map((variant) => {
           const normalizedTitle = String(variant.title || "").trim();
-          const rawPrice = Number(String(variant.price || "").replace(",", "."));
-          const normalizedPrice = Number.isFinite(rawPrice) ? rawPrice : null;
+          const normalizedPrice = parseOptionalDecimal(variant.price);
+          const rawCompareAtPrice = parseOptionalDecimal(variant.compareAtPrice);
+          const normalizedCurrency = normalizeManualVariantCurrency(variant.currency, "RUB");
+          const normalizedCompareAtPrice = normalizedPrice !== null && rawCompareAtPrice !== null
+            ? rawCompareAtPrice
+            : null;
           return {
             title: normalizedTitle,
             price: normalizedPrice,
+            compare_at_price: normalizedCompareAtPrice,
             available: Boolean(variant.available),
-            currency: variant.currency,
+            currency: normalizedCurrency,
+            pricing_mode: resolveManualVariantPricingMode(normalizedCurrency),
           };
         })
         .filter((variant) => variant.title.length > 0 && variant.price !== null);
@@ -712,34 +739,36 @@ export function useAdminProductCreate({
         setIsCreating(false);
         return;
       }
+      if (normalizedVariants.some((variant) => variant.compare_at_price !== null && variant.compare_at_price !== undefined && variant.compare_at_price <= Number(variant.price))) {
+        onToast("Старая цена варианта должна быть больше текущей", "error");
+        setIsCreating(false);
+        return;
+      }
 
       const payload = {
         title,
         description: String(draft.description || "").trim() || null,
-        description_html: String(draft.descriptionHtml || "").trim() || null,
         designer_name: String(draft.designerName || "").trim() || null,
         source_category_name: null,
         gender: draft.gender,
         variants: normalizedVariants.map((variant) => ({
           title: variant.title,
           price: variant.price,
+          compare_at_price: variant.compare_at_price,
           currency: variant.currency,
+          pricing_mode: variant.pricing_mode,
           available: variant.available,
         })),
         manual_image_asset_ids: manualImageAssetIds,
         manual_weight_grams: weight,
-        price_override: manualPrice === null ? null : {
-          manual_price_rub: manualPrice,
-          manual_compare_at_price_rub: manualCompareAtPrice,
-        },
         state: deriveProductWriteStateFromVariants(normalizedVariants, draft.availabilityMode),
         bind_sync: Boolean(
           draft.bindSync
           && boundFromSourceLookup
           && !hasExistingLookupProduct
-          && lookup.product?.url
+          && sourceLookupKey
         ),
-        bind_url: lookup.product?.url ?? null,
+        bind_url: sourceLookupKey || null,
       };
       const opRes = mode === "edit" && editingProductId
         ? await updateManualProduct(editingProductId, payload)
@@ -749,21 +778,37 @@ export function useAdminProductCreate({
         setIsCreating(false);
         return;
       }
-      if (favoriteCategorySlugs.length > 0) {
-        await _setProductStarredCategories(opRes.id, favoriteCategorySlugs);
-      }
+      await _setProductStarredCategories(opRes.id, favoriteCategorySlugs);
       onToast(mode === "edit" ? "Товар обновлен" : "Товар создан", "success");
       setIsOpen(false);
       setIsCreating(false);
-    })().catch(() => {
+    })().catch((error) => {
+      console.error("Manual product create flow failed", error);
+      onToast(`Не удалось ${mode === "edit" ? "обновить" : "создать"} товар из-за внутренней ошибки интерфейса`, "error");
       setIsCreating(false);
-    })();
-  }, [draft, manualImageAssetIdsById, createManualProduct, updateManualProduct, favoriteCategorySlugs, _setProductStarredCategories, onToast, boundFromSourceLookup, lookup.product, uploadProductImageByUrl, isCreating, mode, editingProductId, hasExistingLookupProduct]);
+    });
+  }, [draft, manualImageAssetIdsById, createManualProduct, updateManualProduct, favoriteCategorySlugs, _setProductStarredCategories, onToast, boundFromSourceLookup, sourceLookupKey, uploadProductImageByUrl, isCreating, mode, editingProductId, hasExistingLookupProduct]);
 
   const openCreate = useCallback(() => {
+    if (lookupTimerRef.current !== null) {
+      window.clearTimeout(lookupTimerRef.current);
+      lookupTimerRef.current = null;
+    }
+    lastLookupKeyRef.current = "";
+    remotePreviewInFlightRef.current = null;
     setMode("create");
     setEditingProductId(null);
     setEditingProductBoundSync(false);
+    setDraft(buildInitialDraft());
+    setLookup({ state: "idle", product: null, error: null });
+    setHiddenProductIds(new Set());
+    setStatusBeforeHide({});
+    setFavoriteCategorySlugs([]);
+    setBoundFromSourceLookup(false);
+    setManualImageAssetIdsById({});
+    setSyncBaseline(null);
+    setIsHydrating(false);
+    setIsCreating(false);
     setIsOpen(true);
   }, []);
 
@@ -800,7 +845,11 @@ export function useAdminProductCreate({
     setHiddenProductIds(new Set());
     setStatusBeforeHide({});
     setBoundFromSourceLookup(isBoundSync);
-    setFavoriteCategorySlugs(Array.isArray(product.filter_slugs) ? product.filter_slugs.map((x) => String(x || "").trim()).filter(Boolean) : []);
+    setFavoriteCategorySlugs(
+      Array.isArray(product.custom_catalog_slugs)
+        ? product.custom_catalog_slugs.map((x) => String(x || "").trim()).filter(Boolean)
+        : [],
+    );
     setIsOpen(true);
   }, [getProductById, onToast]);
 
@@ -815,7 +864,7 @@ export function useAdminProductCreate({
   }, [isOpen, getStarredCategoryOptions]);
 
   const resetOnReload = useCallback(() => {
-    setDraft(INITIAL_DRAFT);
+    setDraft(buildInitialDraft());
     setLookup({ state: "idle", product: null, error: null });
     setHiddenProductIds(new Set());
     setStatusBeforeHide({});

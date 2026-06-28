@@ -28,6 +28,7 @@ function toWritePayload(payload: AdminFiltersCategoriesWritePayload) {
         id: node.id,
         label: node.label,
         display_label: node.display_label,
+        mobile_pair_root_id: node.mobile_pair_root_id,
         node_kind: node.node_kind,
         is_enabled: node.is_enabled,
         rules: {

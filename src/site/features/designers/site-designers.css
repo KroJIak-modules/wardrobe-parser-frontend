@@ -110,7 +110,7 @@
 .site-designers-shell__designer--selected {
   text-decoration-line: underline;
   text-decoration-thickness: 0.07em;
-  text-underline-offset: 0.14em;
+  text-underline-offset: 0.21em;
   text-decoration-skip-ink: none;
 }
 
@@ -261,25 +261,5 @@
   .site-designers-actions__scroll-top {
     position: static;
     width: auto;
-  }
-}
-
-@media (max-width: 520px) {
-  .site-designers-shell__row {
-    grid-template-columns: 1fr;
-  }
-
-  .site-designers-actions {
-    height: 177px;
-    grid-template-columns: 1fr;
-  }
-
-  .site-designers-actions__inner {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-
-  .site-designers-actions__scroll-top {
-    justify-self: end;
   }
 }

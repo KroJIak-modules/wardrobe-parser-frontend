@@ -28,10 +28,8 @@ type ProductCreateDraft = {
   favorite: boolean;
   bindSync: boolean;
   designerName: string;
-  manualPriceRub: string;
-  manualCompareAtPriceRub: string;
   images: ProductCreateImage[];
-  variants: Array<{ id: string; title: string; price: string; currency: "USD" | "EUR" | "GBP" | "JPY"; available: boolean }>;
+  variants: Array<{ id: string; title: string; price: string; compareAtPrice: string; currency: "RUB" | "USD" | "EUR" | "GBP" | "JPY"; available: boolean }>;
 };
 
 type Props = {

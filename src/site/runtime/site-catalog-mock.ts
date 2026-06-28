@@ -1,15 +1,13 @@
 import type {
   SiteCatalogCustomCatalog,
   SiteCatalogDesigner,
-  SiteCatalogDropdownMenuMap,
   SiteCatalogFilterGroup,
-  SiteCatalogMenuConfig,
+  SiteCatalogMobileMenuConfig,
+  SiteCatalogMobileRootGroup,
   SiteCatalogMultiFilter,
   SiteCatalogProduct,
   SiteCatalogSection,
-  SiteCatalogTopKey,
 } from "../features/catalog/site-catalog-contracts";
-import { buildCatalogHref } from "../features/catalog/site-catalog-query";
 
 const SOCIAL_CATALOG_URL = "https://t.me/antonshellog";
 
@@ -85,6 +83,32 @@ export const siteCatalogMultiFilters: readonly SiteCatalogMultiFilter[] = [
   { id: "top", label: "Верх" },
   { id: "bottom", label: "Низ" },
 ];
+
+export const siteCatalogMobileRootGroups: readonly SiteCatalogMobileRootGroup[] = [
+  {
+    id: "clothing-shoes",
+    label: "Одежда и обувь",
+    rootMultiFilterIds: ["clothing", "shoes"],
+    children: [
+      { multiFilterId: "top", sectionIds: ["tees-longsleeves", "shirts-polo", "hoodies", "outerwear"] },
+      { multiFilterId: "bottom", sectionIds: ["denim-trousers", "shorts"] },
+      { multiFilterId: "shoes", sectionIds: ["sneakers", "boots"] },
+    ],
+  },
+  {
+    id: "accessories",
+    label: "Аксессуары",
+    rootMultiFilterIds: ["accessories"],
+    children: [
+      { multiFilterId: "accessories", sectionIds: ["jewelry", "bags", "belts", "headwear", "glasses", "other"] },
+    ],
+  },
+];
+
+export const siteCatalogMobileMenuConfig: SiteCatalogMobileMenuConfig = {
+  availabilityOrder: ["in-stock", "preorder"],
+  rootGroups: siteCatalogMobileRootGroups,
+};
 
 export const siteCatalogCustomCatalogs: readonly SiteCatalogCustomCatalog[] = [
   {
@@ -394,87 +418,6 @@ export const siteCatalogFilterGroups: readonly SiteCatalogFilterGroup[] = [
     ],
   },
 ];
-
-function buildSectionLink(sectionId: string) {
-  return buildCatalogHref({
-    collection: null,
-    multi: null,
-    section: [sectionId],
-  });
-}
-
-function buildMultiLink(top: SiteCatalogTopKey, multiId: string) {
-  const gender = top === "men" || top === "women" ? [top] : null;
-  return buildCatalogHref({
-    multi: multiId,
-    collection: null,
-    section: null,
-    gender,
-  });
-}
-
-export const siteCatalogMenuConfig: SiteCatalogMenuConfig = {
-  topMenuItems: [
-    { label: "Новинки" },
-    { label: "Дизайнеры" },
-    { label: "Мужское" },
-    { label: "Женское" },
-    { label: "Скидки", to: "/sale" },
-  ],
-  dropdownMenus: {
-    "Новинки": [
-      {
-        title: "Коллекции",
-        items: [
-          { label: "В наличии", to: buildCatalogHref({ collection: "in-stock", availability: "in-stock" }) },
-          { label: "Под заказ", to: buildCatalogHref({ collection: "preorder", availability: "preorder" }) },
-          { label: "Мой выбор", to: buildCatalogHref({ collection: "my-choice" }) },
-          { label: "Все товары", to: buildCatalogHref({ collection: "all-products" }) },
-        ],
-      },
-      {
-        title: "Разделы",
-        items: siteCatalogSections.map((section) => ({ label: section.label, to: buildSectionLink(section.id) })),
-      },
-    ],
-    "Дизайнеры": [
-      {
-        title: "Каталог дизайнеров",
-        items: [
-          { label: "Все дизайнеры", to: "/designers" },
-          ...siteCatalogDesigners.map((designer) => ({
-            label: designer.label,
-            to: buildCatalogHref({ designer: [designer.id] }),
-          })),
-        ],
-      },
-    ],
-    "Мужское": [
-      {
-        title: "Мультифильтры",
-        items: siteCatalogMultiFilters.map((item) => ({
-          label: item.label,
-          to: buildMultiLink("men", item.id),
-        })),
-      },
-    ],
-    "Женское": [
-      {
-        title: "Мультифильтры",
-        items: siteCatalogMultiFilters.map((item) => ({
-          label: item.label,
-          to: buildMultiLink("women", item.id),
-        })),
-      },
-    ],
-    "Скидки": [
-      {
-        title: "Коллекция",
-        items: [{ label: "Все скидки", to: "/sale" }],
-      },
-    ],
-  } satisfies SiteCatalogDropdownMenuMap,
-};
 
 export const siteCatalogExternalLinks = {
   social: SOCIAL_CATALOG_URL,

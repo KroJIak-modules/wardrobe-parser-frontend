@@ -7,6 +7,7 @@ export type ManualEditVariant = {
   id: string;
   title: string;
   price: string;
+  compareAtPrice: string;
   currency: "USD" | "EUR" | "GBP" | "JPY";
   available: boolean;
 };
@@ -26,8 +27,6 @@ export type ManualProductEditDraft = {
   designerName: string;
   bindSync: boolean;
   favorite: boolean;
-  manualPriceRub: string;
-  manualCompareAtPriceRub: string;
   images: ManualEditImage[];
   variants: ManualEditVariant[];
 };
@@ -116,7 +115,7 @@ export function AdminManualProductEditModal({
                   <input list="manual-edit-designer-options" value={draft.designerName} onChange={(event) => onSetField("designerName", event.target.value)} disabled={saving} />
                 </label>
                 <label className="product-create__field">
-                  <span>Gender</span>
+                  <span>Гендер</span>
                   <select value={draft.gender} onChange={(event) => onSetField("gender", event.target.value as "male" | "female" | "unisex")} disabled={saving}>
                     <option value="male">Мужской</option>
                     <option value="female">Женский</option>
@@ -143,7 +142,7 @@ export function AdminManualProductEditModal({
                 <button
                   type="button"
                   className={draft.favorite ? "icon-btn icon-btn--active" : "icon-btn"}
-                  title="Избранные категории"
+                  title="Кастомные каталоги"
                   onClick={() => {
                     const has = favoriteCategorySlugs.length > 0;
                     onSetField("favorite", !has);
@@ -195,16 +194,6 @@ export function AdminManualProductEditModal({
                 <span>Описание товара (HTML)</span>
                 <textarea value={draft.descriptionHtml} onChange={(event) => onSetField("descriptionHtml", event.target.value)} disabled={saving} />
               </label>
-              <div className="product-create__line3">
-                <label className="product-create__field">
-                  <span>Ручная цена, RUB</span>
-                  <input value={draft.manualPriceRub} onChange={(event) => onSetField("manualPriceRub", event.target.value)} inputMode="decimal" disabled={saving} />
-                </label>
-                <label className="product-create__field">
-                  <span>Старая цена, RUB</span>
-                  <input value={draft.manualCompareAtPriceRub} onChange={(event) => onSetField("manualCompareAtPriceRub", event.target.value)} inputMode="decimal" disabled={saving} />
-                </label>
-              </div>
             </div>
           </div>
         </section>
@@ -253,7 +242,7 @@ export function AdminManualProductEditModal({
               type="button"
               className="btn btn-light"
               disabled={saving || draft.bindSync}
-              onClick={() => onSetField("variants", [...draft.variants, { id: `v-${Date.now()}`, title: "", price: "", currency: "USD", available: true }])}
+              onClick={() => onSetField("variants", [...draft.variants, { id: `v-${Date.now()}`, title: "", price: "", compareAtPrice: "", currency: "USD", available: true }])}
             >
               Добавить вариант
             </button>
@@ -265,6 +254,8 @@ export function AdminManualProductEditModal({
                   onChange={(event) => onSetField("variants", draft.variants.map((item) => (item.id === variant.id ? { ...item, title: event.target.value } : item)))} />
                 <input className="input" placeholder="Цена" inputMode="decimal" value={variant.price} disabled={saving || draft.bindSync}
                   onChange={(event) => onSetField("variants", draft.variants.map((item) => (item.id === variant.id ? { ...item, price: event.target.value } : item)))} />
+                <input className="input" placeholder="Старая цена" inputMode="decimal" value={variant.compareAtPrice} disabled={saving || draft.bindSync}
+                  onChange={(event) => onSetField("variants", draft.variants.map((item) => (item.id === variant.id ? { ...item, compareAtPrice: event.target.value } : item)))} />
                 <select className="input" value={variant.currency} disabled={saving || draft.bindSync}
                   onChange={(event) => onSetField("variants", draft.variants.map((item) => (item.id === variant.id ? { ...item, currency: event.target.value as ManualEditVariant["currency"] } : item)))}>
                   {CURRENCY_OPTIONS.map((option) => (

@@ -1,4 +1,5 @@
 import type { CategoryView, ServiceProduct } from "../shared/live-data-context";
+import { getProductPriceSummary } from "../shared/product-pricing";
 import {
   buildVisibleProductWriteState,
   getProductStateClass,
@@ -227,16 +228,21 @@ function applySearchAndFilters(
 function applySort(products: ServiceProduct[], sort: CatalogSort): ServiceProduct[] {
   const sorted = [...products];
   sorted.sort((left, right) => {
+    const leftPrice = getProductPriceSummary(left)?.final_display_price ?? Number.POSITIVE_INFINITY;
+    const rightPrice = getProductPriceSummary(right)?.final_display_price ?? Number.POSITIVE_INFINITY;
     if (sort === "title_asc") {
       return (left.title || "").localeCompare(right.title || "", "ru");
     }
 
     if (sort === "price_asc") {
-      return (left.price ?? Number.POSITIVE_INFINITY) - (right.price ?? Number.POSITIVE_INFINITY);
+      return leftPrice - rightPrice;
     }
 
     if (sort === "price_desc") {
-      return (right.price ?? Number.NEGATIVE_INFINITY) - (left.price ?? Number.NEGATIVE_INFINITY);
+      return (
+        (getProductPriceSummary(right)?.final_display_price ?? Number.NEGATIVE_INFINITY)
+        - (getProductPriceSummary(left)?.final_display_price ?? Number.NEGATIVE_INFINITY)
+      );
     }
 
     if (sort === "updated_asc") {

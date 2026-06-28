@@ -3,6 +3,7 @@ import { AdminProductsSkeleton } from "../shared/skeleton";
 import type { AdminFilterFacetOption, AdminProductsTableItem } from "./admin-types";
 import { AdminProductsFilters } from "./admin-products-filters";
 import { AdminProductsTable } from "./admin-products-table";
+import type { ProductWriteState } from "../shared/product-state";
 
 type SourceLabel = {
   name: string;
@@ -11,6 +12,7 @@ type SourceLabel = {
 type Props = {
   tableLoading: boolean;
   tableProducts: AdminProductsTableItem[];
+  productsReturnHref: string;
   tableTotal: number;
   tableOverallTotal: number;
   productSearch: string;
@@ -41,11 +43,16 @@ type Props = {
   sourceById: Map<number, SourceLabel>;
   tableLoadingMore: boolean;
   productsSentinelRef: RefObject<HTMLDivElement | null>;
+  deletingProductId: number | null;
+  statusUpdatingProductId: number | null;
+  onDeleteProduct: (productId: number) => Promise<boolean>;
+  onUpdateProductStatus: (productId: number, state: ProductWriteState) => Promise<boolean>;
 };
 
 export function AdminProductsTab({
   tableLoading,
   tableProducts,
+  productsReturnHref,
   tableTotal,
   tableOverallTotal,
   productSearch,
@@ -76,6 +83,10 @@ export function AdminProductsTab({
   sourceById,
   tableLoadingMore,
   productsSentinelRef,
+  deletingProductId,
+  statusUpdatingProductId,
+  onDeleteProduct,
+  onUpdateProductStatus,
 }: Props) {
   return (
     <div className="card">
@@ -116,9 +127,14 @@ export function AdminProductsTab({
             <AdminProductsTable
               tableLoading={tableLoading}
               tableProducts={tableProducts}
+              productsReturnHref={productsReturnHref}
               sourceById={sourceById}
               tableLoadingMore={tableLoadingMore}
               productsSentinelRef={productsSentinelRef}
+              deletingProductId={deletingProductId}
+              statusUpdatingProductId={statusUpdatingProductId}
+              onDeleteProduct={onDeleteProduct}
+              onUpdateProductStatus={onUpdateProductStatus}
             />
           </div>
         </>

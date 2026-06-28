@@ -1,11 +1,13 @@
 import { useState } from "react";
 
 type ResultMessage = { ok: boolean; message: string };
+type MergeMode = "combine" | "keep_left" | "keep_right";
 
 type MergePayload = {
   product_ids: number[];
   primary_product_id?: number | null;
   primary_listing_id?: number | null;
+  merge_mode?: MergeMode | null;
 };
 
 type UseAdminDedupActionsParams = {
@@ -44,25 +46,29 @@ export function useAdminDedupActions(params: UseAdminDedupActionsParams) {
     }
   };
 
-  const onMergeProducts = async (productIds: number[], primaryProductId?: number | null) => {
+  const onMergeProducts = async (productIds: number[], mergeMode: MergeMode = "combine") => {
     const normalizedIds = normalizeProductIds(productIds);
     if (normalizedIds.length < 2) {
       pushToast("Для объединения выбери минимум два товара");
       return;
     }
     const pairKey = `merge:${normalizedIds.join(",")}`;
-    const resolvedPrimary = primaryProductId && normalizedIds.includes(primaryProductId)
-      ? primaryProductId
-      : normalizedIds[0];
-    const successMessage = primaryProductId == null
-      ? "Товары соединены"
-      : primaryProductId === normalizedIds[0]
-        ? "Оставлен левый товар"
-        : "Оставлен правый товар";
-    const result = await withDedupBusy(pairKey, () => mergeDedupProducts({
+    const payload: MergePayload = {
       product_ids: normalizedIds,
-      primary_product_id: resolvedPrimary,
-    }), successMessage);
+      merge_mode: mergeMode,
+    };
+    if (mergeMode === "keep_left") {
+      payload.primary_product_id = normalizedIds[0];
+    } else if (mergeMode === "keep_right") {
+      payload.primary_product_id = normalizedIds[normalizedIds.length - 1];
+    }
+    const successMessage =
+      mergeMode === "combine"
+        ? "Товары соединены"
+        : mergeMode === "keep_left"
+          ? "Оставлен левый товар"
+          : "Оставлен правый товар";
+    const result = await withDedupBusy(pairKey, () => mergeDedupProducts(payload), successMessage);
     void result;
   };
 

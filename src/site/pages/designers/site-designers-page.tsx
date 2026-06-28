@@ -6,11 +6,14 @@ import {
   buildBrowseDesignerCatalogSearchParams,
   resolveSiteDesignersEntryMode,
 } from "../../features/designers/site-designers-navigation";
+import { SITE_DESIGNERS_MOBILE_MEDIA_QUERY } from "../../features/designers/site-designers-constants";
 import { SiteHeader } from "../../features/header/site-header";
+import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { patchCatalogSearchParams } from "../../features/catalog/site-catalog-query";
 import { siteDesignersAlphabet, siteDesignersDirectoryEntries } from "../../runtime/site-designers-mock";
 import { useSiteActionItems } from "../../runtime/use-site-cart";
+import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
 import "./site-designers-page.css";
 
 export function SiteDesignersPage() {
@@ -21,6 +24,7 @@ export function SiteDesignersPage() {
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
   const persistedSearchParams = useMemo(() => new URLSearchParams(searchParams), [searchParams]);
+  const isMobileLayout = useSiteMediaQuery(SITE_DESIGNERS_MOBILE_MEDIA_QUERY);
   const entryMode = useMemo(
     () => resolveSiteDesignersEntryMode(location.state, persistedSearchParams),
     [location.state, persistedSearchParams],
@@ -48,22 +52,30 @@ export function SiteDesignersPage() {
 
   return (
     <main className="site-designers-page">
-      <SiteHeader
-        theme="light"
-        menuItems={siteMenuItems}
-        actionItems={actionItems}
-        searchValue={searchValue}
-        allowEmptySearchSubmit
-        onSearchValueChange={setSearchValue}
-        onSearchSubmit={(value) => {
-          navigateToCatalog(
-            patchCatalogSearchParams(persistedSearchParams, {
-              q: value,
-              page: null,
-            }),
-          );
-        }}
-      />
+      {isMobileLayout ? (
+        <SiteMobileHomeHeader
+          onLogoActivate={() => {
+            navigate("/?view=storefront");
+          }}
+        />
+      ) : (
+        <SiteHeader
+          theme="light"
+          menuItems={siteMenuItems}
+          actionItems={actionItems}
+          searchValue={searchValue}
+          allowEmptySearchSubmit
+          onSearchValueChange={setSearchValue}
+          onSearchSubmit={(value) => {
+            navigateToCatalog(
+              patchCatalogSearchParams(persistedSearchParams, {
+                q: value,
+                page: null,
+              }),
+            );
+          }}
+        />
+      )}
 
       <SiteDesignersDirectory
         alphabet={siteDesignersAlphabet}
@@ -72,11 +84,11 @@ export function SiteDesignersPage() {
         searchParams={persistedSearchParams}
         onApply={navigateToCatalog}
         onBrowseSelect={(designerId) => {
-          navigateToCatalog(buildBrowseDesignerCatalogSearchParams(designerId));
+          navigateToCatalog(buildBrowseDesignerCatalogSearchParams(persistedSearchParams, designerId));
         }}
       />
 
-      <SiteFooterSection />
+      <SiteFooterSection layout={isMobileLayout ? "mobile" : "desktop"} />
     </main>
   );
 }

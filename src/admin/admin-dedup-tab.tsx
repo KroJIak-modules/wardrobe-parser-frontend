@@ -4,6 +4,8 @@ import { AdminDedupSkeleton } from "../shared/skeleton";
 import { AdminDedupCandidatesView } from "./admin-dedup-candidates-view";
 import { AdminDedupDecisionsView } from "./admin-dedup-decisions-view";
 
+type DedupMergeMode = "combine" | "keep_left" | "keep_right";
+
 type Props = {
   dedupView: "candidates" | "decisions";
   setDedupView: (view: "candidates" | "decisions") => void;
@@ -24,7 +26,7 @@ type Props = {
   setDedupChoosingPairKey: (key: string | null | ((prev: string | null) => string | null)) => void;
   openProductCard: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => void;
   onRunDedupScan: () => Promise<void>;
-  onMergeProducts: (productIds: number[], primaryProductId?: number | null) => Promise<void>;
+  onMergeProducts: (productIds: number[], mergeMode?: DedupMergeMode) => Promise<void>;
   onRejectProducts: (productIds: number[]) => Promise<void>;
   onUndoDecision: (decisionId: number) => Promise<void>;
   onLoadMoreCandidates: () => Promise<void>;

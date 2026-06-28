@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { SiteImage } from "../../features/image/site-image";
+import { SITE_LOGO_URL } from "../../app/site-public-asset";
 import "./site-logo-test-page.css";
 
 type LogoTestBand = {
@@ -90,7 +90,7 @@ export function SiteLogoTestPage() {
           </div>
         </div>
         <div className="site-logo-test-page__logo-blend" aria-hidden="true">
-          <SiteImage src="/logo_anton_shell.svg" alt="" loading="eager" decoding="sync" />
+          <img src={SITE_LOGO_URL} alt="" loading="eager" decoding="sync" />
         </div>
       </div>
 

@@ -1,3 +1,5 @@
+import type { ProductPriceSummary } from "../shared/live-data-types";
+
 export type AdminTab = "products" | "dedup" | "showcase-structure" | "designers" | "sources" | "pricing" | "weight" | "content" | "security";
 
 export type UploadPreview = {
@@ -45,6 +47,8 @@ export type PricingExampleView = {
   sourcePrice: number;
   sourcePriceRub: number;
   sourceCurrency: CurrencyCode;
+  sourceHasRange: boolean;
+  finalHasRange: boolean;
   isSample: boolean;
   summarySpLatex: string;
   summaryFpLatex: string;
@@ -83,10 +87,7 @@ export type AdminProductsTableItem = {
   image_count: number;
   image_urls: string[];
   image_ids: number[];
-  source_price?: number | null;
-  source_currency?: string | null;
-  final_price?: number | null;
-  final_currency?: string | null;
+  price_summary?: ProductPriceSummary | null;
   pricing_reason?: string | null;
   pricing_manual_required?: boolean | null;
   internal_category_name?: string | null;

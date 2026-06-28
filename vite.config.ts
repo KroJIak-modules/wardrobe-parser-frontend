@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     root: appRoot,
+    envDir: __dirname,
     publicDir: path.resolve(__dirname, 'public'),
     plugins: [react(), tailwindcss()],
     resolve: {

@@ -384,6 +384,40 @@
   outline: none;
 }
 
+.site-catalog-pagination--mobile {
+  width: 236px;
+  height: 16px;
+  gap: 20px;
+  margin-top: 0;
+}
+
+.site-catalog-pagination--mobile .site-catalog-pagination__arrow,
+.site-catalog-pagination--mobile .site-catalog-pagination__page,
+.site-catalog-pagination--mobile .site-catalog-pagination__ellipsis {
+  font-size: 12px;
+}
+
+.site-catalog-pagination--mobile .site-catalog-pagination__arrow {
+  width: 4px;
+  height: 8px;
+}
+
+.site-catalog-pagination--mobile .site-catalog-pagination__arrow svg {
+  width: 4px;
+  height: 8px;
+}
+
+.site-catalog-pagination--mobile .site-catalog-pagination__page,
+.site-catalog-pagination--mobile .site-catalog-pagination__ellipsis {
+  height: 14px;
+}
+
+.site-catalog-pagination--mobile .site-catalog-pagination__page--active {
+  width: 17px;
+  height: 16px;
+  border-radius: 5px;
+}
+
 @media (max-width: 1180px) {
   .site-catalog-shell {
     width: min(100%, calc(100% - 32px));

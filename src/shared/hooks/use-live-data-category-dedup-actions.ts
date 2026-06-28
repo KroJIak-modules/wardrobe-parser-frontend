@@ -28,6 +28,7 @@ export function useLiveDataCategoryDedupActions(params: {
     product_ids: number[];
     primary_product_id?: number | null;
     primary_listing_id?: number | null;
+    merge_mode?: "combine" | "keep_left" | "keep_right" | null;
   }) => {
     try {
       await apiNoContent(`${API_BASE}/dedup/merge`, {

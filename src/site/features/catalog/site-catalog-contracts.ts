@@ -1,4 +1,4 @@
-import type { SiteNavItem, SiteProduct } from "../storefront/site-storefront-contracts";
+import type { SiteProduct } from "../storefront/site-storefront-contracts";
 
 export type SiteCatalogSort = "featured" | "price-asc" | "price-desc";
 
@@ -52,6 +52,21 @@ export type SiteCatalogMultiFilter = {
   label: string;
 };
 
+export type SiteCatalogMobileRootGroup = {
+  id: string;
+  label: string;
+  rootMultiFilterIds: readonly string[];
+  children: readonly {
+    multiFilterId: string;
+    sectionIds: readonly string[];
+  }[];
+};
+
+export type SiteCatalogMobileMenuConfig = {
+  availabilityOrder: readonly SiteCatalogAvailability[];
+  rootGroups: readonly SiteCatalogMobileRootGroup[];
+};
+
 export type SiteCatalogCustomCatalog = {
   id: string;
   label: string;
@@ -96,25 +111,8 @@ export type SiteCatalogState = {
   genderIds: string[];
 };
 
-export type SiteCatalogDropdownItem = {
-  label: string;
-  to: string;
-};
-
-export type SiteCatalogDropdownColumn = {
-  title: string;
-  items: readonly SiteCatalogDropdownItem[];
-};
-
-export type SiteCatalogDropdownMenuMap = Partial<Record<string, readonly SiteCatalogDropdownColumn[]>>;
-
 export type SiteCatalogExperience = {
   header: SiteCatalogHeader;
   filterGroups: readonly SiteCatalogFilterGroup[];
   products: SiteCatalogProduct[];
-};
-
-export type SiteCatalogMenuConfig = {
-  topMenuItems: SiteNavItem[];
-  dropdownMenus: SiteCatalogDropdownMenuMap;
 };

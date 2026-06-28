@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { SiteHomeNotificationPayload } from "../../runtime/site-home-notification-mock";
 import { SiteImage } from "../image/site-image";
 import { SiteWindowCloseButton, SiteWindowShell, SiteWindowTitlebar } from "../window-shell/site-window-shell";
@@ -14,7 +14,6 @@ export function SiteHomeNotification({
   onDismiss: () => void;
 }) {
   const [isVisible, setIsVisible] = useState(false);
-  const [dialogScale, setDialogScale] = useState(1);
   const dismissTimeoutRef = useRef<number | null>(null);
   const isClosingRef = useRef(false);
 
@@ -58,19 +57,6 @@ export function SiteHomeNotification({
     };
   }, [beginDismiss]);
 
-  useEffect(() => {
-    const updateDialogScale = () => {
-      const nextScale = Math.min(1, Math.max(0.72, (window.innerWidth - 24) / 389));
-      setDialogScale(nextScale);
-    };
-
-    updateDialogScale();
-    window.addEventListener("resize", updateDialogScale);
-    return () => {
-      window.removeEventListener("resize", updateDialogScale);
-    };
-  }, []);
-
   return (
     <div
       className={`site-home-notification${isVisible ? " site-home-notification--visible" : ""}`}
@@ -83,7 +69,6 @@ export function SiteHomeNotification({
         role="dialog"
         aria-modal="true"
         aria-labelledby="site-home-notification-title"
-        style={{ "--site-home-notification-scale": dialogScale } as CSSProperties}
         onClick={(event) => {
           event.stopPropagation();
         }}
@@ -108,8 +93,10 @@ export function SiteHomeNotification({
           </div>
 
           <div className="site-home-notification__content">
-            <p className="site-home-notification__title">{payload.title}</p>
-            <p className="site-home-notification__description">{payload.description}</p>
+            <div className="site-home-notification__copy">
+              <p className="site-home-notification__title">{payload.title}</p>
+              <p className="site-home-notification__description">{payload.description}</p>
+            </div>
             <button
               type="button"
               className="site-home-notification__cta"

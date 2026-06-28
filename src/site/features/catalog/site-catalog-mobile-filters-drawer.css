@@ -1,0 +1,193 @@
+.site-catalog-mobile-filters-drawer {
+  color: rgba(0, 0, 0, 0.8);
+  font-family: var(--site-font-ui);
+}
+
+.site-catalog-mobile-filters-drawer__header {
+  position: absolute;
+  top: 24px;
+  left: 31px;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2;
+}
+
+.site-catalog-mobile-filters-drawer__title {
+  margin: 0;
+  color: rgba(4, 4, 4, 0.8);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.site-catalog-mobile-filters-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(4, 4, 4, 0.8);
+  cursor: pointer;
+}
+
+.site-catalog-mobile-filters-drawer__close:focus-visible,
+.site-catalog-mobile-filters-drawer__group-trigger:focus-visible,
+.site-catalog-mobile-filters-drawer__option:focus-visible,
+.site-catalog-mobile-filters-drawer__apply:focus-visible,
+.site-catalog-mobile-filters-drawer__clear:focus-visible {
+  outline: none;
+}
+
+.site-catalog-mobile-filters-drawer__close-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.site-catalog-mobile-filters-drawer__body {
+  position: absolute;
+  top: 84px;
+  left: 31px;
+  right: 31px;
+  bottom: 113px;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.site-catalog-mobile-filters-drawer__groups {
+  display: grid;
+  gap: 30px;
+}
+
+.site-catalog-mobile-filters-drawer__group {
+  display: grid;
+  gap: 0;
+}
+
+.site-catalog-mobile-filters-drawer__group--open {
+  gap: 40px;
+}
+
+.site-catalog-mobile-filters-drawer__group-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(4, 4, 4, 0.8);
+  cursor: pointer;
+}
+
+.site-catalog-mobile-filters-drawer__group-label {
+  font-family: var(--site-font-ui);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.site-catalog-mobile-filters-drawer__group-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.site-catalog-mobile-filters-drawer__group-icon-vertical {
+  transform-origin: center;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.site-catalog-mobile-filters-drawer__group-icon--open .site-catalog-mobile-filters-drawer__group-icon-vertical {
+  opacity: 0;
+  transform: scaleY(0);
+}
+
+.site-catalog-mobile-filters-drawer__options {
+  display: grid;
+  gap: 16px;
+  padding-left: 0;
+  min-height: 0;
+}
+
+.site-catalog-mobile-filters-drawer__options--scrollable {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.site-catalog-mobile-filters-drawer__options--scrollable::-webkit-scrollbar {
+  display: none;
+}
+
+.site-catalog-mobile-filters-drawer__option {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(4, 4, 4, 0.8);
+  font-family: var(--site-font-ui);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  text-align: left;
+  word-break: break-word;
+  cursor: pointer;
+}
+
+.site-catalog-mobile-filters-drawer__option--selected,
+.site-catalog-mobile-filters-drawer__option--strong {
+  font-weight: 500;
+}
+
+.site-catalog-mobile-filters-drawer__actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 36px;
+  display: grid;
+  justify-items: center;
+  gap: 15px;
+  z-index: 2;
+}
+
+.site-catalog-mobile-filters-drawer__apply,
+.site-catalog-mobile-filters-drawer__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 128px;
+  height: 31px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(205, 205, 205, 0.3);
+  color: rgba(4, 4, 4, 0.8);
+  font-family: "SF Compact Rounded", var(--site-font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.site-catalog-mobile-filters-drawer__apply {
+  min-width: 140px;
+}
+
+.site-catalog-mobile-filters-drawer__clear:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-catalog-mobile-filters-drawer__group-icon-vertical {
+    transition: none;
+  }
+}

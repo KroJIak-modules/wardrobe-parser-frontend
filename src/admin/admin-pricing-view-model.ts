@@ -72,8 +72,9 @@ export function buildPricingExampleView(
   }
   const product = pricingExampleProduct;
   const components = (product.components || {}) as Record<string, unknown>;
-  const sourcePriceRaw = toFiniteNumber(product.source_price) ?? toFiniteNumber(components.source_price);
-  const sourceCurrency = normalizeCurrencyCode(String(product.source_currency || components.source_currency || "USD"), "USD");
+  const priceSummary = product.price_summary ?? null;
+  const sourcePriceRaw = toFiniteNumber(priceSummary?.source_display_price) ?? toFiniteNumber(components.source_price);
+  const sourceCurrency = normalizeCurrencyCode(String(priceSummary?.source_currency || components.source_currency || "USD"), "USD");
   const sourcePriceRub = toFiniteNumber(components.source_price_rub);
   const sourcePriceUsd = toFiniteNumber(components.source_price_usd);
   const sourcePriceEur = toFiniteNumber(components.source_price_eur);
@@ -99,7 +100,7 @@ export function buildPricingExampleView(
   const taxRate = toFiniteNumber(components.tax_rate);
   const taxRub = toFiniteNumber(components.tax_rub);
   const markupRate = toFiniteNumber(components.markup_rate) ?? (Number(pricingSettings.markup_multiplier) - 1);
-  const finalPrice = toFiniteNumber(product.final_price) ?? toFiniteNumber(components.final_price_rub) ?? toFiniteNumber(components.final_price);
+  const finalPrice = toFiniteNumber(priceSummary?.final_display_price) ?? toFiniteNumber(components.final_price_rub) ?? toFiniteNumber(components.final_price);
   const finalRoundingMode = normalizeFinalRoundingMode(String(components.final_rounding_mode || pricingSettings.final_rounding_mode || "unit"), "unit");
   const supplierName = String(components.supplier_name || "Поставщик");
   const shippingRuleLabel = String(components.shipping_rule_label || "-");
@@ -257,6 +258,8 @@ export function buildPricingExampleView(
     sourcePrice: sourcePriceRaw,
     sourcePriceRub,
     sourceCurrency,
+    sourceHasRange: Boolean(priceSummary?.source_has_range),
+    finalHasRange: Boolean(priceSummary?.final_has_range),
     isSample: Boolean(product.is_sample),
     summarySpLatex,
     summaryFpLatex,

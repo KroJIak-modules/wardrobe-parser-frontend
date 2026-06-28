@@ -18,10 +18,18 @@ export type SiteAboutTextPanelViewModel = {
   id: string;
   displayText: string;
   maxLength: number;
+  paragraphs: readonly string[];
 };
 
 function normalizeTextForAbout(rawText: string, maxLength: number) {
   return rawText.trim().slice(0, maxLength).trimEnd();
+}
+
+function splitAboutTextIntoParagraphs(text: string) {
+  return text
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph !== "");
 }
 
 export function buildSiteAboutTextPanelViewModel(panel: SiteAboutTextPanel): SiteAboutTextPanelViewModel {
@@ -32,6 +40,7 @@ export function buildSiteAboutTextPanelViewModel(panel: SiteAboutTextPanel): Sit
     id: panel.id,
     displayText: normalized,
     maxLength,
+    paragraphs: splitAboutTextIntoParagraphs(normalized),
   };
 }
 

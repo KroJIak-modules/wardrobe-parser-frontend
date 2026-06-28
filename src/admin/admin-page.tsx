@@ -46,6 +46,7 @@ export function AdminPage() {
   const [searchParams] = useSearchParams();
   const { tab: tabParam } = useParams<{ tab?: string }>();
   const tab = normalizeAdminTab(tabParam);
+  const productsReturnHref = `/control/products${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const { openProductCard } = useAdminProductNavigation();
   const onLogout = () => {
     void (async () => {
@@ -128,6 +129,7 @@ export function AdminPage() {
     probeProductByUrl,
     createManualProduct,
     updateManualProduct,
+    deleteProduct,
     uploadProductImage,
     uploadProductImageByUrl,
     getProductById,
@@ -443,11 +445,16 @@ export function AdminPage() {
     productCatalogs,
     productSections,
     productGenders,
+    deletingProductId,
+    statusUpdatingProductId,
+    deleteTableProduct,
+    updateTableProductStatus,
   } = useAdminProductsTable({
     tab,
     latestJobStatus: latestJob?.status ?? null,
     query: productsQuery,
     pushToast,
+    deleteProduct,
   });
 
   const sourceById = useAdminSourceMap(sources);
@@ -467,6 +474,7 @@ export function AdminPage() {
     productsTabProps: {
       tableLoading,
       tableProducts,
+      productsReturnHref,
       tableTotal,
       tableOverallTotal,
       productSearch,
@@ -497,6 +505,10 @@ export function AdminPage() {
       sourceById,
       tableLoadingMore,
       productsSentinelRef,
+      deletingProductId,
+      statusUpdatingProductId,
+      onDeleteProduct: deleteTableProduct,
+      onUpdateProductStatus: updateTableProductStatus,
     },
     dedupTabProps: {
       dedupView,
@@ -654,8 +666,8 @@ export function AdminPage() {
   return (
     <div className="shell">
       <AdminTopbar onLogout={onLogout} />
-      <main className="container container--admin">
-        <section className="section admin">
+      <main className={`container container--admin${tab === "products" ? " container--admin-products" : ""}`}>
+        <section className={`section admin${tab === "products" ? " admin--products" : ""}`}>
           <AdminHead
             isSyncInProgress={isSyncInProgress}
             canRunSync={canRunSync}

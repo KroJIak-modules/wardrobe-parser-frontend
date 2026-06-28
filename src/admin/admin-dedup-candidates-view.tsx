@@ -6,6 +6,8 @@ import { EmptyState } from "../shared/empty-state";
 import { formatDedupReason } from "./admin-formatters";
 import { AdminDedupProductCard } from "./admin-dedup-product-card";
 
+type DedupMergeMode = "combine" | "keep_left" | "keep_right";
+
 type Props = {
   dedupCandidates: DedupCandidate[];
   loadingDedupCandidates: boolean;
@@ -15,7 +17,7 @@ type Props = {
   dedupChoosingPairKey: string | null;
   setDedupChoosingPairKey: (key: string | null | ((prev: string | null) => string | null)) => void;
   openProductCard: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => void;
-  onMergeProducts: (productIds: number[], primaryProductId?: number | null) => Promise<void>;
+  onMergeProducts: (productIds: number[], mergeMode?: DedupMergeMode) => Promise<void>;
   onRejectProducts: (productIds: number[]) => Promise<void>;
   onLoadMore: () => Promise<void>;
 };
@@ -74,8 +76,7 @@ export function AdminDedupCandidatesView({
                 id={candidate.left.id}
                 title={candidate.left.title}
                 designerName={candidate.left.display_designer_name || candidate.left.designer_name || candidate.left.source_designer_name || null}
-                price={candidate.left.price}
-                currency={candidate.left.currency}
+                priceSummary={candidate.left.price_summary}
                 imageCount={candidate.left.image_count}
                 imageUrls={candidate.left.image_urls}
                 imageIds={candidate.left.image_ids}
@@ -86,8 +87,7 @@ export function AdminDedupCandidatesView({
                 id={candidate.right.id}
                 title={candidate.right.title}
                 designerName={candidate.right.display_designer_name || candidate.right.designer_name || candidate.right.source_designer_name || null}
-                price={candidate.right.price}
-                currency={candidate.right.currency}
+                priceSummary={candidate.right.price_summary}
                 imageCount={candidate.right.image_count}
                 imageUrls={candidate.right.image_urls}
                 imageIds={candidate.right.image_ids}
@@ -109,7 +109,7 @@ export function AdminDedupCandidatesView({
               <button
                 type="button"
                 disabled={dedupBusyPairKeys.has(candidate.pair_key)}
-                onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id])}
+                onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id], "combine")}
               >
                 Соединить
               </button>
@@ -118,14 +118,14 @@ export function AdminDedupCandidatesView({
                   <button
                     type="button"
                     disabled={dedupBusyPairKeys.has(candidate.pair_key)}
-                    onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id], candidate.left.id)}
+                    onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id], "keep_left")}
                   >
                     Оставить левый
                   </button>
                   <button
                     type="button"
                     disabled={dedupBusyPairKeys.has(candidate.pair_key)}
-                    onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id], candidate.right.id)}
+                    onClick={() => void onMergeProducts([candidate.left.id, candidate.right.id], "keep_right")}
                   >
                     Оставить правый
                   </button>

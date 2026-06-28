@@ -1,0 +1,12 @@
+.manual-product-action-btn--danger {
+  border-color: rgba(220, 38, 38, 0.22);
+  background: rgba(254, 242, 242, 0.96);
+  color: #b42318;
+}
+
+.manual-product-action-btn--danger:hover,
+.manual-product-action-btn--danger:focus-visible {
+  border-color: rgba(220, 38, 38, 0.34);
+  background: rgba(254, 226, 226, 0.98);
+  color: #912018;
+}

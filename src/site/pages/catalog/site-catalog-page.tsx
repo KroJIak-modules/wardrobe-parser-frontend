@@ -3,12 +3,14 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { SiteCatalogTopKey } from "../../features/catalog/site-catalog-contracts";
 import { siteMenuItems } from "../../app/site-static-content";
 import { resolveCatalogExperience } from "../../features/catalog/site-catalog-logic";
+import { SiteCatalogMobileView } from "../../features/catalog/site-catalog-mobile-view";
 import { clearSiteCatalogReturnSnapshot, readSiteCatalogReturnSnapshot } from "../../features/catalog/site-catalog-return";
 import { readCatalogListParam } from "../../features/catalog/site-catalog-query";
 import { SiteCatalogExperienceView } from "../../features/catalog/site-catalog-sections";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { useSiteActionItems } from "../../runtime/use-site-cart";
+import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
 import "./site-catalog-page.css";
 
 export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }) {
@@ -37,6 +39,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
   const experience = resolveCatalogExperience(effectiveSearchParams);
+  const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
   const pageParam = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const currentPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const pageSize = 48;
@@ -97,44 +100,69 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
 
   return (
     <main className="site-catalog-page">
-      <SiteHeader
-        theme="light"
-        menuItems={siteMenuItems}
-        actionItems={actionItems}
-        searchValue={searchValue}
-        allowEmptySearchSubmit
-        onSearchValueChange={setSearchValue}
-        onSearchSubmit={(value) => {
-          const nextParams = new URLSearchParams(searchParams);
-          if (value === "") {
-            nextParams.delete("q");
-          } else {
-            nextParams.set("q", value);
-          }
-          persistSearchParams(nextParams);
-        }}
-      />
-      <SiteCatalogExperienceView
-        title={experience.header.title}
-        description={experience.header.description}
-        descriptionSource={experience.header.source}
-        filterGroups={experience.filterGroups}
-        searchParams={effectiveSearchParams}
-        onSearchParamsChange={persistSearchParams}
-        products={pagedProducts}
-        currentPage={normalizedPage}
-        totalPages={totalPages}
-        onPageChange={(page) => {
-          const nextParams = new URLSearchParams(searchParams);
-          if (page <= 1) {
-            nextParams.delete("page");
-          } else {
-            nextParams.set("page", String(page));
-          }
-          persistSearchParams(nextParams);
-        }}
-      />
-      <SiteFooterSection />
+      {isMobileLayout ? (
+        <SiteCatalogMobileView
+          title={experience.header.title}
+          titleSource={experience.header.source}
+          description={experience.header.description}
+          filterGroups={experience.filterGroups}
+          searchParams={effectiveSearchParams}
+          onSearchParamsChange={persistSearchParams}
+          products={pagedProducts}
+          currentPage={normalizedPage}
+          totalPages={totalPages}
+          onPageChange={(page) => {
+            const nextParams = new URLSearchParams(searchParams);
+            if (page <= 1) {
+              nextParams.delete("page");
+            } else {
+              nextParams.set("page", String(page));
+            }
+            persistSearchParams(nextParams);
+          }}
+        />
+      ) : (
+        <>
+          <SiteHeader
+            theme="light"
+            menuItems={siteMenuItems}
+            actionItems={actionItems}
+            searchValue={searchValue}
+            allowEmptySearchSubmit
+            onSearchValueChange={setSearchValue}
+            onSearchSubmit={(value) => {
+              const nextParams = new URLSearchParams(searchParams);
+              if (value === "") {
+                nextParams.delete("q");
+              } else {
+                nextParams.set("q", value);
+              }
+              persistSearchParams(nextParams);
+            }}
+          />
+          <SiteCatalogExperienceView
+            title={experience.header.title}
+            description={experience.header.description}
+            descriptionSource={experience.header.source}
+            filterGroups={experience.filterGroups}
+            searchParams={effectiveSearchParams}
+            onSearchParamsChange={persistSearchParams}
+            products={pagedProducts}
+            currentPage={normalizedPage}
+            totalPages={totalPages}
+            onPageChange={(page) => {
+              const nextParams = new URLSearchParams(searchParams);
+              if (page <= 1) {
+                nextParams.delete("page");
+              } else {
+                nextParams.set("page", String(page));
+              }
+              persistSearchParams(nextParams);
+            }}
+          />
+          <SiteFooterSection />
+        </>
+      )}
     </main>
   );
 }

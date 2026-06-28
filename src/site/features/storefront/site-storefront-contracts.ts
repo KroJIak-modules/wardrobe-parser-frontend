@@ -27,12 +27,14 @@ export type SiteFooterLink = {
 };
 
 export type SiteFooterColumn = {
+  id: "social" | "info";
   title: string;
   links: SiteFooterLink[];
 };
 
 export type SiteShowcaseMedia = {
-  heroImageSrc: string | null;
+  heroImageSrcDesktop: string | null;
+  heroImageSrcMobile: string | null;
   carouselSlidesDesktop: SiteCarouselSlide[];
   carouselSlidesMobile?: SiteCarouselSlide[];
 };

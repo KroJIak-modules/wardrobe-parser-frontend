@@ -37,13 +37,23 @@ export type Source = {
 };
 
 export type ProductVariant = {
+  id?: number | null;
   title: string;
   option1: string | null;
   option2: string | null;
   option3: string | null;
   available: boolean;
   price: string | number | null;
+  currency?: string | null;
   compare_at_price?: number | string | null;
+  final_price?: number | null;
+  final_currency?: string | null;
+  final_compare_at_price?: number | null;
+  final_compare_at_currency?: string | null;
+  pricing_mode?: string | null;
+  pricing_manual_required?: boolean | null;
+  pricing_reason?: string | null;
+  pricing_components?: Record<string, unknown> | null;
   inventory_quantity: number;
   sku: string | null;
   source_id?: number | null;
@@ -52,8 +62,25 @@ export type ProductVariant = {
   source_ref_id?: string | null;
 };
 
+export type ProductPriceSummary = {
+  source_display_price: number | null;
+  source_currency: string | null;
+  source_compare_at_price?: number | null;
+  source_has_range: boolean;
+  final_display_price: number | null;
+  final_currency: string | null;
+  final_compare_at_price?: number | null;
+  final_has_range: boolean;
+  pricing_manual_required?: boolean | null;
+  pricing_reason?: string | null;
+  representative_variant_id?: number | null;
+  representative_listing_id?: number | null;
+  representative_source_ref_id?: string | null;
+};
+
 export type ProductPresentationState = {
   title_override?: string | null;
+  brand_override_name?: string | null;
   description_text?: string | null;
   description_html?: string | null;
   description_visibility?: boolean | null;
@@ -76,11 +103,6 @@ export type ProductGalleryState = {
   source_image_urls: string[];
   manual_image_urls: string[];
   manual_image_order: string[];
-};
-
-export type ProductPriceOverrideState = {
-  manual_price_rub: number;
-  manual_compare_at_price_rub?: number | null;
 };
 
 export type ProductListing = {
@@ -106,6 +128,8 @@ export type ProductListing = {
 export type ServiceProduct = {
   id: number;
   source_id: number | null;
+  source_mode?: SourceMode | null;
+  has_sync_listing?: boolean;
   primary_listing_id?: number | null;
   handle: string;
   title: string;
@@ -113,14 +137,11 @@ export type ServiceProduct = {
   designer_name: string | null;
   source_designer_name?: string | null;
   display_designer_name?: string | null;
+  brand_name?: string | null;
+  brand_name_is_manual?: boolean;
   source_category_name: string | null;
   url: string;
-  price: number | null;
-  currency: string;
-  source_price?: number | null;
-  source_currency?: string | null;
-  final_price?: number | null;
-  final_currency?: string | null;
+  price_summary?: ProductPriceSummary | null;
   pricing_manual_required?: boolean;
   pricing_reason?: string | null;
   pricing_components?: Record<string, unknown>;
@@ -128,6 +149,7 @@ export type ServiceProduct = {
   visibility_status?: string | null;
   availability_mode?: string | null;
   orderability_status?: string | null;
+  status_reason?: string | null;
   lifecycle_status?: string | null;
   image_count: number;
   image_ids?: number[];
@@ -148,11 +170,15 @@ export type ServiceProduct = {
   source_name?: string | null;
   weight_grams?: number | null;
   manual_weight_grams?: number | null;
+  auto_weight_grams?: number | null;
+  gender_is_manual?: boolean;
   filter_slugs?: string[];
+  filter_name?: string | null;
+  custom_catalog_slugs?: string[];
+  custom_catalog_names?: string[];
   internal_category_names?: string[];
   gallery?: ProductGalleryState;
   presentation?: ProductPresentationState;
-  price_override?: ProductPriceOverrideState | null;
   listings?: ProductListing[];
   created_at: string;
   updated_at: string;
@@ -294,6 +320,7 @@ export type TaxonomyFilterNode = {
   slug: string | null;
   title: string;
   display_title?: string | null;
+  mobile_pair_slug?: string | null;
   node_kind?: string;
   is_enabled: boolean;
   local_category_keywords: string[];
@@ -345,8 +372,7 @@ export type ProductUrlPreview = {
   designer_name: string | null;
   source_category_name: string | null;
   product_url: string;
-  price: number | null;
-  currency: string;
+  price_summary?: ProductPriceSummary | null;
   buyer_total_price?: number | null;
   buyer_service_fee?: number | null;
   image_urls: string[];
@@ -411,9 +437,7 @@ export type PricingExampleProduct = {
   url: string | null;
   source_name: string | null;
   image_url: string | null;
-  source_price: number | null;
-  source_currency: string | null;
-  final_price: number | null;
+  price_summary?: ProductPriceSummary | null;
   components: Record<string, unknown>;
   is_sample?: boolean;
 };
@@ -562,8 +586,6 @@ export type LiveDataContextValue = {
       title?: string;
       designer_name?: string | null;
       source_category_name?: string | null;
-      price?: number | null;
-      currency?: string;
       image_count?: number;
     }
   ) => Promise<{ ok: boolean; message: string }>;
@@ -574,15 +596,11 @@ export type LiveDataContextValue = {
     designer_name?: string | null;
     source_category_name: string | null;
     gender?: "male" | "female" | "unisex" | null;
-    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; compare_at_price?: number | null; currency: string; pricing_mode?: string | null; available: boolean }>;
     manual_image_asset_ids: number[];
     manual_weight_grams?: number | null;
-    price_override?: {
-      manual_price_rub?: number | null;
-      manual_compare_at_price_rub?: number | null;
-    } | null;
     state?: ProductWriteState;
-    filter_slugs?: string[];
+    custom_catalog_slugs?: string[];
     bind_sync?: boolean;
     bind_url?: string | null;
   }) => Promise<{ ok: boolean; message: string; id: number | null }>;
@@ -593,18 +611,15 @@ export type LiveDataContextValue = {
     designer_name?: string | null;
     source_category_name: string | null;
     gender?: "male" | "female" | "unisex" | null;
-    variants: Array<{ title: string; price: number | null; currency: string; available: boolean }>;
+    variants: Array<{ title: string; price: number | null; compare_at_price?: number | null; currency: string; pricing_mode?: string | null; available: boolean }>;
     manual_image_asset_ids: number[];
     manual_weight_grams?: number | null;
-    price_override?: {
-      manual_price_rub?: number | null;
-      manual_compare_at_price_rub?: number | null;
-    } | null;
     state?: ProductWriteState;
-    filter_slugs?: string[];
+    custom_catalog_slugs?: string[];
     bind_sync?: boolean;
     bind_url?: string | null;
   }) => Promise<{ ok: boolean; message: string; id: number | null }>;
+  deleteProduct: (productId: number) => Promise<{ ok: boolean; message: string }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadProductImageByUrl: (url: string) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadShowcaseHeroImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
@@ -613,6 +628,7 @@ export type LiveDataContextValue = {
     product_ids: number[];
     primary_product_id?: number | null;
     primary_listing_id?: number | null;
+    merge_mode?: "combine" | "keep_left" | "keep_right" | null;
   }) => Promise<{ ok: boolean; message: string }>;
   rejectDedupProducts: (productIds: number[]) => Promise<{ ok: boolean; message: string }>;
   undoDedupDecision: (decisionId: number) => Promise<{ ok: boolean; message: string }>;
@@ -626,6 +642,7 @@ export type LiveDataContextValue = {
     productId: number,
     payload: {
       title?: string;
+      brand_override_name?: string | null;
       description?: string;
       description_text?: string;
       description_html?: string;
@@ -633,26 +650,26 @@ export type LiveDataContextValue = {
       gender?: "male" | "female" | "unisex" | null;
       availability_mode?: "in_stock" | "by_order" | null;
       manual_weight_grams?: number | null;
-      price_override?: {
-        manual_price_rub?: number | null;
-        manual_compare_at_price_rub?: number | null;
-      } | null;
       gallery_listing_id?: number | null;
       images?: {
         hidden_source_image_urls?: string[];
         manual_image_urls?: string[];
         manual_image_order?: string[];
       };
-      reset_to_default?: Array<"title" | "description" | "images" | "description_visibility" | "manual_weight_grams" | "price_override">;
+      reset_to_default?: Array<"title" | "brand_override_name" | "description" | "images" | "description_visibility" | "manual_weight_grams">;
     }
+  ) => Promise<{ ok: boolean; message: string; product: ServiceProduct | null }>;
+  updateManualProductVariants: (
+    productId: number,
+    variants: Array<{ title: string; price: number | null; compare_at_price?: number | null; currency: string; pricing_mode?: string | null; available: boolean }>
   ) => Promise<{ ok: boolean; message: string; product: ServiceProduct | null }>;
   getProductStarredCategories: (
     productId: number
-  ) => Promise<{ ok: boolean; message: string; assignedFilterSlugs: string[]; availableCategories: ProductStarredCategoryOption[] }>;
+  ) => Promise<{ ok: boolean; message: string; assignedCatalogSlugs: string[]; availableCategories: ProductStarredCategoryOption[] }>;
   setProductStarredCategories: (
     productId: number,
-    filterSlugs: string[]
-  ) => Promise<{ ok: boolean; message: string; assignedFilterSlugs: string[] }>;
+    catalogSlugs: string[]
+  ) => Promise<{ ok: boolean; message: string; assignedCatalogSlugs: string[] }>;
   getStarredCategoryOptions: () => Promise<{ ok: boolean; items: Array<{ slug: string; name: string }> }>;
   ensureAllProductsLoaded: () => Promise<void>;
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;

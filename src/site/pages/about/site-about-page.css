@@ -6,3 +6,9 @@
 .site-about-page__footer {
   margin-top: 120px;
 }
+
+@media (max-width: 640px) {
+  .site-about-page__footer {
+    margin-top: 67px;
+  }
+}

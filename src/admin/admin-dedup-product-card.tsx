@@ -2,13 +2,15 @@ import type { KeyboardEvent, MouseEvent } from "react";
 import { IconExternalLink } from "../shared/mono-icons";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { getProductPrimaryImageUrl } from "../shared/product-image";
+import type { ProductPriceSummary } from "../shared/live-data-types";
+import { withPriceRangePrefix } from "../shared/product-pricing";
+import "./admin-dedup-product-card.css";
 
 type Props = {
   id: number;
   title: string;
   designerName: string | null;
-  price: number | null;
-  currency: string;
+  priceSummary?: ProductPriceSummary | null;
   imageCount: number;
   imageUrls: string[];
   imageIds: number[];
@@ -16,12 +18,22 @@ type Props = {
   onOpen: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => void;
 };
 
+function formatSourcePriceLabel(value: number | null | undefined, currency: string, from: boolean): string {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "—";
+  }
+  const amount = new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value));
+  return withPriceRangePrefix(`${amount} ${currency}`.trim(), from);
+}
+
 export function AdminDedupProductCard({
   id,
   title,
   designerName,
-  price,
-  currency,
+  priceSummary = null,
   imageCount,
   imageUrls,
   imageIds,
@@ -29,9 +41,16 @@ export function AdminDedupProductCard({
   onOpen,
 }: Props) {
   const hasExternalProductUrl = Boolean(url && !String(url).startsWith("manual://"));
+  const cardClassName = "dedup-col dedup-card dedup-card--clickable";
+  const normalizedCurrency = String(priceSummary?.source_currency || "").trim().toUpperCase() || "RUB";
+  const priceLabel = formatSourcePriceLabel(
+    priceSummary?.source_display_price ?? null,
+    normalizedCurrency,
+    Boolean(priceSummary?.source_has_range),
+  );
   return (
     <article
-      className="dedup-col dedup-card dedup-card--clickable"
+      className={cardClassName}
       onClick={(event) => onOpen(event, id)}
       onMouseDown={(event) => {
         if (event.button === 1) {
@@ -57,9 +76,7 @@ export function AdminDedupProductCard({
       <div className="dedup-card-body">
         <strong className="dedup-card-title">{title}</strong>
         <p className="muted dedup-card-meta">{designerName || "-"}</p>
-        <p className="muted dedup-card-meta">
-          {price ?? "-"} {currency}
-        </p>
+        <p className="muted dedup-card-meta">{priceLabel}</p>
         {hasExternalProductUrl ? (
           <button
             type="button"

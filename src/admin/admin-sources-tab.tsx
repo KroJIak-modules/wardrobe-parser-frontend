@@ -67,18 +67,16 @@ type SourceProduct = {
   finalPrice: string;
 };
 
-function flattenTaxonomyFilters(
-  nodes: Array<{ slug?: string | null; title?: string | null; children?: Array<unknown> }> | undefined,
+function flattenTaxonomyCustomCatalogs(
+  catalogs: Array<{ slug?: string | null; title?: string | null }> | undefined,
   items: Array<{ slug: string; name: string }> = [],
 ): Array<{ slug: string; name: string }> {
-  for (const rawNode of nodes || []) {
-    const node = rawNode as { slug?: string | null; title?: string | null; children?: Array<unknown> };
-    const slug = String(node.slug || "").trim();
-    const title = String(node.title || "").trim();
+  for (const catalog of catalogs || []) {
+    const slug = String(catalog.slug || "").trim();
+    const title = String(catalog.title || "").trim();
     if (slug && title) {
       items.push({ slug, name: title });
     }
-    flattenTaxonomyFilters(node.children as Array<{ slug?: string | null; title?: string | null; children?: Array<unknown> }> | undefined, items);
   }
   return items;
 }
@@ -235,10 +233,8 @@ export function AdminSourcesTab({
     designerName: "",
     bindSync: false,
     favorite: false,
-    manualPriceRub: "",
-    manualCompareAtPriceRub: "",
     images: [],
-    variants: [{ id: "v-1", title: "Default", price: "", currency: "USD", available: true }],
+    variants: [{ id: "v-1", title: "Default", price: "", compareAtPrice: "", currency: "USD", available: true }],
   });
   const [manualEditSyncBaseline, setManualEditSyncBaseline] = useState<{
     images: ManualProductEditDraft["images"];
@@ -344,9 +340,9 @@ export function AdminSourcesTab({
       }
       const product = normalizeServiceProduct(await productRes.json() as never);
       const taxonomyPayload = taxonomyRes.ok ? await taxonomyRes.json() as {
-        filters?: Array<{ slug?: string | null; title?: string | null; children?: Array<unknown> }>;
+        custom_catalogs?: Array<{ slug?: string | null; title?: string | null }>;
       } : null;
-      const categoryOptions = flattenTaxonomyFilters(taxonomyPayload?.filters);
+      const categoryOptions = flattenTaxonomyCustomCatalogs(taxonomyPayload?.custom_catalogs);
 
       const rawVariants = Array.isArray(product.variants) && product.variants.length > 0 ? product.variants : [{ title: "Default", price: null, available: true }];
       const normalizedVariants: ManualEditVariant[] = rawVariants.map((variant, index) => {
@@ -356,6 +352,7 @@ export function AdminSourcesTab({
           id: `edit-${product.id}-${index + 1}`,
           title: String(variant.title || "").trim() || `Вариант ${index + 1}`,
           price: variant.price === null || variant.price === undefined ? "" : String(variant.price),
+          compareAtPrice: variant.compare_at_price === null || variant.compare_at_price === undefined ? "" : String(variant.compare_at_price),
           currency,
           available: Boolean(variant.available),
         };
@@ -375,8 +372,8 @@ export function AdminSourcesTab({
       setManualEditSourceUrl(isBoundSync ? String(syncListing?.url || "") : null);
       setManualEditShowBindSync(isBoundSync);
       setManualEditFavoriteCategoryOptions(categoryOptions.map((x) => ({ slug: x.slug, name: x.name })));
-      const filterSlugs = Array.isArray(product.filter_slugs) ? product.filter_slugs : [];
-      const assignedSlugs = categoryOptions.filter((item) => filterSlugs.includes(item.slug)).map((item) => item.slug);
+      const customCatalogSlugs = Array.isArray(product.custom_catalog_slugs) ? product.custom_catalog_slugs : [];
+      const assignedSlugs = categoryOptions.filter((item) => customCatalogSlugs.includes(item.slug)).map((item) => item.slug);
       setManualEditFavoriteCategorySlugs(assignedSlugs);
       setManualEditKnownDesigners((prev) => {
         const set = new Set(prev);
@@ -399,14 +396,6 @@ export function AdminSourcesTab({
         designerName: String(product.display_designer_name || product.designer_name || product.source_designer_name || ""),
         bindSync: isBoundSync,
         favorite: assignedSlugs.length > 0,
-        manualPriceRub:
-          product.price_override?.manual_price_rub === null || product.price_override?.manual_price_rub === undefined
-            ? ""
-            : String(product.price_override.manual_price_rub),
-        manualCompareAtPriceRub:
-          product.price_override?.manual_compare_at_price_rub === null || product.price_override?.manual_compare_at_price_rub === undefined
-            ? ""
-            : String(product.price_override.manual_compare_at_price_rub),
         images: (product.image_urls || []).map((url, idx) => ({ id: `img-${product.id}-${idx + 1}`, url: String(url) })),
         variants: normalizedVariants,
       });
@@ -452,12 +441,20 @@ export function AdminSourcesTab({
         .map((variant) => ({
           title: String(variant.title || "").trim(),
           price: Number(String(variant.price || "").replace(",", ".")),
+          compare_at_price: (() => {
+            const parsed = Number(String(variant.compareAtPrice || "").replace(",", "."));
+            return Number.isFinite(parsed) ? parsed : null;
+          })(),
           available: Boolean(variant.available),
           currency: variant.currency,
         }))
         .filter((variant) => variant.title.length > 0 && Number.isFinite(variant.price));
       if (validVariants.length === 0) {
         pushToast("Добавь хотя бы один вариант с названием и ценой");
+        return;
+      }
+      if (validVariants.some((variant) => variant.compare_at_price !== null && variant.compare_at_price <= Number(variant.price))) {
+        pushToast("Старая цена варианта должна быть больше текущей");
         return;
       }
 
@@ -485,14 +482,6 @@ export function AdminSourcesTab({
 
       const weightRaw = Number(String(manualEditDraft.weightGrams || "").replace(",", "."));
       const weight = Number.isFinite(weightRaw) && weightRaw > 0 ? weightRaw : null;
-      const manualPriceRaw = Number(String(manualEditDraft.manualPriceRub || "").replace(",", "."));
-      const manualCompareAtPriceRaw = Number(String(manualEditDraft.manualCompareAtPriceRub || "").replace(",", "."));
-      const manualPrice = Number.isFinite(manualPriceRaw) && manualPriceRaw > 0 ? manualPriceRaw : null;
-      const manualCompareAtPrice = Number.isFinite(manualCompareAtPriceRaw) && manualCompareAtPriceRaw > 0 ? manualCompareAtPriceRaw : null;
-      if (manualPrice === null && String(manualEditDraft.manualCompareAtPriceRub || "").trim()) {
-        pushToast("Для скидки сначала укажи ручную цену");
-        return;
-      }
       const currentBoundUrl = String(manualEditSourceUrl || "").trim();
       const nextBoundUrl = (
         manualEditShowBindSync
@@ -507,15 +496,11 @@ export function AdminSourcesTab({
         designer_name: String(manualEditDraft.designerName || "").trim() || null,
         source_category_name: null,
         gender: manualEditDraft.gender,
-        variants: validVariants.map((x) => ({ title: x.title, price: x.price, currency: x.currency, available: x.available })),
+        variants: validVariants.map((x) => ({ title: x.title, price: x.price, compare_at_price: x.compare_at_price, currency: x.currency, available: x.available })),
         manual_image_asset_ids: manualImageAssetIds,
         manual_weight_grams: weight,
-        price_override: manualPrice === null ? null : {
-          manual_price_rub: manualPrice,
-          manual_compare_at_price_rub: manualCompareAtPrice,
-        },
         ...deriveProductWriteStateFromVariants(validVariants as ManualEditVariant[], manualEditDraft.availabilityMode),
-        filter_slugs: manualEditFavoriteCategorySlugs,
+        custom_catalog_slugs: manualEditFavoriteCategorySlugs,
       };
       const updateRes = await authFetch(`${API_BASE}/products/manual/${manualEditProductId}`, {
         method: "PATCH",
@@ -559,7 +544,7 @@ export function AdminSourcesTab({
         }
       }
       pushToast("Товар обновлен");
-      const nextState = deriveProductWriteStateFromVariants(validVariants as ManualEditVariant[]);
+      const nextState = deriveProductWriteStateFromVariants(validVariants as ManualEditVariant[], manualEditDraft.availabilityMode);
       setManualEditOpen(false);
       setSourceProducts((prev) => prev.map((item) => (
         item.id === manualEditProductId

@@ -1,3 +1,4 @@
+import { resolveSitePublicAssetUrl } from "../../app/site-public-asset";
 import type { ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
 import "./site-window-shell.css";
 
@@ -64,7 +65,7 @@ export function SiteWindowCloseButton({
       onClick={onClick}
     >
       <img
-        src="/site-mock/product-detail/sources-modal/close-icon.svg"
+        src={resolveSitePublicAssetUrl("/site-mock/product-detail/sources-modal/close-icon.svg")}
         alt=""
         aria-hidden="true"
         className="site-window-titlebar__close-icon"

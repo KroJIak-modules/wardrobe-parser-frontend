@@ -4,7 +4,48 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="preload" as="image" href="/logo_anton_shell.svg" type="image/svg+xml" />
+    <style>
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+      }
+    </style>
+    <script>
+      (function () {
+        var heroUrl = "%VITE_SITE_HERO_URL%";
+        var searchParams = new URLSearchParams(window.location.search);
+        var isHomeEntry = window.location.pathname === "/" && searchParams.get("view") !== "storefront";
+
+        if (!isHomeEntry) {
+          return;
+        }
+
+        var preloadLink = document.createElement("link");
+        preloadLink.rel = "preload";
+        preloadLink.as = "image";
+        preloadLink.href = heroUrl;
+        document.head.appendChild(preloadLink);
+
+        document.documentElement.style.background = "#0b0a09";
+        document.body.style.background = "#0b0a09";
+
+        window.addEventListener(
+          "DOMContentLoaded",
+          function () {
+            var root = document.getElementById("root");
+            if (!root) {
+              return;
+            }
+
+            root.style.minHeight = "100svh";
+            root.style.background = "center / cover no-repeat url(\"" + heroUrl + "\"), #0b0a09";
+          },
+          { once: true }
+        );
+      })();
+    </script>
     <title>Anton Shell</title>
   </head>
   <body>
