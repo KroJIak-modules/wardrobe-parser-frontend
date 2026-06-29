@@ -443,6 +443,7 @@ export function AdminPage() {
     tableTotal,
     tableOverallTotal,
     tableLoading,
+    initialTableLoading,
     tableLoadingMore,
     productSources,
     productDesigners,
@@ -478,6 +479,7 @@ export function AdminPage() {
     tab,
     productsTabProps: {
       tableLoading,
+      initialTableLoading,
       tableProducts,
       productsReturnHref,
       tableTotal,

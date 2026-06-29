@@ -26,8 +26,9 @@ export function SiteProductCard({
   const [titleLineCount, setTitleLineCount] = useState<1 | 2>(1);
   const designerHref = product.designerId ? buildDesignerCatalogHref(product.designerId) : null;
   const productHref = `/show/${product.id}`;
+  const isStorefrontRoute = location.pathname === "/" && new URLSearchParams(location.search).get("view") === "storefront";
   const productLinkState =
-    location.pathname === "/catalog"
+    location.pathname === "/catalog" || isStorefrontRoute
       ? {
           fromCatalog: {
             pathname: location.pathname,

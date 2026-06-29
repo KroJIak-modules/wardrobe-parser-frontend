@@ -177,6 +177,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [tableOffset, setTableOffset] = useState<number>(0);
   const [tableLoading, setTableLoading] = useState<boolean>(false);
   const [tableLoadingMore, setTableLoadingMore] = useState<boolean>(false);
+  const [tableLoadedOnce, setTableLoadedOnce] = useState<boolean>(false);
   const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
   const [statusUpdatingProductId, setStatusUpdatingProductId] = useState<number | null>(null);
   const [productSources, setProductSources] = useState<AdminFilterFacetOption[]>([]);
@@ -245,6 +246,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       const loadedCount = items.length;
       setTableOffset(loadedCount);
       setTableHasMore(loadedCount < Number(payload.total || 0));
+      setTableLoadedOnce(true);
       return payload;
     } finally {
       if (!silent && requestSeq === requestSeqRef.current) {
@@ -535,6 +537,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     tableTotal,
     tableOverallTotal,
     tableLoading,
+    initialTableLoading: tableLoading && !tableLoadedOnce,
     tableLoadingMore,
     productSources,
     productDesigners,

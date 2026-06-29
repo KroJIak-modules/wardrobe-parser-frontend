@@ -117,7 +117,7 @@ export function SiteHomePage() {
             onEnter={() => {
               setSearchParams((current) => {
                 const next = new URLSearchParams(current);
-                next.delete("view");
+                next.set("view", "storefront");
                 return next;
               });
               setPhase("transition");

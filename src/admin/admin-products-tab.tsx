@@ -11,6 +11,7 @@ type SourceLabel = {
 
 type Props = {
   tableLoading: boolean;
+  initialTableLoading: boolean;
   tableProducts: AdminProductsTableItem[];
   productsReturnHref: string;
   tableTotal: number;
@@ -51,6 +52,7 @@ type Props = {
 
 export function AdminProductsTab({
   tableLoading,
+  initialTableLoading,
   tableProducts,
   productsReturnHref,
   tableTotal,
@@ -90,11 +92,11 @@ export function AdminProductsTab({
 }: Props) {
   return (
     <div className="card">
-      {tableLoading && tableProducts.length === 0 ? (
+      {initialTableLoading ? (
         <AdminProductsSkeleton />
       ) : (
         <>
-          <h2>{tableLoading && tableProducts.length === 0 ? "Все товары" : `Все товары (${tableTotal}/${tableOverallTotal})`}</h2>
+          <h2>{`Все товары (${tableTotal}/${tableOverallTotal})`}</h2>
 
           <div className="products-layout">
             <AdminProductsFilters
