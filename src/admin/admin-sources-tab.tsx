@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { AdminSourcesSkeleton } from "../shared/skeleton";
-import { IconClose } from "../shared/mono-icons";
+import { IconChevronDown, IconChevronUp, IconClose } from "../shared/mono-icons";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { normalizeServiceProduct } from "../shared/live-product-normalizer";
 import { deriveProductWriteStateFromVariants, getProductStateClass, getProductStateLabel } from "../shared/product-state";
@@ -8,6 +8,7 @@ import { optimizeImageUrl } from "../shared/product-image";
 import { getAdminMeCached } from "../shared/admin-auth";
 import { API_BASE, authFetch } from "./auth-fetch";
 import { AdminManualProductEditModal, type ManualProductEditDraft, type ManualEditVariant } from "./admin-manual-product-edit-modal";
+import "./admin-sources-tab.css";
 
 type SourceItem = {
   key: string;
@@ -16,6 +17,7 @@ type SourceItem = {
   name: string;
   base_url: string;
   logo_image_asset_id?: number | null;
+  sort_priority?: number;
   products_count: number;
   manual_products_count?: number;
   bound_sync_products_count?: number;
@@ -37,6 +39,7 @@ type Props = {
   toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceDedupEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  reorderSources: (sourceKeys: string[]) => Promise<{ ok: boolean; message: string }>;
   uploadSourceLogo: (sourceKey: string, file: File) => Promise<{ ok: boolean; message: string }>;
   clearSourceLogo: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
   updateSourceAttributeVisibility: (key: string, payload: { description_mode?: "hidden" | "text" | "html"; show_images?: boolean }) => Promise<{ ok: boolean; message: string }>;
@@ -89,6 +92,40 @@ function getSourceModeLabel(mode: "auto" | "manual" | "personal"): string {
   if (mode === "manual") return "Ручной";
   if (mode === "personal") return "Личный";
   return "Авто";
+}
+
+function getSourcePriorityValue(source: SourceItem): number {
+  const value = Number(source.sort_priority || 0);
+  return Number.isFinite(value) && value > 0 ? value : Number.MAX_SAFE_INTEGER;
+}
+
+function sortSourceItems(items: SourceItem[]): SourceItem[] {
+  return [...items].sort((left, right) => {
+    const byPriority = getSourcePriorityValue(left) - getSourcePriorityValue(right);
+    if (byPriority !== 0) {
+      return byPriority;
+    }
+    const byName = String(left.name || "").localeCompare(String(right.name || ""), "ru");
+    if (byName !== 0) {
+      return byName;
+    }
+    return String(left.key || "").localeCompare(String(right.key || ""), "ru");
+  });
+}
+
+function moveSourceKey(keys: string[], sourceKey: string, targetIndex: number): string[] {
+  const currentIndex = keys.indexOf(sourceKey);
+  if (currentIndex < 0) {
+    return keys;
+  }
+  const boundedTargetIndex = Math.max(0, Math.min(targetIndex, keys.length - 1));
+  if (currentIndex === boundedTargetIndex) {
+    return keys;
+  }
+  const next = [...keys];
+  const [moved] = next.splice(currentIndex, 1);
+  next.splice(boundedTargetIndex, 0, moved);
+  return next;
 }
 
 function getSourceLogoUrl(logoImageAssetId: number | null | undefined) {
@@ -187,6 +224,7 @@ export function AdminSourcesTab({
   toggleSourceSyncEnabled,
   toggleSourceDedupEnabled,
   toggleSourceAutoHideProducts,
+  reorderSources,
   uploadSourceLogo,
   clearSourceLogo,
   updateSourceAttributeVisibility,
@@ -242,6 +280,10 @@ export function AdminSourcesTab({
   } | null>(null);
   const [canEditSources, setCanEditSources] = useState<boolean>(false);
   const [canEditAutoSyncPeriod, setCanEditAutoSyncPeriod] = useState<boolean>(false);
+  const [sourceOrderDraft, setSourceOrderDraft] = useState<string[]>([]);
+  const [draggingSourceKey, setDraggingSourceKey] = useState<string | null>(null);
+  const [dragOverSourceKey, setDragOverSourceKey] = useState<string | null>(null);
+  const [sourceOrderSaving, setSourceOrderSaving] = useState<boolean>(false);
 
   useEffect(() => {
     void (async () => {
@@ -298,18 +340,17 @@ export function AdminSourcesTab({
     return raw === "rescheduled" ? "scheduled" : raw;
   })();
   const autoSyncStatusLabel = autoSyncStatusLabelMap[normalizedAutoSyncStatus] || "—";
-  const orderedSources = [...sources].sort((left, right) => {
-    const leftMode = normalizeSourceMode(left.mode);
-    const rightMode = normalizeSourceMode(right.mode);
-    const rankByMode: Record<"personal" | "manual" | "auto", number> = {
-      personal: 0,
-      manual: 1,
-      auto: 2,
-    };
-    const rankDiff = rankByMode[leftMode] - rankByMode[rightMode];
-    if (rankDiff !== 0) return rankDiff;
-    return String(left.name || "").localeCompare(String(right.name || ""), "ru");
-  });
+  const orderedSourceItems = useMemo(() => sortSourceItems(sources), [sources]);
+  const orderedSourceKeys = useMemo(() => orderedSourceItems.map((source) => source.key), [orderedSourceItems]);
+  const sourceByKey = useMemo(() => new Map(orderedSourceItems.map((source) => [source.key, source])), [orderedSourceItems]);
+  const orderedSources = useMemo(
+    () => sourceOrderDraft.map((sourceKey) => sourceByKey.get(sourceKey)).filter((source): source is SourceItem => Boolean(source)),
+    [sourceByKey, sourceOrderDraft],
+  );
+
+  useEffect(() => {
+    setSourceOrderDraft(orderedSourceKeys);
+  }, [orderedSourceKeys]);
 
   useEffect(() => {
     setSourceAttrVisibility((prev) => {
@@ -327,6 +368,80 @@ export function AdminSourcesTab({
   }, [sources]);
 
   const isAnySyncRunning = Boolean(latestJob && ["queued", "running"].includes(String(latestJob.status || "")));
+
+  const persistSourceOrder = async (nextKeys: string[]) => {
+    if (!canEditSources || sourceOrderSaving) {
+      return;
+    }
+    const currentKeys = orderedSources.map((source) => source.key);
+    if (nextKeys.length !== currentKeys.length || nextKeys.every((key, index) => key === currentKeys[index])) {
+      return;
+    }
+    setSourceOrderDraft(nextKeys);
+    setSourceOrderSaving(true);
+    try {
+      const result = await reorderSources(nextKeys);
+      if (!result.ok) {
+        pushToast(result.message);
+        setSourceOrderDraft(orderedSourceKeys);
+      }
+    } finally {
+      setSourceOrderSaving(false);
+      setDraggingSourceKey(null);
+      setDragOverSourceKey(null);
+    }
+  };
+
+  const moveSourceByStep = (sourceKey: string, step: -1 | 1) => {
+    const currentIndex = sourceOrderDraft.indexOf(sourceKey);
+    if (currentIndex < 0) {
+      return;
+    }
+    const nextIndex = currentIndex + step;
+    if (nextIndex < 0 || nextIndex >= sourceOrderDraft.length) {
+      return;
+    }
+    void persistSourceOrder(moveSourceKey(sourceOrderDraft, sourceKey, nextIndex));
+  };
+
+  const onSourceDragStart = (event: DragEvent<HTMLElement>, sourceKey: string) => {
+    if (!canEditSources || sourceOrderSaving) {
+      event.preventDefault();
+      return;
+    }
+    setDraggingSourceKey(sourceKey);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", sourceKey);
+  };
+
+  const onSourceDragOver = (event: DragEvent<HTMLElement>, sourceKey: string) => {
+    if (!canEditSources || sourceOrderSaving || draggingSourceKey === sourceKey) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDragOverSourceKey(sourceKey);
+  };
+
+  const onSourceDrop = (event: DragEvent<HTMLElement>, targetKey: string) => {
+    event.preventDefault();
+    if (!canEditSources || sourceOrderSaving) {
+      return;
+    }
+    const droppedKey = String(event.dataTransfer.getData("text/plain") || draggingSourceKey || "").trim();
+    if (!droppedKey || droppedKey === targetKey) {
+      setDraggingSourceKey(null);
+      setDragOverSourceKey(null);
+      return;
+    }
+    const targetIndex = sourceOrderDraft.indexOf(targetKey);
+    if (targetIndex < 0) {
+      setDraggingSourceKey(null);
+      setDragOverSourceKey(null);
+      return;
+    }
+    void persistSourceOrder(moveSourceKey(sourceOrderDraft, droppedKey, targetIndex));
+  };
 
   const openManualEdit = async (productId: number) => {
     setManualEditLoading(true);
@@ -910,6 +1025,110 @@ export function AdminSourcesTab({
           })}
         </div>
       )}
+
+      {!loading ? (
+        <section className="sources-order-panel">
+          <div className="sources-order-panel__head">
+            <div>
+              <h3 className="sources-order-panel__title">Порядок источников</h3>
+            </div>
+          </div>
+          <div className="sources-order-table" role="table" aria-label="Порядок источников">
+            <div className="sources-order-table__head" role="rowgroup">
+              <div className="sources-order-table__row sources-order-table__row--head" role="row">
+                <div className="sources-order-table__cell sources-order-table__cell--handle" role="columnheader" aria-label="Перетаскивание" />
+                <div className="sources-order-table__cell sources-order-table__cell--arrows" role="columnheader" aria-label="Сдвиг" />
+                <div className="sources-order-table__cell sources-order-table__cell--order" role="columnheader">№</div>
+                <div className="sources-order-table__cell sources-order-table__cell--source" role="columnheader">Источник</div>
+                <div className="sources-order-table__cell sources-order-table__cell--count" role="columnheader">Товаров</div>
+                <div className="sources-order-table__cell sources-order-table__cell--mode" role="columnheader">Режим</div>
+              </div>
+            </div>
+            <div className="sources-order-table__body" role="rowgroup">
+              {orderedSources.map((source, index) => {
+                const sourceMode = normalizeSourceMode(source.mode);
+                const isPersonal = sourceMode === "personal";
+                const href = /^https?:\/\//i.test(source.base_url) ? source.base_url : `https://${source.base_url}`;
+                const rowDragging = draggingSourceKey === source.key;
+                const rowDropTarget = dragOverSourceKey === source.key && draggingSourceKey !== source.key;
+                return (
+                  <div
+                    key={`source-order-${source.key}`}
+                    role="row"
+                    draggable={canEditSources && !sourceOrderSaving}
+                    className={`sources-order-table__row${rowDragging ? " sources-order-table__row--dragging" : ""}${rowDropTarget ? " sources-order-table__row--drop-target" : ""}${sourceOrderSaving ? " sources-order-table__row--locked" : ""}`}
+                    onDragStart={(event) => onSourceDragStart(event, source.key)}
+                    onDragOver={(event) => onSourceDragOver(event, source.key)}
+                    onDrop={(event) => onSourceDrop(event, source.key)}
+                    onDragEnd={() => {
+                      setDraggingSourceKey(null);
+                      setDragOverSourceKey(null);
+                    }}
+                  >
+                    <div className="sources-order-table__cell sources-order-table__cell--handle" role="cell">
+                      <span className="sources-order-handle" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                    </div>
+                    <div className="sources-order-table__cell sources-order-table__cell--arrows" role="cell">
+                      <div className="sources-order-move">
+                        <button
+                          type="button"
+                          className="sources-order-move__button"
+                          aria-label={`Поднять источник ${source.name}`}
+                          disabled={!canEditSources || sourceOrderSaving || index === 0}
+                          onClick={() => moveSourceByStep(source.key, -1)}
+                        >
+                          <IconChevronUp className="icon-svg" />
+                        </button>
+                        <button
+                          type="button"
+                          className="sources-order-move__button"
+                          aria-label={`Опустить источник ${source.name}`}
+                          disabled={!canEditSources || sourceOrderSaving || index === orderedSources.length - 1}
+                          onClick={() => moveSourceByStep(source.key, 1)}
+                        >
+                          <IconChevronDown className="icon-svg" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="sources-order-table__cell sources-order-table__cell--order" role="cell">
+                      <span className="sources-order-position">{index + 1}</span>
+                    </div>
+                    <div className="sources-order-table__cell sources-order-table__cell--source" role="cell">
+                      <div className="sources-order-source">
+                        {isPersonal ? (
+                          <span className="sources-order-source__name">{source.name}</span>
+                        ) : (
+                          <a className="sources-order-source__link" href={href} target="_blank" rel="noreferrer">
+                            {source.name}
+                          </a>
+                        )}
+                        <span className="sources-order-source__url">
+                          {isPersonal ? "Локальный источник" : source.base_url.replace(/^https?:\/\//i, "").replace(/\/+$/, "")}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="sources-order-table__cell sources-order-table__cell--count" role="cell">
+                      {source.products_count}
+                    </div>
+                    <div className="sources-order-table__cell sources-order-table__cell--mode" role="cell">
+                      <span className={`source-badge ${sourceMode === "auto" ? "source-badge--ready" : sourceMode === "manual" ? "source-badge--manual" : "source-badge--personal"}`}>
+                        {getSourceModeLabel(sourceMode)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {sourceProductsOpen ? (
         <div className="modal-backdrop" onClick={() => setSourceProductsOpen(false)}>

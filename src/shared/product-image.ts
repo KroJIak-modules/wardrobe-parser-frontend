@@ -6,7 +6,13 @@ export function normalizeImageSourceUrl(url: string | null | undefined): string 
   if (raw.startsWith("//")) {
     return `https:${raw}`;
   }
-  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("/")) {
+  if (
+    raw.startsWith("http://")
+    || raw.startsWith("https://")
+    || raw.startsWith("/")
+    || raw.startsWith("blob:")
+    || raw.startsWith("data:")
+  ) {
     return raw;
   }
   return null;
@@ -34,6 +40,9 @@ export function optimizeImageUrl(
   const normalized = normalizeImageSourceUrl(url);
   if (!normalized) {
     return null;
+  }
+  if (normalized.startsWith("blob:") || normalized.startsWith("data:")) {
+    return normalized;
   }
   const width = Math.max(1, Math.floor(options.width ?? 240));
   const height = Math.max(1, Math.floor(options.height ?? 240));

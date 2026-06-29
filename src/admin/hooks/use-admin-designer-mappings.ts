@@ -101,6 +101,19 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     void load();
   }, [tab, load]);
 
+  useEffect(() => {
+    if (tab !== "designers") {
+      return;
+    }
+    const handleRefresh = () => {
+      void load();
+    };
+    window.addEventListener("admin:settings-transfer-applied", handleRefresh);
+    return () => {
+      window.removeEventListener("admin:settings-transfer-applied", handleRefresh);
+    };
+  }, [load, tab]);
+
   const onChangeDesignerName = useCallback((sourceBrand: string, designerName: string) => {
     setRows((prev) =>
       prev.map((row) => (row.source_brand === sourceBrand ? { ...row, designer_name: designerName } : row))

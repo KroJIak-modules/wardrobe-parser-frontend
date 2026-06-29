@@ -66,7 +66,7 @@
 
 .site-mobile-home-header__button--cart {
   right: 20px;
-  padding: 8px 6px 8px 5px;
+  padding: 0;
 }
 
 .site-mobile-home-header__button:focus-visible {
@@ -83,13 +83,13 @@
 .site-mobile-home-header__cart-count {
   position: absolute;
   left: 50%;
-  bottom: 10px;
+  bottom: 7px;
   transform: translateX(-50%);
   display: block;
   height: 12px;
   color: #000;
   font-family: "SF Compact Rounded", var(--site-font-ui);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 300;
   line-height: 100%;
   text-align: center;
@@ -99,7 +99,7 @@
 }
 
 .site-mobile-home-header__cart-count--wide {
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .site-mobile-home-header__button--burger .site-mobile-home-header__button-image {
@@ -108,9 +108,6 @@
 }
 
 .site-mobile-home-header__button--cart .site-mobile-home-header__button-image {
-  position: absolute;
-  left: 7px;
-  top: 9px;
   width: 22px;
   height: 19px;
 }

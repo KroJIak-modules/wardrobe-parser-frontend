@@ -41,11 +41,11 @@ export function readProductsQuery(searchParams: URLSearchParams): ProductsQueryS
 
 export function withProductsQueryParam(previous: URLSearchParams, key: string, value: string): URLSearchParams {
   const next = new URLSearchParams(previous);
-  const normalized = value.trim();
-  if (!normalized) {
+  const raw = String(value ?? "");
+  if (!raw.trim()) {
     next.delete(key);
   } else {
-    next.set(key, normalized);
+    next.set(key, raw);
   }
   return next;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { siteFooterColumns } from "../../app/site-static-content";
 import type { SiteFooterColumn } from "../storefront/site-storefront-contracts";
@@ -13,20 +13,6 @@ import {
 } from "./site-mobile-menu-data";
 import "./site-mobile-menu.css";
 
-const MOBILE_MENU_FOOTER_OFFSET = 40;
-const MOBILE_MENU_FOOTER_ITEM_HEIGHT = 14;
-const MOBILE_MENU_FOOTER_ITEM_GAP = 30;
-
-const MOBILE_MENU_FOOTER_GEOMETRY: Record<SiteFooterColumn["id"], { left: number; width: number }> = {
-  info: { left: 68, width: 145 },
-  social: { left: 85, width: 111 },
-};
-
-type SiteMobileMenuFooterLayout = {
-  blocks: SiteFooterColumn[];
-  topById: Partial<Record<SiteFooterColumn["id"], number>>;
-};
-
 type SiteMobileMenuTransitionDirection = "forward" | "backward";
 
 type SiteMobileMenuPanelLayer = {
@@ -36,47 +22,8 @@ type SiteMobileMenuPanelLayer = {
   phase: "enter" | "active" | "exit";
 };
 
-type SiteMobileMenuRenderedFooter = {
-  id: SiteFooterColumn["id"];
-  column: SiteFooterColumn;
-  top: number;
-  phase: "enter" | "active" | "exit";
-};
-
 function getPanelDepth(panel: SiteMobileMenuPanel) {
   return panel === "root" ? 0 : 1;
-}
-
-function getFooterBlockHeight(column: SiteFooterColumn) {
-  return MOBILE_MENU_FOOTER_ITEM_HEIGHT + column.links.length * (MOBILE_MENU_FOOTER_ITEM_HEIGHT + MOBILE_MENU_FOOTER_ITEM_GAP);
-}
-
-function getFooterLayout(menuHeight: number, lastContentBottom: number, infoColumn: SiteFooterColumn, socialColumn: SiteFooterColumn): SiteMobileMenuFooterLayout {
-  const anchorTop = Math.round(lastContentBottom + MOBILE_MENU_FOOTER_OFFSET);
-  const availableHeight = menuHeight - anchorTop;
-  const infoHeight = getFooterBlockHeight(infoColumn);
-  const socialHeight = getFooterBlockHeight(socialColumn);
-
-  if (availableHeight >= infoHeight + MOBILE_MENU_FOOTER_OFFSET + socialHeight) {
-    return {
-      blocks: [socialColumn, infoColumn],
-      topById: {
-        social: anchorTop,
-        info: anchorTop + socialHeight + MOBILE_MENU_FOOTER_OFFSET,
-      },
-    };
-  }
-
-  if (availableHeight >= socialHeight) {
-    return {
-      blocks: [socialColumn],
-      topById: {
-        social: anchorTop,
-      },
-    };
-  }
-
-  return { blocks: [], topById: {} };
 }
 
 function SearchIcon() {
@@ -120,33 +67,15 @@ function isActionInteractive(action: SiteMobileMenuAction) {
 
 function SiteMobileMenuFooterBlock({
   column,
-  top,
-  phase,
   onClose,
-  onTransitionEnd,
 }: {
   column: SiteFooterColumn;
-  top: number;
-  phase: "enter" | "active" | "exit";
   onClose: () => void;
-  onTransitionEnd: () => void;
 }) {
   const navigate = useNavigate();
-  const geometry = MOBILE_MENU_FOOTER_GEOMETRY[column.id];
 
   return (
-    <nav
-      className={`site-mobile-menu__footer site-mobile-menu__footer--${column.id} site-mobile-menu__footer--${phase}`}
-      style={{ top, left: geometry.left, width: geometry.width }}
-      aria-label={column.title}
-      onTransitionEnd={(event) => {
-        if (event.currentTarget !== event.target || event.propertyName !== "transform") {
-          return;
-        }
-
-        onTransitionEnd();
-      }}
-    >
+    <nav className={`site-mobile-menu__footer site-mobile-menu__footer--${column.id}`} aria-label={column.title}>
       <p className="site-mobile-menu__footer-title">{column.title}</p>
       {column.links.map((link) => {
         const content = <span>{link.label}</span>;
@@ -199,16 +128,10 @@ export function SiteMobileMenu({
   const [panel, setPanel] = useState<SiteMobileMenuPanel>("root");
   const [searchValue, setSearchValue] = useState("");
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const activeContentRef = useRef<HTMLDivElement | null>(null);
   const nextPanelLayerIdRef = useRef(1);
-  const groups = useMemo(() => getSiteMobileMenuGroups(panel, gender), [gender, panel]);
-  const infoFooterColumn = siteFooterColumns.find((column) => column.id === "info") ?? null;
-  const socialFooterColumn = siteFooterColumns.find((column) => column.id === "social") ?? null;
-  const [footerLayout, setFooterLayout] = useState<SiteMobileMenuFooterLayout>({ blocks: [], topById: {} });
   const [panelLayers, setPanelLayers] = useState<SiteMobileMenuPanelLayer[]>([
     { id: 0, panel: "root", direction: "forward", phase: "active" },
   ]);
-  const [renderedFooters, setRenderedFooters] = useState<SiteMobileMenuRenderedFooter[]>([]);
 
   const startPanelTransition = (nextPanel: SiteMobileMenuPanel) => {
     setPanel((currentPanel) => {
@@ -232,6 +155,8 @@ export function SiteMobileMenu({
 
       return nextPanel;
     });
+
+    menuRef.current?.scrollTo({ top: 0, behavior: "auto" });
   };
 
   useEffect(() => {
@@ -248,104 +173,6 @@ export function SiteMobileMenu({
 
     return () => window.cancelAnimationFrame(frameId);
   }, [panelLayers]);
-
-  useEffect(() => {
-    const hasEnteringFooter = renderedFooters.some((footer) => footer.phase === "enter");
-    if (!hasEnteringFooter) {
-      return;
-    }
-
-    const frameId = window.requestAnimationFrame(() => {
-      setRenderedFooters((currentFooters) =>
-        currentFooters.map((footer) => (footer.phase === "enter" ? { ...footer, phase: "active" } : footer)),
-      );
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [renderedFooters]);
-
-  useLayoutEffect(() => {
-    if (!menuRef.current || !activeContentRef.current || !infoFooterColumn || !socialFooterColumn) {
-      setFooterLayout({ blocks: [], topById: {} });
-      return;
-    }
-
-    const menuElement = menuRef.current;
-    const contentElement = activeContentRef.current;
-
-    const updateFooterLayout = () => {
-      const actionElements = contentElement.querySelectorAll<HTMLElement>("[data-mobile-menu-action]");
-      const lastActionElement = actionElements.item(actionElements.length - 1);
-      if (!lastActionElement) {
-        setFooterLayout({ blocks: [], topById: {} });
-        return;
-      }
-
-      const menuRect = menuElement.getBoundingClientRect();
-      const lastActionRect = lastActionElement.getBoundingClientRect();
-      setFooterLayout(getFooterLayout(menuRect.height, lastActionRect.bottom - menuRect.top, infoFooterColumn, socialFooterColumn));
-    };
-
-    updateFooterLayout();
-
-    const resizeObserver = new ResizeObserver(updateFooterLayout);
-    resizeObserver.observe(menuElement);
-    resizeObserver.observe(contentElement);
-    window.addEventListener("resize", updateFooterLayout);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateFooterLayout);
-    };
-  }, [groups, infoFooterColumn, socialFooterColumn]);
-
-  useEffect(() => {
-    if (!infoFooterColumn || !socialFooterColumn) {
-      setRenderedFooters([]);
-      return;
-    }
-
-    const nextFooterMap = new Map(
-      footerLayout.blocks.map((column) => [
-        column.id,
-        {
-          id: column.id,
-          column,
-          top: footerLayout.topById[column.id] ?? 0,
-        },
-      ]),
-    );
-
-    setRenderedFooters((currentFooters) => {
-      const currentFooterMap = new Map(currentFooters.map((footer) => [footer.id, footer]));
-      const nextFooters: SiteMobileMenuRenderedFooter[] = [];
-
-      footerLayout.blocks.forEach((column) => {
-        const nextFooter = nextFooterMap.get(column.id);
-        if (!nextFooter) {
-          return;
-        }
-
-        const currentFooter = currentFooterMap.get(column.id);
-        nextFooters.push({
-          id: column.id,
-          column,
-          top: nextFooter.top,
-          phase: currentFooter?.phase === "exit" ? "enter" : currentFooter ? "active" : "enter",
-        });
-      });
-
-      currentFooters.forEach((footer) => {
-        if (nextFooterMap.has(footer.id)) {
-          return;
-        }
-
-        nextFooters.push({ ...footer, phase: "exit" });
-      });
-
-      return nextFooters;
-    });
-  }, [footerLayout, infoFooterColumn, socialFooterColumn]);
 
   const activateAction = (action: SiteMobileMenuAction) => {
     if (action.panel) {
@@ -381,40 +208,41 @@ export function SiteMobileMenu({
       onClose={onClose}
       onCloseAnimationEnd={onCloseAnimationEnd}
     >
-        <div className={`site-mobile-menu__tabs site-mobile-menu__tabs--${gender}`}>
-          <span className="site-mobile-menu__tabs-indicator" aria-hidden="true" />
-          <button
-            type="button"
-            className="site-mobile-menu__tab"
-            onClick={() => {
-              setGender("men");
-              startPanelTransition("root");
-            }}
-          >
-            МУЖСКОЕ
-          </button>
-          <button
-            type="button"
-            className="site-mobile-menu__tab"
-            onClick={() => {
-              setGender("women");
-              startPanelTransition("root");
-            }}
-          >
-            ЖЕНСКОЕ
-          </button>
-          <button
-            type="button"
-            className="site-mobile-menu__tab"
-            onClick={() => {
-              onClose();
-              navigate("/sale");
-            }}
-          >
-            СКИДКИ
-          </button>
-        </div>
+      <div className={`site-mobile-menu__tabs site-mobile-menu__tabs--${gender}`}>
+        <span className="site-mobile-menu__tabs-indicator" aria-hidden="true" />
+        <button
+          type="button"
+          className="site-mobile-menu__tab"
+          onClick={() => {
+            setGender("men");
+            startPanelTransition("root");
+          }}
+        >
+          МУЖСКОЕ
+        </button>
+        <button
+          type="button"
+          className="site-mobile-menu__tab"
+          onClick={() => {
+            setGender("women");
+            startPanelTransition("root");
+          }}
+        >
+          ЖЕНСКОЕ
+        </button>
+        <button
+          type="button"
+          className="site-mobile-menu__tab"
+          onClick={() => {
+            onClose();
+            navigate("/sale");
+          }}
+        >
+          СКИДКИ
+        </button>
+      </div>
 
+      <div className="site-mobile-menu__panel-stack">
         {panelLayers.map((layer) => {
           const layerGroups = getSiteMobileMenuGroups(layer.panel, gender);
           const layerTitle = getSiteMobileMenuPanelTitle(layer.panel);
@@ -436,101 +264,93 @@ export function SiteMobileMenu({
                 }
               }}
             >
-              {isRootPanel ? (
-                <form className="site-mobile-menu__search" role="search" onSubmit={submitSearch}>
-                  <input
-                    className="site-mobile-menu__search-input"
-                    value={searchValue}
-                    placeholder="Поиск"
-                    aria-label="Поиск"
-                    onChange={(event) => setSearchValue(event.target.value)}
-                  />
-                  <button type="submit" className="site-mobile-menu__search-submit" aria-label="Искать">
-                    <SearchIcon />
+              <div
+                className={
+                  isRootPanel
+                    ? "site-mobile-menu__panel-frame site-mobile-menu__panel-frame--root"
+                    : "site-mobile-menu__panel-frame site-mobile-menu__panel-frame--detail"
+                }
+              >
+                {isRootPanel ? (
+                  <form className="site-mobile-menu__search" role="search" onSubmit={submitSearch}>
+                    <input
+                      className="site-mobile-menu__search-input"
+                      value={searchValue}
+                      placeholder="Поиск"
+                      aria-label="Поиск"
+                      onChange={(event) => setSearchValue(event.target.value)}
+                    />
+                    <button type="submit" className="site-mobile-menu__search-submit" aria-label="Искать">
+                      <SearchIcon />
+                    </button>
+                  </form>
+                ) : layerTitle ? (
+                  <button
+                    type="button"
+                    className="site-mobile-menu__detail-header"
+                    aria-label="Назад"
+                    onClick={() => startPanelTransition("root")}
+                  >
+                    <DetailHeaderChevron />
+                    <span className="site-mobile-menu__detail-title">{layerTitle}</span>
                   </button>
-                </form>
-              ) : layerTitle ? (
-                <button
-                  type="button"
-                  className="site-mobile-menu__detail-header"
-                  aria-label="Назад"
-                  onClick={() => startPanelTransition("root")}
-                >
-                  <DetailHeaderChevron />
-                  <span className="site-mobile-menu__detail-title">{layerTitle}</span>
-                </button>
-              ) : null}
+                ) : null}
 
-              {layerGroups.length > 0 ? (
-                <div
-                  ref={isTopLayer ? activeContentRef : null}
-                  className={
-                    isRootPanel
-                      ? "site-mobile-menu__content site-mobile-menu__content--root"
-                      : "site-mobile-menu__content site-mobile-menu__content--detail"
-                  }
-                >
-                  {layerGroups.map((group) => (
-                    <div
-                      key={group.id}
-                      className={
-                        isRootPanel
-                          ? "site-mobile-menu__content-group site-mobile-menu__content-group--root"
-                          : "site-mobile-menu__content-group"
-                      }
-                    >
-                      {group.actions.map((action) => {
-                        const className = getActionClassName(action, layer.panel);
+                {layerGroups.length > 0 ? (
+                  <div
+                    className={
+                      isRootPanel
+                        ? "site-mobile-menu__content site-mobile-menu__content--root"
+                        : "site-mobile-menu__content site-mobile-menu__content--detail"
+                    }
+                  >
+                    {layerGroups.map((group) => (
+                      <div
+                        key={group.id}
+                        className={
+                          isRootPanel
+                            ? "site-mobile-menu__content-group site-mobile-menu__content-group--root"
+                            : "site-mobile-menu__content-group"
+                        }
+                      >
+                        {group.actions.map((action) => {
+                          const className = getActionClassName(action, layer.panel);
 
-                        if (!isActionInteractive(action)) {
+                          if (!isActionInteractive(action)) {
+                            return (
+                              <span key={`${group.id}-${action.label}`} className={`${className} site-mobile-menu__content-action--static`}>
+                                <span className="site-mobile-menu__content-label">{action.label}</span>
+                              </span>
+                            );
+                          }
+
                           return (
-                            <span
+                            <button
                               key={`${group.id}-${action.label}`}
-                              data-mobile-menu-action="true"
-                              className={`${className} site-mobile-menu__content-action--static`}
+                              type="button"
+                              className={className}
+                              onClick={() => activateAction(action)}
                             >
                               <span className="site-mobile-menu__content-label">{action.label}</span>
-                            </span>
+                              {isRootPanel ? <RootActionChevron /> : null}
+                            </button>
                           );
-                        }
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
 
-                        return (
-                          <button
-                            key={`${group.id}-${action.label}`}
-                            data-mobile-menu-action="true"
-                            type="button"
-                            className={className}
-                            onClick={() => activateAction(action)}
-                          >
-                            <span className="site-mobile-menu__content-label">{action.label}</span>
-                            {isRootPanel ? <RootActionChevron /> : null}
-                          </button>
-                        );
-                      })}
-                    </div>
+                <div className="site-mobile-menu__footers">
+                  {siteFooterColumns.map((column) => (
+                    <SiteMobileMenuFooterBlock key={column.id} column={column} onClose={onClose} />
                   ))}
                 </div>
-              ) : null}
+              </div>
             </div>
           );
         })}
-
-        {renderedFooters.map((footer) => (
-          <SiteMobileMenuFooterBlock
-            key={footer.id}
-            column={footer.column}
-            top={footer.top}
-            phase={footer.phase}
-            onClose={onClose}
-            onTransitionEnd={() => {
-              if (footer.phase !== "exit") {
-                return;
-              }
-
-              setRenderedFooters((currentFooters) => currentFooters.filter((currentFooter) => currentFooter.id !== footer.id));
-            }}
-          />
-        ))}
+      </div>
     </SiteMobileDrawerShell>
   );
 }

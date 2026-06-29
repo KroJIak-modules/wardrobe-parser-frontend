@@ -209,7 +209,7 @@ export function useLiveDataProductActions(params: {
     try {
       await apiJson(`${API_BASE}/products/manual/${productId}`, { method: "DELETE" });
       setProducts((prev) => prev.filter((item) => item.id !== productId));
-      await Promise.all([refreshProductsOnly(), refreshSourcesOnly()]);
+      void Promise.allSettled([refreshProductsOnly(), refreshSourcesOnly()]);
       return okResult("Товар удален");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");

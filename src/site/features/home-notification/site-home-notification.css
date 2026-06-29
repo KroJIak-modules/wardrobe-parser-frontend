@@ -199,7 +199,6 @@
     --site-window-titlebar-padding: 3px 4px;
     --site-window-titlebar-radius: 4px;
     height: 24px;
-    border: 1px solid #9c9c9c;
     box-shadow: none;
   }
 

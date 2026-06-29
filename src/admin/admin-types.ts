@@ -69,7 +69,9 @@ export type BybitWorkerInfo = {
 
 export type AdminProductsTableItem = {
   id: number;
+  created_at?: string;
   source_id: number | null;
+  source_sort_priority?: number | null;
   source_name?: string | null;
   title: string;
   gender?: "male" | "female" | "unisex" | null;

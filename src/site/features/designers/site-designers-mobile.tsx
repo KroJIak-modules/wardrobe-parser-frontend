@@ -33,7 +33,13 @@ export function SiteDesignersMobileDirectory({
   onBrowseSelect: (designerId: string) => void;
 }) {
   const groupedEntries = useMemo(() => buildGroupedDesignerEntries(alphabet, entries), [alphabet, entries]);
-  const actionsBottomOffset = useSiteDesignersActionsOffset(SITE_DESIGNERS_MOBILE_ACTIONS_BASE_BOTTOM);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const actionsBottomOffset = useSiteDesignersActionsOffset({
+    baseBottomOffset: SITE_DESIGNERS_MOBILE_ACTIONS_BASE_BOTTOM,
+    actionsRef,
+    stopSelector: ".site-designers-mobile__designer",
+    stopGap: 5,
+  });
   const [activeLetter, setActiveLetter] = useState(groupedEntries[0]?.letter ?? null);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const alphabetButtonRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -279,7 +285,7 @@ export function SiteDesignersMobileDirectory({
         ))}
       </div>
 
-      <div className="site-designers-mobile__actions" style={{ bottom: `${actionsBottomOffset}px` }}>
+      <div ref={actionsRef} className="site-designers-mobile__actions" style={{ bottom: `${actionsBottomOffset}px` }}>
         {mode === "catalog-filter" ? (
           <>
             <button

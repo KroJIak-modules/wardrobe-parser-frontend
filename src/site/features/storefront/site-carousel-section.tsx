@@ -34,6 +34,7 @@ export function SiteCarouselSection({
   const [dotOrbitTick, setDotOrbitTick] = useState(0);
   const previousSelectedIndexRef = useRef<number | null>(null);
   const orbitResetRef = useRef<number | null>(null);
+  const isArrowTransitionLockedRef = useRef(false);
 
   const triggerDotOrbit = useCallback((direction: "next" | "prev") => {
     if (orbitResetRef.current) {
@@ -49,15 +50,26 @@ export function SiteCarouselSection({
   }, []);
 
   const scrollPrev = useCallback(() => {
-    emblaApi?.scrollPrev();
-  }, [emblaApi]);
+    if (!emblaApi || slides.length <= 1 || isArrowTransitionLockedRef.current) {
+      return;
+    }
+
+    isArrowTransitionLockedRef.current = true;
+    emblaApi.scrollPrev();
+  }, [emblaApi, slides.length]);
 
   const scrollNext = useCallback(() => {
-    emblaApi?.scrollNext();
-  }, [emblaApi]);
+    if (!emblaApi || slides.length <= 1 || isArrowTransitionLockedRef.current) {
+      return;
+    }
+
+    isArrowTransitionLockedRef.current = true;
+    emblaApi.scrollNext();
+  }, [emblaApi, slides.length]);
 
   useEffect(() => {
     if (!emblaApi || slides.length <= 1) {
+      isArrowTransitionLockedRef.current = false;
       return;
     }
 
@@ -65,13 +77,21 @@ export function SiteCarouselSection({
       setSelectedIndex(emblaApi.selectedScrollSnap());
     };
 
+    const unlockArrowTransition = () => {
+      isArrowTransitionLockedRef.current = false;
+    };
+
     syncSelectedIndex();
     emblaApi.on("select", syncSelectedIndex);
     emblaApi.on("reInit", syncSelectedIndex);
+    emblaApi.on("settle", unlockArrowTransition);
+    emblaApi.on("pointerDown", unlockArrowTransition);
 
     return () => {
       emblaApi.off("select", syncSelectedIndex);
       emblaApi.off("reInit", syncSelectedIndex);
+      emblaApi.off("settle", unlockArrowTransition);
+      emblaApi.off("pointerDown", unlockArrowTransition);
     };
   }, [emblaApi, slides.length]);
 

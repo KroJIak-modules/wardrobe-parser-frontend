@@ -13,7 +13,6 @@ export const siteFooterColumns: SiteFooterColumn[] = [
     title: "Социальные сети",
     links: [
       { label: "Telegram", href: "https://t.me/antonshellog" },
-      { label: "Instagram" },
       { label: "VK", href: "https://vk.ru/shellog" },
     ],
   },

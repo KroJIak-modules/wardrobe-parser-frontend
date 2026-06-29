@@ -15,23 +15,29 @@ function getOrbitDirection(previousIndex: number, nextIndex: number, totalSlides
   return forwardDistance <= backwardDistance ? "next" : "prev";
 }
 
-function SiteAboutTextBody({ panel }: { panel: SiteAboutTextPanelViewModel }) {
+function SiteAboutTextBody({
+  bodyId,
+  paragraphs,
+}: {
+  bodyId: string;
+  paragraphs: readonly string[];
+}) {
   return (
     <>
-      {panel.paragraphs.map((paragraph, paragraphIndex) => {
+      {paragraphs.map((paragraph, paragraphIndex) => {
         const lines = paragraph.split("\n");
 
         return (
-          <Fragment key={`${panel.id}-${paragraphIndex + 1}`}>
+          <Fragment key={`${bodyId}-${paragraphIndex + 1}`}>
             <p className="site-about__text-paragraph">
               {lines.map((line, lineIndex) => (
-                <span key={`${panel.id}-${paragraphIndex + 1}-${lineIndex + 1}`}>
+                <span key={`${bodyId}-${paragraphIndex + 1}-${lineIndex + 1}`}>
                   {line}
                   {lineIndex < lines.length - 1 ? <br /> : null}
                 </span>
               ))}
             </p>
-            {paragraphIndex < panel.paragraphs.length - 1 ? <div className="site-about__text-spacer" aria-hidden="true" /> : null}
+            {paragraphIndex < paragraphs.length - 1 ? <div className="site-about__text-spacer" aria-hidden="true" /> : null}
           </Fragment>
         );
       })}
@@ -39,12 +45,18 @@ function SiteAboutTextBody({ panel }: { panel: SiteAboutTextPanelViewModel }) {
   );
 }
 
-function SiteAboutTextCard({ panel }: { panel: SiteAboutTextPanelViewModel }) {
+function SiteAboutTextCard({
+  bodyId,
+  paragraphs,
+}: {
+  bodyId: string;
+  paragraphs: readonly string[];
+}) {
   return (
     <article className="site-about__text-shell">
       <div className="site-about__text-card">
         <div className="site-about__text-copy">
-          <SiteAboutTextBody panel={panel} />
+          <SiteAboutTextBody bodyId={bodyId} paragraphs={paragraphs} />
         </div>
       </div>
     </article>
@@ -193,13 +205,13 @@ function SiteAboutPhotoCarousel({
 export function SiteAboutView({
   title,
   photoSlides,
-  textPanels,
+  textPanel,
 }: {
   title: string;
   photoSlides: readonly SiteCarouselSlide[];
-  textPanels: readonly SiteAboutTextPanelViewModel[];
+  textPanel: SiteAboutTextPanelViewModel | null;
 }) {
-  const [leftPanel, rightPanel] = textPanels;
+  const layoutClassName = textPanel ? "site-about__layout" : "site-about__layout site-about__layout--single";
 
   return (
     <section className="site-about" aria-labelledby="site-about-title">
@@ -207,15 +219,15 @@ export function SiteAboutView({
         {title}
       </h1>
 
-      <div className="site-about__layout">
-        {leftPanel ? <SiteAboutTextCard panel={leftPanel} /> : <div className="site-about__text-shell" aria-hidden="true" />}
+      <div className={layoutClassName}>
+        {textPanel ? <SiteAboutTextCard bodyId={`${textPanel.id}-left`} paragraphs={textPanel.paragraphs} /> : null}
         <SiteAboutPhotoCarousel slides={photoSlides} />
-        {rightPanel ? <SiteAboutTextCard panel={rightPanel} /> : <div className="site-about__text-shell" aria-hidden="true" />}
+        {textPanel ? <SiteAboutTextCard bodyId={`${textPanel.id}-right`} paragraphs={textPanel.paragraphs} /> : null}
       </div>
 
-      {leftPanel ? (
+      {textPanel ? (
         <div className="site-about__mobile-text" aria-label="Описание">
-          <SiteAboutTextBody panel={leftPanel} />
+          <SiteAboutTextBody bodyId={textPanel.id} paragraphs={textPanel.paragraphs} />
         </div>
       ) : null}
     </section>

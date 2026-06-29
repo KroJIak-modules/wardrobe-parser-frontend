@@ -86,7 +86,13 @@ export function SiteDesignersDesktopDirectory({
   const groupedEntries = useMemo(() => buildGroupedDesignerEntries(alphabet, entries), [alphabet, entries]);
   const rows = useMemo(() => buildDesignerGridRows(groupedEntries, 6), [groupedEntries]);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
-  const actionsBottomOffset = useSiteDesignersActionsOffset(55);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const actionsBottomOffset = useSiteDesignersActionsOffset({
+    baseBottomOffset: 55,
+    actionsRef,
+    stopSelector: ".site-designers-shell__designer",
+    stopGap: 5,
+  });
   const {
     selectedDesignerIds,
     hasSelection,
@@ -181,7 +187,7 @@ export function SiteDesignersDesktopDirectory({
       </div>
 
       <div className="site-designers-actions">
-        <div className="site-designers-actions__inner" style={{ bottom: `${actionsBottomOffset}px` }}>
+        <div ref={actionsRef} className="site-designers-actions__inner" style={{ bottom: `${actionsBottomOffset}px` }}>
           {mode === "catalog-filter" ? (
             <>
               <button

@@ -30,6 +30,7 @@ type RawGalleryRow = {
 type RawProduct = {
   id: number;
   source_id?: number | null;
+  source_sort_priority?: number | null;
   source_mode?: "auto" | "manual" | "personal" | null;
   has_sync_listing?: boolean | null;
   primary_listing_id?: number | null;
@@ -201,6 +202,10 @@ export function normalizeServiceProduct(payload: RawProduct): ServiceProduct {
   return {
     id: Number(payload.id),
     source_id: payload.source_id === null || payload.source_id === undefined ? null : Number(payload.source_id),
+    source_sort_priority:
+      payload.source_sort_priority === null || payload.source_sort_priority === undefined
+        ? null
+        : Number(payload.source_sort_priority),
     source_mode: payload.source_mode === "auto" || payload.source_mode === "manual" || payload.source_mode === "personal" ? payload.source_mode : null,
     has_sync_listing: Boolean(payload.has_sync_listing),
     primary_listing_id: payload.primary_listing_id === null || payload.primary_listing_id === undefined ? null : Number(payload.primary_listing_id),

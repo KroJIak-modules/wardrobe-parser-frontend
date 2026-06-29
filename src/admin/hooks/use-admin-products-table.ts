@@ -35,7 +35,9 @@ function mapAdminTableItem(raw: Record<string, unknown>): AdminProductsTableItem
     : [];
   return {
     id: normalized.id,
+    created_at: normalized.created_at,
     source_id: normalized.source_id,
+    source_sort_priority: normalized.source_sort_priority ?? null,
     source_name: String(raw.source_name || normalized.source_name || "").trim() || null,
     title: normalized.title,
     gender:
@@ -70,7 +72,6 @@ type UseAdminProductsTableParams = {
   latestJobStatus?: string | null;
   query: ProductsQueryState;
   pushToast: (message: string) => void;
-  deleteProduct: (productId: number) => Promise<{ ok: boolean; message: string }>;
 };
 
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
@@ -85,54 +86,86 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
   return fallback;
 }
 
-function getStatusRank(item: AdminProductsTableItem): number {
-  const visibility = String(item.visibility_status || "").trim().toLowerCase();
+function getOrderabilityRank(item: AdminProductsTableItem): number {
   const orderability = String(item.orderability_status || "").trim().toLowerCase();
-  const availability = String(item.availability_mode || "").trim().toLowerCase();
-  if (visibility === "hidden") {
-    return 4;
+  if (orderability === "orderable") {
+    return 0;
   }
   if (orderability === "unavailable") {
-    return 3;
+    return 1;
   }
   if (orderability === "sold_out") {
     return 2;
   }
-  if (availability === "by_order") {
-    return 1;
-  }
-  if (availability === "in_stock") {
-    return 0;
-  }
-  return 5;
+  return 3;
 }
 
-function getDesignerSortValue(item: AdminProductsTableItem): string {
-  return String(item.display_designer_name || item.designer_name || item.source_designer_name || "")
-    .trim()
-    .toLocaleLowerCase("ru");
+function getVisibilityRank(item: AdminProductsTableItem): number {
+  const visibility = String(item.visibility_status || "").trim().toLowerCase();
+  if (visibility === "visible") {
+    return 0;
+  }
+  if (visibility === "hidden") {
+    return 1;
+  }
+  return 2;
+}
+
+function getCreatedAtRank(item: AdminProductsTableItem): number {
+  const timestamp = Date.parse(String(item.created_at || ""));
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function sortProductsForAdminTable(items: AdminProductsTableItem[]): AdminProductsTableItem[] {
   return [...items].sort((a, b) => {
-    const byDesigner = getDesignerSortValue(a).localeCompare(getDesignerSortValue(b), "ru");
-    if (byDesigner !== 0) {
-      return byDesigner;
+    const leftPriority = Number.isFinite(Number(a.source_sort_priority)) && Number(a.source_sort_priority) > 0
+      ? Number(a.source_sort_priority)
+      : Number.MAX_SAFE_INTEGER;
+    const rightPriority = Number.isFinite(Number(b.source_sort_priority)) && Number(b.source_sort_priority) > 0
+      ? Number(b.source_sort_priority)
+      : Number.MAX_SAFE_INTEGER;
+    const bySourcePriority = leftPriority - rightPriority;
+    if (bySourcePriority !== 0) {
+      return bySourcePriority;
     }
-    const byStatus = getStatusRank(a) - getStatusRank(b);
-    if (byStatus !== 0) {
-      return byStatus;
+    const bySourceName = String(a.source_name || "").localeCompare(String(b.source_name || ""), "ru");
+    if (bySourceName !== 0) {
+      return bySourceName;
     }
-    const byTitle = String(a.title || "").localeCompare(String(b.title || ""), "ru");
-    if (byTitle !== 0) {
-      return byTitle;
+    const byOrderability = getOrderabilityRank(a) - getOrderabilityRank(b);
+    if (byOrderability !== 0) {
+      return byOrderability;
     }
-    return Number(a.id || 0) - Number(b.id || 0);
+    const byCreatedAt = getCreatedAtRank(b) - getCreatedAtRank(a);
+    if (byCreatedAt !== 0) {
+      return byCreatedAt;
+    }
+    const byId = Number(b.id || 0) - Number(a.id || 0);
+    if (byId !== 0) {
+      return byId;
+    }
+    const byVisibility = getVisibilityRank(a) - getVisibilityRank(b);
+    if (byVisibility !== 0) {
+      return byVisibility;
+    }
+    return 0;
   });
 }
 
+function matchesAdminTableMutationFilters(item: AdminProductsTableItem, query: ProductsQueryState): boolean {
+  const visibilityStatus = String(item.visibility_status || "").trim().toLowerCase();
+  const availabilityMode = String(item.availability_mode || "").trim().toLowerCase();
+  if (query.visibilityStatus && visibilityStatus !== String(query.visibilityStatus).trim().toLowerCase()) {
+    return false;
+  }
+  if (query.availabilityMode && availabilityMode !== String(query.availabilityMode).trim().toLowerCase()) {
+    return false;
+  }
+  return true;
+}
+
 export function useAdminProductsTable(params: UseAdminProductsTableParams) {
-  const { tab, latestJobStatus, query, pushToast, deleteProduct } = params;
+  const { tab, latestJobStatus, query, pushToast } = params;
   const location = useLocation();
   const debouncedQuery = useDebouncedValue(query, 220);
 
@@ -152,6 +185,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [productSections, setProductSections] = useState<AdminFilterFacetOption[]>([]);
   const [productGenders, setProductGenders] = useState<AdminFilterFacetOption[]>([]);
   const requestSeqRef = useRef(0);
+  const facetsRequestSeqRef = useRef(0);
   const fullReloadInFlightRef = useRef(false);
   const backgroundReloadInFlightRef = useRef(false);
   const previousJobStatusRef = useRef<string | null>(latestJobStatus ?? null);
@@ -219,6 +253,32 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     }
   }, [debouncedQuery]);
 
+  const reloadTableFacets = useCallback(async (signal?: AbortSignal) => {
+    const requestSeq = ++facetsRequestSeqRef.current;
+    const facetsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: false });
+    const facetsResponse = await authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal });
+    if (requestSeq !== facetsRequestSeqRef.current) {
+      return null;
+    }
+    if (!facetsResponse.ok) {
+      throw new Error(`Products facets API error: ${facetsResponse.status}`);
+    }
+    const facetsPayload = (await facetsResponse.json()) as ProductsTableFacetsPayload;
+    if (requestSeq !== facetsRequestSeqRef.current) {
+      return null;
+    }
+    startTransition(() => {
+      setTableTotal(facetsPayload.total || 0);
+      setTableOverallTotal(facetsPayload.overall_total || 0);
+      setProductSources(facetsPayload.sources || []);
+      setProductDesigners(facetsPayload.designers || []);
+      setProductCatalogs(facetsPayload.catalogs || []);
+      setProductSections(facetsPayload.sections || []);
+      setProductGenders(facetsPayload.genders || []);
+    });
+    return facetsPayload;
+  }, [debouncedQuery]);
+
   const reloadTableData = useCallback(async (signal?: AbortSignal) => {
     fullReloadInFlightRef.current = true;
     try {
@@ -226,32 +286,18 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       if (productsPayload === null) {
         return;
       }
-      const requestSeq = requestSeqRef.current;
-      const facetsQuery = buildProductsApiQuery(debouncedQuery, { includeLimit: false });
-      const facetsResponse = await authFetch(`${API_BASE}/admin/products/table/facets?${facetsQuery.toString()}`, { signal });
-      if (requestSeq !== requestSeqRef.current) {
-        return;
-      }
-      if (!facetsResponse.ok) {
-        throw new Error(`Products facets API error: ${facetsResponse.status}`);
-      }
-      const facetsPayload = (await facetsResponse.json()) as ProductsTableFacetsPayload;
-      if (requestSeq !== requestSeqRef.current) {
+      const facetsPayload = await reloadTableFacets(signal);
+      if (facetsPayload === null) {
         return;
       }
       startTransition(() => {
         setTableTotal(facetsPayload.total || productsPayload.total || 0);
         setTableOverallTotal(facetsPayload.overall_total || productsPayload.total || 0);
-        setProductSources(facetsPayload.sources || []);
-        setProductDesigners(facetsPayload.designers || []);
-        setProductCatalogs(facetsPayload.catalogs || []);
-        setProductSections(facetsPayload.sections || []);
-        setProductGenders(facetsPayload.genders || []);
       });
     } finally {
       fullReloadInFlightRef.current = false;
     }
-  }, [debouncedQuery, reloadTableProducts]);
+  }, [reloadTableFacets, reloadTableProducts]);
 
   useEffect(() => {
     if (tab !== "products") {
@@ -404,12 +450,22 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     }
     setDeletingProductId(normalizedProductId);
     try {
-      const result = await deleteProduct(normalizedProductId);
-      if (!result.ok) {
-        throw new Error(result.message || "Не удалось удалить товар");
+      const response = await authFetch(`${API_BASE}/products/manual/${normalizedProductId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, "Не удалось удалить товар"));
       }
-      await reloadTableData();
-      pushToast(result.message || "Товар удален");
+      startTransition(() => {
+        setTableProducts((previous) => previous.filter((item) => item.id !== normalizedProductId));
+        setTableTotal((previous) => Math.max(0, previous - 1));
+        setTableOverallTotal((previous) => Math.max(0, previous - 1));
+        setTableOffset((previous) => Math.max(0, previous - 1));
+      });
+      void reloadTableFacets().catch((error) => {
+        pushToast(error instanceof Error ? error.message : "Ошибка обновления фильтров товаров");
+      });
+      pushToast("Товар удален");
       return true;
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Не удалось удалить товар");
@@ -417,7 +473,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     } finally {
       setDeletingProductId((current) => (current === normalizedProductId ? null : current));
     }
-  }, [deleteProduct, pushToast, reloadTableData]);
+  }, [pushToast, reloadTableFacets]);
 
   const updateTableProductStatus = useCallback(async (productId: number, state: ProductWriteState) => {
     const normalizedProductId = Number(productId);
@@ -435,7 +491,23 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       if (!response.ok) {
         throw new Error(await readErrorMessage(response, "Не удалось обновить состояние товара"));
       }
-      await reloadTableData();
+      const payload = (await response.json()) as Record<string, unknown>;
+      const nextItem = mapAdminTableItem(payload);
+      const matchesFilters = matchesAdminTableMutationFilters(nextItem, debouncedQuery);
+      startTransition(() => {
+        if (!matchesFilters) {
+          setTableProducts((previous) => previous.filter((item) => item.id !== normalizedProductId));
+          setTableTotal((previous) => Math.max(0, previous - 1));
+          setTableOffset((previous) => Math.max(0, previous - 1));
+          return;
+        }
+        setTableProducts((previous) => sortProductsForAdminTable(previous.map((item) => (
+          item.id === normalizedProductId ? nextItem : item
+        ))));
+      });
+      void reloadTableFacets().catch((error) => {
+        pushToast(error instanceof Error ? error.message : "Ошибка обновления фильтров товаров");
+      });
       pushToast("Состояние товара обновлено");
       return true;
     } catch (error) {
@@ -444,7 +516,18 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     } finally {
       setStatusUpdatingProductId((current) => (current === normalizedProductId ? null : current));
     }
-  }, [pushToast, reloadTableData]);
+  }, [debouncedQuery, pushToast, reloadTableFacets]);
+
+  const refreshProductsTable = useCallback(async () => {
+    if (tab !== "products") {
+      return;
+    }
+    try {
+      await reloadTableData();
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Ошибка загрузки таблицы товаров");
+    }
+  }, [tab, reloadTableData, pushToast]);
 
   return {
     productsSentinelRef,
@@ -462,5 +545,6 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     statusUpdatingProductId,
     deleteTableProduct,
     updateTableProductStatus,
+    refreshProductsTable,
   };
 }

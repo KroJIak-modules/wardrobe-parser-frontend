@@ -400,11 +400,13 @@
 }
 
 .site-products__cta {
-  display: grid;
-  place-items: center;
-  width: 106px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 125px;
   height: 29px;
-  padding: 6px;
+  padding: 6px 15px;
   box-sizing: border-box;
   border: 0;
   border-radius: 11px;
@@ -538,7 +540,7 @@
   color: rgba(0, 0, 0, 0.8);
   font-family: var(--site-font-ui);
   font-size: 16px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.1;
   text-align: center;
   text-decoration: none;

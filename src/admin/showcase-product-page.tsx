@@ -458,13 +458,14 @@ export function ShowcaseProductPage() {
         : [];
     const raw = activeGalleryListing?.gallery || product?.gallery;
     const rawSourceUrls = Array.isArray(raw?.source_image_urls) ? raw.source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    const hasExplicitGalleryState = Boolean(raw);
     return {
       description_visible_effective: typeof product?.description_public_visible === "boolean" ? product.description_public_visible : undefined,
       description_visible_override: typeof product?.presentation?.description_visibility === "boolean" ? product.presentation.description_visibility : null,
       hidden_source_image_urls: Array.isArray(raw?.hidden_source_image_urls) ? raw.hidden_source_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
       manual_image_urls: Array.isArray(raw?.manual_image_urls) ? raw.manual_image_urls.map((x) => String(x || "").trim()).filter(Boolean) : [],
       manual_image_order: Array.isArray(raw?.manual_image_order) ? raw.manual_image_order.map((x) => String(x)) : [],
-      source_image_urls: rawSourceUrls.length > 0 ? rawSourceUrls : fallbackSourceUrls,
+      source_image_urls: rawSourceUrls.length > 0 ? rawSourceUrls : (hasExplicitGalleryState ? [] : fallbackSourceUrls),
     };
   }, [
     activeGalleryListing?.gallery,

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createSiteDesignersLocationState } from "../designers/site-designers-navigation";
 import { SiteMobileDrawerShell } from "../shared/site-mobile-drawer-shell";
 import { useSitePageScrollLock } from "../shared/use-site-page-scroll-lock";
+import { SiteWindowCloseButton } from "../window-shell/site-window-shell";
 import type { SiteCatalogFilterGroup, SiteCatalogFilterOption } from "./site-catalog-contracts";
 import { SHOW_ALL_DESIGNERS_VALUE } from "./site-catalog-filter-constants";
 import { getOrderedCatalogFilterOptions } from "./site-catalog-filter-options";
@@ -12,15 +13,6 @@ import "./site-catalog-mobile-filters-drawer.css";
 
 const FILTER_GROUP_ORDER = ["availability", "section", "designer", "gender"] as const;
 const FILTER_DRAWER_CLEARABLE_KEYS = new Set(FILTER_GROUP_ORDER);
-
-function CloseIcon() {
-  return (
-    <svg aria-hidden="true" className="site-catalog-mobile-filters-drawer__close-icon" viewBox="0 0 14 14" fill="none">
-      <path d="M2 2L12 12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <path d="M12 2L2 12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function PlusIcon({ isOpen }: { isOpen: boolean }) {
   return (
@@ -213,14 +205,13 @@ export const SiteCatalogMobileFiltersDrawer = forwardRef<
     >
       <div className="site-catalog-mobile-filters-drawer__header">
         <p className="site-catalog-mobile-filters-drawer__title">ФИЛЬТРЫ</p>
-        <button
-          type="button"
+        <SiteWindowCloseButton
           className="site-catalog-mobile-filters-drawer__close"
-          aria-label="Закрыть фильтры"
+          ariaLabel="Закрыть фильтры"
           onClick={applyDraftAndClose}
-        >
-          <CloseIcon />
-        </button>
+          iconSrc="/site-mock/mobile-catalog/filters-close-icon.svg"
+          rotateIcon={false}
+        />
       </div>
 
       <div className="site-catalog-mobile-filters-drawer__body">

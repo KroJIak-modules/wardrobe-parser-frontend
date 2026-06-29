@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchAdminDesignerMappings, readAdminDesignerMappingsState } from "../admin-designers-api";
 import {
   buildHiddenProductWriteState,
   buildVisibleProductWriteState,
@@ -8,6 +9,8 @@ import {
 import { buildProductPriceSummaryFromVariants, getProductPriceSummary } from "../../shared/product-pricing";
 import type { ProductStarredCategoryOption, ProductUrlPreview, ProductWriteState, ServiceProduct, Source } from "../../shared/live-data-types";
 import {
+  isManualVariantAmountTooLarge,
+  MAX_MANUAL_VARIANT_AMOUNT_LABEL,
   normalizeManualVariantCurrency,
   resolveManualVariantPricingMode,
 } from "../manual-variant-pricing";
@@ -61,6 +64,7 @@ type Params = {
   sources: Source[];
   products: ServiceProduct[];
   onToast: (message: string, type?: "success" | "error") => void;
+  onProductCreated?: (productId: number) => Promise<void> | void;
   probeProductByUrl: (url: string) => Promise<{ ok: boolean; message: string; preview: ProductUrlPreview | null }>;
   createManualProduct: (payload: {
     title: string;
@@ -210,6 +214,10 @@ function slugToTitle(rawUrl: string): string {
   }
 }
 
+function normalizeDesignerOption(value: string | null | undefined): string {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
 function deriveSellerMode(source: Source): "Авто" | "Ручной" {
   return String(source.mode || "auto") === "auto" ? "Авто" : "Ручной";
 }
@@ -306,6 +314,7 @@ export function useAdminProductCreate({
   sources,
   products,
   onToast,
+  onProductCreated,
   probeProductByUrl,
   createManualProduct,
   updateManualProduct,
@@ -339,6 +348,13 @@ export function useAdminProductCreate({
   const [favoriteCategorySlugs, setFavoriteCategorySlugs] = useState<string[]>([]);
   const [boundFromSourceLookup, setBoundFromSourceLookup] = useState<boolean>(false);
   const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [sourceDesignerOptions, setSourceDesignerOptions] = useState<string[]>(() => {
+    const state = readAdminDesignerMappingsState();
+    const normalized = state.rows
+      .map((row) => normalizeDesignerOption(row.source_brand))
+      .filter(Boolean);
+    return Array.from(new Set(normalized)).sort((left, right) => left.localeCompare(right, "ru"));
+  });
   const lookupTimerRef = useRef<number | null>(null);
   const lastLookupKeyRef = useRef<string>("");
   const remotePreviewInFlightRef = useRef<{
@@ -401,14 +417,40 @@ export function useAdminProductCreate({
     );
   }, [draft.sourceUrl, allowedDomains]);
 
-  const knownDesignerOptions = useMemo(() => {
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const payload = await fetchAdminDesignerMappings();
+        if (cancelled) {
+          return;
+        }
+        const normalized = payload.rows
+          .map((row) => normalizeDesignerOption(row.source_brand))
+          .filter(Boolean);
+        setSourceDesignerOptions(Array.from(new Set(normalized)).sort((left, right) => left.localeCompare(right, "ru")));
+      } catch {
+        return;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const productDesignerOptions = useMemo(() => {
     const set = new Set<string>();
     for (const product of products) {
-      const value = String(product.display_designer_name || product.designer_name || product.source_designer_name || "").trim();
+      const value = normalizeDesignerOption(product.source_designer_name || product.designer_name || product.display_designer_name || "");
       if (value) set.add(value);
     }
     return Array.from(set.values()).sort((left, right) => left.localeCompare(right, "ru"));
   }, [products]);
+
+  const knownDesignerOptions = useMemo(() => {
+    const merged = [...sourceDesignerOptions, ...productDesignerOptions];
+    return Array.from(new Set(merged)).sort((left, right) => left.localeCompare(right, "ru"));
+  }, [sourceDesignerOptions, productDesignerOptions]);
 
   const canRunLookup = Boolean(draft.sourceUrl.trim()) && !sourceDomainError;
   const sourceLookupKey = useMemo(() => normalizeUrlLoose(draft.sourceUrl), [draft.sourceUrl]);
@@ -739,6 +781,16 @@ export function useAdminProductCreate({
         setIsCreating(false);
         return;
       }
+      if (normalizedVariants.some((variant) => isManualVariantAmountTooLarge(variant.price))) {
+        onToast(`Цена варианта слишком большая. Максимум: ${MAX_MANUAL_VARIANT_AMOUNT_LABEL}`, "error");
+        setIsCreating(false);
+        return;
+      }
+      if (normalizedVariants.some((variant) => isManualVariantAmountTooLarge(variant.compare_at_price ?? null))) {
+        onToast(`Старая цена варианта слишком большая. Максимум: ${MAX_MANUAL_VARIANT_AMOUNT_LABEL}`, "error");
+        setIsCreating(false);
+        return;
+      }
       if (normalizedVariants.some((variant) => variant.compare_at_price !== null && variant.compare_at_price !== undefined && variant.compare_at_price <= Number(variant.price))) {
         onToast("Старая цена варианта должна быть больше текущей", "error");
         setIsCreating(false);
@@ -779,6 +831,9 @@ export function useAdminProductCreate({
         return;
       }
       await _setProductStarredCategories(opRes.id, favoriteCategorySlugs);
+      if (mode === "create" && onProductCreated) {
+        await onProductCreated(opRes.id);
+      }
       onToast(mode === "edit" ? "Товар обновлен" : "Товар создан", "success");
       setIsOpen(false);
       setIsCreating(false);
@@ -787,7 +842,7 @@ export function useAdminProductCreate({
       onToast(`Не удалось ${mode === "edit" ? "обновить" : "создать"} товар из-за внутренней ошибки интерфейса`, "error");
       setIsCreating(false);
     });
-  }, [draft, manualImageAssetIdsById, createManualProduct, updateManualProduct, favoriteCategorySlugs, _setProductStarredCategories, onToast, boundFromSourceLookup, sourceLookupKey, uploadProductImageByUrl, isCreating, mode, editingProductId, hasExistingLookupProduct]);
+  }, [draft, manualImageAssetIdsById, createManualProduct, updateManualProduct, favoriteCategorySlugs, _setProductStarredCategories, onToast, onProductCreated, boundFromSourceLookup, sourceLookupKey, uploadProductImageByUrl, isCreating, mode, editingProductId, hasExistingLookupProduct]);
 
   const openCreate = useCallback(() => {
     if (lookupTimerRef.current !== null) {

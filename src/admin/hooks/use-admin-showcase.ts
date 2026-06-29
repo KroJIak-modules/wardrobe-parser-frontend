@@ -31,7 +31,7 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
     if (!enabled) {
       return;
     }
-    void (async () => {
+    const load = async () => {
       try {
         const response = await authFetch(`${API_BASE}/showcase/state`);
         if (!response.ok) {
@@ -53,7 +53,15 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
       } catch (error) {
         pushToast(error instanceof Error ? error.message : "Не удалось загрузить медиа витрины");
       }
-    })();
+    };
+    void load();
+    const handleRefresh = () => {
+      void load();
+    };
+    window.addEventListener("admin:settings-transfer-applied", handleRefresh);
+    return () => {
+      window.removeEventListener("admin:settings-transfer-applied", handleRefresh);
+    };
   }, [enabled, pushToast]);
 
   const saveShowcaseSettings = async (patch: ShowcaseMediaPatch) => {

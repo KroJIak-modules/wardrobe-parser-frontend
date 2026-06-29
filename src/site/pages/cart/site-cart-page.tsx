@@ -3,9 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { siteMenuItems } from "../../app/site-static-content";
 import { SiteCartView } from "../../features/cart/site-cart";
 import { SiteHeader } from "../../features/header/site-header";
+import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { useSiteActionItems, useSiteCart } from "../../runtime/use-site-cart";
+import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
 import "./site-cart-page.css";
+
+const SITE_CART_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 
 function formatTelegramRubles(value: number) {
   return `${new Intl.NumberFormat("ru-RU").format(value).replace(/\s/g, ".")}₽`;
@@ -34,6 +38,7 @@ export function SiteCartPage() {
   const actionItems = useSiteActionItems();
   const { items, totalPriceRub, hasItems, updateQuantity, removeItem } = useSiteCart();
   const [searchValue, setSearchValue] = useState("");
+  const isMobileLayout = useSiteMediaQuery(SITE_CART_MOBILE_MEDIA_QUERY);
   const telegramMessage = useMemo(() => buildTelegramMessage(items, totalPriceRub), [items, totalPriceRub]);
 
   useEffect(() => {
@@ -71,25 +76,33 @@ export function SiteCartPage() {
   }, [hasItems, telegramMessage]);
 
   return (
-    <main className="site-cart-page">
-      <SiteHeader
-        theme="light"
-        menuItems={siteMenuItems}
-        actionItems={actionItems}
-        searchValue={searchValue}
-        onSearchValueChange={setSearchValue}
-        onSearchSubmit={(value) => {
-          const params = new URLSearchParams();
-          if (value !== "") {
-            params.set("q", value);
-          }
+    <main className={`site-cart-page${isMobileLayout ? " site-cart-page--mobile" : ""}`}>
+      {isMobileLayout ? (
+        <SiteMobileHomeHeader
+          onLogoActivate={() => {
+            navigate("/?view=storefront");
+          }}
+        />
+      ) : (
+        <SiteHeader
+          theme="light"
+          menuItems={siteMenuItems}
+          actionItems={actionItems}
+          searchValue={searchValue}
+          onSearchValueChange={setSearchValue}
+          onSearchSubmit={(value) => {
+            const params = new URLSearchParams();
+            if (value !== "") {
+              params.set("q", value);
+            }
 
-          navigate({
-            pathname: "/catalog",
-            search: params.toString() ? `?${params.toString()}` : "",
-          });
-        }}
-      />
+            navigate({
+              pathname: "/catalog",
+              search: params.toString() ? `?${params.toString()}` : "",
+            });
+          }}
+        />
+      )}
 
       <SiteCartView
         items={items}
@@ -116,7 +129,7 @@ export function SiteCartPage() {
         onCopyRequest={handleCopyRequest}
       />
 
-      <SiteFooterSection />
+      <SiteFooterSection layout={isMobileLayout ? "mobile" : "desktop"} />
     </main>
   );
 }

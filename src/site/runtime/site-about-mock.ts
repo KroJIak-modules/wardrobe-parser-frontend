@@ -11,7 +11,7 @@ export type SiteAboutTextPanel = {
 export type SiteAboutPayload = {
   title: string;
   photoSlides: readonly SiteCarouselSlide[];
-  textPanels: readonly [SiteAboutTextPanel, SiteAboutTextPanel];
+  textPanel: SiteAboutTextPanel | null;
 };
 
 export type SiteAboutTextPanelViewModel = {
@@ -63,16 +63,9 @@ export const siteAboutMockPayload: SiteAboutPayload = {
       alt: "Anton Shell в интерьере, третий кадр",
     },
   ],
-  textPanels: [
-    {
-      id: "about-left",
-      rawText:
-        "Anton Shell — молодой байер из Москвы, превращающий продажи в искусство.\n\nНачиная свой путь с китайских платформ в 15 лет, он быстро понял разницу между массовым рынком и настоящим стилем. Теперь доставляет вещи из Европы, США и Великобритании, собирая гардеробы, которые говорят громче слов.\n\nВизуал — его оружие. Продуманная стилизация, сильные промо-съемки, точный вкус.\n\nЗа два года работы Антон успел посотрудничать с многими брендами: Jaded London, Racer Worldwide, Alice Hollywood, Nofaithstudios, Project gr, Yori Sport и другие.\n\nАнтон не просто продает одежду — он продает образ жизни.\n\nsdakff\n\nadawpfdwfkwfwofkwf",
-    },
-    {
-      id: "about-right",
-      rawText:
-        "Anton Shell — молодой байер из Москвы, превращающий продажи в искусство.\n\nНачиная свой путь с китайских платформ в 15 лет, он быстро понял разницу между массовым рынком и настоящим стилем. Теперь доставляет вещи из Европы, США и Великобритании, собирая гардеробы, которые говорят громче слов.\n\nВизуал — его оружие. Продуманная стилизация, сильные промо-съемки, точный вкус.\n\nЗа два года работы Антон успел посотрудничать с многими брендами: Jaded London, Racer Worldwide, Alice Hollywood, Nofaithstudios, Project gr, Yori Sport и другие.\n\nАнтон не просто продает одежду — он продает образ жизни.",
-    },
-  ],
+  textPanel: {
+    id: "about-description",
+    rawText:
+      "Anton Shell — молодой байер из Москвы, превращающий продажи в искусство.\n\nНачиная свой путь с китайских платформ в 15 лет, он быстро понял разницу между массовым рынком и настоящим стилем. Теперь доставляет вещи из Европы, США и Великобритании, собирая гардеробы, которые говорят громче слов.\n\nВизуал — его оружие. Продуманная стилизация, сильные промо-съемки, точный вкус.\n\nЗа два года работы Антон успел посотрудничать с многими брендами: Jaded London, Racer Worldwide, Alice Hollywood, Nofaithstudios, Project gr, Yori Sport и другие.\n\nАнтон не просто продает одежду — он продает образ жизни.",
+  },
 };

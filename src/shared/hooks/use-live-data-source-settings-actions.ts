@@ -5,6 +5,10 @@ import { apiJson, apiNoContent } from "../api-client";
 import type { DescriptionMode, PricingExampleProduct, PricingSettings, SettingsTransferPayload, Source } from "../live-data-types";
 import type { AdminUiSettings } from "../live-data-types";
 
+function notifySettingsTransferApplied() {
+  window.dispatchEvent(new Event("admin:settings-transfer-applied"));
+}
+
 export function useLiveDataSourceSettingsActions(params: {
   setSources: React.Dispatch<React.SetStateAction<Source[]>>;
   setPricingSettings: React.Dispatch<React.SetStateAction<PricingSettings | null>>;
@@ -141,6 +145,20 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [patchSource]);
 
+  const reorderSources = useCallback(async (sourceKeys: string[]) => {
+    try {
+      const updated = await apiJson<Source[]>(`${API_BASE}/sources/order`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_keys: sourceKeys }),
+      });
+      setSources(Array.isArray(updated) ? updated : []);
+      return okResult("Порядок источников сохранен");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [setSources]);
+
   const uploadSourceLogo = useCallback(async (sourceKey: string, file: File) => {
     try {
       const formData = new FormData();
@@ -250,6 +268,7 @@ export function useLiveDataSourceSettingsActions(params: {
         refreshCategoriesOnly({ includeCounts: true, silent: true }),
         refreshSourcesOnly(),
       ]);
+      notifySettingsTransferApplied();
       return okResult("Настройки импортированы");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
@@ -267,6 +286,7 @@ export function useLiveDataSourceSettingsActions(params: {
         refreshCategoriesOnly({ includeCounts: true, silent: true }),
         refreshSourcesOnly(),
       ]);
+      notifySettingsTransferApplied();
       return okResult("Настройки сброшены");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
@@ -376,6 +396,7 @@ export function useLiveDataSourceSettingsActions(params: {
     toggleSourceSyncEnabled,
     toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
+    reorderSources,
     uploadSourceLogo,
     clearSourceLogo,
     updateSourceAttributeVisibility,

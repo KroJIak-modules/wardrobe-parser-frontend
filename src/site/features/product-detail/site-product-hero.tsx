@@ -22,7 +22,9 @@ export function SiteProductHero({
   const { addItem } = useSiteCart();
   const designerHref = product.designerId ? buildDesignerCatalogHref(product.designerId) : null;
   const {
+    dragOffsetPx,
     hasMultipleSourceVariants,
+    isDraggingGallery,
     isSourcesDialogOpen,
     mainImageViewportRef,
     selectedGalleryIndex,
@@ -71,8 +73,17 @@ export function SiteProductHero({
       <div className="site-product-detail__main-image-shell">
         <div className="site-product-detail__main-image-viewport" ref={mainImageViewportRef}>
           <div
-            className="site-product-detail__main-image-container"
-            style={{ "--site-product-detail-gallery-index": selectedGalleryIndex } as CSSProperties}
+            className={
+              isDraggingGallery
+                ? "site-product-detail__main-image-container site-product-detail__main-image-container--dragging"
+                : "site-product-detail__main-image-container"
+            }
+            style={
+              {
+                "--site-product-detail-gallery-index": selectedGalleryIndex,
+                "--site-product-detail-gallery-drag-offset": `${dragOffsetPx}px`,
+              } as CSSProperties
+            }
           >
             {product.gallery.map((item, index) => (
               <figure key={item.id} className="site-product-detail__main-image-slide" aria-hidden={selectedGalleryItem?.id === item.id ? "false" : "true"}>

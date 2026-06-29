@@ -15,7 +15,7 @@ const SITE_ABOUT_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 export function SiteAboutPage() {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
-  const { title, photoSlides, textPanels } = useSiteAbout();
+  const { title, photoSlides, textPanel } = useSiteAbout();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_ABOUT_MOBILE_MEDIA_QUERY);
 
@@ -53,7 +53,7 @@ export function SiteAboutPage() {
         />
       )}
 
-      <SiteAboutView title={title} photoSlides={photoSlides} textPanels={textPanels} />
+      <SiteAboutView title={title} photoSlides={photoSlides} textPanel={textPanel} />
 
       <div className="site-about-page__footer">
         <SiteFooterSection layout={isMobileLayout ? "mobile" : "desktop"} />

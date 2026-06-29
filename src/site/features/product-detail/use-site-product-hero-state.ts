@@ -4,7 +4,9 @@ import { resolveSiteProductDetailSourceVariant } from "../../runtime/site-produc
 
 const GALLERY_WHEEL_THROTTLE_MS = 240;
 const PRODUCT_GALLERY_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
-const PRODUCT_GALLERY_SWIPE_THRESHOLD_PX = 36;
+const PRODUCT_GALLERY_SWIPE_THRESHOLD_PX = 28;
+const PRODUCT_GALLERY_DRAG_LOCK_THRESHOLD_PX = 8;
+const PRODUCT_GALLERY_EDGE_RESISTANCE = 0.35;
 
 export function useSiteProductHeroState(product: SiteProductDetailItem) {
   const [selectedGalleryItemId, setSelectedGalleryItemId] = useState(product.gallery[0]?.id ?? null);
@@ -13,8 +15,15 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
   const [isSourcesDialogOpen, setIsSourcesDialogOpen] = useState(false);
   const mainImageViewportRef = useRef<HTMLDivElement | null>(null);
   const wheelThrottleRef = useRef<number | null>(null);
-  const swipeStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const swipeStateRef = useRef<{
+    x: number;
+    y: number;
+    pointerId: number;
+    isHorizontal: boolean | null;
+  } | null>(null);
   const [isMobileGallery, setIsMobileGallery] = useState(false);
+  const [dragOffsetPx, setDragOffsetPx] = useState(0);
+  const [isDraggingGallery, setIsDraggingGallery] = useState(false);
 
   const selectedGalleryIndex = Math.max(
     0,
@@ -128,26 +137,65 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
         return;
       }
 
-      swipeStartRef.current = {
+      swipeStateRef.current = {
         x: event.clientX,
         y: event.clientY,
         pointerId: event.pointerId,
+        isHorizontal: null,
       };
       viewport.setPointerCapture?.(event.pointerId);
     };
 
-    const handlePointerUp = (event: PointerEvent) => {
-      const start = swipeStartRef.current;
+    const handlePointerMove = (event: PointerEvent) => {
+      const start = swipeStateRef.current;
       if (!start || start.pointerId !== event.pointerId) {
         return;
       }
 
-      swipeStartRef.current = null;
+      const deltaX = event.clientX - start.x;
+      const deltaY = event.clientY - start.y;
+
+      if (start.isHorizontal === null) {
+        if (
+          Math.abs(deltaX) < PRODUCT_GALLERY_DRAG_LOCK_THRESHOLD_PX &&
+          Math.abs(deltaY) < PRODUCT_GALLERY_DRAG_LOCK_THRESHOLD_PX
+        ) {
+          return;
+        }
+
+        start.isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+      }
+
+      if (!start.isHorizontal) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const isAtLeftEdge = selectedGalleryIndex === 0 && deltaX > 0;
+      const isAtRightEdge = selectedGalleryIndex === product.gallery.length - 1 && deltaX < 0;
+      const nextOffset = isAtLeftEdge || isAtRightEdge ? deltaX * PRODUCT_GALLERY_EDGE_RESISTANCE : deltaX;
+
+      setIsDraggingGallery(true);
+      setDragOffsetPx(nextOffset);
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const start = swipeStateRef.current;
+      if (!start || start.pointerId !== event.pointerId) {
+        return;
+      }
+
+      swipeStateRef.current = null;
       viewport.releasePointerCapture?.(event.pointerId);
 
       const deltaX = event.clientX - start.x;
-      const deltaY = event.clientY - start.y;
-      if (Math.abs(deltaX) < PRODUCT_GALLERY_SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY)) {
+      const shouldNavigate = start.isHorizontal === true && Math.abs(deltaX) >= PRODUCT_GALLERY_SWIPE_THRESHOLD_PX;
+
+      setIsDraggingGallery(false);
+      setDragOffsetPx(0);
+
+      if (!shouldNavigate) {
         return;
       }
 
@@ -160,23 +208,29 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
     };
 
     const handlePointerCancel = (event: PointerEvent) => {
-      if (swipeStartRef.current?.pointerId === event.pointerId) {
-        swipeStartRef.current = null;
+      if (swipeStateRef.current?.pointerId === event.pointerId) {
+        swipeStateRef.current = null;
+        setIsDraggingGallery(false);
+        setDragOffsetPx(0);
       }
     };
 
     viewport.addEventListener("pointerdown", handlePointerDown);
+    viewport.addEventListener("pointermove", handlePointerMove);
     viewport.addEventListener("pointerup", handlePointerUp);
     viewport.addEventListener("pointercancel", handlePointerCancel);
     return () => {
       viewport.removeEventListener("pointerdown", handlePointerDown);
+      viewport.removeEventListener("pointermove", handlePointerMove);
       viewport.removeEventListener("pointerup", handlePointerUp);
       viewport.removeEventListener("pointercancel", handlePointerCancel);
     };
   }, [isMobileGallery, product.gallery, selectedGalleryIndex]);
 
   return {
+    dragOffsetPx,
     hasMultipleSourceVariants,
+    isDraggingGallery,
     isSourcesDialogOpen,
     mainImageViewportRef,
     selectedGalleryIndex,

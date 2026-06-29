@@ -49,11 +49,6 @@ export function SiteProductCard({
   };
 
   useLayoutEffect(() => {
-    if (!isCompact) {
-      setTitleLineCount(1);
-      return;
-    }
-
     const titleNode = titleRef.current;
     if (!titleNode) {
       return;
@@ -86,7 +81,7 @@ export function SiteProductCard({
   return (
     <article
       className={`site-product-tile${isCompact ? " site-product-tile--compact" : ""}`}
-      data-title-lines={isCompact ? titleLineCount : undefined}
+      data-title-lines={titleLineCount}
     >
       <div className="site-product-tile__shell">
         <Link

@@ -1,5 +1,7 @@
 export type ManualVariantCurrency = "RUB" | "USD" | "EUR" | "GBP" | "JPY";
 export type ManualVariantPricingMode = "source" | "fixed_final_rub";
+export const MAX_MANUAL_VARIANT_AMOUNT = 9_999_999_999.99;
+export const MAX_MANUAL_VARIANT_AMOUNT_LABEL = "9 999 999 999.99";
 
 export const MANUAL_VARIANT_CURRENCY_OPTIONS: Array<{
   value: ManualVariantCurrency;
@@ -56,4 +58,10 @@ export function normalizeManualVariantCompareAtValue(params: {
   currency: string | null | undefined;
 }): string {
   return isManualVariantCompareAtEnabled(params) ? params.compareAtPrice : "";
+}
+
+export function isManualVariantAmountTooLarge(
+  value: number | null | undefined,
+): boolean {
+  return value !== null && value !== undefined && Number.isFinite(value) && value > MAX_MANUAL_VARIANT_AMOUNT;
 }

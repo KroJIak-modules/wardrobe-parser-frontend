@@ -48,6 +48,7 @@ export function AdminPage() {
   const tab = normalizeAdminTab(tabParam);
   const productsReturnHref = `/control/products${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const { openProductCard } = useAdminProductNavigation();
+  const productCreateRefreshAfterSaveRef = useRef<((productId: number) => Promise<void> | void) | null>(null);
   const onLogout = () => {
     void (async () => {
       await logoutAdminSession();
@@ -97,6 +98,7 @@ export function AdminPage() {
     toggleSourceSyncEnabled,
     toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
+    reorderSources,
     uploadSourceLogo,
     clearSourceLogo,
     updateSourceAttributeVisibility,
@@ -129,7 +131,6 @@ export function AdminPage() {
     probeProductByUrl,
     createManualProduct,
     updateManualProduct,
-    deleteProduct,
     uploadProductImage,
     uploadProductImageByUrl,
     getProductById,
@@ -199,6 +200,9 @@ export function AdminPage() {
     sources,
     products,
     onToast: (message, type = "success") => pushToast(message, type),
+    onProductCreated: async (productId) => {
+      await productCreateRefreshAfterSaveRef.current?.(productId);
+    },
     previewProductByUrl,
     probeProductByUrl,
     createManualProduct,
@@ -449,13 +453,14 @@ export function AdminPage() {
     statusUpdatingProductId,
     deleteTableProduct,
     updateTableProductStatus,
+    refreshProductsTable,
   } = useAdminProductsTable({
     tab,
     latestJobStatus: latestJob?.status ?? null,
     query: productsQuery,
     pushToast,
-    deleteProduct,
   });
+  productCreateRefreshAfterSaveRef.current = refreshProductsTable;
 
   const sourceById = useAdminSourceMap(sources);
   const {
@@ -558,6 +563,7 @@ export function AdminPage() {
       toggleSourceSyncEnabled,
       toggleSourceDedupEnabled,
       toggleSourceAutoHideProducts,
+      reorderSources,
       uploadSourceLogo,
       clearSourceLogo,
       updateSourceAttributeVisibility,

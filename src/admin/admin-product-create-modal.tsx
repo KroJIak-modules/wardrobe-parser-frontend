@@ -133,18 +133,6 @@ function prettyHostLabel(rawUrl: string): string {
   }
 }
 
-function resolveFlowLabel(params: {
-  sourceUrl: string;
-  lookupState: LookupState;
-  hasExistingLookupProduct: boolean;
-  bindSync: boolean;
-}): string {
-  if (params.bindSync) return "Импорт с привязкой";
-  if (params.hasExistingLookupProduct) return "Копия из базы";
-  if (params.lookupState === "found" && params.sourceUrl.trim()) return "Импорт из источника";
-  return "Ручное заполнение";
-}
-
 export function AdminProductCreateModal({
   open,
   draft,
@@ -237,12 +225,6 @@ export function AdminProductCreateModal({
 
   if (!open) return null;
 
-  const flowLabel = resolveFlowLabel({
-    sourceUrl: draft.sourceUrl,
-    lookupState: lookup.state,
-    hasExistingLookupProduct,
-    bindSync: draft.bindSync,
-  });
   const favoriteSummary = "Кастомные каталоги";
 
   return (
@@ -261,7 +243,6 @@ export function AdminProductCreateModal({
               <h4>Сценарий добавления</h4>
               <p>Товар можно заполнить вручную, подтянуть из источника по ссылке или взять существующую карточку за основу.</p>
             </div>
-            <span className="product-create__flow-pill">{flowLabel}</span>
           </div>
 
           <div className="product-create__entry-grid">
@@ -469,12 +450,18 @@ export function AdminProductCreateModal({
               </label>
 
               <div className="product-create__line2 product-create__line2--wide">
-                <div className="designers-combobox-wrap product-create__brand-wrap" onBlur={scheduleDesignerClose}>
+                <div
+                  className={`product-create__designer-combobox${designerComboboxOpen ? " product-create__designer-combobox--open" : ""}`}
+                  onBlur={scheduleDesignerClose}
+                >
                   <label className="product-create__field">
                     <span>Дизайнер</span>
                     <input
-                      list="product-create-designer-options"
                       value={draft.designerName}
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={designerComboboxOpen}
+                      aria-controls="product-create-designer-listbox"
                       onFocus={() => setDesignerComboboxOpen(true)}
                       onChange={(event) => {
                         onSetField("designerName", event.target.value);
@@ -483,34 +470,28 @@ export function AdminProductCreateModal({
                       disabled={isHydrating || isCreating}
                     />
                   </label>
-                  {designerComboboxOpen ? (
-                    <div className="designers-combobox-list" role="listbox">
-                      {designerSuggestions.length > 0 ? (
-                        designerSuggestions.map((value) => (
-                          <button
-                            key={`create-designer-${value}`}
-                            type="button"
-                            className="designers-combobox-item"
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              onSetField("designerName", value);
-                              setDesignerComboboxOpen(false);
-                            }}
-                          >
-                            {value}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="designers-combobox-empty">Нет вариантов</div>
-                      )}
-                    </div>
-                  ) : null}
-                  {knownDesignerOptions.length > 0 ? (
-                    <datalist id="product-create-designer-options">
-                      {knownDesignerOptions.map((designer) => (
-                        <option key={`designer-opt-${designer}`} value={designer} />
+                  {designerComboboxOpen && designerSuggestions.length > 0 ? (
+                    <div
+                      id="product-create-designer-listbox"
+                      className="product-create__designer-combobox-list"
+                      role="listbox"
+                      aria-label="Подсказки исходного дизайнера"
+                    >
+                      {designerSuggestions.map((value) => (
+                        <button
+                          key={`create-designer-${value}`}
+                          type="button"
+                          className="product-create__designer-combobox-item"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            onSetField("designerName", value);
+                            setDesignerComboboxOpen(false);
+                          }}
+                        >
+                          {value}
+                        </button>
                       ))}
-                    </datalist>
+                    </div>
                   ) : null}
                 </div>
                 <label className="product-create__field">

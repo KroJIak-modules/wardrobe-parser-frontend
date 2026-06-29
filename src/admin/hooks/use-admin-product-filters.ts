@@ -1,18 +1,35 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PRODUCTS_QUERY_KEYS, readProductsQuery, withProductsQueryParam } from "../products-query";
+import { useDebouncedValue } from "../../shared/hooks/use-debounced-value";
 
 export function useAdminProductFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
   const state = readProductsQuery(searchParams);
+  const [searchDraft, setSearchDraft] = useState<string>(state.search);
+  const debouncedSearchDraft = useDebouncedValue(searchDraft, 220);
+
+  useEffect(() => {
+    setSearchDraft(state.search);
+  }, [state.search]);
 
   const setParam = useCallback((key: string, value: string) => {
     setSearchParams((previous) => withProductsQueryParam(previous, key, value), { replace: true });
   }, [setSearchParams]);
 
   const setProductSearch = useCallback((value: string) => {
-    setParam(PRODUCTS_QUERY_KEYS.search, value);
-  }, [setParam]);
+    setSearchDraft(value);
+  }, []);
+
+  useEffect(() => {
+    if (debouncedSearchDraft === state.search) {
+      return;
+    }
+    setSearchParams(
+      (previous) => withProductsQueryParam(previous, PRODUCTS_QUERY_KEYS.search, debouncedSearchDraft),
+      { replace: true }
+    );
+  }, [debouncedSearchDraft, setSearchParams, state.search]);
 
   const setProductSourceFilter = useCallback((value: string) => {
     setParam(PRODUCTS_QUERY_KEYS.sourceId, value);
@@ -51,7 +68,7 @@ export function useAdminProductFilters() {
   }, [setParam]);
 
   return {
-    productSearch: state.search,
+    productSearch: searchDraft,
     setProductSearch,
     productSourceFilter: state.sourceId,
     setProductSourceFilter,

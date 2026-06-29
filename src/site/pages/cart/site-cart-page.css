@@ -3,3 +3,7 @@
   min-height: 100vh;
   background: #fff;
 }
+
+.site-cart-page--mobile {
+  overflow-x: hidden;
+}

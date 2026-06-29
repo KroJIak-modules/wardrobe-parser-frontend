@@ -9,13 +9,31 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: fit-content;
+  width: 84px;
+  min-width: 84px;
+  min-height: 28px;
   margin: 0;
   border: 1px solid transparent;
-  padding: 7px 12px;
+  padding: 0 8px;
   border-radius: 999px;
   cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+  text-align: center;
   transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.status-stack > .status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  min-width: 84px;
+  min-height: 28px;
+  padding: 0 8px;
+  white-space: nowrap;
+  line-height: 1;
+  text-align: center;
 }
 
 .products-table-status-btn--state-pill {

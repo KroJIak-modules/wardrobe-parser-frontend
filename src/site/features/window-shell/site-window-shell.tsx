@@ -52,10 +52,14 @@ export function SiteWindowCloseButton({
   onClick,
   ariaLabel,
   className = "",
+  iconSrc = "/site-mock/product-detail/sources-modal/close-icon.svg",
+  rotateIcon = true,
 }: {
   onClick: () => void;
   ariaLabel: string;
   className?: string;
+  iconSrc?: string;
+  rotateIcon?: boolean;
 }) {
   return (
     <button
@@ -65,10 +69,14 @@ export function SiteWindowCloseButton({
       onClick={onClick}
     >
       <img
-        src={resolveSitePublicAssetUrl("/site-mock/product-detail/sources-modal/close-icon.svg")}
+        src={resolveSitePublicAssetUrl(iconSrc)}
         alt=""
         aria-hidden="true"
-        className="site-window-titlebar__close-icon"
+        className={
+          rotateIcon
+            ? "site-window-titlebar__close-icon site-window-titlebar__close-icon--rotated"
+            : "site-window-titlebar__close-icon"
+        }
       />
     </button>
   );

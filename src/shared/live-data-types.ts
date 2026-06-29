@@ -13,6 +13,7 @@ export type Source = {
   name: string;
   base_url: string;
   logo_image_asset_id?: number | null;
+  sort_priority: number;
   enabled: boolean;
   sync_enabled: boolean;
   dedup_enabled: boolean;
@@ -128,6 +129,7 @@ export type ProductListing = {
 export type ServiceProduct = {
   id: number;
   source_id: number | null;
+  source_sort_priority?: number | null;
   source_mode?: SourceMode | null;
   has_sync_listing?: boolean;
   primary_listing_id?: number | null;
@@ -479,6 +481,9 @@ export type SettingsTransferSourceEntry = {
   key: string;
   name: string;
   url: string;
+  adapter_key: string | null;
+  parser_config: Record<string, unknown>;
+  sort_priority: number;
   enabled: boolean;
   sync_enabled: boolean;
   dedup_enabled: boolean;
@@ -490,11 +495,87 @@ export type SettingsTransferSourceEntry = {
   promo_only_no_discount: boolean;
   buyout_surcharge_value: number | null;
   buyout_surcharge_currency: string | null;
+  logo_asset_checksum: string | null;
 };
 
 export type SettingsTransferWeightRuleEntry = {
   weight_grams: number;
   keywords: string[];
+};
+
+export type SettingsTransferDesignerEntry = {
+  name: string;
+  slug: string;
+  description: string | null;
+  origin_kind: "auto" | "manual";
+  is_admin_touched: boolean;
+  is_enabled: boolean;
+};
+
+export type SettingsTransferDesignerSourceNameEntry = {
+  source_name: string;
+  designer_name: string | null;
+  is_enabled: boolean;
+  is_admin_touched: boolean;
+};
+
+export type SettingsTransferTaxonomyFilterNode = {
+  slug: string;
+  title: string;
+  display_title: string | null;
+  mobile_pair_slug: string | null;
+  node_kind: "filter" | "multifilter";
+  is_enabled: boolean;
+  local_category_keywords: string[];
+  title_keywords: string[];
+  children: SettingsTransferTaxonomyFilterNode[];
+};
+
+export type SettingsTransferTaxonomyCustomCatalog = {
+  slug: string;
+  title: string;
+  description: string | null;
+  is_enabled: boolean;
+};
+
+export type SettingsTransferTaxonomyShowcaseAttachment = {
+  kind: "filter" | "custom_catalog";
+  filter_slug: string | null;
+  custom_catalog_slug: string | null;
+  hidden_filter_slugs: string[];
+};
+
+export type SettingsTransferTaxonomyShowcaseCategory = {
+  code: string;
+  title: string;
+  attachments: SettingsTransferTaxonomyShowcaseAttachment[];
+};
+
+export type SettingsTransferTaxonomyState = {
+  filters: SettingsTransferTaxonomyFilterNode[];
+  custom_catalogs: SettingsTransferTaxonomyCustomCatalog[];
+  showcase_categories: SettingsTransferTaxonomyShowcaseCategory[];
+};
+
+export type SettingsTransferShowcaseCarouselEntry = {
+  asset_checksum: string;
+  position: number;
+};
+
+export type SettingsTransferShowcaseMedia = {
+  hero_asset_checksum: string | null;
+  carousel: SettingsTransferShowcaseCarouselEntry[];
+};
+
+export type SettingsTransferImageAssetEntry = {
+  checksum_sha256: string;
+  scope: string;
+  file_name: string;
+  mime_type: string;
+  byte_size: number;
+  width_px: number | null;
+  height_px: number | null;
+  content_base64: string;
 };
 
 export type SettingsTransferPricingSettings = {
@@ -526,7 +607,11 @@ export type SettingsTransferPayload = {
   suppliers: SettingsTransferSupplierEntry[];
   sources: SettingsTransferSourceEntry[];
   weight_rules: SettingsTransferWeightRuleEntry[];
-  designer_source_names: Array<{ source_name: string; designer_name: string | null }>;
+  designers: SettingsTransferDesignerEntry[];
+  designer_source_names: SettingsTransferDesignerSourceNameEntry[];
+  taxonomy: SettingsTransferTaxonomyState;
+  showcase_media: SettingsTransferShowcaseMedia;
+  image_assets: SettingsTransferImageAssetEntry[];
 };
 
 export type LiveDataContextValue = {
@@ -676,6 +761,7 @@ export type LiveDataContextValue = {
   toggleSourceSyncEnabled: (sourceKey: string, syncEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceDedupEnabled: (sourceKey: string, dedupEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (sourceKey: string, hideAutoAddedProducts: boolean) => Promise<{ ok: boolean; message: string }>;
+  reorderSources: (sourceKeys: string[]) => Promise<{ ok: boolean; message: string }>;
   uploadSourceLogo: (sourceKey: string, file: File) => Promise<{ ok: boolean; message: string }>;
   clearSourceLogo: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
   updateSourceAttributeVisibility: (

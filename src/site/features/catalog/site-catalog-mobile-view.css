@@ -81,6 +81,13 @@
   justify-content: space-between;
 }
 
+.site-catalog-mobile__sort-control {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .site-catalog-mobile__toolbar-button {
   display: inline-flex;
   align-items: center;
@@ -116,13 +123,13 @@
 }
 
 .site-catalog-mobile__sort-flyout {
-  position: fixed;
-  top: 138px;
-  right: 20px;
-  z-index: 58;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 4;
   display: inline-flex;
   width: auto;
-  max-width: calc(100vw - 40px);
+  max-width: min(171px, calc(100vw - 40px));
   padding: 10px;
   box-sizing: border-box;
   border-radius: 15px;

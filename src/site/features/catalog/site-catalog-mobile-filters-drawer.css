@@ -27,8 +27,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 22.627px;
+  height: 22.627px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -44,9 +44,9 @@
   outline: none;
 }
 
-.site-catalog-mobile-filters-drawer__close-icon {
-  width: 14px;
-  height: 14px;
+.site-catalog-mobile-filters-drawer__close .site-window-titlebar__close-icon {
+  width: 10px;
+  height: 10px;
 }
 
 .site-catalog-mobile-filters-drawer__body {
@@ -88,7 +88,7 @@
 .site-catalog-mobile-filters-drawer__group-label {
   font-family: var(--site-font-ui);
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1;
 }
 
