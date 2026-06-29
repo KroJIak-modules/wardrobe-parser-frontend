@@ -45,11 +45,15 @@ export function SiteHomePage() {
       return;
     }
 
-    if (phase !== "entered") {
+    if (phase === "intro") {
       setPhase("entered");
+      window.scrollTo(0, 0);
+      return;
     }
 
-    window.scrollTo(0, 0);
+    if (phase === "entered") {
+      window.scrollTo(0, 0);
+    }
   }, [phase, shouldOpenStorefront]);
 
   useEffect(() => {
