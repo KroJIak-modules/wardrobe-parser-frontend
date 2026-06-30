@@ -323,24 +323,6 @@ export const siteCatalogProducts: readonly SiteCatalogProduct[] = buildMockCatal
 
 export const siteCatalogFilterGroups: readonly SiteCatalogFilterGroup[] = [
   {
-    key: "sort",
-    label: "Сортировка",
-    queryParam: "sort",
-    selectionMode: "single",
-    triggerWidthPx: 110,
-    panelHeightPx: 65,
-    panelListWidthPx: 110,
-    panelFlyoutWidthPx: 134,
-    panelListTopPx: 7,
-    panelListHeightPx: 51,
-    panelListAlign: "center",
-    options: [
-      { id: "sort-price-desc", label: "Сначала дороже", value: "price-desc" },
-      { id: "sort-price-asc", label: "Сначала дешевле", value: "price-asc" },
-      { id: "sort-featured", label: "Сначала новые", value: "featured", keepAtBottom: true },
-    ],
-  },
-  {
     key: "availability",
     label: "Наличие",
     queryParam: "availability",

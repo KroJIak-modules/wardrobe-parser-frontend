@@ -286,24 +286,6 @@
   min-height: 132px;
 }
 
-.admin-settings-panel--home .showcase-media-settings {
-  grid-template-columns: minmax(360px, 0.92fr) minmax(280px, 0.78fr);
-  align-items: start;
-  gap: 14px;
-}
-
-.admin-settings-panel--home .showcase-hero-tile {
-  width: 100%;
-}
-
-.admin-settings-panel--home .showcase-carousel-grid {
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
-}
-
-.admin-settings-panel--home .showcase-carousel-add {
-  min-height: 164px;
-}
-
 .admin-settings-panel--utility {
   max-width: 920px;
   background: linear-gradient(180deg, #ffffff 0%, #fafbfd 100%);
@@ -348,36 +330,8 @@
   line-height: 1.5;
 }
 
-.admin-settings-media-help {
-  margin: -2px 0 0;
-  color: #637287;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.admin-settings-upload-empty {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  text-align: center;
-}
-
-.admin-settings-upload-empty strong {
-  color: #27364a;
-  font-size: 14px;
-}
-
-.admin-settings-upload-empty span {
-  color: #738196;
-  font-size: 11px;
-}
-
 @media (max-width: 1080px) {
   .admin-settings-split-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-settings-panel--home .showcase-media-settings {
     grid-template-columns: 1fr;
   }
 }

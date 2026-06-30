@@ -3,24 +3,22 @@ import { useEffect, useState } from "react";
 import { AdminSettingsAboutSection } from "./admin-settings-about-section";
 import { AdminSettingsQuestionsSection } from "./admin-settings-questions-section";
 import { AdminShowcaseMediaSection } from "./admin-showcase-media-section";
+import type { ShowcaseMediaState, ShowcaseViewportKey } from "./admin-showcase-media-types";
 import { useAdminSettingsContentDrafts } from "./hooks/use-admin-settings-content-drafts";
 import "./admin-settings-tab.css";
 
-type CarouselItem = { id: number };
 type SettingsSubtab = "home" | "about" | "questions";
 
 type Props = {
-  showcaseHeroImageId: number | null;
-  heroInputRef: RefObject<HTMLInputElement | null>;
+  showcaseState: ShowcaseMediaState;
   showcaseSaving: boolean;
-  onRemoveHeroImage: (event: MouseEvent<HTMLButtonElement>) => Promise<void>;
-  onPickHeroImage: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
-  showcaseCarousel: CarouselItem[];
-  setDraggingCarouselId: (id: number | null) => void;
-  onReorderCarouselImage: (targetId: number) => Promise<void>;
-  onRemoveCarouselImage: (imageId: number) => Promise<void>;
-  carouselInputRef: RefObject<HTMLInputElement | null>;
-  onPickCarouselImages: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  heroInputRefs: Record<ShowcaseViewportKey, RefObject<HTMLInputElement | null>>;
+  carouselInputRefs: Record<ShowcaseViewportKey, RefObject<HTMLInputElement | null>>;
+  onRemoveHeroAsset: (viewport: ShowcaseViewportKey, event?: MouseEvent<HTMLButtonElement>) => Promise<void>;
+  onPickHeroAsset: (viewport: ShowcaseViewportKey, event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onCommitCarouselOrder: (viewport: ShowcaseViewportKey, orderedAssetIds: number[]) => Promise<void>;
+  onRemoveCarouselAsset: (viewport: ShowcaseViewportKey, assetId: number) => Promise<void>;
+  onPickCarouselAssets: (viewport: ShowcaseViewportKey, event: ChangeEvent<HTMLInputElement>) => Promise<void>;
 };
 
 const SUBTAB_STORAGE_KEY = "admin-settings-subtab";
@@ -32,17 +30,15 @@ const SUBTAB_LABELS: Record<SettingsSubtab, string> = {
 };
 
 export function AdminSettingsTab({
-  showcaseHeroImageId,
-  heroInputRef,
+  showcaseState,
   showcaseSaving,
-  onRemoveHeroImage,
-  onPickHeroImage,
-  showcaseCarousel,
-  setDraggingCarouselId,
-  onReorderCarouselImage,
-  onRemoveCarouselImage,
-  carouselInputRef,
-  onPickCarouselImages,
+  heroInputRefs,
+  carouselInputRefs,
+  onRemoveHeroAsset,
+  onPickHeroAsset,
+  onCommitCarouselOrder,
+  onRemoveCarouselAsset,
+  onPickCarouselAssets,
 }: Props) {
   const [activeSubtab, setActiveSubtab] = useState<SettingsSubtab>(() => {
     if (typeof window === "undefined") {
@@ -97,21 +93,19 @@ export function AdminSettingsTab({
             <div className="admin-settings-panel__head">
               <div>
                 <h2>Медиа витрины</h2>
-                <p className="muted">Добавляй hero отдельно от карусели: так проще держать главный акцент и промо-кадры независимо.</p>
+                <p className="muted">Отдельно собирай набор для компьютерной и мобильной версии. Один блок отвечает за заставку, второй за порядок медиа в карусели.</p>
               </div>
             </div>
             <AdminShowcaseMediaSection
-              showcaseHeroImageId={showcaseHeroImageId}
-              heroInputRef={heroInputRef}
+              showcaseState={showcaseState}
               showcaseSaving={showcaseSaving}
-              onRemoveHeroImage={onRemoveHeroImage}
-              onPickHeroImage={onPickHeroImage}
-              showcaseCarousel={showcaseCarousel}
-              setDraggingCarouselId={setDraggingCarouselId}
-              onReorderCarouselImage={onReorderCarouselImage}
-              onRemoveCarouselImage={onRemoveCarouselImage}
-              carouselInputRef={carouselInputRef}
-              onPickCarouselImages={onPickCarouselImages}
+              heroInputRefs={heroInputRefs}
+              carouselInputRefs={carouselInputRefs}
+              onRemoveHeroAsset={onRemoveHeroAsset}
+              onPickHeroAsset={onPickHeroAsset}
+              onCommitCarouselOrder={onCommitCarouselOrder}
+              onRemoveCarouselAsset={onRemoveCarouselAsset}
+              onPickCarouselAssets={onPickCarouselAssets}
             />
           </section>
         </div>

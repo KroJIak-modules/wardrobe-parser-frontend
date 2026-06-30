@@ -293,52 +293,6 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [refresh, refreshAdminUiOnly, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]);
 
-  const updateShowcaseMediaSettings = useCallback(async (payload: {
-    hero_image_asset_id?: number | null;
-    carousel_image_asset_ids?: number[];
-  }) => {
-    try {
-      if (payload.hero_image_asset_id === null) {
-        await apiNoContent(`${API_BASE}/showcase/hero`, { method: "DELETE" });
-      } else if (typeof payload.hero_image_asset_id === "number" && payload.hero_image_asset_id > 0) {
-        await apiJson<{ ok: boolean; image_asset_id: number }>(`${API_BASE}/showcase/hero`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image_asset_id: payload.hero_image_asset_id }),
-        });
-      }
-      if (Array.isArray(payload.carousel_image_asset_ids)) {
-        const state = await apiJson<{ carousel_image_asset_ids?: number[] }>(`${API_BASE}/showcase/state`);
-        const currentIds = Array.isArray(state.carousel_image_asset_ids)
-          ? state.carousel_image_asset_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0)
-          : [];
-        const nextIds = payload.carousel_image_asset_ids
-          .map((item) => Number(item))
-          .filter((item, index, items) => Number.isFinite(item) && item > 0 && items.indexOf(item) === index);
-
-        for (const imageId of nextIds) {
-          if (!currentIds.includes(imageId)) {
-            await apiJson<{ ok: boolean }>(`${API_BASE}/showcase/carousel/${imageId}`, { method: "POST" });
-          }
-        }
-        for (const imageId of currentIds) {
-          if (!nextIds.includes(imageId)) {
-            await apiJson<{ ok: boolean }>(`${API_BASE}/showcase/carousel/${imageId}`, { method: "DELETE" });
-          }
-        }
-        await apiJson<{ ok: boolean; items: number[] }>(`${API_BASE}/showcase/carousel/order`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: nextIds }),
-        });
-      }
-      await refreshAdminUiOnly();
-      return okResult("Медиа витрины сохранены");
-    } catch (e) {
-      return errResult(e instanceof Error ? e.message : "Unknown error");
-    }
-  }, [refreshAdminUiOnly]);
-
   const updateAdminUiSettings = useCallback(async (payload: Partial<AdminUiSettings>) => {
     try {
       const updated = await apiJson<AdminUiSettings>(`${API_BASE}/settings/admin-ui`, {
@@ -409,7 +363,6 @@ export function useLiveDataSourceSettingsActions(params: {
     updatePricingSettings,
     updateAdminUiSettings,
     fetchPricingExampleProduct,
-    updateShowcaseMediaSettings,
     updatePricingSupplier,
     createPricingSupplier,
     deletePricingSupplier,

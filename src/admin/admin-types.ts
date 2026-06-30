@@ -7,10 +7,6 @@ export type UploadPreview = {
   url: string;
 };
 
-export type ShowcaseImageItem = {
-  id: number;
-};
-
 export type PricingFieldKey =
   | "weight_tolerance"
   | "customs_duty_rate"

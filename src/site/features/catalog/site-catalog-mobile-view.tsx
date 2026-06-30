@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SiteMobileHomeHeader } from "../header/site-mobile-home-header";
 import { SiteProductsGrid } from "../storefront/site-products-section";
@@ -79,10 +79,19 @@ export function SiteCatalogMobileView({
   const filtersDrawerRef = useRef<SiteCatalogMobileFiltersDrawerHandle | null>(null);
   const mobileTitle = useMemo(() => getMobileCatalogTitle(title, titleSource), [title, titleSource]);
   const sortGroup = useMemo(() => filterGroups.find((group) => group.key === "sort") ?? null, [filterGroups]);
+  const hasSortControl = sortGroup !== null && sortGroup.options.length > 0;
   const filterPanelGroups = useMemo(() => filterGroups.filter((group) => group.key !== "sort"), [filterGroups]);
   const selectedSortValues = sortGroup ? getCatalogSelectedValues(searchParams, sortGroup) : [];
-  const sortTriggerLabel = sortGroup ? getCatalogTriggerLabel(searchParams, sortGroup, selectedSortValues) : "СОРТИРОВКА";
+  const sortTriggerLabel = sortGroup ? getCatalogTriggerLabel(searchParams, sortGroup, selectedSortValues) : null;
   const orderedSortOptions = useMemo(() => (sortGroup ? orderMobileSortOptions(sortGroup) : []), [sortGroup]);
+
+  useEffect(() => {
+    if (hasSortControl || openPanel !== "sort") {
+      return;
+    }
+
+    setOpenPanel(null);
+  }, [hasSortControl, openPanel]);
 
   const openFilters = () => {
     setOpenPanel("filters");
@@ -125,49 +134,51 @@ export function SiteCatalogMobileView({
             ФИЛЬТРЫ
           </button>
 
-          <div className="site-catalog-mobile__sort-control">
-            <button
-              type="button"
-              className={openPanel === "sort" ? "site-catalog-mobile__toolbar-button site-catalog-mobile__toolbar-button--active" : "site-catalog-mobile__toolbar-button"}
-              onClick={() => setOpenPanel((current) => (current === "sort" ? null : "sort"))}
-            >
-              <SortChevron isOpen={openPanel === "sort"} />
-              <span>{sortTriggerLabel}</span>
-            </button>
+          {hasSortControl && sortGroup && sortTriggerLabel ? (
+            <div className="site-catalog-mobile__sort-control">
+              <button
+                type="button"
+                className={openPanel === "sort" ? "site-catalog-mobile__toolbar-button site-catalog-mobile__toolbar-button--active" : "site-catalog-mobile__toolbar-button"}
+                onClick={() => setOpenPanel((current) => (current === "sort" ? null : "sort"))}
+              >
+                <SortChevron isOpen={openPanel === "sort"} />
+                <span>{sortTriggerLabel}</span>
+              </button>
 
-            {openPanel === "sort" && sortGroup ? (
-              <section className="site-catalog-mobile__sort-flyout" aria-label="Сортировка каталога">
-                <div className="site-catalog-mobile__sort-options">
-                  {orderedSortOptions.map((option) => {
-                    const isSelected = selectedSortValues.includes(option.value);
-                    const isDecorative = Boolean(option.keepAtBottom);
+              {openPanel === "sort" ? (
+                <section className="site-catalog-mobile__sort-flyout" aria-label="Сортировка каталога">
+                  <div className="site-catalog-mobile__sort-options">
+                    {orderedSortOptions.map((option) => {
+                      const isSelected = selectedSortValues.includes(option.value);
+                      const isDecorative = Boolean(option.keepAtBottom);
 
-                    return isDecorative ? (
-                      <div key={option.id} className="site-catalog-mobile__sort-option site-catalog-mobile__sort-option--strong">
-                        {option.label}
-                      </div>
-                    ) : (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className={isSelected ? "site-catalog-mobile__sort-option site-catalog-mobile__sort-option--selected" : "site-catalog-mobile__sort-option"}
-                        onClick={() => {
-                          onSearchParamsChange(
-                            isSelected
-                              ? clearCatalogGroupSelection(searchParams, sortGroup)
-                              : toggleCatalogGroupOption(searchParams, sortGroup, option.value)
-                          );
-                          setOpenPanel(null);
-                        }}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-          </div>
+                      return isDecorative ? (
+                        <div key={option.id} className="site-catalog-mobile__sort-option site-catalog-mobile__sort-option--strong">
+                          {option.label}
+                        </div>
+                      ) : (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={isSelected ? "site-catalog-mobile__sort-option site-catalog-mobile__sort-option--selected" : "site-catalog-mobile__sort-option"}
+                          onClick={() => {
+                            onSearchParamsChange(
+                              isSelected
+                                ? clearCatalogGroupSelection(searchParams, sortGroup)
+                                : toggleCatalogGroupOption(searchParams, sortGroup, option.value)
+                            );
+                            setOpenPanel(null);
+                          }}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 

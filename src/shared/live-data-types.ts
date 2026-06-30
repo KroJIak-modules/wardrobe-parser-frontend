@@ -559,12 +559,15 @@ export type SettingsTransferTaxonomyState = {
 
 export type SettingsTransferShowcaseCarouselEntry = {
   asset_checksum: string;
+  viewport: "desktop" | "mobile";
   position: number;
 };
 
 export type SettingsTransferShowcaseMedia = {
-  hero_asset_checksum: string | null;
-  carousel: SettingsTransferShowcaseCarouselEntry[];
+  desktop_hero_asset_checksum: string | null;
+  mobile_hero_asset_checksum: string | null;
+  desktop_carousel: SettingsTransferShowcaseCarouselEntry[];
+  mobile_carousel: SettingsTransferShowcaseCarouselEntry[];
 };
 
 export type SettingsTransferImageAssetEntry = {
@@ -707,8 +710,6 @@ export type LiveDataContextValue = {
   deleteProduct: (productId: number) => Promise<{ ok: boolean; message: string }>;
   uploadProductImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   uploadProductImageByUrl: (url: string) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
-  uploadShowcaseHeroImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
-  uploadShowcaseCarouselImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId: number | null }>;
   mergeDedupProducts: (payload: {
     product_ids: number[];
     primary_product_id?: number | null;
@@ -776,10 +777,6 @@ export type LiveDataContextValue = {
   fetchPricingExampleProduct: (productId?: number | null) => Promise<PricingExampleFetchResult>;
   updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
   updateAdminUiSettings: (payload: Partial<AdminUiSettings>) => Promise<{ ok: boolean; message: string }>;
-  updateShowcaseMediaSettings: (payload: {
-    hero_image_asset_id?: number | null;
-    carousel_image_asset_ids?: number[];
-  }) => Promise<{ ok: boolean; message: string }>;
   updatePricingSupplier: (
     supplierId: number,
     payload: {

@@ -479,13 +479,18 @@ export function AdminSettingsSkeleton() {
         ))}
       </div>
       <SkeletonBlock className="admin-settings-skeleton-line" />
-      <div className="showcase-media-settings">
-        <SkeletonBlock className="admin-settings-skeleton-input" />
-        <div className="showcase-carousel-grid">
-          {Array.from({ length: 4 }).map((_, idx) => (
-            <SkeletonBlock key={`settings-showcase-skeleton-${idx}`} className="admin-settings-skeleton-input" />
-          ))}
-        </div>
+      <div className="admin-settings-split-grid">
+        {Array.from({ length: 2 }).map((_, viewportIdx) => (
+          <div key={`settings-showcase-viewport-skeleton-${viewportIdx}`} className="pricing-settings-field">
+            <SkeletonBlock className="admin-settings-skeleton-line admin-settings-skeleton-line--label" />
+            <SkeletonBlock className="admin-settings-skeleton-input" />
+            <div className="pricing-settings-grid">
+              {Array.from({ length: 3 }).map((__, itemIdx) => (
+                <SkeletonBlock key={`settings-showcase-skeleton-${viewportIdx}-${itemIdx}`} className="admin-settings-skeleton-input" />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
       <div className="settings-transfer-actions">
         <SkeletonBlock className="admin-settings-skeleton-btn" />

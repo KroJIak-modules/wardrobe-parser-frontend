@@ -75,8 +75,6 @@ export function AdminPage() {
     runSync,
     runSyncForSource,
     cancelSync,
-    uploadShowcaseHeroImage,
-    uploadShowcaseCarouselImage,
     dedupCandidates,
     dedupCandidatesTotal,
     loadingDedupCandidates,
@@ -126,7 +124,6 @@ export function AdminPage() {
     resetSettings,
     assignSourceSupplier,
     fetchPricingExampleProduct,
-    updateShowcaseMediaSettings,
     previewProductByUrl,
     probeProductByUrl,
     createManualProduct,
@@ -299,8 +296,6 @@ export function AdminPage() {
   } = useAdminPricingLocalState({ pricingSettings });
   const [pricingTabLoading, setPricingTabLoading] = useState<boolean>(false);
   const [weightTabLoading, setWeightTabLoading] = useState<boolean>(false);
-  const heroInputRef = useRef<HTMLInputElement | null>(null);
-  const carouselInputRef = useRef<HTMLInputElement | null>(null);
 
   useAdminErrorToast(error, pushToast);
 
@@ -405,21 +400,17 @@ export function AdminPage() {
     pushToast,
   });
   const {
-    showcaseHeroImageId,
-    showcaseCarousel,
+    showcaseState,
     showcaseSaving,
-    onPickHeroImage,
-    onRemoveHeroImage,
-    onPickCarouselImages,
-    onRemoveCarouselImage,
-    onDropCarouselReorder,
-    onStartCarouselDrag,
-    onEndCarouselDrag,
+    heroInputRefs,
+    carouselInputRefs,
+    onPickHeroAsset,
+    onRemoveHeroAsset,
+    onPickCarouselAssets,
+    onRemoveCarouselAsset,
+    onCommitCarouselOrder,
   } = useAdminShowcase({
     enabled: tab === "content",
-    uploadShowcaseHeroImage,
-    uploadShowcaseCarouselImage,
-    updateShowcaseMediaSettings,
     pushToast,
   });
 
@@ -637,23 +628,15 @@ export function AdminPage() {
     settingsTabProps: {
       pricingTabLoading,
       adminUiSettings,
-      showcaseHeroImageId,
-      heroInputRef,
+      showcaseState,
       showcaseSaving,
-      onRemoveHeroImage,
-      onPickHeroImage,
-      showcaseCarousel,
-      setDraggingCarouselId: (id) => {
-        if (id === null) {
-          onEndCarouselDrag();
-          return;
-        }
-        onStartCarouselDrag(id);
-      },
-      onReorderCarouselImage: onDropCarouselReorder,
-      onRemoveCarouselImage,
-      carouselInputRef,
-      onPickCarouselImages,
+      heroInputRefs,
+      carouselInputRefs,
+      onRemoveHeroAsset,
+      onPickHeroAsset,
+      onCommitCarouselOrder,
+      onRemoveCarouselAsset,
+      onPickCarouselAssets,
     },
     securityTabProps: {
       settingsExportInProgress,

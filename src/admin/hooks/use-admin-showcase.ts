@@ -1,31 +1,113 @@
-import { useEffect, useState, type ChangeEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from "react";
 import { API_BASE, authFetch } from "../auth-fetch";
-import type { ShowcaseImageItem } from "../admin-types";
 import { SHOWCASE_CAROUSEL_LIMIT } from "../admin-showcase-constants";
+import type { ShowcaseMediaAsset, ShowcaseMediaState, ShowcaseViewportKey, ShowcaseViewportState } from "../admin-showcase-media-types";
 
 type UseAdminShowcaseParams = {
   enabled: boolean;
-  uploadShowcaseHeroImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId?: number }>;
-  uploadShowcaseCarouselImage: (file: File) => Promise<{ ok: boolean; message: string; imageAssetId?: number }>;
-  updateShowcaseMediaSettings: (patch: {
-    hero_image_asset_id?: number | null;
-    carousel_image_asset_ids?: number[];
-  }) => Promise<{ ok: boolean; message: string }>;
   pushToast: (message: string) => void;
 };
 
-type ShowcaseMediaPatch = {
-  hero_image_asset_id?: number | null;
-  carousel_image_asset_ids?: number[];
+type ShowcaseAssetPayload = {
+  id?: number;
+  mime_type?: string;
+  media_kind?: "image" | "video";
+  byte_size?: number;
+  width_px?: number | null;
+  height_px?: number | null;
 };
 
-export function useAdminShowcase(params: UseAdminShowcaseParams) {
-  const { enabled, uploadShowcaseHeroImage, uploadShowcaseCarouselImage, updateShowcaseMediaSettings, pushToast } = params;
+type ShowcaseStatePayload = {
+  desktop?: {
+    hero_asset?: ShowcaseAssetPayload | null;
+    carousel_assets?: ShowcaseAssetPayload[];
+  };
+  mobile?: {
+    hero_asset?: ShowcaseAssetPayload | null;
+    carousel_assets?: ShowcaseAssetPayload[];
+  };
+  carousel_limit?: number;
+};
 
-  const [showcaseHeroImageId, setShowcaseHeroImageId] = useState<number | null>(null);
-  const [showcaseCarousel, setShowcaseCarousel] = useState<ShowcaseImageItem[]>([]);
+function emptyViewportState(): ShowcaseViewportState {
+  return {
+    heroAsset: null,
+    carouselAssets: [],
+  };
+}
+
+const EMPTY_SHOWCASE_STATE: ShowcaseMediaState = {
+  desktop: emptyViewportState(),
+  mobile: emptyViewportState(),
+};
+
+function normalizeAsset(payload: ShowcaseAssetPayload | null | undefined): ShowcaseMediaAsset | null {
+  const id = Number(payload?.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    return null;
+  }
+  const mediaKind = payload?.media_kind === "video" ? "video" : "image";
+  return {
+    id,
+    mimeType: String(payload?.mime_type || "").trim() || (mediaKind === "video" ? "video/mp4" : "image/jpeg"),
+    mediaKind,
+    byteSize: Math.max(0, Number(payload?.byte_size || 0)),
+    widthPx: payload?.width_px == null ? null : Math.max(1, Number(payload.width_px)),
+    heightPx: payload?.height_px == null ? null : Math.max(1, Number(payload.height_px)),
+  };
+}
+
+function normalizeAssetList(payload: ShowcaseAssetPayload[] | undefined): ShowcaseMediaAsset[] {
+  const normalized: ShowcaseMediaAsset[] = [];
+  const seen = new Set<number>();
+  for (const item of payload || []) {
+    const asset = normalizeAsset(item);
+    if (!asset || seen.has(asset.id)) {
+      continue;
+    }
+    seen.add(asset.id);
+    normalized.push(asset);
+  }
+  return normalized.slice(0, SHOWCASE_CAROUSEL_LIMIT);
+}
+
+function normalizeState(payload: ShowcaseStatePayload | null | undefined): ShowcaseMediaState {
+  return {
+    desktop: {
+      heroAsset: normalizeAsset(payload?.desktop?.hero_asset),
+      carouselAssets: normalizeAssetList(payload?.desktop?.carousel_assets),
+    },
+    mobile: {
+      heroAsset: normalizeAsset(payload?.mobile?.hero_asset),
+      carouselAssets: normalizeAssetList(payload?.mobile?.carousel_assets),
+    },
+  };
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  const payload = await response.json().catch(() => null) as { detail?: string } | null;
+  return String(payload?.detail || "").trim() || fallback;
+}
+
+export function useAdminShowcase(params: UseAdminShowcaseParams) {
+  const { enabled, pushToast } = params;
+
+  const [showcaseState, setShowcaseState] = useState<ShowcaseMediaState>(EMPTY_SHOWCASE_STATE);
   const [showcaseSaving, setShowcaseSaving] = useState<boolean>(false);
-  const [draggingCarouselId, setDraggingCarouselId] = useState<number | null>(null);
+
+  const desktopHeroInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileHeroInputRef = useRef<HTMLInputElement | null>(null);
+  const desktopCarouselInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileCarouselInputRef = useRef<HTMLInputElement | null>(null);
+
+  const heroInputRefs = {
+    desktop: desktopHeroInputRef,
+    mobile: mobileHeroInputRef,
+  } as const;
+  const carouselInputRefs = {
+    desktop: desktopCarouselInputRef,
+    mobile: mobileCarouselInputRef,
+  } as const;
 
   useEffect(() => {
     if (!enabled) {
@@ -35,21 +117,10 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
       try {
         const response = await authFetch(`${API_BASE}/showcase/state`);
         if (!response.ok) {
-          throw new Error(`Showcase state API error: ${response.status}`);
+          throw new Error(await readErrorMessage(response, `Не удалось загрузить медиа витрины (${response.status})`));
         }
-        const payload = await response.json() as {
-          hero_image_asset_id?: number | null;
-          carousel_image_asset_ids?: number[];
-        };
-        const heroRaw = Number(payload.hero_image_asset_id);
-        setShowcaseHeroImageId(Number.isFinite(heroRaw) && heroRaw > 0 ? heroRaw : null);
-        const ids = Array.isArray(payload.carousel_image_asset_ids) ? payload.carousel_image_asset_ids : [];
-        const normalized = ids
-          .map((item) => Number(item))
-          .filter((item, index, arr) => Number.isFinite(item) && item > 0 && arr.indexOf(item) === index)
-          .slice(0, SHOWCASE_CAROUSEL_LIMIT)
-          .map((id) => ({ id }));
-        setShowcaseCarousel(normalized);
+        const payload = await response.json() as ShowcaseStatePayload;
+        setShowcaseState(normalizeState(payload));
       } catch (error) {
         pushToast(error instanceof Error ? error.message : "Не удалось загрузить медиа витрины");
       }
@@ -64,125 +135,181 @@ export function useAdminShowcase(params: UseAdminShowcaseParams) {
     };
   }, [enabled, pushToast]);
 
-  const saveShowcaseSettings = async (patch: ShowcaseMediaPatch) => {
+  const saveShowcaseState = async (nextState: ShowcaseMediaState): Promise<ShowcaseMediaState | null> => {
     setShowcaseSaving(true);
     try {
-      const result = await updateShowcaseMediaSettings({
-        hero_image_asset_id: patch.hero_image_asset_id,
-        carousel_image_asset_ids: patch.carousel_image_asset_ids,
+      const response = await authFetch(`${API_BASE}/showcase/state`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          desktop: {
+            hero_asset_id: nextState.desktop.heroAsset?.id ?? null,
+            carousel_asset_ids: nextState.desktop.carouselAssets.map((item) => item.id),
+          },
+          mobile: {
+            hero_asset_id: nextState.mobile.heroAsset?.id ?? null,
+            carousel_asset_ids: nextState.mobile.carouselAssets.map((item) => item.id),
+          },
+        }),
       });
-      if (!result.ok) {
-        pushToast(result.message);
-        return false;
+      if (!response.ok) {
+        pushToast(await readErrorMessage(response, `Не удалось сохранить медиа витрины (${response.status})`));
+        return null;
       }
-      return true;
+      const payload = await response.json() as ShowcaseStatePayload;
+      const normalized = normalizeState(payload);
+      setShowcaseState(normalized);
+      return normalized;
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Не удалось сохранить медиа витрины");
+      return null;
     } finally {
       setShowcaseSaving(false);
     }
   };
 
-  const onPickHeroImage = async (event: ChangeEvent<HTMLInputElement>) => {
+  const uploadAsset = async (file: File): Promise<ShowcaseMediaAsset | null> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await authFetch(`${API_BASE}/showcase/media/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        pushToast(await readErrorMessage(response, `Не удалось загрузить файл (${response.status})`));
+        return null;
+      }
+      const payload = await response.json() as { asset?: ShowcaseAssetPayload | null };
+      return normalizeAsset(payload.asset);
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Не удалось загрузить файл");
+      return null;
+    }
+  };
+
+  const onPickHeroAsset = async (viewport: ShowcaseViewportKey, event: ChangeEvent<HTMLInputElement>) => {
+    if (showcaseSaving) {
+      event.target.value = "";
+      return;
+    }
     const file = event.target.files?.[0] || null;
     event.target.value = "";
     if (!file) {
       return;
     }
-    const uploaded = await uploadShowcaseHeroImage(file);
-    if (!uploaded.ok || !uploaded.imageAssetId) {
-      pushToast(uploaded.message || "Не удалось загрузить hero-картинку");
+    const uploadedAsset = await uploadAsset(file);
+    if (!uploadedAsset) {
       return;
     }
-    if (await saveShowcaseSettings({ hero_image_asset_id: uploaded.imageAssetId })) {
-      setShowcaseHeroImageId(uploaded.imageAssetId);
-    }
+    await saveShowcaseState({
+      ...showcaseState,
+      [viewport]: {
+        ...showcaseState[viewport],
+        heroAsset: uploadedAsset,
+      },
+    });
   };
 
-  const onRemoveHeroImage = async (event?: MouseEvent<HTMLButtonElement>) => {
+  const onRemoveHeroAsset = async (viewport: ShowcaseViewportKey, event?: MouseEvent<HTMLButtonElement>) => {
+    if (showcaseSaving) {
+      return;
+    }
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
-    if (await saveShowcaseSettings({ hero_image_asset_id: null })) {
-      setShowcaseHeroImageId(null);
-    }
+    await saveShowcaseState({
+      ...showcaseState,
+      [viewport]: {
+        ...showcaseState[viewport],
+        heroAsset: null,
+      },
+    });
   };
 
-  const onPickCarouselImages = async (event: ChangeEvent<HTMLInputElement>) => {
+  const onPickCarouselAssets = async (viewport: ShowcaseViewportKey, event: ChangeEvent<HTMLInputElement>) => {
+    if (showcaseSaving) {
+      event.target.value = "";
+      return;
+    }
     const files = event.target.files ? [...event.target.files] : [];
     event.target.value = "";
     if (files.length === 0) {
       return;
     }
-    if (showcaseCarousel.length >= SHOWCASE_CAROUSEL_LIMIT) {
-      pushToast(`Максимум ${SHOWCASE_CAROUSEL_LIMIT} изображений в карусели`);
+    const existingAssets = showcaseState[viewport].carouselAssets;
+    if (existingAssets.length >= SHOWCASE_CAROUSEL_LIMIT) {
+      pushToast(`В карусели можно хранить максимум ${SHOWCASE_CAROUSEL_LIMIT} медиафайлов`);
       return;
     }
-    const remaining = Math.max(0, SHOWCASE_CAROUSEL_LIMIT - showcaseCarousel.length);
-    const toUpload = files.slice(0, remaining);
-    const uploadedIds: number[] = [];
-    for (const file of toUpload) {
-      const uploaded = await uploadShowcaseCarouselImage(file);
-      if (!uploaded.ok || !uploaded.imageAssetId) {
-        pushToast(uploaded.message || "Не удалось загрузить изображение карусели");
-        continue;
-      }
-      uploadedIds.push(uploaded.imageAssetId);
-    }
-    if (uploadedIds.length === 0) {
+    const remainingSlots = SHOWCASE_CAROUSEL_LIMIT - existingAssets.length;
+    const uploadQueue = files.slice(0, remainingSlots);
+    const results = await Promise.allSettled(uploadQueue.map((file) => uploadAsset(file)));
+    const uploadedAssets = results
+      .map((result) => result.status === "fulfilled" ? result.value : null)
+      .filter((item): item is ShowcaseMediaAsset => item !== null);
+    if (uploadedAssets.length === 0) {
       return;
     }
-    const next = [...showcaseCarousel.map((item) => item.id), ...uploadedIds].slice(0, SHOWCASE_CAROUSEL_LIMIT);
-    if (await saveShowcaseSettings({ carousel_image_asset_ids: next })) {
-      setShowcaseCarousel(next.map((id) => ({ id })));
-    }
+    await saveShowcaseState({
+      ...showcaseState,
+      [viewport]: {
+        ...showcaseState[viewport],
+        carouselAssets: [...existingAssets, ...uploadedAssets].slice(0, SHOWCASE_CAROUSEL_LIMIT),
+      },
+    });
   };
 
-  const onRemoveCarouselImage = async (id: number) => {
-    const next = showcaseCarousel.map((item) => item.id).filter((item) => item !== id);
-    if (await saveShowcaseSettings({ carousel_image_asset_ids: next })) {
-      setShowcaseCarousel(next.map((item) => ({ id: item })));
-    }
-  };
-
-  const onDropCarouselReorder = async (targetId: number) => {
-    if (!draggingCarouselId || draggingCarouselId === targetId) {
+  const onRemoveCarouselAsset = async (viewport: ShowcaseViewportKey, assetId: number) => {
+    if (showcaseSaving) {
       return;
     }
-    const ids = showcaseCarousel.map((item) => item.id);
-    const fromIndex = ids.indexOf(draggingCarouselId);
-    const toIndex = ids.indexOf(targetId);
-    if (fromIndex < 0 || toIndex < 0) {
+    await saveShowcaseState({
+      ...showcaseState,
+      [viewport]: {
+        ...showcaseState[viewport],
+        carouselAssets: showcaseState[viewport].carouselAssets.filter((item) => item.id !== assetId),
+      },
+    });
+  };
+
+  const onCommitCarouselOrder = async (viewport: ShowcaseViewportKey, orderedAssetIds: number[]) => {
+    if (showcaseSaving) {
       return;
     }
-    const next = [...ids];
-    const [moved] = next.splice(fromIndex, 1);
-    next.splice(toIndex, 0, moved);
-    if (await saveShowcaseSettings({ carousel_image_asset_ids: next })) {
-      setShowcaseCarousel(next.map((item) => ({ id: item })));
+    const currentAssets = showcaseState[viewport].carouselAssets;
+    if (orderedAssetIds.length !== currentAssets.length) {
+      return;
     }
-    setDraggingCarouselId(null);
-  };
-
-  const onStartCarouselDrag = (id: number) => {
-    setDraggingCarouselId(id);
-  };
-
-  const onEndCarouselDrag = () => {
-    setDraggingCarouselId(null);
+    if (orderedAssetIds.every((assetId, index) => currentAssets[index]?.id === assetId)) {
+      return;
+    }
+    const assetsById = new Map(currentAssets.map((item) => [item.id, item]));
+    const nextAssets = orderedAssetIds
+      .map((assetId) => assetsById.get(assetId) || null)
+      .filter((item): item is ShowcaseMediaAsset => item !== null);
+    if (nextAssets.length !== currentAssets.length) {
+      return;
+    }
+    await saveShowcaseState({
+      ...showcaseState,
+      [viewport]: {
+        ...showcaseState[viewport],
+        carouselAssets: nextAssets,
+      },
+    });
   };
 
   return {
-    showcaseHeroImageId,
-    setShowcaseHeroImageId,
-    showcaseCarousel,
-    setShowcaseCarousel,
+    showcaseState,
     showcaseSaving,
-    onPickHeroImage,
-    onRemoveHeroImage,
-    onPickCarouselImages,
-    onRemoveCarouselImage,
-    onDropCarouselReorder,
-    onStartCarouselDrag,
-    onEndCarouselDrag,
+    heroInputRefs,
+    carouselInputRefs,
+    onPickHeroAsset,
+    onRemoveHeroAsset,
+    onPickCarouselAssets,
+    onRemoveCarouselAsset,
+    onCommitCarouselOrder,
   };
 }

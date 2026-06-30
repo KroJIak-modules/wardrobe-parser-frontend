@@ -251,7 +251,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     updatePricingSettings,
     updateAdminUiSettings,
     fetchPricingExampleProduct,
-    updateShowcaseMediaSettings,
     updatePricingSupplier,
     createPricingSupplier,
     deletePricingSupplier,
@@ -418,39 +417,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   }, [refresh]);
 
 
-  const uploadShowcaseImageTo = useCallback(async (file: File, endpoint: "hero" | "carousel") => {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await authFetch(`${API_BASE}/showcase/${endpoint}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const errorPayload = (await res.json().catch(() => null)) as { detail?: string } | null;
-        return { ok: false, message: errorPayload?.detail || `Ошибка upload: ${res.status}`, imageAssetId: null };
-      }
-      const payload = (await res.json()) as { image_asset_id?: number };
-      const imageAssetId = Number(payload?.image_asset_id);
-      if (!Number.isFinite(imageAssetId) || imageAssetId <= 0) {
-        return { ok: false, message: "Сервер вернул некорректный id изображения", imageAssetId: null };
-      }
-      return { ok: true, message: "Изображение загружено", imageAssetId };
-    } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : "Unknown error", imageAssetId: null };
-    }
-  }, []);
-
-  const uploadShowcaseHeroImage = useCallback(
-    async (file: File) => uploadShowcaseImageTo(file, "hero"),
-    [uploadShowcaseImageTo]
-  );
-
-  const uploadShowcaseCarouselImage = useCallback(
-    async (file: File) => uploadShowcaseImageTo(file, "carousel"),
-    [uploadShowcaseImageTo]
-  );
-
   const ensureAllProductsLoaded = useCallback(async () => {
     try {
       let offset = 0;
@@ -581,8 +547,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       deleteProduct,
       uploadProductImage,
       uploadProductImageByUrl,
-      uploadShowcaseHeroImage,
-      uploadShowcaseCarouselImage,
       runDedupScan,
       mergeDedupProducts,
       rejectDedupProducts,
@@ -612,7 +576,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       fetchPricingExampleProduct,
       updatePricingSettings,
       updateAdminUiSettings,
-      updateShowcaseMediaSettings,
       updatePricingSupplier,
       createPricingSupplier,
       deletePricingSupplier,
@@ -677,8 +640,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       deleteProduct,
       uploadProductImage,
       uploadProductImageByUrl,
-      uploadShowcaseHeroImage,
-      uploadShowcaseCarouselImage,
       runDedupScan,
       mergeDedupProducts,
       rejectDedupProducts,
@@ -707,7 +668,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       fetchPricingExampleProduct,
       updatePricingSettings,
       updateAdminUiSettings,
-      updateShowcaseMediaSettings,
       updatePricingSupplier,
       createPricingSupplier,
       deletePricingSupplier,
