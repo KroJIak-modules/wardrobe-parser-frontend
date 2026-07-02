@@ -28,11 +28,15 @@ export function computePricingRates(pricingSettings: PricingSettings | null, pri
   if (!pricingSettings) {
     return { usdToRub: 0, eurToRub: 0, gbpToRub: 0 };
   }
-  const draftUsdToRub = parseLocaleNumber(pricingDrafts.usd_to_rub_rate ?? String(pricingSettings.usd_to_rub_rate));
-  const draftEurToRub = parseLocaleNumber(pricingDrafts.eur_to_rub_rate ?? String(pricingSettings.eur_to_rub_rate));
-  const usdToRub = Number.isFinite(draftUsdToRub) && draftUsdToRub > 0 ? draftUsdToRub : Number(pricingSettings.usd_to_rub_rate);
-  const eurToRub = Number.isFinite(draftEurToRub) && draftEurToRub > 0 ? draftEurToRub : Number(pricingSettings.eur_to_rub_rate);
-  return { usdToRub, eurToRub, gbpToRub: 0 };
+  const draftUsdtToRub = parseLocaleNumber(pricingDrafts.usdt_to_rub_rate ?? String(pricingSettings.usdt_to_rub_rate));
+  const draftEurToUsd = parseLocaleNumber(pricingDrafts.eur_to_usd_rate ?? String(pricingSettings.eur_to_usd_rate));
+  const draftGbpToUsd = parseLocaleNumber(pricingDrafts.gbp_to_usd_rate ?? String(pricingSettings.gbp_to_usd_rate));
+  const usdToRub = Number.isFinite(draftUsdtToRub) && draftUsdtToRub > 0 ? draftUsdtToRub : Number(pricingSettings.usd_to_rub_rate);
+  const eurToUsd = Number.isFinite(draftEurToUsd) && draftEurToUsd > 0 ? draftEurToUsd : Number(pricingSettings.eur_to_usd_rate);
+  const gbpToUsd = Number.isFinite(draftGbpToUsd) && draftGbpToUsd > 0 ? draftGbpToUsd : Number(pricingSettings.gbp_to_usd_rate);
+  const eurToRub = eurToUsd * usdToRub;
+  const gbpToRub = gbpToUsd * usdToRub;
+  return { usdToRub, eurToRub, gbpToRub };
 }
 
 export function buildThresholdDraft(pricingSettings: PricingSettings, rates: PricingRates): TriCurrencyDraft {

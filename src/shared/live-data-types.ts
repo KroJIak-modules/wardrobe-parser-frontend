@@ -418,6 +418,9 @@ export type PricingSettings = {
   weight_tolerance: number;
   customs_threshold_eur: number;
   customs_duty_rate: number;
+  eur_to_usd_rate: number;
+  gbp_to_usd_rate: number;
+  jpy_to_usd_rate: number;
   eur_to_rub_rate: number;
   usd_to_rub_rate: number;
   usdt_to_rub_rate: number;
@@ -634,6 +637,9 @@ export type SettingsTransferPricingSettings = {
   weight_tolerance: number;
   customs_threshold_eur: number;
   customs_duty_rate: number;
+  eur_to_usd_rate: number;
+  gbp_to_usd_rate: number;
+  jpy_to_usd_rate: number;
   eur_to_rub_rate: number;
   usd_to_rub_rate: number;
   usdt_to_rub_rate: number;

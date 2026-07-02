@@ -25,8 +25,9 @@ const pricingNumericKeys: PricingFieldKey[] = [
   "customs_fixed_rub",
   "payment_fee_rate",
   "tax_rate",
-  "eur_to_rub_rate",
-  "usd_to_rub_rate",
+  "eur_to_usd_rate",
+  "gbp_to_usd_rate",
+  "jpy_to_usd_rate",
   "usdt_to_rub_rate",
   "usdt_extra_rub",
 ];
@@ -101,14 +102,15 @@ const legendKeyToLatex: Record<string, string> = {
 };
 
 const pricingFieldMeta: Array<{ key: PricingFieldKey; symbolLatex: string; label: string; hint: string; step?: string }> = [
-  { key: "weight_tolerance", symbolLatex: "WT", label: "Запас по весу", hint: "Запас на случай, если фактический вес окажется больше ожидаемого. Чем выше значение, тем выше расчетная доставка.", step: "0.01" },
+  { key: "weight_tolerance", symbolLatex: "WT", label: "Запас по весу", hint: "Коэффициент к весу: 1 = без запаса, 1.1 = +10%.", step: "0.01" },
   { key: "customs_duty_rate", symbolLatex: "DUT", label: "Ставка пошлины", hint: "Процент пошлины на сумму выше порога. Пример: 0.15 = 15%.", step: "0.001" },
   { key: "customs_processing_rate", symbolLatex: "CPR", label: "Обработка пошлины", hint: "Дополнительная комиссия на саму пошлину. Пример: 0.08 = 8%.", step: "0.001" },
   { key: "customs_fixed_rub", symbolLatex: "CFX", label: "Фикс таможни (RUB)", hint: "Фиксированная добавка к таможне в рублях, если пошлина срабатывает.", step: "0.01" },
   { key: "payment_fee_rate", symbolLatex: "PFRP", label: "Комиссия платёжки", hint: "Комиссия платежной системы с суммы выкупа товара. Пример: 0.02 = 2%.", step: "0.001" },
   { key: "tax_rate", symbolLatex: "TXR", label: "Налог", hint: "Налог на полную итоговую сумму. Пример: 0.06 = 6%.", step: "0.001" },
-  { key: "eur_to_rub_rate", symbolLatex: "E2R", label: "EUR -> RUB", hint: "Курс перевода EUR в RUB для расчетов.", step: "0.0001" },
-  { key: "usd_to_rub_rate", symbolLatex: "U2R", label: "USD -> RUB", hint: "Курс перевода USD в RUB для расчетов.", step: "0.0001" },
+  { key: "eur_to_usd_rate", symbolLatex: "E2U", label: "EUR -> USD", hint: "Коэффициент перевода цены товара из EUR в USD.", step: "0.0001" },
+  { key: "gbp_to_usd_rate", symbolLatex: "G2U", label: "GBP -> USD", hint: "Коэффициент перевода цены товара из GBP в USD.", step: "0.0001" },
+  { key: "jpy_to_usd_rate", symbolLatex: "J2U", label: "JPY -> USD", hint: "Коэффициент перевода цены товара из JPY в USD.", step: "0.000001" },
   { key: "usdt_to_rub_rate", symbolLatex: "BBR", label: "USDT -> RUB", hint: "Базовый курс USDT/RUB, который приходит из Bybit.", step: "0.0001" },
   { key: "usdt_extra_rub", symbolLatex: "BEX", label: "Надбавка к USDT", hint: "Ручная надбавка к курсу USDT/RUB в рублях.", step: "0.01" },
 ];

@@ -14,8 +14,9 @@ export type PricingFieldKey =
   | "customs_fixed_rub"
   | "payment_fee_rate"
   | "tax_rate"
-  | "eur_to_rub_rate"
-  | "usd_to_rub_rate"
+  | "eur_to_usd_rate"
+  | "gbp_to_usd_rate"
+  | "jpy_to_usd_rate"
   | "usdt_to_rub_rate"
   | "usdt_extra_rub";
 
