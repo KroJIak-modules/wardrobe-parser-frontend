@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import type { SiteCartItem } from "../../runtime/site-cart-mock";
+import type { SiteCartItem } from "../../runtime/use-site-cart";
 import { formatSiteRubles } from "../../app/site-format";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
 import { SiteImage } from "../image/site-image";
@@ -17,7 +17,13 @@ export function SiteCartCard({
   onRemove: () => void;
 }) {
   const designerHref = buildDesignerCatalogHref(item.designerId);
-  const productHref = `/show/${item.productId}`;
+  const productHref = (() => {
+    try {
+      return new URL(item.productUrl).pathname;
+    } catch {
+      return item.productUrl;
+    }
+  })();
 
   return (
     <SiteWindowShell as="article" className="site-cart-card" frameClassName="site-cart-card__frame">

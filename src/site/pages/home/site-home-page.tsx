@@ -5,6 +5,7 @@ import { SiteImage } from "../../features/image/site-image";
 import { LandingGlassButtons } from "../../features/landing/landing-glass-buttons";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
+import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import { useSiteShowcaseMedia } from "../../runtime/use-site-showcase-media";
 import { SiteHomeSurface } from "./site-home-surface";
 import "./site-home-page.css";
@@ -19,8 +20,9 @@ export function SiteHomePage() {
   const shouldOpenStorefront = searchParams.get("view") === "storefront";
   const [phase, setPhase] = useState<IntroPhase>(shouldOpenStorefront ? "entered" : "intro");
   const { media, error: showcaseError, isCarouselReady } = useSiteShowcaseMedia({ preloadCarousel: true });
+  const { payload: navigation } = useSiteNavigation();
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
-  const heroImageSrc = isMobileLayout ? media.heroImageSrcMobile ?? media.heroImageSrcDesktop : media.heroImageSrcDesktop;
+  const heroAsset = isMobileLayout ? media.heroMobile ?? media.heroDesktop : media.heroDesktop;
 
   useEffect(() => {
     document.title = "Anton Shell";
@@ -95,6 +97,7 @@ export function SiteHomePage() {
     <main className="site-landing" data-phase={phase}>
       {isMobileLayout && phase === "entered" ? (
         <SiteMobileHomeHeader
+          navigation={navigation}
           onLogoActivate={() => {
             if (window.location.pathname === "/") {
               window.scrollTo({ top: 0, behavior: "smooth" });
@@ -110,8 +113,20 @@ export function SiteHomePage() {
         style={transitionStyle}
       >
         <section className="site-landing__hero" aria-label="Титульная страница">
-          {heroImageSrc ? (
-            <SiteImage src={heroImageSrc} alt="" className="site-landing__image" fillContainer enableSkeleton={false} />
+          {heroAsset ? (
+            heroAsset.mediaKind === "video" ? (
+              <video
+                src={heroAsset.url}
+                className="site-landing__image"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+              />
+            ) : (
+              <SiteImage src={heroAsset.url} alt="" className="site-landing__image" fillContainer enableSkeleton={false} />
+            )
           ) : (
             <div className="site-landing__image site-landing__image--placeholder" aria-hidden="true" />
           )}

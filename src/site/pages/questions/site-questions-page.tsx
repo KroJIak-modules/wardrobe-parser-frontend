@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { siteMenuItems } from "../../app/site-static-content";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteQuestionsView } from "../../features/questions/site-questions";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { useSiteActionItems } from "../../runtime/use-site-cart";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
+import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import { useSiteQuestions } from "../../runtime/use-site-questions";
 import "./site-questions-page.css";
 
@@ -16,6 +16,7 @@ export function SiteQuestionsPage() {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
   const { questions, initialOpenIds, isEmpty } = useSiteQuestions();
+  const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_QUESTIONS_MOBILE_MEDIA_QUERY);
 
@@ -28,6 +29,7 @@ export function SiteQuestionsPage() {
     <main className="site-questions-page">
       {isMobileLayout ? (
         <SiteMobileHomeHeader
+          navigation={navigation}
           onLogoActivate={() => {
             navigate("/?view=storefront");
           }}
@@ -35,7 +37,8 @@ export function SiteQuestionsPage() {
       ) : (
         <SiteHeader
           theme="light"
-          menuItems={siteMenuItems}
+          menuItems={menuItems}
+          dropdownMenus={dropdownMenus}
           actionItems={actionItems}
           searchValue={searchValue}
           onSearchValueChange={setSearchValue}

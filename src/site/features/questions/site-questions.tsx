@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { SiteQuestionItem } from "../../runtime/site-questions-mock";
+import type { SiteQuestionItem } from "../../runtime/site-questions-model";
 import { SiteQuestionAccordionItem } from "./site-question-accordion-item";
 import "./site-questions.css";
 
@@ -29,7 +29,6 @@ export function SiteQuestionsView({
       {isEmpty ? (
         <div className="site-questions__empty">
           <p className="site-questions__empty-title">ВОПРОСЫ ПОКА НЕ ДОБАВЛЕНЫ</p>
-          <p className="site-questions__empty-copy">Когда в API появятся записи, они автоматически займут это место.</p>
         </div>
       ) : (
         <div className="site-questions__list" aria-label="Список вопросов и ответов">

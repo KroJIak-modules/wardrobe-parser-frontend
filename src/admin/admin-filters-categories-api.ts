@@ -21,7 +21,7 @@ export async function searchAdminFiltersCategoriesProductLibrary(query: string, 
   return payload.items;
 }
 
-function toWritePayload(payload: AdminFiltersCategoriesWritePayload) {
+export function buildAdminFiltersCategoriesWritePayload(payload: AdminFiltersCategoriesWritePayload) {
   return {
     filters: payload.filters.map(function buildFilter(node) {
       return {
@@ -71,6 +71,6 @@ export async function saveAdminFiltersCategoriesState(payload: AdminFiltersCateg
   return apiJson<AdminFiltersCategoriesPayload>(`${API_BASE}/admin/taxonomy/editor`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(toWritePayload(payload)),
+    body: JSON.stringify(buildAdminFiltersCategoriesWritePayload(payload)),
   });
 }

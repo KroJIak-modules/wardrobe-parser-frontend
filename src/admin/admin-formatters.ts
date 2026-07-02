@@ -198,8 +198,19 @@ const amountKeyToCurrency = (key: TriCurrencyAmountKey): CurrencyCode => {
   return "EUR";
 };
 
+const normalizeLocaleNumberInput = (raw: string): string => String(raw ?? "").trim().replace(/\s+/g, "").replace(/,/g, ".");
+
+const parseLocaleNumber = (raw: string): number | null => {
+  const normalized = normalizeLocaleNumberInput(raw);
+  if (!normalized || !/^(?:\d+|\d+\.\d*|\.\d+)$/.test(normalized)) {
+    return null;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const parseNonNegativeNumber = (raw: string): number | null => {
-  const parsed = Number((raw || "").trim());
+  const parsed = parseLocaleNumber(raw);
   if (!Number.isFinite(parsed) || parsed < 0) {
     return null;
   }
@@ -275,8 +286,10 @@ export {
   formatSupplierCategory,
   fromRubByRates,
   normalizeFinalRoundingMode,
+  normalizeLocaleNumberInput,
   normalizeSupplierCategory,
   parseApiDate,
+  parseLocaleNumber,
   parseNonNegativeNumber,
   renderLatexBlock,
   renderLatexInline,

@@ -4,6 +4,7 @@ import { SiteMobileHomeHeader } from "../header/site-mobile-home-header";
 import { SiteProductsGrid } from "../storefront/site-products-section";
 import { SiteFooterSection } from "../storefront/site-storefront-sections";
 import type { SiteCatalogFilterGroup, SiteCatalogHeaderSource, SiteCatalogProduct } from "./site-catalog-contracts";
+import type { SiteApiNavigation } from "../../runtime/site-public-api";
 import {
   clearCatalogGroupSelection,
   getCatalogSelectedValues,
@@ -51,6 +52,7 @@ function orderMobileSortOptions(group: SiteCatalogFilterGroup) {
 }
 
 export function SiteCatalogMobileView({
+  navigation,
   title,
   titleSource,
   description,
@@ -60,8 +62,11 @@ export function SiteCatalogMobileView({
   products,
   currentPage,
   totalPages,
+  loading = false,
+  errorMessage = null,
   onPageChange,
 }: {
+  navigation: SiteApiNavigation | null;
   title: string;
   titleSource: SiteCatalogHeaderSource;
   description: string | null;
@@ -71,6 +76,8 @@ export function SiteCatalogMobileView({
   products: readonly SiteCatalogProduct[];
   currentPage: number;
   totalPages: number;
+  loading?: boolean;
+  errorMessage?: string | null;
   onPageChange: (page: number) => void;
 }) {
   const navigate = useNavigate();
@@ -81,7 +88,7 @@ export function SiteCatalogMobileView({
   const sortGroup = useMemo(() => filterGroups.find((group) => group.key === "sort") ?? null, [filterGroups]);
   const hasSortControl = sortGroup !== null && sortGroup.options.length > 0;
   const filterPanelGroups = useMemo(() => filterGroups.filter((group) => group.key !== "sort"), [filterGroups]);
-  const selectedSortValues = sortGroup ? getCatalogSelectedValues(searchParams, sortGroup) : [];
+  const selectedSortValues = sortGroup ? getCatalogSelectedValues(searchParams, sortGroup, { mode: "effective" }) : [];
   const sortTriggerLabel = sortGroup ? getCatalogTriggerLabel(searchParams, sortGroup, selectedSortValues) : null;
   const orderedSortOptions = useMemo(() => (sortGroup ? orderMobileSortOptions(sortGroup) : []), [sortGroup]);
 
@@ -109,6 +116,7 @@ export function SiteCatalogMobileView({
   return (
     <div className="site-catalog-mobile">
       <SiteMobileHomeHeader
+        navigation={navigation}
         onLogoActivate={() => {
           navigate("/?view=storefront");
         }}
@@ -202,7 +210,7 @@ export function SiteCatalogMobileView({
 
       <div className="site-catalog-mobile__content">
         <section className="site-catalog-mobile__products" aria-label="Товары каталога">
-          <SiteProductsGrid products={[...products]} layout="mobile" />
+          <SiteProductsGrid products={[...products]} layout="mobile" loading={loading} errorMessage={errorMessage} />
         </section>
 
         <div className="site-catalog-mobile__pagination">

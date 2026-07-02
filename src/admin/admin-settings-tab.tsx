@@ -1,13 +1,14 @@
 import type { ChangeEvent, MouseEvent, RefObject } from "react";
 import { useEffect, useState } from "react";
 import { AdminSettingsAboutSection } from "./admin-settings-about-section";
+import { AdminSettingsNotificationSection } from "./admin-settings-notification-section";
 import { AdminSettingsQuestionsSection } from "./admin-settings-questions-section";
 import { AdminShowcaseMediaSection } from "./admin-showcase-media-section";
 import type { ShowcaseMediaState, ShowcaseViewportKey } from "./admin-showcase-media-types";
-import { useAdminSettingsContentDrafts } from "./hooks/use-admin-settings-content-drafts";
+import { useAdminSiteContent } from "./hooks/use-admin-site-content";
 import "./admin-settings-tab.css";
 
-type SettingsSubtab = "home" | "about" | "questions";
+type SettingsSubtab = "home" | "about" | "questions" | "notifications";
 
 type Props = {
   showcaseState: ShowcaseMediaState;
@@ -19,6 +20,7 @@ type Props = {
   onCommitCarouselOrder: (viewport: ShowcaseViewportKey, orderedAssetIds: number[]) => Promise<void>;
   onRemoveCarouselAsset: (viewport: ShowcaseViewportKey, assetId: number) => Promise<void>;
   onPickCarouselAssets: (viewport: ShowcaseViewportKey, event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onToast: (message: string, type?: "success" | "error") => void;
 };
 
 const SUBTAB_STORAGE_KEY = "admin-settings-subtab";
@@ -27,6 +29,7 @@ const SUBTAB_LABELS: Record<SettingsSubtab, string> = {
   home: "Главная",
   about: "Обо мне",
   questions: "Вопросы",
+  notifications: "Уведомления",
 };
 
 export function AdminSettingsTab({
@@ -39,28 +42,42 @@ export function AdminSettingsTab({
   onCommitCarouselOrder,
   onRemoveCarouselAsset,
   onPickCarouselAssets,
+  onToast,
 }: Props) {
   const [activeSubtab, setActiveSubtab] = useState<SettingsSubtab>(() => {
     if (typeof window === "undefined") {
       return "home";
     }
     const stored = window.sessionStorage.getItem(SUBTAB_STORAGE_KEY);
-    return stored === "about" || stored === "questions" ? stored : "home";
+    return stored === "about" || stored === "questions" || stored === "notifications" ? stored : "home";
   });
   const {
+    loading,
     aboutDraft,
+    savingAbout,
+    uploadingPhoto,
     questionsDraft,
-    updateAboutField,
+    savingQuestions,
+    notificationDraft,
+    notificationItems,
+    notificationDirty,
+    savingNotification,
+    uploadingNotificationImage,
+    notificationActionId,
+    updateAboutText,
     addAboutPhotos,
     removeAboutPhoto,
     moveAboutPhoto,
-    resetAboutDraft,
     addQuestion,
     updateQuestion,
     moveQuestion,
     deleteQuestion,
-    resetQuestionsDraft,
-  } = useAdminSettingsContentDrafts();
+    updateNotification,
+    uploadNotificationImage,
+    saveNotification,
+    resetNotificationSeenState,
+    deleteNotification,
+  } = useAdminSiteContent({ onToast });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -72,7 +89,7 @@ export function AdminSettingsTab({
     <div className="admin-settings-shell">
       <section className="card admin-settings-section">
         <div className="tabs admin-settings-subtabs" role="tablist" aria-label="Разделы настроек">
-          {(["home", "about", "questions"] as SettingsSubtab[]).map((subtab) => (
+          {(["home", "about", "questions", "notifications"] as SettingsSubtab[]).map((subtab) => (
             <button
               key={subtab}
               type="button"
@@ -114,22 +131,41 @@ export function AdminSettingsTab({
       {activeSubtab === "about" ? (
         <AdminSettingsAboutSection
           draft={aboutDraft}
-          onChangeField={updateAboutField}
+          loading={loading}
+          saving={savingAbout}
+          uploadingPhoto={uploadingPhoto}
+          onChangeText={updateAboutText}
           onAddPhotos={addAboutPhotos}
           onRemovePhoto={removeAboutPhoto}
           onMovePhoto={moveAboutPhoto}
-          onReset={resetAboutDraft}
         />
       ) : null}
 
       {activeSubtab === "questions" ? (
         <AdminSettingsQuestionsSection
           questions={questionsDraft}
+          loading={loading}
           onAddQuestion={addQuestion}
           onUpdateQuestion={updateQuestion}
           onMoveQuestion={moveQuestion}
           onDeleteQuestion={deleteQuestion}
-          onReset={resetQuestionsDraft}
+        />
+      ) : null}
+
+      {activeSubtab === "notifications" ? (
+        <AdminSettingsNotificationSection
+          draft={notificationDraft}
+          items={notificationItems}
+          loading={loading}
+          dirty={notificationDirty}
+          saving={savingNotification}
+          uploadingImage={uploadingNotificationImage}
+          actionId={notificationActionId}
+          onChange={updateNotification}
+          onUploadImage={uploadNotificationImage}
+          onCreate={saveNotification}
+          onResetSeenState={resetNotificationSeenState}
+          onDelete={deleteNotification}
         />
       ) : null}
     </div>

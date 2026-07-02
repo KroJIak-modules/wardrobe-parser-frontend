@@ -96,6 +96,7 @@ export function buildPricingExampleView(
   const gbpToUsdRate = toFiniteNumber(components.derived_gbp_to_usd_rate);
   const supplierTransportRub = toFiniteNumber(components.supplier_transport_rub);
   const subtotalRub = toFiniteNumber(components.subtotal_rub);
+  const serviceFeeRub = toFiniteNumber(components.service_fee_rub) ?? 0;
   const subtotalAfterMarkupRub = toFiniteNumber(components.subtotal_after_markup_rub);
   const taxRate = toFiniteNumber(components.tax_rate);
   const taxRub = toFiniteNumber(components.tax_rub);
@@ -178,6 +179,7 @@ export function buildPricingExampleView(
     `\\underbrace{(` +
     `\\underbrace{${formatCompactNumber(subtotalRub)}}_{${labelVar("SUB")}}` +
     `\\cdot\\underbrace{${formatCompactNumber(markupRate + 1, 4)}}_{${labelVar("MUP")}}` +
+    `+\\underbrace{${formatCompactNumber(serviceFeeRub)}}_{${labelVar("SVC")}}` +
     `)}_{${labelGroup("SUBM", subtotalAfterMarkupRub)}}` +
     `+\\underbrace{(` +
     `\\underbrace{${formatCompactNumber(subtotalAfterMarkupRub)}}_{${labelVar("SUBM")}}` +
@@ -190,7 +192,7 @@ export function buildPricingExampleView(
   const marginRub = toFiniteNumber(components.margin_rub) ?? (finalPrice - sourcePriceRub);
   const usedKeys = new Set([
     "SP", "SPU", "SPE", "SPR", "BBR", "BEX", "BFX", "E2U", "G2U", "PRM", "BSC", "BUY", "PFRP", "PFR",
-    "THR", "DUT", "CPR", "CFX", "CDR", "SSR", "SUP", "RNG", "SUB", "SUBM", "TXR", "TAX", "MUP", "RND", "FPR",
+    "THR", "DUT", "CPR", "CFX", "CDR", "SSR", "SUP", "RNG", "SUB", "SVC", "SUBM", "TXR", "TAX", "MUP", "RND", "FPR",
   ]);
   const keyValues: Record<string, unknown> = {
     SP: sourcePriceRaw,
@@ -216,6 +218,7 @@ export function buildPricingExampleView(
     SUP: supplierName,
     RNG: shippingRuleLabel,
     SUB: subtotalRub,
+    SVC: serviceFeeRub,
     SUBM: subtotalAfterMarkupRub,
     TXR: taxRate,
     TAX: taxRub,

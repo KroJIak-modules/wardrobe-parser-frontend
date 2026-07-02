@@ -1,5 +1,5 @@
 import type { SiteDesignersLocationState } from "../designers/site-designers-navigation";
-import { getSiteHeaderDropdownMenu, type SiteHeaderDropdownMenu, type SiteHeaderMenuEntry } from "./site-header-data";
+import type { SiteHeaderDropdownMenu, SiteHeaderMenuEntry } from "./site-header-data";
 
 function getMenuEntryClassName(entry: SiteHeaderMenuEntry) {
   return entry.presentation === "heading"
@@ -72,5 +72,3 @@ export function SiteHeaderDropdownContent({
     </div>
   );
 }
-
-export { getSiteHeaderDropdownMenu };

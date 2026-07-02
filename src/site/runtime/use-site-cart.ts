@@ -1,6 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SiteNavItem } from "../features/storefront/site-storefront-contracts";
-import { siteCartMockItems, type SiteCartItem } from "./site-cart-mock";
+
+export type SiteCartItem = {
+  id: string;
+  productId: string;
+  designerId: string;
+  brand: string;
+  name: string;
+  imageSrc: string | null;
+  imageAlt: string;
+  availabilityLabel: string;
+  availabilityCode: "in-stock" | "preorder";
+  priceRub: number;
+  size: string;
+  quantity: number;
+  sourceUrl: string;
+  productUrl: string;
+};
 
 const SITE_CART_STORAGE_KEY = "site-cart-items-v1";
 const SITE_CART_CHANGE_EVENT = "site-cart-change";
@@ -41,14 +57,12 @@ function normalizeSiteCartItems(items: readonly SiteCartItem[]) {
 
 function readSiteCartItems(): SiteCartItem[] {
   if (typeof window === "undefined") {
-    return [...siteCartMockItems];
+    return [];
   }
 
   const rawValue = window.localStorage.getItem(SITE_CART_STORAGE_KEY);
   if (rawValue === null) {
-    const seeded = normalizeSiteCartItems(siteCartMockItems);
-    window.localStorage.setItem(SITE_CART_STORAGE_KEY, JSON.stringify(seeded));
-    return seeded;
+    return [];
   }
 
   try {

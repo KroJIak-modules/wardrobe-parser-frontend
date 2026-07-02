@@ -1,5 +1,5 @@
 import { normalizeCurrencyCode } from "../admin-constants";
-import { buildTriCurrencyDraft, currencyToAmountKey, formatCompactNumber, fromRubByRates, toRubByRates } from "../admin-formatters";
+import { buildTriCurrencyDraft, currencyToAmountKey, formatCompactNumber, fromRubByRates, parseLocaleNumber, toRubByRates } from "../admin-formatters";
 import type { CurrencyCode, PricingFieldKey, PricingSettings, TriCurrencyAmountKey, TriCurrencyDraft } from "../admin-types";
 
 export type SourcePricingDraft = {
@@ -28,8 +28,8 @@ export function computePricingRates(pricingSettings: PricingSettings | null, pri
   if (!pricingSettings) {
     return { usdToRub: 0, eurToRub: 0, gbpToRub: 0 };
   }
-  const draftUsdToRub = Number((pricingDrafts.usd_to_rub_rate ?? String(pricingSettings.usd_to_rub_rate)).trim());
-  const draftEurToRub = Number((pricingDrafts.eur_to_rub_rate ?? String(pricingSettings.eur_to_rub_rate)).trim());
+  const draftUsdToRub = parseLocaleNumber(pricingDrafts.usd_to_rub_rate ?? String(pricingSettings.usd_to_rub_rate));
+  const draftEurToRub = parseLocaleNumber(pricingDrafts.eur_to_rub_rate ?? String(pricingSettings.eur_to_rub_rate));
   const usdToRub = Number.isFinite(draftUsdToRub) && draftUsdToRub > 0 ? draftUsdToRub : Number(pricingSettings.usd_to_rub_rate);
   const eurToRub = Number.isFinite(draftEurToRub) && draftEurToRub > 0 ? draftEurToRub : Number(pricingSettings.eur_to_rub_rate);
   return { usdToRub, eurToRub, gbpToRub: 0 };
@@ -50,7 +50,7 @@ export function buildThresholdDraft(pricingSettings: PricingSettings, rates: Pri
 
 export function rebuildTriCurrencyDraft(current: TriCurrencyDraft, field: TriCurrencyAmountKey, raw: string, rates: PricingRates): TriCurrencyDraft {
   const next = { ...current, [field]: raw };
-  const parsed = Number(raw.trim());
+  const parsed = parseLocaleNumber(raw);
   if (!Number.isFinite(parsed) || parsed < 0) {
     return next;
   }
@@ -96,7 +96,7 @@ export function buildSourceDraft(source: SourceEntry, rates: PricingRates): Sour
 
 export function toSourceSyncPayload(source: SourceEntry, draft: SourcePricingDraft, rates: PricingRates) {
   const supplierParsed = Number((draft.supplierId || "").trim());
-  const promoPercentParsed = Number((draft.promoPercent || "").trim());
+  const promoPercentParsed = parseLocaleNumber(draft.promoPercent);
   if (!Number.isFinite(supplierParsed) || supplierParsed <= 0) {
     return null;
   }
@@ -112,7 +112,7 @@ export function toSourceSyncPayload(source: SourceEntry, draft: SourcePricingDra
   if (hasDraftBuyoutValue) {
     const normalizedTargetCurrency = normalizeCurrencyCode(draft.buyout.currency, "USD");
     const targetBuyoutField = currencyToAmountKey(normalizedTargetCurrency);
-    const targetBuyoutParsed = Number(String(draft.buyout[targetBuyoutField] || "").trim());
+    const targetBuyoutParsed = parseLocaleNumber(String(draft.buyout[targetBuyoutField] || ""));
     if (!Number.isFinite(targetBuyoutParsed) || targetBuyoutParsed < 0) {
       return null;
     }

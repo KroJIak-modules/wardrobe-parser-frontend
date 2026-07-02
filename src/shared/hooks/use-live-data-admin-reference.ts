@@ -13,6 +13,7 @@ import type {
   TaxonomyFilterNode,
   TaxonomyState,
   WeightMissingProduct,
+  WeightRecalcStatus,
   WeightRule,
 } from "../live-data-types";
 
@@ -68,6 +69,16 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   const [loadingDedupDecisions, setLoadingDedupDecisions] = useState<boolean>(false);
   const [weightRules, setWeightRules] = useState<WeightRule[]>([]);
   const [weightMissingProducts, setWeightMissingProducts] = useState<WeightMissingProduct[]>([]);
+  const [weightRecalcStatus, setWeightRecalcStatus] = useState<WeightRecalcStatus>({
+    status: "idle",
+    is_running: false,
+    queued_at: null,
+    started_at: null,
+    finished_at: null,
+    last_error: null,
+    total_products: 0,
+    processed_products: 0,
+  });
   const [pricingSettings, setPricingSettings] = useState<PricingSettings | null>(null);
   const [adminUiSettings, setAdminUiSettings] = useState<AdminUiSettings | null>(null);
   const [pricingLoaded, setPricingLoaded] = useState<boolean>(false);
@@ -270,16 +281,41 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   }, []);
 
   const refreshWeightOnly = useCallback(async () => {
-    const [rulesPayload, missingPayload] = await Promise.all([
+    const [rulesPayload, missingPayload, statusPayload] = await Promise.all([
       apiJson<WeightRule[]>(`${API_BASE}/settings/weight-rules`),
       apiJson<WeightMissingProduct[]>(`${API_BASE}/settings/weight-rules/missing-products?limit=${MISSING_WEIGHT_PAGE_SIZE}&offset=0`),
+      apiJson<WeightRecalcStatus>(`${API_BASE}/settings/weight-rules/recalculate-status`),
     ]);
     setWeightRules(rulesPayload || []);
     const chunk = missingPayload || [];
     setWeightMissingProducts(chunk);
     setWeightMissingOffset(chunk.length);
     setHasMoreWeightMissing(chunk.length >= MISSING_WEIGHT_PAGE_SIZE);
+    setWeightRecalcStatus({
+      status: statusPayload?.status ?? "idle",
+      is_running: Boolean(statusPayload?.is_running),
+      queued_at: statusPayload?.queued_at ?? null,
+      started_at: statusPayload?.started_at ?? null,
+      finished_at: statusPayload?.finished_at ?? null,
+      last_error: statusPayload?.last_error ?? null,
+      total_products: Number(statusPayload?.total_products || 0),
+      processed_products: Number(statusPayload?.processed_products || 0),
+    });
     setWeightLoaded(true);
+  }, []);
+
+  const refreshWeightRecalcStatusOnly = useCallback(async () => {
+    const payload = await apiJson<WeightRecalcStatus>(`${API_BASE}/settings/weight-rules/recalculate-status`);
+    setWeightRecalcStatus({
+      status: payload?.status ?? "idle",
+      is_running: Boolean(payload?.is_running),
+      queued_at: payload?.queued_at ?? null,
+      started_at: payload?.started_at ?? null,
+      finished_at: payload?.finished_at ?? null,
+      last_error: payload?.last_error ?? null,
+      total_products: Number(payload?.total_products || 0),
+      processed_products: Number(payload?.processed_products || 0),
+    });
   }, []);
 
   const loadMoreWeightMissingProducts = useCallback(async () => {
@@ -339,6 +375,7 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     loadingDedupDecisions,
     weightRules,
     weightMissingProducts,
+    weightRecalcStatus,
     pricingSettings,
     adminUiSettings,
     pricingLoaded,
@@ -362,6 +399,7 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     refreshAdminUiOnly,
     refreshCategoriesOnly,
     refreshWeightOnly,
+    refreshWeightRecalcStatusOnly,
     ensurePricingLoaded,
     ensureAdminUiLoaded,
     ensureWeightLoaded,
@@ -374,6 +412,7 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
     setAdminCategories,
     setDedupCandidates,
     setDedupDecisions,
+    setPricingSettings,
     setAdminUiSettings,
   };
 }

@@ -17,6 +17,7 @@ import { useAdminDedupActions } from "./hooks/use-admin-dedup-actions";
 import { useAdminPricingSettingsSync } from "./hooks/use-admin-pricing-settings-sync";
 import { useAdminPricingSuppliers } from "./hooks/use-admin-pricing-suppliers";
 import { useAdminSourcePricing } from "./hooks/use-admin-source-pricing";
+import { useAdminSvcRules } from "./hooks/use-admin-svc-rules";
 import { useAdminShowcase } from "./hooks/use-admin-showcase";
 import { useAdminSettingsTransfer } from "./hooks/use-admin-settings-transfer";
 import { useAdminSyncControls } from "./hooks/use-admin-sync-controls";
@@ -71,6 +72,7 @@ export function AdminPage() {
     refreshDedupDecisionCountOnly,
     ensureDedupDecisionsLoaded,
     ensureCategoriesLoaded,
+    refreshWeightRecalcStatusOnly,
     refreshSourcesOnly,
     runSync,
     runSyncForSource,
@@ -102,6 +104,7 @@ export function AdminPage() {
     updateSourceAttributeVisibility,
     weightRules,
     weightMissingProducts,
+    weightRecalcStatus,
     hasMoreWeightMissing,
     loadingMoreWeightMissing,
     loadMoreWeightMissingProducts,
@@ -114,6 +117,7 @@ export function AdminPage() {
     deleteWeightRule,
     addWeightKeyword,
     removeWeightKeyword,
+    startWeightRecalculation,
     updatePricingSettings,
     updateAdminUiSettings,
     updatePricingSupplier,
@@ -258,6 +262,31 @@ export function AdminPage() {
     return () => window.clearInterval(timer);
   }, [tab, dedupScanStatus.is_running, refreshDedupStatusOnly, ensureDedupLoaded]);
 
+  const previousWeightRecalcRunningRef = useRef<boolean>(weightRecalcStatus.is_running);
+
+  useEffect(() => {
+    if (tab !== "weight") {
+      return;
+    }
+    void refreshWeightRecalcStatusOnly();
+    if (!weightRecalcStatus.is_running) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void refreshWeightRecalcStatusOnly();
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [tab, weightRecalcStatus.is_running, refreshWeightRecalcStatusOnly]);
+
+  useEffect(() => {
+    const wasRunning = previousWeightRecalcRunningRef.current;
+    previousWeightRecalcRunningRef.current = weightRecalcStatus.is_running;
+    if (tab !== "weight" || !wasRunning || weightRecalcStatus.is_running) {
+      return;
+    }
+    void ensureWeightLoaded(true);
+  }, [tab, weightRecalcStatus.is_running, ensureWeightLoaded]);
+
   const {
     productSearch,
     setProductSearch,
@@ -400,6 +429,17 @@ export function AdminPage() {
     pushToast,
   });
   const {
+    svcRuleDrafts,
+    setSvcRuleDrafts,
+    svcRulesValidationError,
+    svcRuleFieldErrors,
+    onAddSvcRule,
+  } = useAdminSvcRules({
+    pricingSettings,
+    updatePricingSettings,
+    pushToast,
+  });
+  const {
     showcaseState,
     showcaseSaving,
     heroInputRefs,
@@ -534,7 +574,9 @@ export function AdminPage() {
       onLoadMoreCandidates: loadMoreDedupCandidates,
       onLoadMoreDecisions: loadMoreDedupDecisions,
     },
-    filtersCategoriesTabProps: {},
+    filtersCategoriesTabProps: {
+      onToast: pushToast,
+    },
     designersTabProps: {
       loading: designersLoading,
       rows: designersRows,
@@ -588,6 +630,11 @@ export function AdminPage() {
       setFinalRoundingModeDraft,
       thresholdDraft,
       setThresholdField,
+      svcRuleDrafts,
+      setSvcRuleDrafts,
+      svcRuleFieldErrors,
+      svcRulesValidationError,
+      onAddSvcRule,
       mainPricingSuppliers,
       altSuppliersByMainId,
       tariffRangesDrafts,
@@ -620,14 +667,17 @@ export function AdminPage() {
       setWeightKeywordInputs,
       onRemoveWeightKeyword,
       onAddWeightKeyword,
+      onStartWeightRecalculation: async () => {
+        const result = await startWeightRecalculation();
+        pushToast(result.message);
+      },
+      weightRecalcStatus,
       weightMissingProducts,
       hasMoreWeightMissing,
       loadingMoreWeightMissing,
       onLoadMoreWeightMissing: loadMoreWeightMissingProducts,
     },
     settingsTabProps: {
-      pricingTabLoading,
-      adminUiSettings,
       showcaseState,
       showcaseSaving,
       heroInputRefs,
@@ -637,6 +687,7 @@ export function AdminPage() {
       onCommitCarouselOrder,
       onRemoveCarouselAsset,
       onPickCarouselAssets,
+      onToast: (message, type = "success") => pushToast(message, type),
     },
     securityTabProps: {
       settingsExportInProgress,

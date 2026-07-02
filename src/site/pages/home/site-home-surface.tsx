@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { siteMenuItems } from "../../app/site-static-content";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteHomeNotification } from "../../features/home-notification/site-home-notification";
 import {
@@ -11,6 +10,7 @@ import {
 import { useSiteActionItems } from "../../runtime/use-site-cart";
 import { useSiteHomeNotification } from "../../runtime/use-site-home-notification";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
+import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import { useSiteProducts } from "../../runtime/use-site-products";
 import { useSiteShowcaseMedia } from "../../runtime/use-site-showcase-media";
 
@@ -31,6 +31,7 @@ export function SiteHomeSurface({
 }) {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
+  const { menuItems, dropdownMenus } = useSiteNavigation();
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const [headerTheme, setHeaderTheme] = useState<"light" | "dark">("light");
   const [searchValue, setSearchValue] = useState("");
@@ -86,7 +87,8 @@ export function SiteHomeSurface({
         !isMobileLayout ? (
           <SiteHeader
             theme={headerTheme}
-            menuItems={siteMenuItems}
+            menuItems={menuItems}
+            dropdownMenus={dropdownMenus}
             actionItems={actionItems}
             mode={headerMode}
             searchValue={searchValue}

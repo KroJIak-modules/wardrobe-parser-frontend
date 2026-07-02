@@ -197,7 +197,7 @@
 }
 
 .site-catalog-filters__list--scrollable {
-  max-height: calc(var(--site-catalog-visible-options) * 13px + (var(--site-catalog-visible-options) - 1) * 6px);
+  max-height: var(--site-catalog-list-height);
   overflow-y: auto;
   padding-right: 1px;
   scrollbar-width: thin;

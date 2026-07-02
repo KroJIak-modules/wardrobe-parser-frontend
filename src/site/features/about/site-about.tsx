@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import useEmblaCarousel from "embla-carousel-react";
 import { SiteImage } from "../image/site-image";
 import type { SiteCarouselSlide } from "../storefront/site-storefront-contracts";
-import type { SiteAboutTextPanelViewModel } from "../../runtime/site-about-mock";
+import type { SiteAboutTextPanelViewModel } from "../../runtime/site-about-model";
 import "./site-about.css";
 
 function getOrbitDirection(previousIndex: number, nextIndex: number, totalSlides: number) {

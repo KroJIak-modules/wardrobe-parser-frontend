@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PricingSettings } from "../admin-types";
+import { parseNonNegativeNumber } from "../admin-formatters";
 
 type TariffRangeDraft = { id: string; min_kg: string; max_kg: string; rub: string };
 
@@ -110,14 +111,14 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
       }
       const normalized = rows
         .map((row) => {
-          const min = Number((row.min_kg || "").trim());
+          const min = parseNonNegativeNumber(row.min_kg || "");
           const maxRaw = (row.max_kg || "").trim();
-          const max = maxRaw.length > 0 ? Number(maxRaw) : null;
-          const rub = Number((row.rub || "").trim());
-          if (!Number.isFinite(min) || min < 0 || !Number.isFinite(rub) || rub < 0) {
+          const max = maxRaw.length > 0 ? parseNonNegativeNumber(maxRaw) : null;
+          const rub = parseNonNegativeNumber(row.rub || "");
+          if (min === null || rub === null) {
             return null;
           }
-          if (max !== null && (!Number.isFinite(max) || max <= min)) {
+          if (max !== null && max <= min) {
             return null;
           }
           return { min_kg: Number(min.toFixed(4)), max_kg: max === null ? null : Number(max.toFixed(4)), rub: Number(rub.toFixed(2)) };
@@ -207,7 +208,7 @@ export function useAdminPricingSuppliers(params: UseAdminPricingSuppliersParams)
     setTariffRangesDrafts((prev) => {
       const current = prev[supplierId] || [];
       const last = current[current.length - 1];
-      const nextMin = last ? Number((last.max_kg || last.min_kg || "0").trim() || "0") : 0;
+      const nextMin = last ? (parseNonNegativeNumber(last.max_kg || last.min_kg || "0") ?? 0) : 0;
       const nextMax = Number.isFinite(nextMin) ? nextMin + 0.5 : 0.5;
       return {
         ...prev,

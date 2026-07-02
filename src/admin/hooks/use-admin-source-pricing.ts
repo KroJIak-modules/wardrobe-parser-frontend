@@ -67,8 +67,8 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
     }
     const activeCurrency = thresholdDraft.currency;
     const activeRaw = thresholdDraft[activeCurrency.toLowerCase() as TriCurrencyAmountKey];
-    const activeValue = Number((activeRaw || "").trim());
-    if (!Number.isFinite(activeValue) || activeValue < 0) {
+    const activeValue = parseNonNegativeNumber(activeRaw || "");
+    if (activeValue === null) {
       return;
     }
     const thresholdRub = toRubByRates(activeValue, activeCurrency, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);

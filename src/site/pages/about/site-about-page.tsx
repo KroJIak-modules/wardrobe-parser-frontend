@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { siteMenuItems } from "../../app/site-static-content";
 import { SiteAboutView } from "../../features/about/site-about";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
@@ -8,6 +7,7 @@ import { SiteFooterSection } from "../../features/storefront/site-storefront-sec
 import { useSiteActionItems } from "../../runtime/use-site-cart";
 import { useSiteAbout } from "../../runtime/use-site-about";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
+import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import "./site-about-page.css";
 
 const SITE_ABOUT_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
@@ -16,6 +16,7 @@ export function SiteAboutPage() {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
   const { title, photoSlides, textPanel } = useSiteAbout();
+  const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_ABOUT_MOBILE_MEDIA_QUERY);
 
@@ -28,6 +29,7 @@ export function SiteAboutPage() {
     <main className="site-about-page">
       {isMobileLayout ? (
         <SiteMobileHomeHeader
+          navigation={navigation}
           onLogoActivate={() => {
             navigate("/?view=storefront");
           }}
@@ -35,7 +37,8 @@ export function SiteAboutPage() {
       ) : (
         <SiteHeader
           theme="light"
-          menuItems={siteMenuItems}
+          menuItems={menuItems}
+          dropdownMenus={dropdownMenus}
           actionItems={actionItems}
           searchValue={searchValue}
           onSearchValueChange={setSearchValue}

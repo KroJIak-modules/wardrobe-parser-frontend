@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SITE_LOGO_URL, resolveSitePublicAssetUrl } from "../../app/site-public-asset";
+import type { SiteApiNavigation } from "../../runtime/site-public-api";
 import { useSiteCart } from "../../runtime/use-site-cart";
 import { useSitePageScrollLock } from "../shared/use-site-page-scroll-lock";
 import { SiteMobileMenu } from "./site-mobile-menu";
 import "./site-mobile-home-header.css";
 
 export function SiteMobileHomeHeader({
+  navigation,
   onLogoActivate,
 }: {
+  navigation: SiteApiNavigation | null;
   onLogoActivate?: () => void;
 }) {
   const navigate = useNavigate();
@@ -91,6 +94,7 @@ export function SiteMobileHomeHeader({
       </header>
       {isMenuOpen ? (
         <SiteMobileMenu
+          navigation={navigation}
           isClosing={isMenuClosing}
           onClose={closeMenu}
           onCloseAnimationEnd={() => {

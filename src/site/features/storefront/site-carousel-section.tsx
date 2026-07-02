@@ -149,13 +149,25 @@ export function SiteCarouselSection({
                 data-active={selectedIndex === index ? "true" : "false"}
                 aria-hidden={selectedIndex === index ? "false" : "true"}
               >
-                <img
-                  src={resolveSitePublicAssetUrl(slide.imageSrc)}
-                  alt={slide.alt}
-                  className="site-carousel__image"
-                  loading="eager"
-                  decoding="async"
-                />
+                {slide.mediaKind === "video" ? (
+                  <video
+                    src={resolveSitePublicAssetUrl(slide.imageSrc)}
+                    className="site-carousel__image"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    preload="metadata"
+                  />
+                ) : (
+                  <img
+                    src={resolveSitePublicAssetUrl(slide.imageSrc)}
+                    alt={slide.alt}
+                    className="site-carousel__image"
+                    loading="eager"
+                    decoding="async"
+                  />
+                )}
               </figure>
             ))}
           </div>

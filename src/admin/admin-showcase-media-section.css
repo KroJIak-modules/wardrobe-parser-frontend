@@ -5,8 +5,8 @@
 
 .showcase-media-editor__viewport {
   display: grid;
-  gap: 16px;
-  padding: 18px;
+  gap: 14px;
+  padding: 16px;
   border: 1px solid #dde5ef;
   border-radius: 22px;
   background:
@@ -27,23 +27,17 @@
   font-size: 18px;
 }
 
-.showcase-media-editor__viewport-note {
-  margin: 4px 0 0;
-  color: #5d6c81;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
 .showcase-media-editor__viewport-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 0.94fr) minmax(360px, 1.06fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 380px) max-content;
+  gap: 28px;
   align-items: start;
 }
 
 .showcase-media-editor__slot {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  align-content: start;
 }
 
 .showcase-media-editor__slot-head {
@@ -66,7 +60,8 @@
 .showcase-media-editor__hero-tile {
   position: relative;
   overflow: hidden;
-  min-height: 260px;
+  min-height: 200px;
+  width: 100%;
   border: 1px dashed #c6d4e5;
   border-radius: 24px;
   background: linear-gradient(180deg, #fbfdff 0%, #f0f5fb 100%);
@@ -85,11 +80,13 @@
 }
 
 .showcase-media-editor__hero-tile--desktop {
+  max-width: 380px;
   aspect-ratio: 16 / 10;
 }
 
 .showcase-media-editor__hero-tile--mobile {
-  aspect-ratio: 10 / 14;
+  max-width: 220px;
+  aspect-ratio: 360 / 517;
 }
 
 .showcase-media-editor__preview-media {
@@ -163,16 +160,31 @@
 
 .showcase-media-editor__carousel-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, max-content);
+  gap: 14px;
+  align-items: start;
+  justify-content: start;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .showcase-media-editor__carousel-card,
 .showcase-media-editor__add-card {
   position: relative;
   overflow: hidden;
-  aspect-ratio: 4 / 5;
   border-radius: 20px;
+}
+
+.showcase-media-editor__carousel-grid--desktop .showcase-media-editor__carousel-card,
+.showcase-media-editor__carousel-grid--desktop .showcase-media-editor__add-card {
+  max-width: 176px;
+  aspect-ratio: 808 / 543;
+}
+
+.showcase-media-editor__carousel-grid--mobile .showcase-media-editor__carousel-card,
+.showcase-media-editor__carousel-grid--mobile .showcase-media-editor__add-card {
+  max-width: 138px;
+  aspect-ratio: 2 / 3;
 }
 
 .showcase-media-editor__carousel-card {
@@ -287,6 +299,7 @@
 @media (max-width: 1220px) {
   .showcase-media-editor__viewport-grid {
     grid-template-columns: 1fr;
+    gap: 18px;
   }
 }
 
@@ -297,7 +310,15 @@
   }
 
   .showcase-media-editor__carousel-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, max-content);
+    gap: 12px;
+  }
+
+  .showcase-media-editor__carousel-grid--desktop .showcase-media-editor__carousel-card,
+  .showcase-media-editor__carousel-grid--desktop .showcase-media-editor__add-card,
+  .showcase-media-editor__carousel-grid--mobile .showcase-media-editor__carousel-card,
+  .showcase-media-editor__carousel-grid--mobile .showcase-media-editor__add-card {
+    max-width: none;
   }
 }
 
@@ -307,6 +328,6 @@
   }
 
   .showcase-media-editor__hero-tile {
-    min-height: 220px;
+    min-height: 180px;
   }
 }

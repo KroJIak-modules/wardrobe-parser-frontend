@@ -18,11 +18,12 @@ export function useLiveDataSourceSettingsActions(params: {
   refreshPricingOnly: () => Promise<void>;
   refreshAdminUiOnly: () => Promise<void>;
   refreshWeightOnly: () => Promise<void>;
+  refreshWeightRecalcStatusOnly: () => Promise<void>;
   refreshCategoriesOnly: (options?: { includeCounts?: boolean; silent?: boolean }) => Promise<void>;
   refreshDedupOnly: () => Promise<void>;
   setError: (value: string | null) => void;
 }) {
-  const { setSources, setPricingSettings, setAdminUiSettings, refresh, refreshSourcesOnly, refreshPricingOnly, refreshAdminUiOnly, refreshWeightOnly, refreshCategoriesOnly, refreshDedupOnly, setError } = params;
+  const { setSources, setPricingSettings, setAdminUiSettings, refresh, refreshSourcesOnly, refreshPricingOnly, refreshAdminUiOnly, refreshWeightOnly, refreshWeightRecalcStatusOnly, refreshCategoriesOnly, refreshDedupOnly, setError } = params;
 
   const patchSource = useCallback((sourceKey: string, updated: Source) => {
     setSources((prev) => prev.map((item) => (item.key === sourceKey ? updated : item)));
@@ -130,6 +131,20 @@ export function useLiveDataSourceSettingsActions(params: {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
   }, [refreshWeightOnly]);
+
+  const startWeightRecalculation = useCallback(async () => {
+    try {
+      const payload = await apiJson<{ ok?: boolean; queued?: number; started?: boolean }>(`${API_BASE}/settings/weight-rules/recalculate`, { method: "POST" });
+      await refreshWeightRecalcStatusOnly();
+      const queued = Number(payload?.queued || 0);
+      if (payload?.started === false) {
+        return okResult("Пересчет веса уже идет");
+      }
+      return okResult(queued > 0 ? `Пересчет веса запущен: ${queued} товаров в очереди` : "Пересчет веса запущен");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [refreshWeightRecalcStatusOnly]);
 
   const toggleSourceAutoHideProducts = useCallback(async (sourceKey: string, hideAutoAddedProducts: boolean) => {
     try {
@@ -360,6 +375,7 @@ export function useLiveDataSourceSettingsActions(params: {
     deleteWeightRule,
     addWeightKeyword,
     removeWeightKeyword,
+    startWeightRecalculation,
     updatePricingSettings,
     updateAdminUiSettings,
     fetchPricingExampleProduct,

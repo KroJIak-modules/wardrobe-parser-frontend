@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { siteMenuItems } from "../../app/site-static-content";
 import { SiteDesignersDirectory } from "../../features/designers/site-designers";
 import {
   buildBrowseDesignerCatalogSearchParams,
@@ -11,15 +10,18 @@ import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { patchCatalogSearchParams } from "../../features/catalog/site-catalog-query";
-import { siteDesignersAlphabet, siteDesignersDirectoryEntries } from "../../runtime/site-designers-mock";
 import { useSiteActionItems } from "../../runtime/use-site-cart";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
+import { useSiteNavigation } from "../../runtime/use-site-navigation";
+import { useSiteDesignersDirectory } from "../../runtime/use-site-designers-directory";
 import "./site-designers-page.css";
 
 export function SiteDesignersPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
+  const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
+  const { alphabet, entries } = useSiteDesignersDirectory();
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
@@ -54,6 +56,7 @@ export function SiteDesignersPage() {
     <main className="site-designers-page">
       {isMobileLayout ? (
         <SiteMobileHomeHeader
+          navigation={navigation}
           onLogoActivate={() => {
             navigate("/?view=storefront");
           }}
@@ -61,7 +64,8 @@ export function SiteDesignersPage() {
       ) : (
         <SiteHeader
           theme="light"
-          menuItems={siteMenuItems}
+          menuItems={menuItems}
+          dropdownMenus={dropdownMenus}
           actionItems={actionItems}
           searchValue={searchValue}
           allowEmptySearchSubmit
@@ -78,8 +82,8 @@ export function SiteDesignersPage() {
       )}
 
       <SiteDesignersDirectory
-        alphabet={siteDesignersAlphabet}
-        entries={siteDesignersDirectoryEntries}
+        alphabet={alphabet}
+        entries={entries}
         mode={entryMode}
         searchParams={persistedSearchParams}
         onApply={navigateToCatalog}

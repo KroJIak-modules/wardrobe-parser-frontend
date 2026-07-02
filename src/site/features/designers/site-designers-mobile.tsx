@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { resolveSitePublicAssetUrl } from "../../app/site-public-asset";
 import type { SiteDesignersEntryMode } from "./site-designers-navigation";
-import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers-mock";
+import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers";
 import { buildDesignerLetterOffset, buildGroupedDesignerEntries } from "./site-designers-model";
 import { useSiteDesignersActionsOffset } from "./use-site-designers-actions-offset";
 import { useSiteDesignersSelection } from "./use-site-designers-selection";

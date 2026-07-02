@@ -1,4 +1,4 @@
-import type { SiteQuestionItem } from "../../runtime/site-questions-mock";
+import type { SiteQuestionItem } from "../../runtime/site-questions-model";
 import { SiteQuestionToggleIcon } from "./site-question-toggle-icon";
 
 export function SiteQuestionAccordionItem({

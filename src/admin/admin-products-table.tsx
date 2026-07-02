@@ -85,8 +85,23 @@ function unavailableReasonRu(reason: string | null | undefined): string | null {
   if (normalized === "missing_weight") {
     return "Не указан вес товара";
   }
+  if (normalized === "missing_images") {
+    return "У товара нет ни одной фотографии";
+  }
+  if (normalized === "missing_source_price") {
+    return "У товара не указана цена";
+  }
+  if (normalized === "missing_final_price") {
+    return "Не удалось рассчитать итоговую цену";
+  }
   if (normalized === "missing_currency") {
     return "Не указана валюта товара";
+  }
+  if (normalized === "unsupported_currency") {
+    return "У товара указана неподдерживаемая валюта";
+  }
+  if (normalized === "invalid_fx_settings") {
+    return "Не настроен курс валют для расчета цены";
   }
   if (normalized === "source_removed") {
     return "Товар больше не найден в источнике";

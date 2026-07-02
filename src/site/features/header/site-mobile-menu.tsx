@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { siteFooterColumns } from "../../app/site-static-content";
 import type { SiteFooterColumn } from "../storefront/site-storefront-contracts";
+import type { SiteApiNavigation } from "../../runtime/site-public-api";
 import { SiteMobileDrawerShell } from "../shared/site-mobile-drawer-shell";
 import {
   buildSiteMobileSearchHref,
@@ -115,10 +116,12 @@ function SiteMobileMenuFooterBlock({
 }
 
 export function SiteMobileMenu({
+  navigation,
   isClosing,
   onClose,
   onCloseAnimationEnd,
 }: {
+  navigation: SiteApiNavigation | null;
   isClosing: boolean;
   onClose: () => void;
   onCloseAnimationEnd: () => void;
@@ -244,8 +247,8 @@ export function SiteMobileMenu({
 
       <div className="site-mobile-menu__panel-stack">
         {panelLayers.map((layer) => {
-          const layerGroups = getSiteMobileMenuGroups(layer.panel, gender);
-          const layerTitle = getSiteMobileMenuPanelTitle(layer.panel);
+          const layerGroups = getSiteMobileMenuGroups(navigation, layer.panel, gender);
+          const layerTitle = getSiteMobileMenuPanelTitle(navigation, layer.panel);
           const isRootPanel = layer.panel === "root";
           const isTopLayer = layer.id === panelLayers[panelLayers.length - 1]?.id;
 

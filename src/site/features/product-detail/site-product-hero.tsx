@@ -1,11 +1,11 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import type { CSSProperties } from "react";
 import { formatSiteRubles } from "../../app/site-format";
-import type { SiteProductDetailItem } from "../../runtime/site-product-detail-mock";
+import type { SiteProductDetailItem } from "../../runtime/site-product-detail";
 import {
   buildSiteCartItemFromProduct,
   resolveSiteProductDetailSourceUrl,
-} from "../../runtime/site-product-detail-mock";
+} from "../../runtime/site-product-detail";
 import { useSiteCart } from "../../runtime/use-site-cart";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
 import { SiteImage } from "../image/site-image";
@@ -21,6 +21,7 @@ export function SiteProductHero({
 }) {
   const { addItem } = useSiteCart();
   const designerHref = product.designerId ? buildDesignerCatalogHref(product.designerId) : null;
+  const thumbButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const {
     dragOffsetPx,
     hasMultipleSourceVariants,
@@ -38,6 +39,23 @@ export function SiteProductHero({
     setSelectedSourceId,
   } = useSiteProductHeroState(product);
 
+  useEffect(() => {
+    if (!selectedGalleryItem) {
+      return;
+    }
+
+    const button = thumbButtonRefs.current.get(selectedGalleryItem.id);
+    if (!button) {
+      return;
+    }
+
+    button.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [selectedGalleryItem]);
+
   return (
     <section className="site-product-detail__hero">
       <div className="site-product-detail__thumbs" aria-label="Миниатюры товара">
@@ -48,6 +66,13 @@ export function SiteProductHero({
               key={item.id}
               type="button"
               className={isActive ? "site-product-detail__thumb site-product-detail__thumb--active" : "site-product-detail__thumb"}
+              ref={(node) => {
+                if (node) {
+                  thumbButtonRefs.current.set(item.id, node);
+                  return;
+                }
+                thumbButtonRefs.current.delete(item.id);
+              }}
               onClick={() => {
                 setSelectedGalleryItemId(item.id);
               }}
@@ -58,12 +83,7 @@ export function SiteProductHero({
                 alt=""
                 aria-hidden="true"
                 className="site-product-detail__thumb-image"
-                style={
-                  {
-                    "--site-product-detail-thumb-image-width": `${item.thumbWidth}px`,
-                    "--site-product-detail-thumb-image-height": `${item.thumbHeight}px`,
-                  } as CSSProperties
-                }
+                fillContainer
               />
             </button>
           );

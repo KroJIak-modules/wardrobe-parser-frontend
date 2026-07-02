@@ -32,7 +32,7 @@ export function AdminSettingsTransferSection({
     <>
       {settingsExportInProgress || settingsImportInProgress || settingsResetInProgress ? <AdminSectionSkeleton rows={2} /> : null}
       <p className="muted">
-        Экспортируются ценообразование, поставщики, все источники вместе с логотипами, правила веса, дизайнеры, фильтры, кастомные каталоги, структура витрины и медиа витрины.
+        Экспортируются контент, ценообразование, поставщики, источники с порядком, правила веса, дизайнеры, фильтры, кастомные каталоги, структура витрины и медиа витрины.
         Товары и ручные привязки товаров к фильтрам или каталогам в файл не попадают.
       </p>
       <div className="settings-transfer-actions">

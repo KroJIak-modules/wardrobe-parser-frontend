@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { SiteHomeNotificationPayload } from "../../runtime/site-home-notification-mock";
+import type { SiteHomeNotificationPayload } from "../../runtime/site-home-notification-static";
 import { SiteImage } from "../image/site-image";
 import { SiteWindowCloseButton, SiteWindowShell, SiteWindowTitlebar } from "../window-shell/site-window-shell";
 import "./site-home-notification.css";

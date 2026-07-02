@@ -34,7 +34,7 @@ export function AdminPricingCoreFieldsSection({
           </span>
           <HelpHint text="Отдельная наценка к SUB. Пример: 0.25 означает +25%, применяется как (1 + MUP)." />
         </span>
-        <input type="number" min="0" step="0.01" value={markupRateDraft} onChange={(event) => setMarkupRateDraft(event.target.value)} />
+        <input type="text" inputMode="decimal" value={markupRateDraft} onChange={(event) => setMarkupRateDraft(event.target.value)} />
       </label>
       {pricingFieldMeta.map((field) => (
         <label key={field.key} className="pricing-settings-field">
@@ -46,8 +46,8 @@ export function AdminPricingCoreFieldsSection({
             <HelpHint text={field.hint} />
           </span>
           <input
-            type="number"
-            step={field.step || "0.01"}
+            type="text"
+            inputMode="decimal"
             value={pricingDrafts[field.key] ?? String(pricingSettings[field.key])}
             onChange={(event) => {
               const nextValue = event.target.value;

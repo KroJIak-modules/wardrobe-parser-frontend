@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SiteDesignersEntryMode } from "./site-designers-navigation";
-import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers-mock";
+import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers";
 import {
   buildDesignerGridRows,
   buildDesignerLetterOffset,

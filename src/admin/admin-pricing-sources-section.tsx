@@ -88,14 +88,12 @@ export function AdminPricingSourcesSection({
                   </option>
                 ))}
               </select>
-              <input type="number" step="0.01" placeholder="—" value={draft?.buyout.usd ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "usd", event.target.value)} />
-              <input type="number" step="0.01" placeholder="—" value={draft?.buyout.eur ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "eur", event.target.value)} />
+              <input type="text" inputMode="decimal" placeholder="—" value={draft?.buyout.usd ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "usd", event.target.value)} />
+              <input type="text" inputMode="decimal" placeholder="—" value={draft?.buyout.eur ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "eur", event.target.value)} />
               <div className="percent-input-wrap">
                 <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={draft?.promoPercent ?? formatCompactNumber(Math.max(0, Math.min(100, (1 - Number(source.promo_factor ?? 1)) * 100)), 4)}
                   onChange={(event) => {
                     const nextValue = event.target.value;

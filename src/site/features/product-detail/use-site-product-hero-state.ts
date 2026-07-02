@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { SiteProductDetailItem } from "../../runtime/site-product-detail-mock";
-import { resolveSiteProductDetailSourceVariant } from "../../runtime/site-product-detail-mock";
+import type { SiteProductDetailItem } from "../../runtime/site-product-detail";
+import { resolveSiteProductDetailSourceVariant } from "../../runtime/site-product-detail";
 
 const GALLERY_WHEEL_THROTTLE_MS = 240;
 const PRODUCT_GALLERY_MOBILE_MEDIA_QUERY = "(max-width: 640px)";

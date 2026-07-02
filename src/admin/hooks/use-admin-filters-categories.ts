@@ -18,6 +18,36 @@ type RuleKeywordScope = "local_category_keywords" | "title_keywords";
 
 const DEFAULT_FILTER_LABEL = "Новый фильтр";
 const DEFAULT_CUSTOM_CATALOG_LABEL = "Новый кастомный каталог";
+const SHOWCASE_CATEGORY_ORDER = ["new", "designers", "men", "women", "sale"] as const;
+const SHOWCASE_CATEGORY_ORDER_INDEX = new Map<string, number>(
+  SHOWCASE_CATEGORY_ORDER.map((slug, index) => [slug, index]),
+);
+
+function isCategoryAttachmentAllowed(category: AdminCategoryTreeNode, attachment: AdminCategoryAttachment): boolean {
+  if (category.behavior === "new") {
+    return attachment.kind === "custom_catalog";
+  }
+  if (category.behavior === "gender") {
+    return attachment.kind === "filter";
+  }
+  return false;
+}
+
+function normalizeShowcaseCategories(categories: AdminCategoryTreeNode[]): AdminCategoryTreeNode[] {
+  return categories
+    .map((category) => ({
+      ...category,
+      attachments: category.attachments.filter((attachment) => isCategoryAttachmentAllowed(category, attachment)),
+    }))
+    .sort((left, right) => {
+      const leftIndex = SHOWCASE_CATEGORY_ORDER_INDEX.get(left.slug) ?? Number.MAX_SAFE_INTEGER;
+      const rightIndex = SHOWCASE_CATEGORY_ORDER_INDEX.get(right.slug) ?? Number.MAX_SAFE_INTEGER;
+      if (leftIndex !== rightIndex) {
+        return leftIndex - rightIndex;
+      }
+      return left.label.localeCompare(right.label, "ru", { sensitivity: "base" });
+    });
+}
 
 function findFilterById(nodes: AdminFilterTreeNode[], id: number | null): AdminFilterTreeNode | null {
   if (id === null) {
@@ -374,7 +404,7 @@ function buildCategoryAttachment(kind: AdminCategoryAttachment["kind"], refId: n
   };
 }
 
-export function useAdminFiltersCategories() {
+export function useAdminFiltersCategories(onSaveError?: (message: string) => void) {
   const [loading, setLoading] = useState<boolean>(true);
   const [filters, setFilters] = useState<AdminFilterTreeNode[]>([]);
   const [categories, setCategories] = useState<AdminCategoryTreeNode[]>([]);
@@ -393,6 +423,7 @@ export function useAdminFiltersCategories() {
   const [hiddenProductIds, setHiddenProductIds] = useState<number[]>([]);
   const hasHydratedRef = useRef(false);
   const lastSavedSignatureRef = useRef<string>("");
+  const lastSaveErrorMessageRef = useRef<string>("");
   const deferredManualSearchInput = useDeferredValue(manualSearchInput);
   const deferredCatalogSearchInput = useDeferredValue(catalogSearchInput);
   const hiddenProductIdSet = useMemo(() => new Set(hiddenProductIds), [hiddenProductIds]);
@@ -407,7 +438,7 @@ export function useAdminFiltersCategories() {
           return;
         }
         const nextFilters = Array.isArray(payload.filters) ? payload.filters : [];
-        const nextCategories = Array.isArray(payload.categories) ? payload.categories : [];
+        const nextCategories = normalizeShowcaseCategories(Array.isArray(payload.categories) ? payload.categories : []);
         const nextCustomCatalogs = Array.isArray(payload.custom_catalogs) ? payload.custom_catalogs : [];
         const nextDesignerDirectory = Array.isArray(payload.designer_directory) ? payload.designer_directory : [];
         setFilters(normalizeMobileMenuPairs(nextFilters));
@@ -458,9 +489,10 @@ export function useAdminFiltersCategories() {
     if (loading || !hasHydratedRef.current) {
       return;
     }
+    const normalizedCategories = normalizeShowcaseCategories(categories);
     const signature = JSON.stringify({
       filters,
-      categories,
+      categories: normalizedCategories,
       custom_catalogs: customCatalogs,
       hidden_product_ids: [...hiddenProductIds].sort((left, right) => left - right),
     });
@@ -471,17 +503,29 @@ export function useAdminFiltersCategories() {
     const timer = window.setTimeout(() => {
       void saveAdminFiltersCategoriesState({
         filters,
-        categories,
+        categories: normalizedCategories,
         custom_catalogs: customCatalogs,
         hidden_product_ids: [...hiddenProductIds].sort((left, right) => left - right),
-      }).then((payload) => {
-        lastSavedSignatureRef.current = JSON.stringify({
-          filters: payload.filters,
-          categories: payload.categories,
-          custom_catalogs: payload.custom_catalogs,
-          hidden_product_ids: Array.isArray(payload.hidden_product_ids) ? [...payload.hidden_product_ids].sort((left, right) => left - right) : [],
+      })
+        .then((payload) => {
+          lastSaveErrorMessageRef.current = "";
+          lastSavedSignatureRef.current = JSON.stringify({
+            filters: payload.filters,
+            categories: normalizeShowcaseCategories(payload.categories),
+            custom_catalogs: payload.custom_catalogs,
+            hidden_product_ids: Array.isArray(payload.hidden_product_ids) ? [...payload.hidden_product_ids].sort((left, right) => left - right) : [],
+          });
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to save showcase taxonomy editor state", error);
+          const message = error instanceof Error && error.message.trim()
+            ? error.message
+            : "Не удалось сохранить изменения структуры витрины";
+          if (message !== lastSaveErrorMessageRef.current) {
+            lastSaveErrorMessageRef.current = message;
+            onSaveError?.(message);
+          }
         });
-      });
     }, 700);
 
     return () => window.clearTimeout(timer);
@@ -796,6 +840,7 @@ export function useAdminFiltersCategories() {
       mobile_pair_root_id: null,
       node_kind: "filter",
       is_enabled: true,
+      product_count: 0,
       rules: {
         local_category_keywords: [],
         title_keywords: [],
@@ -875,8 +920,8 @@ export function useAdminFiltersCategories() {
 
   const attachFilterToCategory = (categoryId: number, filterId: number) => {
     setCategories((prev) =>
-      updateCategoryById(prev, categoryId, (category) => {
-        if (category.behavior === "new") {
+      normalizeShowcaseCategories(updateCategoryById(prev, categoryId, (category) => {
+        if (category.behavior !== "gender") {
           return category;
         }
         if (category.attachments.some((attachment) => attachment.kind === "filter" && attachment.ref_id === filterId)) {
@@ -886,13 +931,16 @@ export function useAdminFiltersCategories() {
           ...category,
           attachments: [...category.attachments, buildCategoryAttachment("filter", filterId, categoryId)],
         };
-      })
+      }))
     );
   };
 
   const attachCustomCatalogToCategory = (categoryId: number, customCatalogId: number) => {
     setCategories((prev) =>
-      updateCategoryById(prev, categoryId, (category) => {
+      normalizeShowcaseCategories(updateCategoryById(prev, categoryId, (category) => {
+        if (category.behavior !== "new") {
+          return category;
+        }
         if (category.attachments.some((attachment) => attachment.kind === "custom_catalog" && attachment.ref_id === customCatalogId)) {
           return category;
         }
@@ -900,7 +948,7 @@ export function useAdminFiltersCategories() {
           ...category,
           attachments: [...category.attachments, buildCategoryAttachment("custom_catalog", customCatalogId, categoryId)],
         };
-      })
+      }))
     );
   };
 

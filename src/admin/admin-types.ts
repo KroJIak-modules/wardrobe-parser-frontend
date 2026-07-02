@@ -63,6 +63,29 @@ export type BybitWorkerInfo = {
   errorMessage: string | null;
 };
 
+export type SvcRuleMode = "fixed_rub" | "percent";
+
+export type SvcRuleDraft = {
+  id: string;
+  min_rub: string;
+  max_rub: string;
+  mode: SvcRuleMode;
+  value: string;
+};
+
+export type SvcRulePayload = {
+  min_rub: number;
+  max_rub: number | null;
+  mode: SvcRuleMode;
+  value: number;
+};
+
+export type SvcRuleFieldError = {
+  min: boolean;
+  max: boolean;
+  value: boolean;
+};
+
 export type AdminProductsTableItem = {
   id: number;
   created_at?: string;

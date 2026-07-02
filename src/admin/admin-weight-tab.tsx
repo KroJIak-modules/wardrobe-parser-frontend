@@ -4,7 +4,7 @@ import { toExternalHttpUrl } from "../shared/external-links";
 import { EmptyState } from "../shared/empty-state";
 import { AdminWeightSkeleton } from "../shared/skeleton";
 import { TagRemoveButton } from "../shared/tag-remove-button";
-import type { WeightMissingProduct, WeightRule } from "../shared/live-data-context";
+import type { WeightMissingProduct, WeightRecalcStatus, WeightRule } from "../shared/live-data-types";
 
 type Props = {
   weightTabLoading: boolean;
@@ -19,6 +19,8 @@ type Props = {
   setWeightKeywordInputs: (updater: (prev: Record<number, string>) => Record<number, string>) => void;
   onRemoveWeightKeyword: (ruleId: number, keyword: string) => Promise<void>;
   onAddWeightKeyword: (ruleId: number) => Promise<void>;
+  onStartWeightRecalculation: () => Promise<void>;
+  weightRecalcStatus: WeightRecalcStatus;
   weightMissingProducts: WeightMissingProduct[];
   hasMoreWeightMissing: boolean;
   loadingMoreWeightMissing: boolean;
@@ -38,6 +40,8 @@ export function AdminWeightTab({
   setWeightKeywordInputs,
   onRemoveWeightKeyword,
   onAddWeightKeyword,
+  onStartWeightRecalculation,
+  weightRecalcStatus,
   weightMissingProducts,
   hasMoreWeightMissing,
   loadingMoreWeightMissing,
@@ -89,6 +93,13 @@ export function AdminWeightTab({
               />
               <button type="button" onClick={() => void onCreateWeightRule()}>
                 Добавить правило
+              </button>
+              <button
+                type="button"
+                disabled={weightRecalcStatus.is_running}
+                onClick={() => void onStartWeightRecalculation()}
+              >
+                {weightRecalcStatus.is_running ? "Пересчет..." : "Пересчитать товары"}
               </button>
             </div>
 

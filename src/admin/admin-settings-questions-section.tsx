@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
-import type { AdminQuestionDraft } from "./hooks/use-admin-settings-content-drafts";
+import { useEffect, useState } from "react";
+import type { AdminQuestionDraft } from "./hooks/use-admin-site-content";
 
 type Props = {
   questions: AdminQuestionDraft[];
+  loading?: boolean;
   onAddQuestion: () => string;
   onUpdateQuestion: (questionId: string, patch: Partial<AdminQuestionDraft>) => void;
   onMoveQuestion: (questionId: string, direction: -1 | 1) => void;
   onDeleteQuestion: (questionId: string) => void;
-  onReset: () => void;
 };
 
 export function AdminSettingsQuestionsSection({
   questions,
+  loading = false,
   onAddQuestion,
   onUpdateQuestion,
   onMoveQuestion,
   onDeleteQuestion,
-  onReset,
 }: Props) {
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(() => questions[0]?.id ?? null);
 
@@ -33,26 +33,17 @@ export function AdminSettingsQuestionsSection({
     setOpenQuestionId((prev) => (prev === questionId ? null : questionId));
   };
 
-  const summary = useMemo(() => {
-    const enabledCount = questions.filter((item) => item.isEnabled).length;
-    const defaultOpenCount = questions.filter((item) => item.isExpandedByDefault).length;
-    return `${questions.length} вопросов, ${enabledCount} активных, ${defaultOpenCount} открыты по умолчанию`;
-  }, [questions]);
-
   return (
     <div className="admin-settings-pane">
       <section className="card admin-settings-panel">
         <div className="admin-settings-panel__head">
           <div>
             <h2>Вопросы</h2>
-            <p className="muted">{summary}</p>
           </div>
           <div className="admin-settings-panel__actions">
-            <button type="button" className="admin-settings-ghost-btn" onClick={onReset}>
-              Сбросить черновик
-            </button>
             <button
               type="button"
+              disabled={loading}
               onClick={() => {
                 const nextId = onAddQuestion();
                 setOpenQuestionId(nextId);
@@ -135,7 +126,6 @@ export function AdminSettingsQuestionsSection({
                         className="input"
                         value={item.question}
                         onChange={(event) => onUpdateQuestion(item.id, { question: event.target.value })}
-                        placeholder="Например: Как сделать заказ"
                       />
                     </label>
 
@@ -146,9 +136,7 @@ export function AdminSettingsQuestionsSection({
                       <textarea
                         value={item.answer}
                         onChange={(event) => onUpdateQuestion(item.id, { answer: event.target.value })}
-                        placeholder="Коротко и по делу: что увидит человек на витрине."
                       />
-                      <small className="muted">Поддерживается обычный текст с переносами строк.</small>
                     </label>
                   </div>
                 ) : null}

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { getSiteHeaderDropdownMenu } from "./site-header-dropdown-content";
 import type { IndicatorState } from "./site-header-contracts";
 
 const EMPTY_INDICATOR: IndicatorState = { left: 0, width: 0, opacity: 0 };
@@ -17,6 +16,7 @@ function normalizeSearchSubmitValue(value: string) {
 export function useSiteHeaderState({
   actionItemsCount,
   allowEmptySearchSubmit,
+  dropdownMenuLabels,
   isSearchInteractive,
   locationKey,
   onSearchSubmit,
@@ -24,6 +24,7 @@ export function useSiteHeaderState({
 }: {
   actionItemsCount: number;
   allowEmptySearchSubmit: boolean;
+  dropdownMenuLabels: Set<string>;
   isSearchInteractive: boolean;
   locationKey: string;
   onSearchSubmit?: (value: string) => void;
@@ -263,17 +264,17 @@ export function useSiteHeaderState({
   }, []);
 
   const handleMenuHover = useCallback((index: number, label: string) => {
-    const nextMenu = getSiteHeaderDropdownMenu(label);
+    const nextMenu = dropdownMenuLabels.has(label);
     setHoveredMenuIndex(index);
     setOpenMenuIndex(nextMenu ? index : null);
-  }, []);
+  }, [dropdownMenuLabels]);
 
   const handleMenuActivate = useCallback((index: number, label: string) => {
     setHoveredMenuIndex(index);
-    const nextMenu = getSiteHeaderDropdownMenu(label);
+    const nextMenu = dropdownMenuLabels.has(label);
     setOpenMenuIndex(nextMenu ? index : null);
     return Boolean(nextMenu);
-  }, []);
+  }, [dropdownMenuLabels]);
 
   const resetMenuState = useCallback(() => {
     setHoveredMenuIndex(null);

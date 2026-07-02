@@ -15,6 +15,8 @@ export function SiteCatalogExperienceView({
   products,
   currentPage,
   totalPages,
+  loading = false,
+  errorMessage = null,
   onPageChange,
 }: {
   title: string;
@@ -26,6 +28,8 @@ export function SiteCatalogExperienceView({
   products: readonly SiteCatalogProduct[];
   currentPage: number;
   totalPages: number;
+  loading?: boolean;
+  errorMessage?: string | null;
   onPageChange: (page: number) => void;
 }) {
   return (
@@ -44,7 +48,7 @@ export function SiteCatalogExperienceView({
       </div>
 
       <div className="site-catalog-shell__products">
-        <SiteCatalogProductsGrid products={products} />
+        <SiteCatalogProductsGrid products={products} loading={loading} errorMessage={errorMessage} />
       </div>
 
       <SiteCatalogPagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />

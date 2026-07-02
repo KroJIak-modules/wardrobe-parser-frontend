@@ -27,7 +27,8 @@ export function SiteCatalogFilters({
     <div className="site-catalog-filters">
       {filterGroups.map((group) => {
         const isActive = activeGroupKey === group.key;
-        const selectedValues = getCatalogSelectedValues(searchParams, group);
+        const selectedValues = getCatalogSelectedValues(searchParams, group, { mode: "effective" });
+        const resettableValues = getCatalogSelectedValues(searchParams, group);
         const triggerLabel = getCatalogTriggerLabel(searchParams, group, selectedValues);
         const shouldShowCount =
           group.selectionMode === "multiple" &&
@@ -67,6 +68,11 @@ export function SiteCatalogFilters({
               <SiteCatalogFilterFlyout
                 group={group}
                 selectedValues={selectedValues}
+                hasResettableSelection={
+                  group.key === "sort"
+                    ? resettableValues.some((value) => value !== "featured")
+                    : resettableValues.length > 0
+                }
                 onReset={() => onChange(clearCatalogGroupSelection(searchParams, group))}
                 onToggle={(option) => {
                   if (group.key === "designer" && option.value === SHOW_ALL_DESIGNERS_VALUE) {

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { SiteCatalogTopKey } from "../../features/catalog/site-catalog-contracts";
-import { siteMenuItems } from "../../app/site-static-content";
-import { resolveCatalogExperience } from "../../features/catalog/site-catalog-logic";
+import { resolveOptimisticCatalogHeader } from "../../features/catalog/site-catalog-optimistic-header";
 import { SiteCatalogMobileView } from "../../features/catalog/site-catalog-mobile-view";
 import { clearSiteCatalogReturnSnapshot, readSiteCatalogReturnSnapshot } from "../../features/catalog/site-catalog-return";
 import { readCatalogListParam } from "../../features/catalog/site-catalog-query";
@@ -11,6 +10,8 @@ import { SiteHeader } from "../../features/header/site-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { useSiteActionItems } from "../../runtime/use-site-cart";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
+import { useSiteNavigation } from "../../runtime/use-site-navigation";
+import { useSiteCatalog } from "../../runtime/use-site-catalog";
 import "./site-catalog-page.css";
 
 export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }) {
@@ -38,14 +39,23 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   }, [forcedTop, searchParams]);
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
-  const experience = resolveCatalogExperience(effectiveSearchParams);
+  const { menuItems, dropdownMenus, payload: navigation } = useSiteNavigation();
+  const { header, filterGroups, products, currentPage: normalizedPage, totalPages, loading, errorMessage } = useSiteCatalog(
+    effectiveSearchParams,
+    { forcedTop },
+  );
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
-  const pageParam = Number.parseInt(searchParams.get("page") ?? "1", 10);
-  const currentPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-  const pageSize = 48;
-  const totalPages = Math.max(1, Math.ceil(experience.products.length / pageSize));
-  const normalizedPage = Math.min(currentPage, totalPages);
-  const pagedProducts = experience.products.slice((normalizedPage - 1) * pageSize, normalizedPage * pageSize);
+  const optimisticHeader = useMemo(
+    () =>
+      resolveOptimisticCatalogHeader({
+        searchParams: effectiveSearchParams,
+        forcedTop,
+        navigation,
+        filterGroups,
+        fallbackHeader: header,
+      }),
+    [effectiveSearchParams, filterGroups, forcedTop, header, navigation],
+  );
 
   useLayoutEffect(() => {
     const snapshot = readSiteCatalogReturnSnapshot();
@@ -95,22 +105,25 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   }, [urlQuery]);
 
   useEffect(() => {
-    document.title = `Anton Shell — ${experience.header.title}`;
-  }, [experience.header.title]);
+    document.title = `Anton Shell — ${optimisticHeader.title}`;
+  }, [optimisticHeader.title]);
 
   return (
     <main className="site-catalog-page">
       {isMobileLayout ? (
         <SiteCatalogMobileView
-          title={experience.header.title}
-          titleSource={experience.header.source}
-          description={experience.header.description}
-          filterGroups={experience.filterGroups}
+          navigation={navigation}
+          title={optimisticHeader.title}
+          titleSource={optimisticHeader.source}
+          description={optimisticHeader.description}
+          filterGroups={filterGroups}
           searchParams={effectiveSearchParams}
           onSearchParamsChange={persistSearchParams}
-          products={pagedProducts}
+          products={products}
           currentPage={normalizedPage}
           totalPages={totalPages}
+          loading={loading}
+          errorMessage={errorMessage}
           onPageChange={(page) => {
             const nextParams = new URLSearchParams(searchParams);
             if (page <= 1) {
@@ -125,7 +138,8 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
         <>
           <SiteHeader
             theme="light"
-            menuItems={siteMenuItems}
+            menuItems={menuItems}
+            dropdownMenus={dropdownMenus}
             actionItems={actionItems}
             searchValue={searchValue}
             allowEmptySearchSubmit
@@ -141,15 +155,17 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
             }}
           />
           <SiteCatalogExperienceView
-            title={experience.header.title}
-            description={experience.header.description}
-            descriptionSource={experience.header.source}
-            filterGroups={experience.filterGroups}
+            title={optimisticHeader.title}
+            description={optimisticHeader.description}
+            descriptionSource={optimisticHeader.source}
+            filterGroups={filterGroups}
             searchParams={effectiveSearchParams}
             onSearchParamsChange={persistSearchParams}
-            products={pagedProducts}
+            products={products}
             currentPage={normalizedPage}
             totalPages={totalPages}
+            loading={loading}
+            errorMessage={errorMessage}
             onPageChange={(page) => {
               const nextParams = new URLSearchParams(searchParams);
               if (page <= 1) {

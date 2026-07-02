@@ -16,15 +16,15 @@ export function AdminPricingThresholdSection({ thresholdDraft, setThresholdField
       <div className="pricing-threshold-grid">
         <label className="pricing-settings-field">
           <span className="muted">THR (RUB)</span>
-          <input type="number" step="0.01" value={thresholdDraft?.rub || "0"} onChange={(event) => setThresholdField("rub", event.target.value)} />
+          <input type="text" inputMode="decimal" value={thresholdDraft?.rub || "0"} onChange={(event) => setThresholdField("rub", event.target.value)} />
         </label>
         <label className="pricing-settings-field">
           <span className="muted">THR (USD)</span>
-          <input type="number" step="0.01" value={thresholdDraft?.usd || "0"} onChange={(event) => setThresholdField("usd", event.target.value)} />
+          <input type="text" inputMode="decimal" value={thresholdDraft?.usd || "0"} onChange={(event) => setThresholdField("usd", event.target.value)} />
         </label>
         <label className="pricing-settings-field">
           <span className="muted">THR (EUR)</span>
-          <input type="number" step="0.01" value={thresholdDraft?.eur || "0"} onChange={(event) => setThresholdField("eur", event.target.value)} />
+          <input type="text" inputMode="decimal" value={thresholdDraft?.eur || "0"} onChange={(event) => setThresholdField("eur", event.target.value)} />
         </label>
       </div>
     </>

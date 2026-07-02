@@ -64,6 +64,7 @@ const legendKeyToLatex: Record<string, string> = {
   SUP: "SUP",
   RNG: "RNG",
   SUB: "SUB",
+  SVC: "SVC",
   SUBM: "SUBM",
   TXR: "TXR",
   TAX: "TAX",

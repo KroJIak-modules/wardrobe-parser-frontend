@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatSiteRubles } from "../../app/site-format";
-import type { SiteProductDetailItem } from "../../runtime/site-product-detail-mock";
+import type { SiteProductDetailItem } from "../../runtime/site-product-detail";
 import {
   resolveSiteProductDetailInitialSourceVariant,
   resolveSiteProductDetailSourceVariant,
-} from "../../runtime/site-product-detail-mock";
+} from "../../runtime/site-product-detail";
 import { SiteImage } from "../image/site-image";
 import { useSitePageScrollLock } from "../shared/use-site-page-scroll-lock";
 import { SiteWindowCloseButton, SiteWindowShell, SiteWindowTitlebar } from "../window-shell/site-window-shell";
@@ -125,12 +125,8 @@ export function SiteProductSourcesDialog({
                         className="site-product-detail__source-logo-frame"
                         data-source-id={source.id}
                         data-source-label={source.label}
-                        aria-label={source.logoAlt ?? source.label}
+                        aria-label={source.label}
                         role="img"
-                        style={{
-                          width: source.logoWidth ? `${source.logoWidth}px` : undefined,
-                          height: source.logoHeight ? `${source.logoHeight}px` : undefined,
-                        }}
                       >
                         <SiteImage
                           src={source.logoSrc}
@@ -138,12 +134,6 @@ export function SiteProductSourcesDialog({
                           aria-hidden="true"
                           className="site-product-detail__source-logo-image"
                           fillContainer
-                          style={{
-                            width: source.logoImageWidthPercent ? `${source.logoImageWidthPercent}%` : undefined,
-                            height: source.logoImageHeightPercent ? `${source.logoImageHeightPercent}%` : undefined,
-                            left: source.logoImageLeftPercent ? `${source.logoImageLeftPercent}%` : undefined,
-                            top: source.logoImageTopPercent ? `${source.logoImageTopPercent}%` : undefined,
-                          }}
                         />
                       </div>
                     ) : (

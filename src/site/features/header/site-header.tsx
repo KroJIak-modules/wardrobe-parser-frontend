@@ -12,6 +12,7 @@ import "./site-header.css";
 export function SiteHeader({
   theme,
   menuItems,
+  dropdownMenus,
   actionItems,
   mode = "fixed",
   searchValue = "",
@@ -22,6 +23,7 @@ export function SiteHeader({
   const location = useLocation();
   const navigate = useNavigate();
   const isSearchInteractive = typeof onSearchValueChange === "function" || typeof onSearchSubmit === "function";
+  const dropdownMenuLabels = new Set(Object.keys(dropdownMenus ?? {}));
   const {
     actionIndicator,
     actionItemRefs,
@@ -50,6 +52,7 @@ export function SiteHeader({
   } = useSiteHeaderState({
     actionItemsCount: actionItems.length,
     allowEmptySearchSubmit,
+    dropdownMenuLabels,
     isSearchInteractive,
     locationKey: `${location.pathname}${location.search}`,
     onSearchSubmit,
@@ -109,6 +112,7 @@ export function SiteHeader({
         {mode === "preview" ? <SiteHeaderLogo onActivate={handleLogoActivate} /> : null}
         <SiteHeaderMenu
           menuItems={menuItems}
+          dropdownMenus={dropdownMenus}
           menuRowRef={menuRowRef}
           menuItemRefs={menuItemRefs}
           menuLabelRefs={menuLabelRefs}

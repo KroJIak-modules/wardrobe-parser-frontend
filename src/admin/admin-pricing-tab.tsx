@@ -5,9 +5,10 @@ import { AdminPricingCoreFieldsSection } from "./admin-pricing-core-fields-secti
 import { AdminPricingFormulaSection } from "./admin-pricing-formula-section";
 import { AdminPricingTariffsSection } from "./admin-pricing-tariffs-section";
 import { AdminPricingThresholdSection } from "./admin-pricing-threshold-section";
+import { AdminPricingSvcSection } from "./admin-pricing-svc-section";
 import { AdminPricingWorkerSection } from "./admin-pricing-worker-section";
 import { AdminPricingSourcesSection } from "./admin-pricing-sources-section";
-import type { BybitWorkerInfo, FinalRoundingMode, PricingExampleView, PricingFieldKey, TriCurrencyAmountKey, TriCurrencyDraft } from "./admin-types";
+import type { BybitWorkerInfo, FinalRoundingMode, PricingExampleView, PricingFieldKey, SvcRuleDraft, SvcRuleFieldError, TriCurrencyAmountKey, TriCurrencyDraft } from "./admin-types";
 
 type SourceItem = {
   key: string;
@@ -45,6 +46,11 @@ type Props = {
   setFinalRoundingModeDraft: Dispatch<SetStateAction<FinalRoundingMode>>;
   thresholdDraft: TriCurrencyDraft | null;
   setThresholdField: (field: TriCurrencyAmountKey, raw: string) => void;
+  svcRuleDrafts: SvcRuleDraft[];
+  setSvcRuleDrafts: Dispatch<SetStateAction<SvcRuleDraft[]>>;
+  svcRuleFieldErrors: Record<string, SvcRuleFieldError>;
+  svcRulesValidationError: string | null;
+  onAddSvcRule: () => void;
   mainPricingSuppliers: PricingSupplier[];
   altSuppliersByMainId: Map<number, PricingSupplier[]>;
   tariffRangesDrafts: Record<number, Array<{ id: string; min_kg: string; max_kg: string; rub: string }>>;
@@ -85,6 +91,11 @@ export function AdminPricingTab({
   setFinalRoundingModeDraft,
   thresholdDraft,
   setThresholdField,
+  svcRuleDrafts,
+  setSvcRuleDrafts,
+  svcRuleFieldErrors,
+  svcRulesValidationError,
+  onAddSvcRule,
   mainPricingSuppliers,
   altSuppliersByMainId,
   tariffRangesDrafts,
@@ -138,6 +149,14 @@ export function AdminPricingTab({
           />
 
           <AdminPricingThresholdSection thresholdDraft={thresholdDraft} setThresholdField={setThresholdField} />
+
+          <AdminPricingSvcSection
+            svcRuleDrafts={svcRuleDrafts}
+            setSvcRuleDrafts={setSvcRuleDrafts}
+            svcRuleFieldErrors={svcRuleFieldErrors}
+            svcRulesValidationError={svcRulesValidationError}
+            onAddSvcRule={onAddSvcRule}
+          />
 
           <AdminPricingTariffsSection
             mainPricingSuppliers={mainPricingSuppliers}

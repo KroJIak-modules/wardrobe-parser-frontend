@@ -1,6 +1,5 @@
 import type { SiteCatalogFilterGroup, SiteCatalogFilterOption } from "./site-catalog-contracts";
 import { SHOW_ALL_DESIGNERS_VALUE } from "./site-catalog-filter-constants";
-import { getCatalogDesignerMap } from "./site-catalog-logic";
 
 function resolveFlyoutOptions(group: SiteCatalogFilterGroup, selectedValues: readonly string[]) {
   const selectedSet = new Set(selectedValues);
@@ -8,24 +7,12 @@ function resolveFlyoutOptions(group: SiteCatalogFilterGroup, selectedValues: rea
     return group.options;
   }
 
-  const designerMap = getCatalogDesignerMap();
   const strongAction = group.options.find((option) => option.value === SHOW_ALL_DESIGNERS_VALUE) ?? null;
   const baseDesignerOptions = group.options.filter((option) => option.value !== SHOW_ALL_DESIGNERS_VALUE);
   const selectedDesignerOptions = selectedValues
     .map((value) => {
       const fromBase = baseDesignerOptions.find((option) => option.value === value);
-      if (fromBase) {
-        return fromBase;
-      }
-
-      const designer = designerMap.get(value);
-      return designer
-        ? ({
-            id: `designer-selected-${designer.id}`,
-            label: designer.label,
-            value: designer.id,
-          } satisfies SiteCatalogFilterOption)
-        : null;
+      return fromBase ?? null;
     })
     .filter((option): option is SiteCatalogFilterOption => option !== null);
   const fallbackDesignerOptions = baseDesignerOptions.filter((option) => !selectedSet.has(option.value));

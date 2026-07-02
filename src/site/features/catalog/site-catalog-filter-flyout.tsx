@@ -3,25 +3,45 @@ import type { SiteCatalogFilterGroup, SiteCatalogFilterOption } from "./site-cat
 import { SHOW_ALL_DESIGNERS_VALUE } from "./site-catalog-filter-constants";
 import { getOrderedCatalogFilterOptions } from "./site-catalog-filter-options";
 
+const FILTER_OPTION_HEIGHT_PX = 13;
+const FILTER_OPTION_GAP_PX = 6;
+
+function getListContentHeight(optionCount: number) {
+  if (optionCount <= 0) {
+    return 0;
+  }
+  return optionCount * FILTER_OPTION_HEIGHT_PX + (optionCount - 1) * FILTER_OPTION_GAP_PX;
+}
+
 export function SiteCatalogFilterFlyout({
   group,
   selectedValues,
+  hasResettableSelection,
   onToggle,
   onReset,
 }: {
   group: SiteCatalogFilterGroup;
   selectedValues: readonly string[];
+  hasResettableSelection: boolean;
   onToggle: (option: SiteCatalogFilterOption) => void;
   onReset: () => void;
 }) {
   const selectedSet = new Set(selectedValues);
-  const hasSelection = group.key === "sort" ? selectedValues.some((value) => value !== "featured") : selectedSet.size > 0;
   const finalOptions = getOrderedCatalogFilterOptions(group, selectedValues);
-  const shouldScroll = Boolean(group.maxVisibleOptions && finalOptions.length > group.maxVisibleOptions);
+  const isAdaptiveSectionFlyout = group.key === "section";
+  const naturalListHeightPx = getListContentHeight(finalOptions.length);
+  const maxListHeightPx = group.panelListHeightPx ?? naturalListHeightPx;
+  const computedListHeightPx = isAdaptiveSectionFlyout ? Math.min(naturalListHeightPx, maxListHeightPx) : group.panelListHeightPx;
+  const panelChromeHeightPx =
+    group.panelHeightPx !== undefined && group.panelListHeightPx !== undefined
+      ? Math.max(0, group.panelHeightPx - group.panelListHeightPx)
+      : undefined;
+  const shouldScroll =
+    isAdaptiveSectionFlyout && maxListHeightPx > 0 ? naturalListHeightPx > maxListHeightPx : Boolean(group.maxVisibleOptions && finalOptions.length > group.maxVisibleOptions);
   const listStyle = {
     width: `${group.panelListWidthPx ?? 90}px`,
     top: `${group.panelListTopPx ?? 7}px`,
-    ...(group.panelListHeightPx ? { minHeight: `${group.panelListHeightPx}px` } : {}),
+    ...(computedListHeightPx ? { height: `${computedListHeightPx}px` } : group.panelListHeightPx ? { minHeight: `${group.panelListHeightPx}px` } : {}),
     ...(group.panelListLeftPx !== undefined
       ? {
           left: `${group.panelListLeftPx}px`,
@@ -31,12 +51,10 @@ export function SiteCatalogFilterFlyout({
           left: "50%",
           transform: "translateX(-50%)",
         }),
-    ...(shouldScroll && group.maxVisibleOptions
-      ? { "--site-catalog-visible-options": String(group.maxVisibleOptions) }
-      : {}),
+    ...(shouldScroll && computedListHeightPx ? { "--site-catalog-list-height": `${computedListHeightPx}px` } : {}),
   } as CSSProperties;
   const panelStyle = {
-    "--site-catalog-panel-height": `${group.panelHeightPx ?? 46}px`,
+    "--site-catalog-panel-height": `${isAdaptiveSectionFlyout && computedListHeightPx && panelChromeHeightPx !== undefined ? computedListHeightPx + panelChromeHeightPx : group.panelHeightPx ?? 46}px`,
   } as CSSProperties;
 
   return (
@@ -52,7 +70,16 @@ export function SiteCatalogFilterFlyout({
         >
           {finalOptions.map((option) => {
             const isSelected = selectedSet.has(option.value);
-            const isStrongAction = option.value === SHOW_ALL_DESIGNERS_VALUE;
+            const isStrongAction = option.value === SHOW_ALL_DESIGNERS_VALUE || Boolean(option.keepAtBottom);
+            if (option.keepAtBottom) {
+              return (
+                <li key={option.id}>
+                  <div className="site-catalog-filters__item site-catalog-filters__item--strong">
+                    <span>{option.label}</span>
+                  </div>
+                </li>
+              );
+            }
             return (
               <li key={option.id}>
                 <button
@@ -73,7 +100,7 @@ export function SiteCatalogFilterFlyout({
           })}
         </ul>
       </div>
-      {hasSelection ? (
+      {hasResettableSelection ? (
         <button type="button" className="site-catalog-filters__reset" onClick={onReset}>
           Сбросить все
         </button>

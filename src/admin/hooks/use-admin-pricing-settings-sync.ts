@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { pricingNumericKeys } from "../admin-constants";
-import { formatCompactNumber, normalizeFinalRoundingMode } from "../admin-formatters";
+import { formatCompactNumber, normalizeFinalRoundingMode, parseNonNegativeNumber } from "../admin-formatters";
 import type { FinalRoundingMode, PricingFieldKey, PricingSettings } from "../admin-types";
 
 type UseAdminPricingSettingsSyncParams = {
@@ -60,8 +60,8 @@ export function useAdminPricingSettingsSync(params: UseAdminPricingSettingsSyncP
       if (!raw) {
         continue;
       }
-      const parsed = Number(raw);
-      if (!Number.isFinite(parsed)) {
+      const parsed = parseNonNegativeNumber(raw);
+      if (parsed === null) {
         continue;
       }
       const rounded = Number(parsed.toFixed(6));
@@ -90,8 +90,8 @@ export function useAdminPricingSettingsSync(params: UseAdminPricingSettingsSyncP
     if (!pricingSettings) {
       return;
     }
-    const parsed = Number((markupRateDraft || "").trim());
-    if (!Number.isFinite(parsed) || parsed < 0) {
+    const parsed = parseNonNegativeNumber(markupRateDraft);
+    if (parsed === null) {
       return;
     }
     const nextMultiplier = Number((1 + parsed).toFixed(6));

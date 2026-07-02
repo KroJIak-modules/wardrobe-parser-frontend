@@ -4,7 +4,7 @@ export type SiteCatalogSort = "featured" | "price-asc" | "price-desc";
 
 export type SiteCatalogTopKey = "new" | "designers" | "men" | "women" | "sale";
 
-export type SiteCatalogAvailability = "in-stock" | "preorder";
+export type SiteCatalogAvailability = "in-stock" | "preorder" | "sold-out";
 
 export type SiteCatalogFilterSelectionMode = "single" | "multiple";
 

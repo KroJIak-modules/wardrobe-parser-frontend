@@ -34,6 +34,11 @@ type CategoryTreeViewNode = {
   children: CategoryTreeViewNode[];
 };
 
+const SHOWCASE_CATEGORY_ORDER = ["new", "designers", "men", "women", "sale"] as const;
+const SHOWCASE_CATEGORY_ORDER_INDEX = new Map<string, number>(
+  SHOWCASE_CATEGORY_ORDER.map((slug, index) => [slug, index]),
+);
+
 function isFilterNode(node: TaxonomyNode): node is AdminFilterTreeNode {
   return "rules" in node;
 }
@@ -90,8 +95,23 @@ function unavailableReasonRu(reason: string | null | undefined): string {
   if (normalized === "missing_weight") {
     return "Товар недоступен: не указан вес";
   }
+  if (normalized === "missing_images") {
+    return "Товар недоступен: у него нет ни одной фотографии";
+  }
+  if (normalized === "missing_source_price") {
+    return "Товар недоступен: у него не указана цена";
+  }
+  if (normalized === "missing_final_price") {
+    return "Товар недоступен: не удалось рассчитать итоговую цену";
+  }
   if (normalized === "missing_currency") {
     return "Товар недоступен: не указана валюта";
+  }
+  if (normalized === "unsupported_currency") {
+    return "Товар недоступен: указана неподдерживаемая валюта";
+  }
+  if (normalized === "invalid_fx_settings") {
+    return "Товар недоступен: не настроен курс валют для расчета цены";
   }
   if (normalized === "source_removed") {
     return "Товар недоступен: он пропал в источнике";
@@ -123,12 +143,19 @@ function collectLeafFilters(nodes: readonly AdminFilterTreeNode[]): AdminFilterT
   return result;
 }
 
-function countFilterProducts(filter: AdminFilterTreeNode) {
-  return filter.rules.manual_products.length;
+function countFilterProducts(filter: AdminFilterTreeNode): number {
+  if (filter.children.length === 0) {
+    return Math.max(0, Number(filter.product_count) || 0);
+  }
+  return filter.children.reduce((sum, child) => sum + countFilterProducts(child), 0);
 }
 
 function getFilterDisplayLabel(filter: Pick<AdminFilterTreeNode, "label" | "display_label">) {
   return filter.display_label.trim() || filter.label.trim();
+}
+
+function getFilterButtonLabel(filter: AdminFilterTreeNode): string {
+  return `${getFilterDisplayLabel(filter)} (${countFilterProducts(filter)})`;
 }
 
 function getTopNewCategoryFilters(filters: readonly AdminFilterTreeNode[], limit = 9) {
@@ -152,6 +179,25 @@ function compareByOrder(orderMap: Map<number, number>, leftId: number, rightId: 
   const leftIndex = orderMap.get(leftId) ?? Number.MAX_SAFE_INTEGER;
   const rightIndex = orderMap.get(rightId) ?? Number.MAX_SAFE_INTEGER;
   return leftIndex - rightIndex;
+}
+
+function compareCategoriesByShowcaseOrder(left: AdminCategoryTreeNode, right: AdminCategoryTreeNode): number {
+  const leftIndex = SHOWCASE_CATEGORY_ORDER_INDEX.get(left.slug) ?? Number.MAX_SAFE_INTEGER;
+  const rightIndex = SHOWCASE_CATEGORY_ORDER_INDEX.get(right.slug) ?? Number.MAX_SAFE_INTEGER;
+  if (leftIndex !== rightIndex) {
+    return leftIndex - rightIndex;
+  }
+  return left.label.localeCompare(right.label, "ru", { sensitivity: "base" });
+}
+
+function isCategoryAttachmentAllowed(category: AdminCategoryTreeNode, attachment: AdminCategoryTreeNode["attachments"][number]): boolean {
+  if (category.behavior === "new") {
+    return attachment.kind === "custom_catalog";
+  }
+  if (category.behavior === "gender") {
+    return attachment.kind === "filter";
+  }
+  return false;
 }
 
 function sortCategoryAttachments(
@@ -206,7 +252,7 @@ function buildCategoryTreeNodes(
   flatFilters: AdminFilterTreeNode[],
   customCatalogs: AdminCustomCatalog[]
 ): CategoryTreeViewNode[] {
-  return categories.map((category) => ({
+  return [...categories].sort(compareCategoriesByShowcaseOrder).map((category) => ({
     key: `category:${category.id}`,
     node: category,
     kind: "category",
@@ -216,6 +262,7 @@ function buildCategoryTreeNodes(
     isNodeHidden: false,
     isHiddenByAncestor: false,
     children: sortCategoryAttachments(category, flatFilters, customCatalogs)
+      .filter((attachment) => isCategoryAttachmentAllowed(category, attachment))
       .flatMap((attachment) => {
       if (attachment.kind === "filter") {
         const filter = flatFilters.find((item) => item.id === attachment.ref_id);
@@ -282,6 +329,7 @@ function TreeNode({
     selectedId === node.id ? "tab tab--active cat-tree-btn taxonomy-tree-btn" : "tab cat-tree-btn taxonomy-tree-btn",
     `taxonomy-tree-btn--${kind}`,
   ].join(" ");
+  const nodeButtonLabel = isFilterNode(node) ? getFilterButtonLabel(node) : node.label;
   const shouldShowCreateButton = typeof showCreateButton === "function" ? showCreateButton(node) : showCreateButton;
   const isBeforeDropTarget = dropTarget?.mode === "before" && dropTarget.targetId === node.id;
   const isInsideDropTarget = dropTarget?.mode === "inside" && dropTarget.targetId === node.id;
@@ -394,7 +442,7 @@ function TreeNode({
         }}
       >
         <button type="button" className={buttonClassName} onClick={() => onSelect(node.id)}>
-          <span>{node.label}</span>
+          <span>{nodeButtonLabel}</span>
         </button>
         {shouldShowCreateButton ? (
           <button
@@ -404,7 +452,7 @@ function TreeNode({
               event.stopPropagation();
               onCreate(node.id);
             }}
-            aria-label={`Добавить к ${node.label}`}
+            aria-label={`Добавить к ${nodeButtonLabel}`}
           >
             +
           </button>
@@ -574,7 +622,7 @@ function CategoryAttachMenu({
           </div>
         </div>
       ) : null}
-      {category.behavior !== "new" ? (
+      {category.behavior === "gender" ? (
         <div className="taxonomy-attach-menu-group">
           <strong>Фильтры и мультифильтры</strong>
           <div className="taxonomy-attach-menu-list">
@@ -1588,7 +1636,7 @@ function CustomCatalogEditor({
   );
 }
 
-export function AdminFiltersCategoriesTab() {
+export function AdminFiltersCategoriesTab({ onToast }: { onToast?: (message: string) => void }) {
   const {
     loading,
     filters,
@@ -1641,7 +1689,7 @@ export function AdminFiltersCategoriesTab() {
     attachCustomCatalogToCategory,
     removeCategoryAttachment,
     toggleCategoryAttachmentNodeHidden,
-  } = useAdminFiltersCategories();
+  } = useAdminFiltersCategories(onToast);
 
   const [activeEditor, setActiveEditor] = useState<EditorMode>(null);
   const [draggedFilterId, setDraggedFilterId] = useState<number | null>(null);

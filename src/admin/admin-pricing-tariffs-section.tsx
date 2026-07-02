@@ -79,9 +79,8 @@ export function AdminPricingTariffsSection({
                   {rows.map((row) => (
                     <div key={row.id} className="pricing-tariff-row">
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={row.min_kg}
                         onChange={(event) => setTariffRangesDrafts((prev) => ({
                           ...prev,
@@ -89,9 +88,8 @@ export function AdminPricingTariffsSection({
                         }))}
                       />
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="пусто = бесконечность"
                         value={row.max_kg}
                         onChange={(event) => setTariffRangesDrafts((prev) => ({
@@ -100,9 +98,8 @@ export function AdminPricingTariffsSection({
                         }))}
                       />
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={row.rub}
                         onChange={(event) => setTariffRangesDrafts((prev) => ({
                           ...prev,

@@ -1,11 +1,6 @@
-import type { SiteFooterColumn, SiteNavItem } from "../features/storefront/site-storefront-contracts";
-import { siteHeaderTopMenuItems } from "../features/header/site-header-data";
+import type { SiteFooterColumn } from "../features/storefront/site-storefront-contracts";
 
 export const landingHeroButtonLabel = "НАЖМИТЕ ЧТОБЫ ВОЙТИ";
-
-export const siteMenuItems: SiteNavItem[] = [...siteHeaderTopMenuItems];
-
-export const siteActionItems: SiteNavItem[] = [{ label: "Поиск" }, { label: "Корзина" }];
 
 export const siteFooterColumns: SiteFooterColumn[] = [
   {

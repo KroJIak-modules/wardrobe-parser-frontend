@@ -231,13 +231,14 @@
 .site-header__menu-dropdown--new {
   grid-template-columns: max-content max-content;
   gap: 109px;
-  padding: 76px 0 0 80px;
+  padding: 58px 0 0 80px;
 }
 
 .site-header__menu-dropdown--designers {
   grid-template-columns: max-content max-content;
   gap: 45px;
-  padding: 76px 0 0 75px;
+  justify-content: center;
+  padding: 58px 0 0;
 }
 
 .site-header__menu-column {
@@ -261,7 +262,7 @@
 .site-header__menu-dropdown--men .site-header__menu-column--right,
 .site-header__menu-dropdown--women .site-header__menu-column--right {
   position: absolute;
-  top: 76px;
+  top: 58px;
 }
 
 .site-header__menu-dropdown--men .site-header__menu-column--left,

@@ -218,7 +218,7 @@ export const SiteCatalogMobileFiltersDrawer = forwardRef<
         <div ref={groupsRef} className="site-catalog-mobile-filters-drawer__groups">
           {orderedGroups.map((group) => {
             const isOpen = openGroupKey === group.key;
-            const selectedValues = getCatalogSelectedValues(draftSearchParams, group);
+            const selectedValues = getCatalogSelectedValues(draftSearchParams, group, { mode: "effective" });
             const triggerLabel = getCatalogTriggerLabel(draftSearchParams, group, selectedValues);
             const orderedOptions = getOrderedCatalogFilterOptions(group, selectedValues);
 

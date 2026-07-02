@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { siteHomeNotificationMockPayload } from "./site-home-notification-mock";
+import { siteHomeNotificationEmptyPayload } from "./site-home-notification-static";
+import { siteApiJson, type SiteApiHomeNotificationResponse } from "./site-public-api";
 
 const SITE_HOME_NOTIFICATION_STORAGE_PREFIX = "site-home-notification-seen";
 
@@ -32,10 +33,56 @@ function writeSeenVersion(id: string, version: string) {
 }
 
 export function useSiteHomeNotification(isEnabled: boolean) {
-  const payload = useMemo(() => siteHomeNotificationMockPayload, []);
+  const [apiPayload, setApiPayload] = useState<SiteApiHomeNotificationResponse | null>(null);
+  const [apiLoaded, setApiLoaded] = useState(false);
+  const payload = useMemo(
+    () => (
+      apiPayload
+        ? {
+            id: apiPayload.id,
+            version: apiPayload.version,
+            enabled: apiPayload.enabled,
+            delayMs: apiPayload.delay_ms,
+            windowLabel: "УВЕДОМЛЕНИЕ",
+            title: apiPayload.title,
+            description: apiPayload.description,
+            imageSrc: apiPayload.image_src,
+            imageAlt: "",
+            ctaLabel: apiPayload.cta_label,
+            ctaHref: apiPayload.cta_href,
+          }
+        : siteHomeNotificationEmptyPayload
+    ),
+    [apiPayload],
+  );
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
+    let isDisposed = false;
+    siteApiJson<SiteApiHomeNotificationResponse>("/site/home/notification")
+      .then((nextPayload) => {
+        if (!isDisposed) {
+          setApiPayload(nextPayload);
+          setApiLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          setApiPayload(null);
+          setApiLoaded(true);
+        }
+      });
+    return () => {
+      isDisposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!apiLoaded) {
+      setIsOpen(false);
+      return undefined;
+    }
+
     if (!isEnabled || !payload.enabled) {
       setIsOpen(false);
       return undefined;
@@ -55,7 +102,7 @@ export function useSiteHomeNotification(isEnabled: boolean) {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isEnabled, payload]);
+  }, [apiLoaded, isEnabled, payload]);
 
   const dismiss = useCallback(() => {
     setIsOpen(false);

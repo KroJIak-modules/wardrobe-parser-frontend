@@ -1,4 +1,4 @@
-import type { SiteCartItem } from "../../runtime/site-cart-mock";
+import type { SiteCartItem } from "../../runtime/use-site-cart";
 import { SiteCartCard } from "./site-cart-card";
 import { SiteCartSummary } from "./site-cart-summary";
 import "./site-cart.css";

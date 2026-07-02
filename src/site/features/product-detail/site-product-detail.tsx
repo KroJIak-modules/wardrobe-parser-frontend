@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import type { SiteProductDetailItem } from "../../runtime/site-product-detail-mock";
+import type { SiteProductDetailItem } from "../../runtime/site-product-detail";
+import type { SiteProduct } from "../storefront/site-storefront-contracts";
 import { SiteProductCard } from "../product-card/site-product-card";
 import { SiteProductHero } from "./site-product-hero";
 import "./site-product-detail.css";
@@ -10,14 +11,24 @@ export function SiteProductDetailView({
   recommendations,
   returnTarget,
   layout = "desktop",
+  isLoading = false,
 }: {
   product: SiteProductDetailItem | null;
-  recommendations: readonly SiteProductDetailItem[];
+  recommendations: readonly SiteProduct[];
   returnTarget: { pathname: string; search: string } | null;
   layout?: "desktop" | "mobile";
+  isLoading?: boolean;
 }) {
   const recommendationCards = useMemo(() => recommendations.slice(0, 8), [recommendations]);
   const isMobileLayout = layout === "mobile";
+
+  if (isLoading) {
+    return (
+      <section className="site-product-detail site-product-detail--empty">
+        <p className="site-product-detail__empty-title">ЗАГРУЗКА...</p>
+      </section>
+    );
+  }
 
   if (!product) {
     return (

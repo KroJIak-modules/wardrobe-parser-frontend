@@ -395,6 +395,24 @@ export type WeightMissingProduct = {
   source_name: string;
 };
 
+export type WeightRecalcStatus = {
+  status: "idle" | "queued" | "running";
+  is_running: boolean;
+  queued_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  last_error: string | null;
+  total_products: number;
+  processed_products: number;
+};
+
+export type PricingSvcRule = {
+  min_rub: number;
+  max_rub: number | null;
+  mode: "fixed_rub" | "percent";
+  value: number;
+};
+
 export type PricingSettings = {
   markup_multiplier: number;
   weight_tolerance: number;
@@ -418,6 +436,7 @@ export type PricingSettings = {
   bybit_worker_interval_sec?: number;
   bybit_last_updated_at?: string | null;
   bybit_last_error?: string | null;
+  svc_rules: PricingSvcRule[];
   suppliers: PricingSupplier[];
   formula_latex: string;
   formula_lines: string[];
@@ -570,6 +589,35 @@ export type SettingsTransferShowcaseMedia = {
   mobile_carousel: SettingsTransferShowcaseCarouselEntry[];
 };
 
+export type SettingsTransferSiteAbout = {
+  text: string;
+  photo_asset_checksums: string[];
+};
+
+export type SettingsTransferSiteQuestionItem = {
+  question: string;
+  answer: string;
+  is_enabled: boolean;
+  is_expanded_by_default: boolean;
+  position: number;
+};
+
+export type SettingsTransferSiteNotification = {
+  title: string;
+  description: string;
+  button_text: string;
+  button_url: string;
+  image_asset_checksum: string | null;
+  version: number;
+  position: number;
+};
+
+export type SettingsTransferSiteContent = {
+  about: SettingsTransferSiteAbout;
+  notifications: SettingsTransferSiteNotification[];
+  questions: SettingsTransferSiteQuestionItem[];
+};
+
 export type SettingsTransferImageAssetEntry = {
   checksum_sha256: string;
   scope: string;
@@ -595,6 +643,7 @@ export type SettingsTransferPricingSettings = {
   customs_processing_rate: number;
   customs_fixed_rub: number;
   tax_rate: number;
+  svc_rules: PricingSvcRule[];
 };
 
 export type SettingsTransferAdminUiSettings = {
@@ -614,6 +663,7 @@ export type SettingsTransferPayload = {
   designer_source_names: SettingsTransferDesignerSourceNameEntry[];
   taxonomy: SettingsTransferTaxonomyState;
   showcase_media: SettingsTransferShowcaseMedia;
+  site_content: SettingsTransferSiteContent;
   image_assets: SettingsTransferImageAssetEntry[];
 };
 
@@ -637,6 +687,7 @@ export type LiveDataContextValue = {
   loadingMoreDedupDecisions: boolean;
   weightRules: WeightRule[];
   weightMissingProducts: WeightMissingProduct[];
+  weightRecalcStatus: WeightRecalcStatus;
   hasMoreWeightMissing: boolean;
   loadingMoreWeightMissing: boolean;
   pricingSettings: PricingSettings | null;
@@ -652,6 +703,7 @@ export type LiveDataContextValue = {
   ensurePricingLoaded: (force?: boolean) => Promise<void>;
   ensureAdminUiLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: (force?: boolean) => Promise<void>;
+  refreshWeightRecalcStatusOnly: () => Promise<void>;
   loadMoreWeightMissingProducts: () => Promise<void>;
   loadMoreDedupCandidates: () => Promise<void>;
   loadMoreDedupDecisions: () => Promise<void>;
@@ -774,6 +826,7 @@ export type LiveDataContextValue = {
   deleteWeightRule: (id: number) => Promise<{ ok: boolean; message: string }>;
   addWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
   removeWeightKeyword: (ruleId: number, keyword: string) => Promise<{ ok: boolean; message: string }>;
+  startWeightRecalculation: () => Promise<{ ok: boolean; message: string }>;
   fetchPricingExampleProduct: (productId?: number | null) => Promise<PricingExampleFetchResult>;
   updatePricingSettings: (payload: Partial<PricingSettings>) => Promise<{ ok: boolean; message: string }>;
   updateAdminUiSettings: (payload: Partial<AdminUiSettings>) => Promise<{ ok: boolean; message: string }>;

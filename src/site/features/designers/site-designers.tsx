@@ -1,6 +1,6 @@
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
 import type { SiteDesignersEntryMode } from "./site-designers-navigation";
-import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers-mock";
+import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers";
 import { SITE_DESIGNERS_MOBILE_MEDIA_QUERY } from "./site-designers-constants";
 import { SiteDesignersDesktopDirectory } from "./site-designers-desktop";
 import { SiteDesignersMobileDirectory } from "./site-designers-mobile";

@@ -99,20 +99,20 @@ type DragState = {
 const VIEWPORTS: Array<{
   key: ShowcaseViewportKey;
   title: string;
-  note: string;
   heroToneClassName: string;
+  carouselClassName: string;
 }> = [
   {
     key: "desktop",
     title: "Компьютерная версия",
-    note: "Широкая заставка и карусель для полноценной витрины.",
     heroToneClassName: "showcase-media-editor__hero-tile--desktop",
+    carouselClassName: "showcase-media-editor__carousel-grid--desktop",
   },
   {
     key: "mobile",
     title: "Мобильная версия",
-    note: "Отдельный мобильный набор. Можно собирать другой ритм и другой кроп.",
     heroToneClassName: "showcase-media-editor__hero-tile--mobile",
+    carouselClassName: "showcase-media-editor__carousel-grid--mobile",
   },
 ];
 
@@ -461,7 +461,6 @@ export function AdminShowcaseMediaSection({
             <header className="showcase-media-editor__viewport-head">
               <div>
                 <h3 className="settings-subtitle showcase-media-editor__viewport-title">{viewport.title}</h3>
-                <p className="showcase-media-editor__viewport-note">{viewport.note}</p>
               </div>
             </header>
 
@@ -527,9 +526,8 @@ export function AdminShowcaseMediaSection({
               <div className="showcase-media-editor__slot">
                 <div className="showcase-media-editor__slot-head">
                   <strong>{`Карусель (${carouselAssets.length}/${SHOWCASE_CAROUSEL_LIMIT})`}</strong>
-                  <span>Тяни карточку за любую часть. Порядок меняется прямо во время движения.</span>
                 </div>
-                <div className="showcase-media-editor__carousel-grid">
+                <div className={`showcase-media-editor__carousel-grid ${viewport.carouselClassName}`}>
                   {carouselAssets.map((asset, index) => (
                     <ShowcaseCarouselCard
                       key={`${viewport.key}-${asset.id}`}

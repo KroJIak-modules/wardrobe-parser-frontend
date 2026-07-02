@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { siteMenuItems } from "../../app/site-static-content";
 import { SiteCartView } from "../../features/cart/site-cart";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { useSiteActionItems, useSiteCart } from "../../runtime/use-site-cart";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
+import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import "./site-cart-page.css";
 
 const SITE_CART_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
@@ -37,6 +37,7 @@ export function SiteCartPage() {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
   const { items, totalPriceRub, hasItems, updateQuantity, removeItem } = useSiteCart();
+  const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_CART_MOBILE_MEDIA_QUERY);
   const telegramMessage = useMemo(() => buildTelegramMessage(items, totalPriceRub), [items, totalPriceRub]);
@@ -79,6 +80,7 @@ export function SiteCartPage() {
     <main className={`site-cart-page${isMobileLayout ? " site-cart-page--mobile" : ""}`}>
       {isMobileLayout ? (
         <SiteMobileHomeHeader
+          navigation={navigation}
           onLogoActivate={() => {
             navigate("/?view=storefront");
           }}
@@ -86,7 +88,8 @@ export function SiteCartPage() {
       ) : (
         <SiteHeader
           theme="light"
-          menuItems={siteMenuItems}
+          menuItems={menuItems}
+          dropdownMenus={dropdownMenus}
           actionItems={actionItems}
           searchValue={searchValue}
           onSearchValueChange={setSearchValue}

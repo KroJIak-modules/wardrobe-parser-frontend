@@ -1,13 +1,15 @@
 import type { MutableRefObject } from "react";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import type { IndicatorState } from "./site-header-contracts";
-import { SiteHeaderDropdownContent, getSiteHeaderDropdownMenu } from "./site-header-dropdown-content";
+import type { SiteHeaderDropdownMenu } from "./site-header-data";
+import { SiteHeaderDropdownContent } from "./site-header-dropdown-content";
 
 export function SiteHeaderMenu({
   menuItems,
   menuRowRef,
   menuItemRefs,
   menuLabelRefs,
+  dropdownMenus,
   menuIndicator,
   hoveredMenuIndex,
   openMenuIndex,
@@ -20,6 +22,7 @@ export function SiteHeaderMenu({
   menuRowRef: MutableRefObject<HTMLDivElement | null>;
   menuItemRefs: MutableRefObject<Array<HTMLButtonElement | null>>;
   menuLabelRefs: MutableRefObject<Array<HTMLSpanElement | null>>;
+  dropdownMenus?: Record<string, SiteHeaderDropdownMenu>;
   menuIndicator: IndicatorState;
   hoveredMenuIndex: number | null;
   openMenuIndex: number | null;
@@ -28,7 +31,7 @@ export function SiteHeaderMenu({
   onMenuActivate: (index: number, item: SiteNavItem) => void;
   onNavigateFromDropdown: (to: string, navigationState?: unknown) => void;
 }) {
-  const activeDropdownMenu = openMenuIndex === null ? null : getSiteHeaderDropdownMenu(menuItems[openMenuIndex]?.label ?? "");
+  const activeDropdownMenu = openMenuIndex === null ? null : (dropdownMenus?.[menuItems[openMenuIndex]?.label ?? ""] ?? null);
 
   return (
     <div

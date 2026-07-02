@@ -1,4 +1,4 @@
-import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers-mock";
+import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers";
 
 export type SiteDesignersSection = {
   letter: string;
