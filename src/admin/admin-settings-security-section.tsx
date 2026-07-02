@@ -1,6 +1,8 @@
 import type { ChangeEvent, RefObject } from "react";
+import { AdminSiteAccessSection } from "./admin-site-access-section";
 import { AdminSettingsAccountsSection } from "./admin-settings-accounts-section";
 import { AdminSettingsTransferSection } from "./admin-settings-transfer-section";
+import "./admin-settings-tab.css";
 
 type Props = {
   settingsExportInProgress: boolean;
@@ -33,6 +35,8 @@ export function AdminSettingsSecuritySection({
 }: Props) {
   return (
     <div className="admin-settings-pane">
+      <AdminSiteAccessSection pushToast={pushToast} />
+
       <section className="card admin-settings-panel">
         <div className="admin-settings-panel__head">
           <div>

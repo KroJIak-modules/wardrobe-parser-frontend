@@ -616,6 +616,12 @@ export type SettingsTransferSiteNotification = {
 };
 
 export type SettingsTransferSiteContent = {
+  access: {
+    enabled: boolean;
+    title: string;
+    description: string;
+    password: string;
+  };
   about: SettingsTransferSiteAbout;
   notifications: SettingsTransferSiteNotification[];
   questions: SettingsTransferSiteQuestionItem[];

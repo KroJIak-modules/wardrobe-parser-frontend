@@ -223,6 +223,50 @@
   font-weight: 700;
 }
 
+.admin-site-access__switch {
+  flex: 0 0 auto;
+}
+
+.admin-site-access__grid {
+  max-width: 760px;
+}
+
+.admin-site-access__password {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.admin-settings-field > .admin-site-access__password {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.admin-site-access__password .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.admin-site-access__icon-btn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #d7deeb;
+  border-radius: 12px;
+  background: #fff;
+  color: #243247;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.admin-site-access__icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .admin-settings-question-list {
   display: grid;
   gap: 10px;

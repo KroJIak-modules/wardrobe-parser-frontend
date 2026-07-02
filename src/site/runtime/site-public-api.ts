@@ -19,7 +19,7 @@ async function extractErrorMessage(response: Response): Promise<string> {
 }
 
 export async function siteApiJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, init);
+  const response = await fetch(`${API_BASE}${path}`, { ...init, credentials: init?.credentials ?? "include" });
   if (!response.ok) {
     throw new SiteApiError(await extractErrorMessage(response), response.status);
   }
@@ -187,6 +187,18 @@ export type SiteApiHomeNotificationResponse = {
   image_src: string;
   cta_label: string;
   cta_href: string;
+};
+
+export type SiteApiAccessStatusResponse = {
+  enabled: boolean;
+  unlocked: boolean;
+  title: string;
+  description: string;
+};
+
+export type SiteApiAccessUnlockResponse = {
+  ok: boolean;
+  unlocked: boolean;
 };
 
 export type SiteApiAdminSiteAboutResponse = {
