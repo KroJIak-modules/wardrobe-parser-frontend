@@ -1440,30 +1440,32 @@ function CategoryLinkedEditor({
       )}
 
       {hasAttachment ? (
-        <div className="taxonomy-linked-actions">
-          <label className="ui-switch ui-switch--compact">
-            <input type="checkbox" checked={item.isNodeHidden} onChange={() => onToggleHidden()} disabled={!canToggleHidden} />
-            <span className="ui-switch-track">
-              <span className="ui-switch-thumb" />
-            </span>
-            <span className="ui-switch-text">Скрыть</span>
-          </label>
-        </div>
-      ) : null}
+        <div className="taxonomy-linked-switches">
+          <div className="taxonomy-linked-actions taxonomy-linked-actions--switch">
+            <label className="ui-switch ui-switch--compact">
+              <input type="checkbox" checked={item.isNodeHidden} onChange={() => onToggleHidden()} disabled={!canToggleHidden} />
+              <span className="ui-switch-track">
+                <span className="ui-switch-thumb" />
+              </span>
+              <span className="ui-switch-text">Скрыть</span>
+            </label>
+          </div>
 
-      {hasAttachment && isFilterNode(sourceNode) && kind === "filter" ? (
-        <div className="taxonomy-linked-actions">
-          <label className="ui-switch ui-switch--compact">
-            <input
-              type="checkbox"
-              checked={sourceNode.restrict_by_gender}
-              onChange={(event) => onSetRestrictByGender(Boolean(event.target.checked))}
-            />
-            <span className="ui-switch-track">
-              <span className="ui-switch-thumb" />
-            </span>
-            <span className="ui-switch-text">Ограничивать по гендеру</span>
-          </label>
+          {isFilterNode(sourceNode) && kind === "filter" ? (
+            <div className="taxonomy-linked-actions taxonomy-linked-actions--switch">
+              <label className="ui-switch ui-switch--compact">
+                <input
+                  type="checkbox"
+                  checked={sourceNode.restrict_by_gender}
+                  onChange={(event) => onSetRestrictByGender(Boolean(event.target.checked))}
+                />
+                <span className="ui-switch-track">
+                  <span className="ui-switch-thumb" />
+                </span>
+                <span className="ui-switch-text">Ограничивать по гендеру</span>
+              </label>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
