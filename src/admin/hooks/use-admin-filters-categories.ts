@@ -404,6 +404,17 @@ function buildCategoryAttachment(kind: AdminCategoryAttachment["kind"], refId: n
   };
 }
 
+function setFilterRestrictByGenderById(
+  nodes: AdminFilterTreeNode[],
+  id: number,
+  restrictByGender: boolean
+): AdminFilterTreeNode[] {
+  return updateFilterById(nodes, id, (node) => ({
+    ...node,
+    restrict_by_gender: restrictByGender,
+  }));
+}
+
 export function useAdminFiltersCategories(onSaveError?: (message: string) => void) {
   const [loading, setLoading] = useState<boolean>(true);
   const [filters, setFilters] = useState<AdminFilterTreeNode[]>([]);
@@ -818,6 +829,19 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
     );
   };
 
+  const setFilterRestrictByGender = (restrictByGender: boolean) => {
+    if (!selectedFilterId) {
+      return;
+    }
+    setFilters((prev) =>
+      setFilterRestrictByGenderById(prev, selectedFilterId, restrictByGender)
+    );
+  };
+
+  const setFilterRestrictByGenderByIdExplicit = (filterId: number, restrictByGender: boolean) => {
+    setFilters((prev) => setFilterRestrictByGenderById(prev, filterId, restrictByGender));
+  };
+
   const deleteSelectedFilter = () => {
     if (!selectedFilterId) {
       return;
@@ -840,6 +864,7 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
       mobile_pair_root_id: null,
       node_kind: "filter",
       is_enabled: true,
+      restrict_by_gender: true,
       product_count: 0,
       rules: {
         local_category_keywords: [],
@@ -1067,6 +1092,8 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
     updateFilterDisplayLabel,
     setFilterMobilePairRootId,
     setFilterEnabled,
+    setFilterRestrictByGender,
+    setFilterRestrictByGenderById: setFilterRestrictByGenderByIdExplicit,
     deleteSelectedFilter,
     createFilterNode,
     createCustomCatalog,

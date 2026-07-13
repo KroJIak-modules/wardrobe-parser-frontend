@@ -31,6 +31,7 @@ export function buildAdminFiltersCategoriesWritePayload(payload: AdminFiltersCat
         mobile_pair_root_id: node.mobile_pair_root_id,
         node_kind: node.node_kind,
         is_enabled: node.is_enabled,
+        restrict_by_gender: node.restrict_by_gender,
         rules: {
           local_category_keywords: [...node.rules.local_category_keywords],
           title_keywords: [...node.rules.title_keywords],

@@ -1391,11 +1391,13 @@ function CategoryLinkedEditor({
   item,
   category,
   onToggleHidden,
+  onSetRestrictByGender,
   onRemove,
 }: {
   item: CategoryTreeViewNode | null;
   category: AdminCategoryTreeNode | null;
   onToggleHidden: () => void;
+  onSetRestrictByGender: (value: boolean) => void;
   onRemove: () => void;
 }) {
   if (!item || !category) {
@@ -1446,6 +1448,27 @@ function CategoryLinkedEditor({
             </span>
             <span className="ui-switch-text">Скрыть</span>
           </label>
+        </div>
+      ) : null}
+
+      {hasAttachment && isFilterNode(sourceNode) && kind === "filter" ? (
+        <div className="taxonomy-linked-actions">
+          <label className="ui-switch ui-switch--compact">
+            <input
+              type="checkbox"
+              checked={sourceNode.restrict_by_gender}
+              onChange={(event) => onSetRestrictByGender(Boolean(event.target.checked))}
+            />
+            <span className="ui-switch-track">
+              <span className="ui-switch-thumb" />
+            </span>
+            <span className="ui-switch-text">Ограничивать по гендеру</span>
+          </label>
+        </div>
+      ) : null}
+
+      {hasAttachment ? (
+        <div className="taxonomy-linked-actions">
           <button
             type="button"
             className="taxonomy-action-btn taxonomy-action-btn--danger"
@@ -1666,6 +1689,7 @@ export function AdminFiltersCategoriesTab({ onToast }: { onToast?: (message: str
     updateFilterDisplayLabel,
     setFilterMobilePairRootId,
     setFilterEnabled,
+    setFilterRestrictByGenderById,
     deleteSelectedFilter,
     createFilterNode,
     createCustomCatalog,
@@ -1948,6 +1972,12 @@ export function AdminFiltersCategoriesTab({ onToast }: { onToast?: (message: str
                       selectedCategoryTreeNode.attachmentId,
                       selectedCategoryTreeNode.node.id
                     );
+                  }}
+                  onSetRestrictByGender={(value) => {
+                    if (!selectedCategoryTreeNode || !isFilterNode(selectedCategoryTreeNode.node)) {
+                      return;
+                    }
+                    setFilterRestrictByGenderById(selectedCategoryTreeNode.node.id, value);
                   }}
                   onRemove={() => {
                     if (!selectedCategoryTreeNode?.attachmentId) {

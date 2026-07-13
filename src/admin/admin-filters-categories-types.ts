@@ -39,6 +39,7 @@ export type AdminFilterTreeNode = AdminRuleTreeNodeBase & {
   mobile_pair_root_id: number | null;
   node_kind: "filter" | "multifilter";
   is_enabled: boolean;
+  restrict_by_gender: boolean;
   product_count: number;
   rules: AdminRuleSet;
   children: AdminFilterTreeNode[];
