@@ -1,3 +1,21 @@
+.taxonomy-page-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.taxonomy-page-head h2 {
+  margin: 0;
+}
+
+.taxonomy-page-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
 .manual-product-action-btn--danger {
   border-color: rgba(220, 38, 38, 0.22);
   background: rgba(254, 242, 242, 0.96);

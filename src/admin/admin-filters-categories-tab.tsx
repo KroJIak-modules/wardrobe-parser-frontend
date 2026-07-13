@@ -5,6 +5,7 @@ import type {
   AdminCategoryTreeNode,
   AdminCustomCatalog,
   AdminDesignerDirectoryItem,
+  AdminFilterAssignmentRebuildStatus,
   AdminFilterTreeNode,
   AdminRuleManualProduct,
 } from "./admin-filters-categories-types";
@@ -85,6 +86,22 @@ function getSourceDomainLabel(sourceUrl: string, fallbackLabel: string): string 
 
 function getCategoryGenderLabel(category: AdminCategoryTreeNode): string {
   return category.system_filter_value === "women" ? "женское" : "мужское";
+}
+
+function getFilterAssignmentRebuildButtonLabel(
+  status: AdminFilterAssignmentRebuildStatus,
+  isSubmitting: boolean
+): string {
+  if (isSubmitting) {
+    return "Запрос...";
+  }
+  if (status.state === "running") {
+    return "Пересчет идет...";
+  }
+  if (status.state === "queued") {
+    return "Пересчет запрошен";
+  }
+  return "Пересчитать фильтры";
 }
 
 function unavailableReasonRu(reason: string | null | undefined): string {
@@ -1669,6 +1686,8 @@ export function AdminFiltersCategoriesTab({ onToast }: { onToast?: (message: str
     categories,
     customCatalogs,
     designerDirectory,
+    filterAssignmentRebuildStatus,
+    filterAssignmentRebuildSubmitting,
     selectedFilterId,
     setSelectedFilterId,
     selectedFilter,
@@ -1700,6 +1719,7 @@ export function AdminFiltersCategoriesTab({ onToast }: { onToast?: (message: str
     moveFilterNodeToRoot,
     moveCustomCatalogBefore,
     moveCustomCatalogToEnd,
+    requestFilterAssignmentRebuild,
     addKeyword,
     removeKeyword,
     addManualProduct,
@@ -1716,6 +1736,11 @@ export function AdminFiltersCategoriesTab({ onToast }: { onToast?: (message: str
     removeCategoryAttachment,
     toggleCategoryAttachmentNodeHidden,
   } = useAdminFiltersCategories(onToast);
+  const isFilterAssignmentRebuildDisabled = loading || filterAssignmentRebuildSubmitting || filterAssignmentRebuildStatus.state !== "idle";
+  const filterAssignmentRebuildButtonLabel = getFilterAssignmentRebuildButtonLabel(
+    filterAssignmentRebuildStatus,
+    filterAssignmentRebuildSubmitting,
+  );
 
   const [activeEditor, setActiveEditor] = useState<EditorMode>(null);
   const [draggedFilterId, setDraggedFilterId] = useState<number | null>(null);
@@ -1862,7 +1887,21 @@ export function AdminFiltersCategoriesTab({ onToast }: { onToast?: (message: str
 
   return (
     <div className="card">
-      <h2>Структура витрины</h2>
+      <div className="taxonomy-page-head">
+        <h2>Структура витрины</h2>
+        <div className="taxonomy-page-head-actions">
+          <button
+            type="button"
+            className="taxonomy-action-btn"
+            disabled={isFilterAssignmentRebuildDisabled}
+            onClick={() => {
+              void requestFilterAssignmentRebuild();
+            }}
+          >
+            {filterAssignmentRebuildButtonLabel}
+          </button>
+        </div>
+      </div>
 
       {loading && filters.length === 0 && categories.length === 0 && customCatalogs.length === 0 ? (
         <AdminTaxonomySkeleton />

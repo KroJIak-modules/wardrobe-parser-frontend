@@ -68,10 +68,21 @@ export type AdminDesignerDirectoryItem = {
   product_count: number;
 };
 
+export type AdminFilterAssignmentRebuildStatus = {
+  state: "idle" | "queued" | "running";
+  target_revision: number;
+  applied_revision: number;
+  rebuild_requested_at: string | null;
+  rebuild_started_at: string | null;
+  rebuild_completed_at: string | null;
+  last_error: string | null;
+};
+
 export type AdminFiltersCategoriesPayload = {
   filters: AdminFilterTreeNode[];
   categories: AdminCategoryTreeNode[];
   custom_catalogs: AdminCustomCatalog[];
   designer_directory: AdminDesignerDirectoryItem[];
+  filter_assignment_rebuild: AdminFilterAssignmentRebuildStatus;
   hidden_product_ids: number[];
 };

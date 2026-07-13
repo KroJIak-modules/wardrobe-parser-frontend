@@ -1,6 +1,10 @@
 import { API_BASE } from "../shared/admin-auth";
 import { apiJson } from "../shared/api-client";
-import type { AdminFiltersCategoriesPayload, AdminRuleManualProduct } from "./admin-filters-categories-types";
+import type {
+  AdminFilterAssignmentRebuildStatus,
+  AdminFiltersCategoriesPayload,
+  AdminRuleManualProduct,
+} from "./admin-filters-categories-types";
 
 type AdminFiltersCategoriesWritePayload = Pick<
   AdminFiltersCategoriesPayload,
@@ -19,6 +23,20 @@ export async function searchAdminFiltersCategoriesProductLibrary(query: string, 
     `${API_BASE}/admin/taxonomy/editor/product-library?${searchParams.toString()}`
   );
   return payload.items;
+}
+
+export async function fetchAdminFilterAssignmentRebuildStatus(): Promise<AdminFilterAssignmentRebuildStatus> {
+  return apiJson<AdminFilterAssignmentRebuildStatus>(`${API_BASE}/admin/taxonomy/editor/filter-assignment-rebuild`);
+}
+
+export async function requestAdminFilterAssignmentRebuild(): Promise<{
+  ok: boolean;
+  started: boolean;
+  status: AdminFilterAssignmentRebuildStatus;
+}> {
+  return apiJson(`${API_BASE}/admin/taxonomy/editor/filter-assignment-rebuild`, {
+    method: "POST",
+  });
 }
 
 export function buildAdminFiltersCategoriesWritePayload(payload: AdminFiltersCategoriesWritePayload) {

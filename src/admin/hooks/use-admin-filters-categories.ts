@@ -1,6 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
+  fetchAdminFilterAssignmentRebuildStatus,
   fetchAdminFiltersCategoriesState,
+  requestAdminFilterAssignmentRebuild,
   saveAdminFiltersCategoriesState,
   searchAdminFiltersCategoriesProductLibrary,
 } from "../admin-filters-categories-api";
@@ -9,6 +11,7 @@ import type {
   AdminCategoryTreeNode,
   AdminCustomCatalog,
   AdminDesignerDirectoryItem,
+  AdminFilterAssignmentRebuildStatus,
   AdminFilterTreeNode,
   AdminFiltersCategoriesPayload,
   AdminRuleManualProduct,
@@ -22,6 +25,15 @@ const SHOWCASE_CATEGORY_ORDER = ["new", "designers", "men", "women", "sale"] as 
 const SHOWCASE_CATEGORY_ORDER_INDEX = new Map<string, number>(
   SHOWCASE_CATEGORY_ORDER.map((slug, index) => [slug, index]),
 );
+const DEFAULT_FILTER_ASSIGNMENT_REBUILD_STATUS: AdminFilterAssignmentRebuildStatus = {
+  state: "idle",
+  target_revision: 0,
+  applied_revision: 0,
+  rebuild_requested_at: null,
+  rebuild_started_at: null,
+  rebuild_completed_at: null,
+  last_error: null,
+};
 
 function isCategoryAttachmentAllowed(category: AdminCategoryTreeNode, attachment: AdminCategoryAttachment): boolean {
   if (category.behavior === "new") {
@@ -404,6 +416,35 @@ function buildCategoryAttachment(kind: AdminCategoryAttachment["kind"], refId: n
   };
 }
 
+function normalizeFilterAssignmentRebuildStatus(value: unknown): AdminFilterAssignmentRebuildStatus {
+  if (!value || typeof value !== "object") {
+    return DEFAULT_FILTER_ASSIGNMENT_REBUILD_STATUS;
+  }
+  const payload = value as Partial<AdminFilterAssignmentRebuildStatus>;
+  const state = payload.state === "queued" || payload.state === "running" ? payload.state : "idle";
+  const normalizeNumber = (input: unknown) => {
+    const candidate = Number(input);
+    return Number.isFinite(candidate) && candidate >= 0 ? Math.trunc(candidate) : 0;
+  };
+  const normalizeDate = (input: unknown) => {
+    const text = String(input ?? "").trim();
+    return text || null;
+  };
+  const normalizeError = (input: unknown) => {
+    const text = String(input ?? "").trim();
+    return text || null;
+  };
+  return {
+    state,
+    target_revision: normalizeNumber(payload.target_revision),
+    applied_revision: normalizeNumber(payload.applied_revision),
+    rebuild_requested_at: normalizeDate(payload.rebuild_requested_at),
+    rebuild_started_at: normalizeDate(payload.rebuild_started_at),
+    rebuild_completed_at: normalizeDate(payload.rebuild_completed_at),
+    last_error: normalizeError(payload.last_error),
+  };
+}
+
 function setFilterRestrictByGenderById(
   nodes: AdminFilterTreeNode[],
   id: number,
@@ -415,12 +456,16 @@ function setFilterRestrictByGenderById(
   }));
 }
 
-export function useAdminFiltersCategories(onSaveError?: (message: string) => void) {
+export function useAdminFiltersCategories(onToast?: (message: string) => void) {
   const [loading, setLoading] = useState<boolean>(true);
   const [filters, setFilters] = useState<AdminFilterTreeNode[]>([]);
   const [categories, setCategories] = useState<AdminCategoryTreeNode[]>([]);
   const [customCatalogs, setCustomCatalogs] = useState<AdminCustomCatalog[]>([]);
   const [designerDirectory, setDesignerDirectory] = useState<AdminDesignerDirectoryItem[]>([]);
+  const [filterAssignmentRebuildStatus, setFilterAssignmentRebuildStatus] = useState<AdminFilterAssignmentRebuildStatus>(
+    DEFAULT_FILTER_ASSIGNMENT_REBUILD_STATUS
+  );
+  const [filterAssignmentRebuildSubmitting, setFilterAssignmentRebuildSubmitting] = useState<boolean>(false);
   const [productLookup, setProductLookup] = useState<Record<number, AdminRuleManualProduct>>({});
   const [selectedFilterId, setSelectedFilterId] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -452,10 +497,12 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
         const nextCategories = normalizeShowcaseCategories(Array.isArray(payload.categories) ? payload.categories : []);
         const nextCustomCatalogs = Array.isArray(payload.custom_catalogs) ? payload.custom_catalogs : [];
         const nextDesignerDirectory = Array.isArray(payload.designer_directory) ? payload.designer_directory : [];
+        const nextFilterAssignmentRebuildStatus = normalizeFilterAssignmentRebuildStatus(payload.filter_assignment_rebuild);
         setFilters(normalizeMobileMenuPairs(nextFilters));
         setCategories(nextCategories);
         setCustomCatalogs(nextCustomCatalogs);
         setDesignerDirectory(nextDesignerDirectory);
+        setFilterAssignmentRebuildStatus(nextFilterAssignmentRebuildStatus);
         const nextHiddenProductIds = Array.isArray(payload.hidden_product_ids)
           ? Array.from(new Set(payload.hidden_product_ids.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0))).sort((left, right) => left - right)
           : [];
@@ -482,6 +529,7 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
           setCategories([]);
           setCustomCatalogs([]);
           setDesignerDirectory([]);
+          setFilterAssignmentRebuildStatus(DEFAULT_FILTER_ASSIGNMENT_REBUILD_STATUS);
           setHiddenProductIds([]);
           setProductLookup({});
         }
@@ -520,6 +568,7 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
       })
         .then((payload) => {
           lastSaveErrorMessageRef.current = "";
+          setFilterAssignmentRebuildStatus(normalizeFilterAssignmentRebuildStatus(payload.filter_assignment_rebuild));
           lastSavedSignatureRef.current = JSON.stringify({
             filters: payload.filters,
             categories: normalizeShowcaseCategories(payload.categories),
@@ -534,13 +583,39 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
             : "Не удалось сохранить изменения структуры витрины";
           if (message !== lastSaveErrorMessageRef.current) {
             lastSaveErrorMessageRef.current = message;
-            onSaveError?.(message);
+            onToast?.(message);
           }
         });
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [categories, customCatalogs, filters, hiddenProductIds, loading]);
+  }, [categories, customCatalogs, filters, hiddenProductIds, loading, onToast]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    let cancelled = false;
+    const refreshStatus = async () => {
+      try {
+        const payload = await fetchAdminFilterAssignmentRebuildStatus();
+        if (!cancelled) {
+          setFilterAssignmentRebuildStatus(normalizeFilterAssignmentRebuildStatus(payload));
+        }
+      } catch {
+        // Keep the latest known state; the button should not flicker on transient poll errors.
+      }
+    };
+    void refreshStatus();
+    const intervalMs = filterAssignmentRebuildStatus.state === "idle" ? 5000 : 2000;
+    const timer = window.setInterval(() => {
+      void refreshStatus();
+    }, intervalMs);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [filterAssignmentRebuildStatus.state, loading]);
 
   const flatFilters = useMemo(() => flattenFilters(filters), [filters]);
   const rootMultifilterOptions = useMemo(
@@ -1063,6 +1138,28 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
     setCustomCatalogs((prev) => moveFlatNodeToEnd(prev, draggedId));
   };
 
+  const requestFilterAssignmentRebuild = async () => {
+    if (filterAssignmentRebuildSubmitting || filterAssignmentRebuildStatus.state !== "idle") {
+      return;
+    }
+    setFilterAssignmentRebuildSubmitting(true);
+    try {
+      const payload = await requestAdminFilterAssignmentRebuild();
+      const nextStatus = normalizeFilterAssignmentRebuildStatus(payload.status);
+      setFilterAssignmentRebuildStatus(nextStatus);
+      if (payload.started) {
+        onToast?.("Пересчет фильтров запрошен");
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : "Не удалось запустить пересчет фильтров";
+      onToast?.(message);
+    } finally {
+      setFilterAssignmentRebuildSubmitting(false);
+    }
+  };
+
   return {
     loading,
     filters,
@@ -1071,6 +1168,8 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
     categories,
     customCatalogs,
     designerDirectory,
+    filterAssignmentRebuildStatus,
+    filterAssignmentRebuildSubmitting,
     selectedFilterId,
     setSelectedFilterId,
     selectedFilter,
@@ -1102,6 +1201,7 @@ export function useAdminFiltersCategories(onSaveError?: (message: string) => voi
     moveFilterNodeToRoot,
     moveCustomCatalogBefore,
     moveCustomCatalogToEnd,
+    requestFilterAssignmentRebuild,
     addKeyword,
     removeKeyword,
     addManualProduct,
