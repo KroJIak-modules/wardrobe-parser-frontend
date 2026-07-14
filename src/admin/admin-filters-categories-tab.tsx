@@ -92,14 +92,8 @@ function getFilterAssignmentRebuildButtonLabel(
   status: AdminFilterAssignmentRebuildStatus,
   isSubmitting: boolean
 ): string {
-  if (isSubmitting) {
-    return "Запрос...";
-  }
-  if (status.state === "running") {
-    return "Пересчет идет...";
-  }
-  if (status.state === "queued") {
-    return "Пересчет запрошен";
+  if (isSubmitting || status.state === "queued" || status.state === "running") {
+    return `Идет пересчет... (${Math.max(0, Math.min(100, Number(status.progress_percent) || 0))}%)`;
   }
   return "Пересчитать фильтры";
 }

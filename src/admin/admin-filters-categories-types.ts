@@ -72,6 +72,9 @@ export type AdminFilterAssignmentRebuildStatus = {
   state: "idle" | "queued" | "running";
   target_revision: number;
   applied_revision: number;
+  rebuild_total_products: number;
+  rebuild_processed_products: number;
+  progress_percent: number;
   rebuild_requested_at: string | null;
   rebuild_started_at: string | null;
   rebuild_completed_at: string | null;

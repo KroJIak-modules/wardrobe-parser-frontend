@@ -29,6 +29,9 @@ const DEFAULT_FILTER_ASSIGNMENT_REBUILD_STATUS: AdminFilterAssignmentRebuildStat
   state: "idle",
   target_revision: 0,
   applied_revision: 0,
+  rebuild_total_products: 0,
+  rebuild_processed_products: 0,
+  progress_percent: 0,
   rebuild_requested_at: null,
   rebuild_started_at: null,
   rebuild_completed_at: null,
@@ -438,6 +441,9 @@ function normalizeFilterAssignmentRebuildStatus(value: unknown): AdminFilterAssi
     state,
     target_revision: normalizeNumber(payload.target_revision),
     applied_revision: normalizeNumber(payload.applied_revision),
+    rebuild_total_products: normalizeNumber(payload.rebuild_total_products),
+    rebuild_processed_products: normalizeNumber(payload.rebuild_processed_products),
+    progress_percent: Math.min(100, normalizeNumber(payload.progress_percent)),
     rebuild_requested_at: normalizeDate(payload.rebuild_requested_at),
     rebuild_started_at: normalizeDate(payload.rebuild_started_at),
     rebuild_completed_at: normalizeDate(payload.rebuild_completed_at),
@@ -1143,13 +1149,16 @@ export function useAdminFiltersCategories(onToast?: (message: string) => void) {
       return;
     }
     setFilterAssignmentRebuildSubmitting(true);
+    setFilterAssignmentRebuildStatus((prev) => ({
+      ...prev,
+      state: "queued",
+      rebuild_processed_products: 0,
+      progress_percent: 0,
+    }));
     try {
       const payload = await requestAdminFilterAssignmentRebuild();
       const nextStatus = normalizeFilterAssignmentRebuildStatus(payload.status);
       setFilterAssignmentRebuildStatus(nextStatus);
-      if (payload.started) {
-        onToast?.("Пересчет фильтров запрошен");
-      }
     } catch (error: unknown) {
       const message = error instanceof Error && error.message.trim()
         ? error.message
