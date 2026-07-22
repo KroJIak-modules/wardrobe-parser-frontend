@@ -9,6 +9,14 @@
   pointer-events: none;
 }
 
+.site-landing-cta--pending {
+  opacity: 0;
+}
+
+.site-landing-cta--ready {
+  opacity: 1;
+}
+
 .site-landing-cta__button {
   position: relative;
   display: flex;
@@ -20,18 +28,12 @@
   padding: 15px 18px;
   border: 0;
   border-radius: 15px;
-  background:
-    radial-gradient(92px 72px at 11% 50%, rgba(210, 136, 84, 0.22), rgba(210, 136, 84, 0.06) 46%, rgba(210, 136, 84, 0) 76%),
-    linear-gradient(90deg, rgba(66, 49, 39, 0.32), rgba(23, 20, 20, 0.3)),
-    rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   box-shadow:
     inset 0 -2px 10px rgba(0, 0, 0, 0.1),
-    inset 0 2px 10px rgba(0, 0, 0, 0.1),
-    inset 18px 0 28px rgba(201, 128, 78, 0.12),
-    0 10px 26px rgba(0, 0, 0, 0.08);
-  -webkit-backdrop-filter: blur(12px) saturate(135%) brightness(0.62);
-  backdrop-filter: blur(12px) saturate(135%) brightness(0.62);
-  color: rgba(255, 255, 255, 0.8);
+    inset 0 2px 10px rgba(0, 0, 0, 0.1);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
   font-family: var(--site-font-ui);
   font-size: 24px;
   line-height: 1;
@@ -41,9 +43,14 @@
   appearance: none;
   cursor: pointer;
   pointer-events: auto;
+  isolation: isolate;
 }
 
-.site-landing-cta__button span {
+.site-landing-cta__button:disabled {
+  pointer-events: none;
+}
+
+.site-landing-cta__label {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -53,6 +60,17 @@
   line-height: 1;
   white-space: nowrap;
   text-align: center;
+  position: relative;
+  z-index: 2;
+  color: transparent;
+}
+
+.site-landing-cta__button[data-tone="dark"] .site-landing-cta__label {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.site-landing-cta__button[data-tone="light"] .site-landing-cta__label {
+  color: rgba(0, 0, 0, 0.8);
 }
 
 .site-landing-cta__button:hover,
@@ -78,15 +96,15 @@
     padding: 18px 15px;
     border-radius: 12px;
     font-size: 20px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
     box-shadow:
       inset 0 -2px 10px rgba(0, 0, 0, 0.1),
       inset 0 2px 10px rgba(0, 0, 0, 0.1);
-    -webkit-backdrop-filter: blur(12px) saturate(135%) brightness(0.62);
-    backdrop-filter: blur(12px) saturate(135%) brightness(0.62);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    backdrop-filter: blur(6px) saturate(120%);
   }
 
-  .site-landing-cta__button span {
+  .site-landing-cta__label {
     width: auto;
     height: auto;
     line-height: 1;

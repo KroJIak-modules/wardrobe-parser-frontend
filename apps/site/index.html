@@ -14,19 +14,11 @@
     </style>
     <script>
       (function () {
-        var heroUrl = "%VITE_SITE_HERO_URL%";
-        var searchParams = new URLSearchParams(window.location.search);
-        var isHomeEntry = window.location.pathname === "/" && searchParams.get("view") !== "storefront";
+        var isHomeEntry = window.location.pathname === "/";
 
         if (!isHomeEntry) {
           return;
         }
-
-        var preloadLink = document.createElement("link");
-        preloadLink.rel = "preload";
-        preloadLink.as = "image";
-        preloadLink.href = heroUrl;
-        document.head.appendChild(preloadLink);
 
         document.documentElement.style.background = "#0b0a09";
         document.body.style.background = "#0b0a09";
@@ -40,7 +32,7 @@
             }
 
             root.style.minHeight = "100svh";
-            root.style.background = "center / cover no-repeat url(\"" + heroUrl + "\"), #0b0a09";
+            root.style.background = "#0b0a09";
           },
           { once: true }
         );

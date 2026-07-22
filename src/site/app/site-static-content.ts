@@ -1,13 +1,14 @@
 import type { SiteFooterColumn } from "../features/storefront/site-storefront-contracts";
 
 export const landingHeroButtonLabel = "НАЖМИТЕ ЧТОБЫ ВОЙТИ";
+export const siteTelegramHref = "https://t.me/antonshellog";
 
 export const siteFooterColumns: SiteFooterColumn[] = [
   {
     id: "social",
     title: "Социальные сети",
     links: [
-      { label: "Telegram", href: "https://t.me/antonshellog" },
+      { label: "Telegram", href: siteTelegramHref },
       { label: "VK", href: "https://vk.ru/shellog" },
     ],
   },

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { formatSiteRubles } from "../../app/site-format";
-import { saveSiteCatalogReturnSnapshot } from "../catalog/site-catalog-return";
+import { clearSiteCatalogReturnSnapshot, saveSiteCatalogReturnSnapshot } from "../catalog/site-catalog-return";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
 import { SiteImage, type SiteImageSkeletonVariant } from "../image/site-image";
 import type { SiteProduct } from "../storefront/site-storefront-contracts";
@@ -26,25 +26,28 @@ export function SiteProductCard({
   const [titleLineCount, setTitleLineCount] = useState<1 | 2>(1);
   const designerHref = product.designerId ? buildDesignerCatalogHref(product.designerId) : null;
   const productHref = `/show/${product.path ?? product.id}`;
-  const isStorefrontRoute = location.pathname === "/" && new URLSearchParams(location.search).get("view") === "storefront";
-  const productLinkState =
-    location.pathname === "/catalog" || isStorefrontRoute
-      ? {
-          fromCatalog: {
-            pathname: location.pathname,
-            search: location.search,
-          },
-        }
-      : undefined;
+  const isCatalogRoute = location.pathname === "/catalog" || location.pathname === "/sale";
+  const productLinkState = isCatalogRoute
+    ? {
+        fromCatalog: {
+          pathname: location.pathname,
+          search: location.search,
+        },
+      }
+    : undefined;
 
   const handleProductOpen = () => {
-    if (location.pathname !== "/catalog") {
+    if (!isCatalogRoute) {
+      // A product opened from the home page or recommendations must never
+      // inherit a stale catalog-return position from an earlier visit.
+      clearSiteCatalogReturnSnapshot();
       return;
     }
 
     saveSiteCatalogReturnSnapshot({
       pathname: location.pathname,
       search: location.search,
+      locationKey: location.key,
       scrollY: window.scrollY,
     });
   };
@@ -131,6 +134,53 @@ export function SiteProductCard({
               <span className="site-product-tile__availability">{product.availability}</span>
             </p>
           </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export function SiteProductCardSkeleton({
+  layout = "desktop",
+  titleLines = 1,
+}: {
+  layout?: "desktop" | "mobile";
+  titleLines?: 1 | 2;
+}) {
+  const isCompact = layout === "mobile";
+
+  return (
+    <article
+      className={`site-product-tile site-product-tile--skeleton${isCompact ? " site-product-tile--compact" : ""}`}
+      data-title-lines={titleLines}
+      aria-hidden="true"
+    >
+      <div className="site-product-tile__shell">
+        <div className="site-product-tile__media">
+          <span className="site-product-tile__watermark" aria-hidden="true" />
+          <span className="site-image site-image--fill site-image--skeleton-visible site-image--forced-skeleton site-image--pulse">
+            <span className="site-image__skeleton" aria-hidden="true" />
+          </span>
+        </div>
+        <div className="site-product-tile__meta">
+          <p className="site-product-tile__brand">
+            <span className="site-product-tile__skeleton-line site-product-tile__skeleton-line--brand" />
+          </p>
+          <div className="site-product-tile__content-link site-product-tile__content-link--skeleton">
+            <p className="site-product-tile__name">
+              <span className="site-product-tile__skeleton-name-stack">
+                <span className="site-product-tile__skeleton-line site-product-tile__skeleton-line--name" />
+                {titleLines === 2 ? (
+                  <span className="site-product-tile__skeleton-line site-product-tile__skeleton-line--name site-product-tile__skeleton-line--name-secondary" />
+                ) : null}
+              </span>
+            </p>
+            <p className="site-product-tile__statusline">
+              <span className="site-product-tile__skeleton-line site-product-tile__skeleton-line--price" />
+              <span className="site-product-tile__divider">-</span>
+              <span className="site-product-tile__skeleton-line site-product-tile__skeleton-line--availability" />
+            </p>
+          </div>
         </div>
       </div>
     </article>

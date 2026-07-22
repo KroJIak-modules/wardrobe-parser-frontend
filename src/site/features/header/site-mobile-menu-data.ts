@@ -59,7 +59,8 @@ function createNewActions(payload: SiteApiNavigation): readonly SiteMobileMenuAc
   }
   return menu.columns.flatMap((column) => {
     const actions: SiteMobileMenuAction[] = [];
-    if (column.title) {
+    const titleLabel = String(column.title?.label || "").trim();
+    if (column.title && titleLabel !== "Разделы") {
       actions.push({
         label: column.title.label,
         presentation: "heading",

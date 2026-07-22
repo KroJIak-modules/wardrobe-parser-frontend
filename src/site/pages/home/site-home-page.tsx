@@ -1,5 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useState, type CSSProperties } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  heroHomeState,
+  resolveHomeView,
+  shouldAnimateHomeIntro,
+  storefrontHomeState,
+} from "../../app/site-home-entry";
 import { landingHeroButtonLabel } from "../../app/site-static-content";
 import { SiteImage } from "../../features/image/site-image";
 import { LandingGlassButtons } from "../../features/landing/landing-glass-buttons";
@@ -15,18 +21,50 @@ type IntroPhase = "intro" | "transition" | "entered";
 const INTRO_TRANSITION_MS = 880;
 
 export function SiteHomePage() {
+  const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const shouldOpenStorefront = searchParams.get("view") === "storefront";
-  const [phase, setPhase] = useState<IntroPhase>(shouldOpenStorefront ? "entered" : "intro");
-  const { media, error: showcaseError, isCarouselReady } = useSiteShowcaseMedia({ preloadCarousel: true });
+  const isStorefrontRequested = resolveHomeView(location.state) === "storefront";
+  const shouldAnimateIntoStorefront = shouldAnimateHomeIntro(location.state);
+  const shouldOpenStorefront = isStorefrontRequested;
+  const [phase, setPhase] = useState<IntroPhase>(() => {
+    if (!shouldOpenStorefront) {
+      return "intro";
+    }
+    return shouldAnimateIntoStorefront ? "transition" : "entered";
+  });
+  const [isCtaTransitionPending, setIsCtaTransitionPending] = useState(false);
+  const { media, isCarouselReady, loading: isShowcaseMediaLoading } = useSiteShowcaseMedia({ preloadCarousel: true });
   const { payload: navigation } = useSiteNavigation();
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
   const heroAsset = isMobileLayout ? media.heroMobile ?? media.heroDesktop : media.heroDesktop;
+  const hasHeroForViewport = heroAsset !== null;
+  const isHeroAvailabilityResolved = !isShowcaseMediaLoading;
+  const shouldHoldHeroEntry = !shouldOpenStorefront && !isHeroAvailabilityResolved;
 
   useEffect(() => {
     document.title = "Anton Shell";
   }, []);
+
+  useEffect(() => {
+    if (!isHeroAvailabilityResolved) {
+      return;
+    }
+
+    if (!hasHeroForViewport || !shouldOpenStorefront) {
+      setPhase((currentPhase) => (currentPhase === "intro" ? currentPhase : "intro"));
+      if (!hasHeroForViewport) {
+        setPhase("entered");
+      }
+      return;
+    }
+
+    setPhase((currentPhase) => {
+      if (shouldAnimateIntoStorefront && currentPhase === "intro") {
+        return "transition";
+      }
+      return currentPhase === "entered" ? currentPhase : "entered";
+    });
+  }, [hasHeroForViewport, isHeroAvailabilityResolved, shouldAnimateIntoStorefront, shouldOpenStorefront]);
 
   useEffect(() => {
     const previousHtmlBackground = document.documentElement.style.background;
@@ -43,7 +81,11 @@ export function SiteHomePage() {
   }, [phase]);
 
   useLayoutEffect(() => {
-    if (!shouldOpenStorefront) {
+    if (!isHeroAvailabilityResolved) {
+      return;
+    }
+
+    if (!hasHeroForViewport || !shouldOpenStorefront) {
       return;
     }
 
@@ -56,10 +98,10 @@ export function SiteHomePage() {
     if (phase === "entered") {
       window.scrollTo(0, 0);
     }
-  }, [phase, shouldOpenStorefront]);
+  }, [hasHeroForViewport, isHeroAvailabilityResolved, phase, shouldOpenStorefront]);
 
   useEffect(() => {
-    if (phase === "entered") {
+    if (!isHeroAvailabilityResolved || phase === "entered" || !hasHeroForViewport) {
       return;
     }
 
@@ -73,7 +115,7 @@ export function SiteHomePage() {
       document.body.style.overflow = previousBodyOverflow;
       document.documentElement.style.overflow = previousHtmlOverflow;
     };
-  }, [phase]);
+  }, [hasHeroForViewport, isHeroAvailabilityResolved, phase]);
 
   useEffect(() => {
     if (phase !== "transition") {
@@ -83,10 +125,14 @@ export function SiteHomePage() {
     const timeoutId = window.setTimeout(() => {
       setPhase("entered");
       window.scrollTo(0, 0);
+      if (shouldAnimateIntoStorefront || isCtaTransitionPending) {
+        navigate("/", { replace: true, state: storefrontHomeState() });
+      }
+      setIsCtaTransitionPending(false);
     }, INTRO_TRANSITION_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [phase]);
+  }, [isCtaTransitionPending, navigate, phase, shouldAnimateIntoStorefront]);
 
   const transitionStyle = useMemo(
     () => ({ "--site-intro-duration": `${INTRO_TRANSITION_MS}ms` }) as CSSProperties,
@@ -99,22 +145,20 @@ export function SiteHomePage() {
         <SiteMobileHomeHeader
           navigation={navigation}
           onLogoActivate={() => {
-            if (window.location.pathname === "/") {
-              window.scrollTo({ top: 0, behavior: "smooth" });
-              return;
-            }
-
-            navigate("/?view=storefront");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            navigate("/", { replace: true, state: heroHomeState() });
           }}
         />
       ) : null}
-      <div
-        className={`site-landing__track${phase === "transition" ? " site-landing__track--shifted" : ""}`}
-        style={transitionStyle}
-      >
-        <section className="site-landing__hero" aria-label="Титульная страница">
-          {heroAsset ? (
-            heroAsset.mediaKind === "video" ? (
+      {shouldHoldHeroEntry ? (
+        <section className="site-landing__hero" aria-label="Титульная страница" />
+      ) : hasHeroForViewport ? (
+        <div
+          className={`site-landing__track${phase === "transition" ? " site-landing__track--shifted" : ""}`}
+          style={transitionStyle}
+        >
+          <section className="site-landing__hero" aria-label="Титульная страница">
+            {heroAsset.mediaKind === "video" ? (
               <video
                 src={heroAsset.url}
                 className="site-landing__image"
@@ -126,34 +170,44 @@ export function SiteHomePage() {
               />
             ) : (
               <SiteImage src={heroAsset.url} alt="" className="site-landing__image" fillContainer enableSkeleton={false} />
-            )
-          ) : (
-            <div className="site-landing__image site-landing__image--placeholder" aria-hidden="true" />
-          )}
-          <div className="site-landing__scrim" aria-hidden="true" />
-          <LandingGlassButtons
-            label={landingHeroButtonLabel}
-            onEnter={() => {
-              setSearchParams((current) => {
-                const next = new URLSearchParams(current);
-                next.set("view", "storefront");
-                return next;
-              });
-              setPhase("transition");
-            }}
-          />
-        </section>
-        <section className="site-landing__preview" aria-hidden={phase === "intro" ? "true" : "false"}>
-          <SiteHomeSurface
-            showHeader
-            headerMode={phase === "entered" ? "fixed" : "preview"}
-            notificationsEnabled={phase === "entered"}
-            isCarouselReady={isCarouselReady}
-            showcaseMedia={media}
-            showcaseError={showcaseError}
-          />
-        </section>
-      </div>
+            )}
+            <div className="site-landing__scrim" aria-hidden="true" />
+            <LandingGlassButtons
+              label={landingHeroButtonLabel}
+              heroAsset={heroAsset}
+              onEnter={() => {
+                setIsCtaTransitionPending(true);
+                setPhase("transition");
+              }}
+            />
+          </section>
+          <section className="site-landing__preview" aria-hidden={phase === "intro" ? "true" : "false"}>
+            <SiteHomeSurface
+              showHeader
+              headerMode={phase === "entered" ? "fixed" : "preview"}
+              notificationsEnabled={phase === "entered"}
+              onLogoActivate={() => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                navigate("/", { replace: true, state: heroHomeState() });
+              }}
+              isCarouselReady={isCarouselReady}
+              showcaseMedia={media}
+            />
+          </section>
+        </div>
+      ) : (
+        <SiteHomeSurface
+          showHeader
+          headerMode="fixed"
+          notificationsEnabled
+          onLogoActivate={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            navigate("/", { replace: true, state: heroHomeState() });
+          }}
+          isCarouselReady={isCarouselReady}
+          showcaseMedia={media}
+        />
+      )}
     </main>
   );
 }

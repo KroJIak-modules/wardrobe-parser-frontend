@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { readSiteCatalogReturnSnapshot } from "../../features/catalog/site-catalog-return";
+import { storefrontHomeState } from "../../app/site-home-entry";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteProductDetailView } from "../../features/product-detail/site-product-detail";
@@ -21,19 +21,11 @@ export function SiteProductPage({ defaultProductId }: { defaultProductId?: strin
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_PRODUCT_PAGE_MOBILE_MEDIA_QUERY);
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
-  const { product, recommendations, isLoading } = useSiteProductDetail(params.productPath ?? defaultProductId);
+  const { product, recommendations, isLoading, isRecommendationsLoading, loadedProductPath } = useSiteProductDetail(params.productPath ?? defaultProductId);
   const returnTarget = useMemo(() => {
     const state = location.state as { fromCatalog?: { pathname: string; search: string } } | null;
     if (state?.fromCatalog) {
       return state.fromCatalog;
-    }
-
-    const snapshot = readSiteCatalogReturnSnapshot();
-    if (snapshot && snapshot.pathname === "/catalog") {
-      return {
-        pathname: snapshot.pathname,
-        search: snapshot.search,
-      };
     }
 
     return {
@@ -43,19 +35,19 @@ export function SiteProductPage({ defaultProductId }: { defaultProductId?: strin
   }, [location.state]);
 
   useEffect(() => {
-    document.title = product ? `Anton Shell — ${product.brand}` : "Anton Shell — Товар";
+    document.title = product ? `Anton Shell — ${product.name}` : "Anton Shell — Товар";
     window.scrollTo(0, 0);
   }, [product]);
 
   useEffect(() => {
-    if (!product || !params.productPath) {
+    if (isLoading || !product || !params.productPath || loadedProductPath !== params.productPath) {
       return;
     }
     if (product.path === params.productPath) {
       return;
     }
     navigate(`/show/${product.path}`, { replace: true, state: location.state });
-  }, [location.state, navigate, params.productPath, product]);
+  }, [isLoading, loadedProductPath, location.state, navigate, params.productPath, product]);
 
   return (
     <main className="site-product-page">
@@ -63,7 +55,7 @@ export function SiteProductPage({ defaultProductId }: { defaultProductId?: strin
         <SiteMobileHomeHeader
           navigation={navigation}
           onLogoActivate={() => {
-            navigate("/?view=storefront");
+            navigate("/", { state: storefrontHomeState() });
           }}
         />
       ) : (
@@ -94,6 +86,7 @@ export function SiteProductPage({ defaultProductId }: { defaultProductId?: strin
         returnTarget={returnTarget}
         layout={isMobileLayout ? "mobile" : "desktop"}
         isLoading={isLoading}
+        isRecommendationsLoading={isRecommendationsLoading}
       />
 
       <div className="site-product-page__footer">

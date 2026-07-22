@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { storefrontHomeState } from "./site-home-entry";
 import { SiteAboutPage } from "../pages/about/site-about-page";
 import { SiteCatalogPage } from "../pages/catalog/site-catalog-page";
 import { SiteCartPage } from "../pages/cart/site-cart-page";
@@ -60,7 +61,7 @@ function SiteAccessGate() {
 
   if (isPasswordRoute) {
     const params = new URLSearchParams(location.search);
-    return <Navigate to={params.get("next") || "/?view=storefront"} replace />;
+    return <Navigate to={params.get("next") || "/"} state={params.get("next") ? undefined : storefrontHomeState()} replace />;
   }
 
   return <SiteRoutes />;

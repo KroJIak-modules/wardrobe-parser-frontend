@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { storefrontHomeState } from "../../app/site-home-entry";
 import type { SiteDesignersLocationState } from "../designers/site-designers-navigation";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import type { SiteHeaderProps } from "./site-header-contracts";
@@ -15,6 +16,7 @@ export function SiteHeader({
   dropdownMenus,
   actionItems,
   mode = "fixed",
+  onLogoActivate,
   searchValue = "",
   allowEmptySearchSubmit = false,
   onSearchValueChange,
@@ -60,13 +62,18 @@ export function SiteHeader({
   });
 
   const handleLogoActivate = useCallback(() => {
+    if (onLogoActivate) {
+      onLogoActivate();
+      return;
+    }
+
     if (location.pathname === "/") {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
-    navigate("/?view=storefront");
-  }, [location.pathname, navigate]);
+    navigate("/", { state: storefrontHomeState() });
+  }, [location.pathname, navigate, onLogoActivate]);
 
   const navigateFromDropdown = useCallback(
     (to: string, navigationState?: SiteDesignersLocationState) => {

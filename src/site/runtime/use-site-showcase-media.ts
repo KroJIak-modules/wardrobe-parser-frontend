@@ -34,6 +34,8 @@ function toAsset(asset: SiteApiMediaAsset | null): SiteShowcaseMediaAsset | null
     url: asset.url,
     mediaKind: asset.media_kind,
     mimeType: asset.mime_type,
+    widthPx: asset.width_px,
+    heightPx: asset.height_px,
   };
 }
 

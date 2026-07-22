@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { SiteCatalogTopKey } from "../../features/catalog/site-catalog-contracts";
 import { resolveOptimisticCatalogHeader } from "../../features/catalog/site-catalog-optimistic-header";
@@ -40,11 +40,25 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
   const { menuItems, dropdownMenus, payload: navigation } = useSiteNavigation();
+  const catalogReturnSnapshot = useMemo(() => {
+    const snapshot = readSiteCatalogReturnSnapshot();
+    if (
+      !snapshot ||
+      snapshot.pathname !== location.pathname ||
+      snapshot.search !== location.search ||
+      snapshot.locationKey !== location.key
+    ) {
+      return null;
+    }
+
+    return snapshot;
+  }, [location.key, location.pathname, location.search]);
   const { header, filterGroups, products, currentPage: normalizedPage, totalPages, loading, errorMessage } = useSiteCatalog(
     effectiveSearchParams,
-    { forcedTop },
+    { forcedTop, restoreFromHistory: catalogReturnSnapshot !== null },
   );
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
+  const catalogReturnSnapshotRef = useRef<ReturnType<typeof readSiteCatalogReturnSnapshot>>(null);
   const optimisticHeader = useMemo(
     () =>
       resolveOptimisticCatalogHeader({
@@ -58,18 +72,39 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   );
 
   useLayoutEffect(() => {
-    const snapshot = readSiteCatalogReturnSnapshot();
-    const shouldRestore = snapshot && snapshot.pathname === location.pathname && snapshot.search === location.search;
+    catalogReturnSnapshotRef.current = catalogReturnSnapshot;
 
-    const frameId = window.requestAnimationFrame(() => {
-      window.scrollTo(0, shouldRestore ? snapshot.scrollY : 0);
-      if (shouldRestore) {
+    if (!catalogReturnSnapshot) {
+      window.scrollTo(0, 0);
+    }
+  }, [catalogReturnSnapshot]);
+
+  useLayoutEffect(() => {
+    const snapshot = catalogReturnSnapshotRef.current;
+    if (!snapshot || loading || errorMessage) {
+      return;
+    }
+
+    // The product grid must replace its fixed-height skeletons before restoring
+    // a deep position, otherwise the browser clamps scrollY to the skeleton height.
+    let secondFrameId = 0;
+    const firstFrameId = window.requestAnimationFrame(() => {
+      secondFrameId = window.requestAnimationFrame(() => {
+        if (catalogReturnSnapshotRef.current !== snapshot) {
+          return;
+        }
+
+        window.scrollTo({ top: snapshot.scrollY, left: 0, behavior: "auto" });
         clearSiteCatalogReturnSnapshot();
-      }
+        catalogReturnSnapshotRef.current = null;
+      });
     });
 
-    return () => window.cancelAnimationFrame(frameId);
-  }, [location.pathname, location.search]);
+    return () => {
+      window.cancelAnimationFrame(firstFrameId);
+      window.cancelAnimationFrame(secondFrameId);
+    };
+  }, [errorMessage, loading, products.length]);
 
   useEffect(() => {
     const rawTop = String(searchParams.get("top") || "").trim();

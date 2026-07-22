@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { SITE_HERO_DESKTOP_URL, SITE_HERO_MOBILE_URL } from "../../app/site-public-asset";
+import { storefrontHomeState } from "../../app/site-home-entry";
+import { siteTelegramHref } from "../../app/site-static-content";
 import { SiteImage } from "../../features/image/site-image";
 import {
   siteApiJson,
@@ -8,6 +9,7 @@ import {
   type SiteApiMediaAsset,
 } from "../../runtime/site-public-api";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
+import { useSiteImageTone } from "../../runtime/use-site-image-tone";
 import "./site-password-page.css";
 
 type Props = {
@@ -53,9 +55,11 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
   const [searchParams] = useSearchParams();
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
   const [hero, setHero] = useState<HeroState>(EMPTY_HERO);
+  const [isHeroResolved, setIsHeroResolved] = useState(false);
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const cardRef = useRef<HTMLFormElement | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -66,11 +70,13 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
       .then(([desktop, mobile]) => {
         if (!disposed) {
           setHero({ desktop: desktop.asset, mobile: mobile.asset });
+          setIsHeroResolved(true);
         }
       })
       .catch(() => {
         if (!disposed) {
           setHero(EMPTY_HERO);
+          setIsHeroResolved(true);
         }
       });
     return () => {
@@ -83,8 +89,21 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
   }, [status.title]);
 
   const heroAsset = isMobileLayout ? hero.mobile ?? hero.desktop : hero.desktop;
-  const fallbackHeroUrl = isMobileLayout ? SITE_HERO_MOBILE_URL : SITE_HERO_DESKTOP_URL;
-  const nextUrl = useMemo(() => searchParams.get("next") || "/?view=storefront", [searchParams]);
+  const imageAsset = useMemo(
+    () => (
+      heroAsset?.media_kind === "image"
+        ? { url: heroAsset.url, widthPx: heroAsset.width_px, heightPx: heroAsset.height_px }
+        : null
+    ),
+    [heroAsset],
+  );
+  const { tone, isResolved: isToneResolved } = useSiteImageTone({
+    asset: imageAsset,
+    targetRef: cardRef,
+    surfaceSelector: ".site-password",
+  });
+  const isCardReady = isHeroResolved && (imageAsset === null || isToneResolved);
+  const nextUrl = useMemo(() => searchParams.get("next") || "/", [searchParams]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,7 +111,10 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
     setError(null);
     try {
       await onUnlock(password);
-      navigate(nextUrl, { replace: true });
+      navigate(nextUrl, {
+        replace: true,
+        state: nextUrl === "/" ? storefrontHomeState() : undefined,
+      });
     } catch (error) {
       setError(error instanceof Error ? error.message : "Неверный пароль");
     } finally {
@@ -109,10 +131,15 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
           <SiteImage src={heroAsset.url} alt="" className="site-password__hero-media" wrapperClassName="site-password__hero" fillContainer enableSkeleton={false} />
         )
       ) : (
-        <SiteImage src={fallbackHeroUrl} alt="" className="site-password__hero-media" wrapperClassName="site-password__hero" fillContainer enableSkeleton={false} />
+        <div className="site-password__hero" aria-hidden="true" />
       )}
       <div className="site-password__scrim" aria-hidden="true" />
-      <form className="site-password-card" onSubmit={submit}>
+      <form
+        ref={cardRef}
+        className={isCardReady ? "site-password-card site-password-card--ready" : "site-password-card site-password-card--pending"}
+        data-tone={tone}
+        onSubmit={submit}
+      >
         {status.title ? <h1 className="site-password-card__title">{status.title}</h1> : null}
         {status.description ? <p className="site-password-card__description">{status.description}</p> : null}
         <label className={error ? "site-password-card__field site-password-card__field--error" : "site-password-card__field"}>
@@ -135,9 +162,14 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
           </button>
         </label>
         {error ? <p className="site-password-card__error">{error}</p> : null}
-        <button type="button" className="site-password-card__telegram">
+        <a
+          className="site-password-card__telegram"
+          href={siteTelegramHref}
+          target="_blank"
+          rel="noreferrer"
+        >
           Telegram
-        </button>
+        </a>
       </form>
     </main>
   );

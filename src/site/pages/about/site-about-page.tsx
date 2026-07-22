@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { storefrontHomeState } from "../../app/site-home-entry";
 import { SiteAboutView } from "../../features/about/site-about";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
@@ -31,7 +32,7 @@ export function SiteAboutPage() {
         <SiteMobileHomeHeader
           navigation={navigation}
           onLogoActivate={() => {
-            navigate("/?view=storefront");
+            navigate("/", { state: storefrontHomeState() });
           }}
         />
       ) : (

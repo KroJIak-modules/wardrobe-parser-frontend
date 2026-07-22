@@ -10,6 +10,8 @@ import {
   type SiteApiProductResponse,
 } from "./site-public-api";
 
+const SITE_RECOMMENDATIONS_LIMIT = 8;
+
 function statusLabel(status: "in_stock" | "preorder" | "sold_out") {
   if (status === "in_stock") {
     return "В наличии";
@@ -28,10 +30,6 @@ function statusCode(status: "in_stock" | "preorder" | "sold_out"): "in-stock" | 
     return "sold-out";
   }
   return "preorder";
-}
-
-function buildDescriptionPreview(description: string) {
-  return description.split(/\n\s*\n/, 1)[0]?.trim() ?? description;
 }
 
 function groupVariants(raw: SiteApiProductResponse["variants"]): SiteProductDetailSourceVariant[] {
@@ -82,7 +80,6 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
     genders: payload.recommendation_context.gender ? [payload.recommendation_context.gender] : [],
     sectionIds: payload.recommendation_context.section_slug ? [payload.recommendation_context.section_slug] : [],
     description,
-    descriptionPreview: buildDescriptionPreview(description),
     sourceUrl: payload.primary_source_url,
     sizes: sourceVariants.map((variant) => variant.size),
     sourceVariants,
@@ -111,21 +108,76 @@ function adaptRecommendation(item: SiteApiCatalogProductsResponse["items"][numbe
   };
 }
 
+async function fetchRecommendationCandidates(
+  payload: SiteApiProductResponse,
+): Promise<SiteApiCatalogProductsResponse["items"]> {
+  const gender = String(payload.recommendation_context.gender || "").trim();
+
+  const attempts: Array<{ gender: boolean; section: boolean; designer: boolean }> = [
+    { gender: true, section: true, designer: true },
+    { gender: true, section: false, designer: true },
+    { gender: true, section: true, designer: false },
+    { gender: true, section: false, designer: false },
+    { gender: false, section: true, designer: true },
+    { gender: false, section: false, designer: true },
+    { gender: false, section: true, designer: false },
+    { gender: false, section: false, designer: false },
+  ];
+
+  for (const attempt of attempts) {
+    if (attempt.gender && !gender) {
+      continue;
+    }
+
+    const params = new URLSearchParams();
+    // Request one extra item because the current product may be part of the
+    // matching catalog result and must not occupy a recommendation slot.
+    params.set("limit", String(SITE_RECOMMENDATIONS_LIMIT + 1));
+    params.set("offset", "0");
+    if (attempt.gender) {
+      params.set("gender", gender);
+    }
+    if (attempt.section && payload.recommendation_context.section_slug) {
+      params.set("section", payload.recommendation_context.section_slug);
+    }
+    if (attempt.designer && payload.recommendation_context.designer_slug) {
+      params.set("designer", payload.recommendation_context.designer_slug);
+    }
+
+    const recommendationPayload = await siteApiJson<SiteApiCatalogProductsResponse>(
+      `/site/catalog/products?${params.toString()}`,
+    ).catch(() => ({ items: [], total: 0, limit: SITE_RECOMMENDATIONS_LIMIT + 1, offset: 0 }));
+
+    const filteredItems = recommendationPayload.items.filter((item) => item.id !== payload.id);
+    if (filteredItems.length > 0) {
+      return filteredItems.slice(0, SITE_RECOMMENDATIONS_LIMIT);
+    }
+  }
+
+  return [];
+}
+
 export function useSiteProductDetail(productPath?: string) {
   const [product, setProduct] = useState<SiteProductDetailItem | null>(null);
   const [recommendations, setRecommendations] = useState<SiteProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(false);
+  const [loadedProductPath, setLoadedProductPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (!productPath) {
       setProduct(null);
       setRecommendations([]);
       setIsLoading(false);
+      setIsRecommendationsLoading(false);
+      setLoadedProductPath(null);
       return;
     }
 
     let isDisposed = false;
     setIsLoading(true);
+    setIsRecommendationsLoading(false);
+    setLoadedProductPath(null);
 
     siteApiJson<SiteApiProductResponse>(`/site/products/${productPath}`)
       .then(async (payload) => {
@@ -134,39 +186,25 @@ export function useSiteProductDetail(productPath?: string) {
         }
         const nextProduct = adaptProduct(payload);
         setProduct(nextProduct);
+        setLoadedProductPath(productPath);
+        setRecommendations([]);
+        setIsLoading(false);
+        setIsRecommendationsLoading(true);
 
-        const params = new URLSearchParams();
-        params.set("limit", "8");
-        params.set("offset", "0");
-        if (payload.recommendation_context.section_slug) {
-          params.set("section", payload.recommendation_context.section_slug);
-        }
-        if (payload.recommendation_context.designer_slug) {
-          params.set("designer", payload.recommendation_context.designer_slug);
-        }
-        if (payload.recommendation_context.gender) {
-          params.set("gender", payload.recommendation_context.gender);
-        }
-
-        const recommendationPayload = await siteApiJson<SiteApiCatalogProductsResponse>(
-          `/site/catalog/products?${params.toString()}`,
-        ).catch(() => ({ items: [], total: 0, limit: 8, offset: 0 }));
+        const recommendationItems = await fetchRecommendationCandidates(payload);
         if (isDisposed) {
           return;
         }
-        setRecommendations(
-          recommendationPayload.items
-            .filter((item) => item.id !== payload.id)
-            .slice(0, 8)
-            .map(adaptRecommendation),
-        );
-        setIsLoading(false);
+        setRecommendations(recommendationItems.map(adaptRecommendation));
+        setIsRecommendationsLoading(false);
       })
       .catch(() => {
         if (!isDisposed) {
           setProduct(null);
           setRecommendations([]);
           setIsLoading(false);
+          setIsRecommendationsLoading(false);
+          setLoadedProductPath(null);
         }
       });
 
@@ -180,8 +218,10 @@ export function useSiteProductDetail(productPath?: string) {
       product,
       recommendations,
       isLoading,
+      isRecommendationsLoading,
+      loadedProductPath,
       isEmpty: product === null,
     }),
-    [isLoading, product, recommendations],
+    [isLoading, isRecommendationsLoading, loadedProductPath, product, recommendations],
   );
 }

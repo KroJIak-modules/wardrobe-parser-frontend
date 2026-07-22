@@ -18,16 +18,16 @@ export function SiteHomeSurface({
   showHeader = true,
   headerMode = "fixed",
   notificationsEnabled = true,
+  onLogoActivate,
   isCarouselReady = false,
   showcaseMedia,
-  showcaseError,
 }: {
   showHeader?: boolean;
   headerMode?: "fixed" | "preview";
   notificationsEnabled?: boolean;
+  onLogoActivate?: () => void;
   isCarouselReady?: boolean;
   showcaseMedia: ReturnType<typeof useSiteShowcaseMedia>["media"];
-  showcaseError: string | null;
 }) {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
@@ -45,6 +45,7 @@ export function SiteHomeSurface({
   const carouselSlides = isMobileLayout
     ? showcaseMedia.carouselSlidesMobile ?? showcaseMedia.carouselSlidesDesktop
     : showcaseMedia.carouselSlidesDesktop;
+  const hasCarouselForViewport = carouselSlides.length > 0;
 
   useEffect(() => {
     if (isMobileLayout) {
@@ -91,6 +92,7 @@ export function SiteHomeSurface({
             dropdownMenus={dropdownMenus}
             actionItems={actionItems}
             mode={headerMode}
+            onLogoActivate={onLogoActivate}
             searchValue={searchValue}
             onSearchValueChange={setSearchValue}
             onSearchSubmit={(value) => {
@@ -108,17 +110,18 @@ export function SiteHomeSurface({
         ) : null
       ) : null}
       <div className="site-home-surface__content">
-        <div ref={carouselRef} className="site-home-surface__carousel">
-          {isCarouselReady ? (
-            <SiteCarouselSection
-              slides={carouselSlides}
-              emptyMessage={showcaseError || "Карусель витрины пока пуста"}
-              layout={isMobileLayout ? "mobile" : "desktop"}
-            />
-          ) : (
-            <div className="site-home-surface__carousel-placeholder" aria-hidden="true" />
-          )}
-        </div>
+        {hasCarouselForViewport ? (
+          <div ref={carouselRef} className="site-home-surface__carousel">
+            {isCarouselReady ? (
+              <SiteCarouselSection
+                slides={carouselSlides}
+                layout={isMobileLayout ? "mobile" : "desktop"}
+              />
+            ) : (
+              <div className="site-home-surface__carousel-placeholder" aria-hidden="true" />
+            )}
+          </div>
+        ) : null}
         <div className="site-home-surface__products">
           <SiteProductsSection
             title="Все товары"
@@ -128,6 +131,7 @@ export function SiteHomeSurface({
             products={products}
             loading={productsLoading}
             errorMessage={productsError}
+            skeletonCount={12}
           />
         </div>
         <div className="site-home-surface__footer">

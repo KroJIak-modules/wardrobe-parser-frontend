@@ -1,6 +1,7 @@
 type SiteCatalogReturnSnapshot = {
   pathname: string;
   search: string;
+  locationKey: string;
   scrollY: number;
 };
 
@@ -29,6 +30,7 @@ export function readSiteCatalogReturnSnapshot(): SiteCatalogReturnSnapshot | nul
     if (
       typeof parsed.pathname !== "string" ||
       typeof parsed.search !== "string" ||
+      typeof parsed.locationKey !== "string" ||
       typeof parsed.scrollY !== "number" ||
       !Number.isFinite(parsed.scrollY)
     ) {
@@ -38,6 +40,7 @@ export function readSiteCatalogReturnSnapshot(): SiteCatalogReturnSnapshot | nul
     return {
       pathname: parsed.pathname,
       search: parsed.search,
+      locationKey: parsed.locationKey,
       scrollY: parsed.scrollY,
     };
   } catch {

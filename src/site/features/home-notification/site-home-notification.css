@@ -33,6 +33,12 @@
     transform 240ms ease;
 }
 
+.site-home-notification__scale {
+  width: 389px;
+  transform: scale(var(--site-home-notification-scale));
+  transform-origin: center;
+}
+
 .site-home-notification--visible .site-home-notification__dialog {
   opacity: 1;
   transform: translateY(0) scale(1);
@@ -40,10 +46,9 @@
 
 .site-home-notification__window {
   width: 100%;
-  --site-window-shell-radius: 6px;
+  --site-window-shell-radius: 2px;
   --site-window-shell-gap: 2px;
   --site-window-shell-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
-  --site-home-notification-inner-radius: 5px;
 }
 
 .site-home-notification__frame {
@@ -59,7 +64,7 @@
 .site-home-notification__titlebar {
   --site-window-titlebar-height: 38px;
   --site-window-titlebar-padding: 0 9px 0 8px;
-  --site-window-titlebar-radius: var(--site-home-notification-inner-radius);
+  --site-window-titlebar-radius: 2px 2px 0 0;
   --site-window-titlebar-background:
     url("/site-mock/home-notification/titlebar.png?v=site-2026-06-24-1") center / 100% 100% no-repeat,
     linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(236, 236, 236, 0.92) 100%);
@@ -76,14 +81,19 @@
   aspect-ratio: 3 / 2;
   overflow: hidden;
   background: #fff;
-  border-radius: var(--site-home-notification-inner-radius);
+  border-radius: 0;
 }
 
 .site-home-notification__image {
   width: 100%;
   height: 100%;
+  border-radius: 0;
   object-fit: cover;
   object-position: center;
+}
+
+.site-home-notification__image .site-image__img {
+  border-radius: 0;
 }
 
 .site-home-notification__title {
@@ -114,7 +124,7 @@
 .site-home-notification__content {
   min-height: 141px;
   padding: 17px 20px 18px;
-  border-radius: var(--site-home-notification-inner-radius);
+  border-radius: 0 0 2px 2px;
   background: #fff;
   display: flex;
   flex-direction: column;
@@ -182,22 +192,26 @@
     transform: translateY(12px) scale(0.985);
   }
 
+  .site-home-notification__scale {
+    width: 284px;
+    transform: none;
+  }
+
   .site-home-notification--visible .site-home-notification__dialog {
     transform: translateY(-1px) scale(1);
   }
 
   .site-home-notification__window {
     --site-window-shell-border-width: 1px;
-    --site-window-shell-radius: 4px;
+    --site-window-shell-radius: 2px;
     --site-window-shell-gap: 1px;
     --site-window-shell-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
-    --site-home-notification-inner-radius: 3px;
   }
 
   .site-home-notification__titlebar {
     --site-window-titlebar-height: 24px;
     --site-window-titlebar-padding: 3px 4px;
-    --site-window-titlebar-radius: 4px;
+    --site-window-titlebar-radius: 2px 2px 0 0;
     height: 24px;
     box-shadow: none;
   }
@@ -221,7 +235,7 @@
     width: 100%;
     height: 188px;
     aspect-ratio: auto;
-    border-radius: 3px;
+    border-radius: 0;
   }
 
   .site-home-notification__content {
@@ -231,7 +245,7 @@
     height: 133px;
     padding: 16px 16px 15px;
     gap: 16px;
-    border-radius: 3px;
+    border-radius: 0 0 2px 2px;
   }
 
   .site-home-notification__copy {

@@ -84,6 +84,7 @@ export function SiteProductHero({
                 aria-hidden="true"
                 className="site-product-detail__thumb-image"
                 fillContainer
+                skeletonVariant="pulse"
               />
             </button>
           );
@@ -115,6 +116,7 @@ export function SiteProductHero({
                   loading={index === 0 ? "eager" : "lazy"}
                   decoding="async"
                   fetchPriority={index === 0 ? "high" : "auto"}
+                  skeletonVariant="pulse"
                 />
               </figure>
             ))}
@@ -158,7 +160,7 @@ export function SiteProductHero({
           ДОБАВИТЬ В КОРЗИНУ
         </button>
 
-        <SiteProductDescription description={product.description} previewDescription={product.descriptionPreview} />
+        <SiteProductDescription description={product.description} />
 
         {product.sourceUrl || hasMultipleSourceVariants ? (
           hasMultipleSourceVariants ? (

@@ -16,6 +16,8 @@ export type SiteShowcaseMediaAsset = {
   url: string;
   mediaKind: "image" | "video";
   mimeType?: string | null;
+  widthPx?: number | null;
+  heightPx?: number | null;
 };
 
 export type SiteProduct = {

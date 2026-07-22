@@ -7,6 +7,7 @@ export type SiteHeaderProps = {
   dropdownMenus?: Record<string, SiteHeaderDropdownMenu>;
   actionItems: SiteNavItem[];
   mode?: "fixed" | "preview";
+  onLogoActivate?: () => void;
   searchValue?: string;
   allowEmptySearchSubmit?: boolean;
   onSearchValueChange?: (value: string) => void;

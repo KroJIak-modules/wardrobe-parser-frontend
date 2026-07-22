@@ -32,6 +32,7 @@ export function SiteSizeSelector({
   const closeTimeoutRef = useRef<number | null>(null);
   const isMobileViewport = useSiteMediaQuery(SITE_SIZE_SELECTOR_MOBILE_QUERY);
   const shouldUseMobileSheet = mobileSheet && isMobileViewport;
+  const isSingleOption = sizes.length <= 1;
 
   useSitePageScrollLock(isOpen && shouldUseMobileSheet);
 
@@ -112,8 +113,7 @@ export function SiteSizeSelector({
   const listTopInset = 22;
   const listBottomInset = 7;
   const listHeight = sizes.length > 0 ? sizes.length * optionHeight + (sizes.length - 1) * optionGap : 0;
-  const panelHeight = Math.max(134, listTopInset + listHeight + listBottomInset);
-  const shellHeight = panelHeight + 2;
+  const panelHeight = listTopInset + listHeight + listBottomInset;
   const handleClose = () => closeSizeSelector();
   const handleSelectSize = (size: string) => {
     onSelect(size);
@@ -148,18 +148,21 @@ export function SiteSizeSelector({
       style={
         isOpen && !shouldUseMobileSheet
           ? ({
-              "--site-size-shell-height": `${shellHeight}px`,
-              "--site-size-panel-height": `${panelHeight}px`,
+              "--site-size-menu-height": `${panelHeight}px`,
             } as CSSProperties)
           : undefined
       }
     >
       <button
         type="button"
-        className={`${triggerClassName} site-product-detail__size-trigger`.trim()}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
+        className={`${triggerClassName} site-product-detail__size-trigger${isSingleOption ? " site-product-detail__size-trigger--static" : ""}`.trim()}
+        aria-haspopup={isSingleOption ? undefined : "listbox"}
+        aria-expanded={isSingleOption ? undefined : isOpen}
         onClick={() => {
+          if (isSingleOption) {
+            return;
+          }
+
           if (isOpen) {
             closeSizeSelector();
             return;
@@ -169,12 +172,14 @@ export function SiteSizeSelector({
         }}
       >
         <span>{displayValue !== undefined ? (displayValue ?? placeholder) : (selectedSize ?? placeholder)}</span>
-        <img
-          src={resolveSitePublicAssetUrl("/site-mock/product-detail/size-arrow.svg")}
-          alt=""
-          aria-hidden="true"
-          className="site-product-detail__size-arrow"
-        />
+        {isSingleOption ? null : (
+          <img
+            src={resolveSitePublicAssetUrl("/site-mock/product-detail/size-arrow.svg")}
+            alt=""
+            aria-hidden="true"
+            className="site-product-detail__size-arrow"
+          />
+        )}
       </button>
       {isOpen && shouldUseMobileSheet ? (
         <div className="site-product-detail__size-sheet-layer" aria-label="Выбор размера">
@@ -198,11 +203,10 @@ export function SiteSizeSelector({
         </div>
       ) : isOpen ? (
         <div className="site-product-detail__size-menu" role="listbox" aria-label="Выбор размера">
-          <div className="site-product-detail__size-menu-shell" aria-hidden="true" />
-          <div className="site-product-detail__size-menu-surface" aria-hidden="true" />
-          <div className="site-product-detail__size-menu-cap" aria-hidden="true" />
-          <div className="site-product-detail__size-menu-list">
-            {renderedOptions}
+          <div className="site-product-detail__size-menu-surface">
+            <div className="site-product-detail__size-menu-list">
+              {renderedOptions}
+            </div>
           </div>
         </div>
       ) : null}

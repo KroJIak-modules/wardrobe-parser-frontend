@@ -10,7 +10,7 @@ const PRODUCT_GALLERY_EDGE_RESISTANCE = 0.35;
 
 export function useSiteProductHeroState(product: SiteProductDetailItem) {
   const [selectedGalleryItemId, setSelectedGalleryItemId] = useState(product.gallery[0]?.id ?? null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(product.sizes.length === 1 ? (product.sizes[0] ?? null) : null);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [isSourcesDialogOpen, setIsSourcesDialogOpen] = useState(false);
   const mainImageViewportRef = useRef<HTMLDivElement | null>(null);
@@ -32,6 +32,16 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
   const selectedGalleryItem =
     product.gallery.find((item) => item.id === selectedGalleryItemId) ?? product.gallery[0] ?? null;
   const hasMultipleSourceVariants = Boolean(product.sourceVariants?.some((variant) => variant.sources.length > 1));
+
+  useEffect(() => {
+    if (product.sizes.length === 1) {
+      const onlySize = product.sizes[0] ?? null;
+      setSelectedSize((current) => (current === onlySize ? current : onlySize));
+      return;
+    }
+
+    setSelectedSize((current) => (current && product.sizes.includes(current) ? current : null));
+  }, [product.sizes]);
 
   useEffect(() => {
     if (!selectedSize) {

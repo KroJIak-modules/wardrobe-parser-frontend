@@ -1,7 +1,13 @@
 import { useMemo } from "react";
-import { SiteProductCard } from "../product-card/site-product-card";
+import { SiteProductCard, SiteProductCardSkeleton } from "../product-card/site-product-card";
 import type { SiteCatalogProduct } from "./site-catalog-contracts";
 import { normalizeCatalogProductsForGrid } from "./site-catalog-logic";
+
+const SITE_CATALOG_SKELETON_COUNT = 8;
+
+function getSkeletonTitleLineCount(index: number): 1 | 2 {
+  return index % 4 === 1 ? 2 : 1;
+}
 
 export function SiteCatalogProductsGrid({
   products,
@@ -15,7 +21,13 @@ export function SiteCatalogProductsGrid({
   const normalizedProducts = useMemo(() => normalizeCatalogProductsForGrid(products), [products]);
 
   if (loading) {
-    return <div className="site-catalog-products__empty">Загрузка товаров...</div>;
+    return (
+      <div className="site-catalog-products__grid">
+        {Array.from({ length: SITE_CATALOG_SKELETON_COUNT }, (_, index) => (
+          <SiteProductCardSkeleton key={`site-catalog-skeleton-${index}`} titleLines={getSkeletonTitleLineCount(index)} />
+        ))}
+      </div>
+    );
   }
 
   if (errorMessage) {

@@ -7,6 +7,21 @@ import { siteApiJson, type SiteApiCatalogExperience, type SiteApiCatalogProducts
 const LEGACY_AVAILABILITY_OPTION_ORDER = ["preorder", "in-stock"] as const;
 const LEGACY_SORT_OPTION_ORDER = ["price-asc", "price-desc", "featured"] as const;
 
+type CachedCatalogExperience = {
+  header: SiteCatalogHeader;
+  filterGroups: SiteCatalogFilterGroup[];
+};
+
+type CachedCatalogProducts = {
+  products: SiteCatalogProduct[];
+  total: number;
+};
+
+// This cache belongs to the current JavaScript runtime only. A browser refresh
+// naturally clears it, while history back can restore the exact catalog view.
+const catalogExperienceCache = new Map<string, CachedCatalogExperience>();
+const catalogProductsCache = new Map<string, CachedCatalogProducts>();
+
 const FILTER_UI_PRESETS: Record<string, Partial<SiteCatalogFilterGroup>> = {
   sort: {
     triggerWidthPx: 140,
@@ -245,22 +260,35 @@ function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export function useSiteCatalog(searchParams: URLSearchParams, options?: { forcedTop?: string; pageSize?: number }) {
+export function useSiteCatalog(
+  searchParams: URLSearchParams,
+  options?: { forcedTop?: string; pageSize?: number; restoreFromHistory?: boolean },
+) {
   const forcedTop = options?.forcedTop;
   const pageSize = options?.pageSize ?? 48;
+  const restoreFromHistory = Boolean(options?.restoreFromHistory);
   const pageParam = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const currentPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-  const [header, setHeader] = useState<SiteCatalogHeader>({ title: "Каталог", description: null, source: "catalog" });
-  const [filterGroups, setFilterGroups] = useState<SiteCatalogFilterGroup[]>([]);
-  const [products, setProducts] = useState<SiteCatalogProduct[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const searchKey = searchParams.toString();
   const experienceQuery = buildExperienceQuery(searchParams, forcedTop);
   const productsQuery = buildProductsQuery(searchParams, forcedTop, currentPage, pageSize);
+  const restoredExperience = restoreFromHistory ? catalogExperienceCache.get(experienceQuery) : undefined;
+  const restoredProducts = restoreFromHistory ? catalogProductsCache.get(productsQuery) : undefined;
+  const [header, setHeader] = useState<SiteCatalogHeader>(() => restoredExperience?.header ?? { title: "Каталог", description: null, source: "catalog" });
+  const [filterGroups, setFilterGroups] = useState<SiteCatalogFilterGroup[]>(() => restoredExperience?.filterGroups ?? []);
+  const [products, setProducts] = useState<SiteCatalogProduct[]>(() => restoredProducts?.products ?? []);
+  const [total, setTotal] = useState(() => restoredProducts?.total ?? 0);
+  const [loading, setLoading] = useState(() => restoredProducts === undefined);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    const cached = restoreFromHistory ? catalogExperienceCache.get(experienceQuery) : undefined;
+    if (cached) {
+      setHeader(cached.header);
+      setFilterGroups(cached.filterGroups);
+      return;
+    }
+
     let isDisposed = false;
     const controller = new AbortController();
 
@@ -271,8 +299,13 @@ export function useSiteCatalog(searchParams: URLSearchParams, options?: { forced
         if (isDisposed) {
           return;
         }
-        setHeader(experiencePayload.header);
-        setFilterGroups(adaptFilterGroups(experiencePayload.filter_groups));
+        const nextValue = {
+          header: experiencePayload.header,
+          filterGroups: adaptFilterGroups(experiencePayload.filter_groups),
+        };
+        catalogExperienceCache.set(experienceQuery, nextValue);
+        setHeader(nextValue.header);
+        setFilterGroups(nextValue.filterGroups);
       })
       .catch((error: unknown) => {
         if (isDisposed || isAbortError(error)) {
@@ -286,9 +319,18 @@ export function useSiteCatalog(searchParams: URLSearchParams, options?: { forced
       isDisposed = true;
       controller.abort();
     };
-  }, [experienceQuery]);
+  }, [experienceQuery, restoreFromHistory]);
 
   useEffect(() => {
+    const cached = restoreFromHistory ? catalogProductsCache.get(productsQuery) : undefined;
+    if (cached) {
+      setProducts(cached.products);
+      setTotal(cached.total);
+      setErrorMessage(null);
+      setLoading(false);
+      return;
+    }
+
     let isDisposed = false;
     const controller = new AbortController();
     setLoading(true);
@@ -301,8 +343,13 @@ export function useSiteCatalog(searchParams: URLSearchParams, options?: { forced
         if (isDisposed) {
           return;
         }
-        setProducts(adaptProducts(productsPayload.items, searchParams));
-        setTotal(productsPayload.total);
+        const nextValue = {
+          products: adaptProducts(productsPayload.items, searchParams),
+          total: productsPayload.total,
+        };
+        catalogProductsCache.set(productsQuery, nextValue);
+        setProducts(nextValue.products);
+        setTotal(nextValue.total);
         setLoading(false);
       })
       .catch((error: unknown) => {
@@ -319,7 +366,7 @@ export function useSiteCatalog(searchParams: URLSearchParams, options?: { forced
       isDisposed = true;
       controller.abort();
     };
-  }, [productsQuery]);
+  }, [productsQuery, restoreFromHistory, searchKey]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [pageSize, total]);
 

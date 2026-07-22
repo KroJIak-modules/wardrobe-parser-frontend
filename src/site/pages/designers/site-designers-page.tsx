@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { storefrontHomeState } from "../../app/site-home-entry";
 import { SiteDesignersDirectory } from "../../features/designers/site-designers";
 import {
   buildBrowseDesignerCatalogSearchParams,
@@ -58,7 +59,7 @@ export function SiteDesignersPage() {
         <SiteMobileHomeHeader
           navigation={navigation}
           onLogoActivate={() => {
-            navigate("/?view=storefront");
+            navigate("/", { state: storefrontHomeState() });
           }}
         />
       ) : (

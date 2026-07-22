@@ -1,7 +1,13 @@
 import { Link } from "react-router-dom";
 import type { SiteImageSkeletonVariant } from "../image/site-image";
-import { SiteProductCard } from "../product-card/site-product-card";
+import { SiteProductCard, SiteProductCardSkeleton } from "../product-card/site-product-card";
 import type { SiteProduct } from "./site-storefront-contracts";
+
+const SITE_PRODUCTS_SKELETON_COUNT = 8;
+
+function getSkeletonTitleLineCount(index: number): 1 | 2 {
+  return index % 4 === 1 ? 2 : 1;
+}
 
 type SiteProductsSectionProps = {
   title: string;
@@ -13,6 +19,7 @@ type SiteProductsSectionProps = {
   loading?: boolean;
   errorMessage?: string | null;
   debugSkeletonVariants?: readonly SiteImageSkeletonVariant[];
+  skeletonCount?: number;
 };
 
 type SiteProductsGridProps = {
@@ -22,6 +29,7 @@ type SiteProductsGridProps = {
   loading?: boolean;
   errorMessage?: string | null;
   debugSkeletonVariants?: readonly SiteImageSkeletonVariant[];
+  skeletonCount?: number;
 };
 
 export function SiteProductsGrid({
@@ -31,9 +39,20 @@ export function SiteProductsGrid({
   loading = false,
   errorMessage = null,
   debugSkeletonVariants = [],
+  skeletonCount = SITE_PRODUCTS_SKELETON_COUNT,
 }: SiteProductsGridProps) {
   if (loading) {
-    return <div className="site-products__status">Загрузка товаров...</div>;
+    return (
+      <div className={`site-products__grid${layout === "mobile" ? " site-products__grid--mobile" : ""}`}>
+        {Array.from({ length: skeletonCount }, (_, index) => (
+          <SiteProductCardSkeleton
+            key={`site-product-skeleton-${layout}-${index}`}
+            layout={layout}
+            titleLines={getSkeletonTitleLineCount(index)}
+          />
+        ))}
+      </div>
+    );
   }
 
   if (errorMessage) {
@@ -69,6 +88,7 @@ export function SiteProductsSection({
   loading = false,
   errorMessage = null,
   debugSkeletonVariants = [],
+  skeletonCount = SITE_PRODUCTS_SKELETON_COUNT,
 }: SiteProductsSectionProps) {
   return (
     <section className={`site-products${layout === "mobile" ? " site-products--mobile" : ""}`} aria-labelledby="site-products-title">
@@ -89,6 +109,7 @@ export function SiteProductsSection({
         loading={loading}
         errorMessage={errorMessage}
         debugSkeletonVariants={debugSkeletonVariants}
+        skeletonCount={skeletonCount}
       />
     </section>
   );

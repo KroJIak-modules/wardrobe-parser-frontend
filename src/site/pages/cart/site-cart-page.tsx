@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { storefrontHomeState } from "../../app/site-home-entry";
 import { SiteCartView } from "../../features/cart/site-cart";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
@@ -82,7 +83,7 @@ export function SiteCartPage() {
         <SiteMobileHomeHeader
           navigation={navigation}
           onLogoActivate={() => {
-            navigate("/?view=storefront");
+            navigate("/", { state: storefrontHomeState() });
           }}
         />
       ) : (
