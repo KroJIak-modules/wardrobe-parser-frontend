@@ -55,6 +55,7 @@ export function AdminSettingsAboutSection({
                 maxLength={ABOUT_TEXT_LIMIT}
                 onChange={(event) => onChangeText(event.target.value)}
                 placeholder="Сюда можно написать историю, подачу и правила работы."
+                disabled={loading}
               />
             </label>
           </div>

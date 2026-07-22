@@ -170,6 +170,7 @@ async function jsonOrThrow<T>(input: RequestInfo | URL, init?: RequestInit): Pro
 
 export function useAdminSiteContent({ onToast }: { onToast: (message: string, type?: "success" | "error") => void }) {
   const nextQuestionIdRef = useRef(1);
+  const onToastRef = useRef(onToast);
   const [aboutDraft, setAboutDraft] = useState<AdminAboutDraft>({ text: "", photos: [] });
   const [questionsDraft, setQuestionsDraft] = useState<AdminQuestionDraft[]>([]);
   const [notificationDraft, setNotificationDraft] = useState<AdminNotificationDraft>(EMPTY_NOTIFICATION_DRAFT);
@@ -183,6 +184,10 @@ export function useAdminSiteContent({ onToast }: { onToast: (message: string, ty
   const [uploadingNotificationImage, setUploadingNotificationImage] = useState(false);
   const [notificationActionId, setNotificationActionId] = useState<number | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  useEffect(() => {
+    onToastRef.current = onToast;
+  }, [onToast]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -202,11 +207,11 @@ export function useAdminSiteContent({ onToast }: { onToast: (message: string, ty
       setInitialQuestionsDraft(nextQuestions);
       nextQuestionIdRef.current = nextQuestions.length + 1;
     } catch (error) {
-      onToast(error instanceof Error ? error.message : "Не удалось загрузить контент", "error");
+      onToastRef.current(error instanceof Error ? error.message : "Не удалось загрузить контент", "error");
     } finally {
       setLoading(false);
     }
-  }, [onToast]);
+  }, []);
 
   useEffect(() => {
     void load();

@@ -18,6 +18,7 @@ type Props = {
   tableOverallTotal: number;
   productSearch: string;
   setProductSearch: (value: string) => void;
+  resetProductFilters: () => void;
   productSourceFilter: string;
   setProductSourceFilter: (value: string) => void;
   productSourceModeFilter: string;
@@ -59,6 +60,7 @@ export function AdminProductsTab({
   tableOverallTotal,
   productSearch,
   setProductSearch,
+  resetProductFilters,
   productSourceFilter,
   setProductSourceFilter,
   productSourceModeFilter,
@@ -102,6 +104,7 @@ export function AdminProductsTab({
             <AdminProductsFilters
               productSearch={productSearch}
               setProductSearch={setProductSearch}
+              resetProductFilters={resetProductFilters}
               productSourceFilter={productSourceFilter}
               setProductSourceFilter={setProductSourceFilter}
               productSourceModeFilter={productSourceModeFilter}

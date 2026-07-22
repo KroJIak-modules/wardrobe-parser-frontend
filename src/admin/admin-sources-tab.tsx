@@ -28,8 +28,9 @@ type SourceItem = {
   sync_enabled: boolean;
   dedup_enabled: boolean;
   hide_auto_added_products?: boolean;
-  description_mode?: "hidden" | "text" | "html";
+  description_mode?: "hidden" | "text";
   show_images?: boolean;
+  clean_public_titles?: boolean;
 };
 
 type Props = {
@@ -42,7 +43,7 @@ type Props = {
   reorderSources: (sourceKeys: string[]) => Promise<{ ok: boolean; message: string }>;
   uploadSourceLogo: (sourceKey: string, file: File) => Promise<{ ok: boolean; message: string }>;
   clearSourceLogo: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
-  updateSourceAttributeVisibility: (key: string, payload: { description_mode?: "hidden" | "text" | "html"; show_images?: boolean }) => Promise<{ ok: boolean; message: string }>;
+  updateSourceDisplaySettings: (key: string, payload: { description_mode?: "hidden" | "text"; show_images?: boolean; clean_public_titles?: boolean }) => Promise<{ ok: boolean; message: string }>;
   autoSyncPeriodMinutes: number;
   autoSyncNextRunAt: string | null;
   autoSyncLastStatus: string | null;
@@ -227,7 +228,7 @@ export function AdminSourcesTab({
   reorderSources,
   uploadSourceLogo,
   clearSourceLogo,
-  updateSourceAttributeVisibility,
+  updateSourceDisplaySettings,
   autoSyncPeriodMinutes,
   autoSyncNextRunAt,
   autoSyncLastStatus,
@@ -239,7 +240,7 @@ export function AdminSourcesTab({
   pushToast,
   onZoomImage,
 }: Props) {
-  const [sourceAttrVisibility, setSourceAttrVisibility] = useState<Record<string, { descriptionMode: "hidden" | "text" | "html"; images: boolean }>>({});
+  const [sourceDisplaySettings, setSourceDisplaySettings] = useState<Record<string, { descriptionMode: "hidden" | "text"; images: boolean; cleanPublicTitles: boolean }>>({});
   const [autoSyncDraft, setAutoSyncDraft] = useState<string>(String(Math.max(60, Number(autoSyncPeriodMinutes || 60))));
   const [autoSyncValidationError, setAutoSyncValidationError] = useState<string>("");
   const [autoSyncNowMs, setAutoSyncNowMs] = useState<number>(() => Date.now());
@@ -353,13 +354,14 @@ export function AdminSourcesTab({
   }, [orderedSourceKeys]);
 
   useEffect(() => {
-    setSourceAttrVisibility((prev) => {
+    setSourceDisplaySettings((prev) => {
       const next = { ...prev };
       for (const source of sources) {
         if (!next[source.key]) {
           next[source.key] = {
-            descriptionMode: source.description_mode === "hidden" || source.description_mode === "html" ? source.description_mode : "text",
+            descriptionMode: source.description_mode === "hidden" ? "hidden" : "text",
             images: source.show_images ?? true,
+            cleanPublicTitles: source.clean_public_titles ?? true,
           };
         }
       }
@@ -933,18 +935,19 @@ export function AdminSourcesTab({
                         <label className="ui-switch ui-switch--compact source-card-switch">
                           <input
                             type="checkbox"
-                            checked={sourceAttrVisibility[source.key]?.images ?? true}
+                            checked={sourceDisplaySettings[source.key]?.images ?? true}
                             disabled={!canEditSources}
                             onChange={(event) => {
                               const checked = event.target.checked;
                               void (async () => {
-                                const result = await updateSourceAttributeVisibility(source.key, { show_images: checked });
+                                const result = await updateSourceDisplaySettings(source.key, { show_images: checked });
                                 if (result.ok) {
-                                  setSourceAttrVisibility((prev) => ({
+                                  setSourceDisplaySettings((prev) => ({
                                     ...prev,
                                     [source.key]: {
                                       descriptionMode: prev[source.key]?.descriptionMode ?? "text",
                                       images: checked,
+                                      cleanPublicTitles: prev[source.key]?.cleanPublicTitles ?? true,
                                     },
                                   }));
                                 }
@@ -960,20 +963,20 @@ export function AdminSourcesTab({
                         <label className="ui-switch ui-switch--compact source-card-switch">
                           <input
                             type="checkbox"
-                            checked={(sourceAttrVisibility[source.key]?.descriptionMode ?? "text") !== "hidden"}
+                            checked={(sourceDisplaySettings[source.key]?.descriptionMode ?? "text") !== "hidden"}
                             disabled={!canEditSources}
                             onChange={(event) => {
                               const checked = event.target.checked;
                               void (async () => {
-                                const prevMode = sourceAttrVisibility[source.key]?.descriptionMode ?? "text";
-                                const nextMode = checked ? (prevMode === "html" ? "html" : "text") : "hidden";
-                                const result = await updateSourceAttributeVisibility(source.key, { description_mode: nextMode });
+                                const nextMode = checked ? "text" : "hidden";
+                                const result = await updateSourceDisplaySettings(source.key, { description_mode: nextMode });
                                 if (result.ok) {
-                                  setSourceAttrVisibility((prev) => ({
+                                  setSourceDisplaySettings((prev) => ({
                                     ...prev,
                                     [source.key]: {
                                       descriptionMode: nextMode,
                                       images: prev[source.key]?.images ?? true,
+                                      cleanPublicTitles: prev[source.key]?.cleanPublicTitles ?? true,
                                     },
                                   }));
                                 }
@@ -986,36 +989,34 @@ export function AdminSourcesTab({
                           </span>
                           <span className="ui-switch-text">Показывать описание</span>
                         </label>
-                        {!isPersonal ? (
-                          <label className="ui-switch ui-switch--compact source-card-switch">
-                            <input
-                              type="checkbox"
-                              checked={(sourceAttrVisibility[source.key]?.descriptionMode ?? "text") === "html"}
-                              disabled={!canEditSources || (sourceAttrVisibility[source.key]?.descriptionMode ?? "text") === "hidden"}
-                              onChange={(event) => {
-                                const checked = event.target.checked;
-                                void (async () => {
-                                  const nextMode = checked ? "html" : "text";
-                                  const result = await updateSourceAttributeVisibility(source.key, { description_mode: nextMode });
-                                  if (result.ok) {
-                                    setSourceAttrVisibility((prev) => ({
-                                      ...prev,
-                                      [source.key]: {
-                                        descriptionMode: nextMode,
-                                        images: prev[source.key]?.images ?? true,
-                                      },
-                                    }));
-                                  }
-                                  pushToast(result.message);
-                                })();
-                              }}
-                            />
-                            <span className="ui-switch-track">
-                              <span className="ui-switch-thumb" />
-                            </span>
-                            <span className="ui-switch-text">Отображать сырое описание (HTML)</span>
-                          </label>
-                        ) : null}
+                        <label className="ui-switch ui-switch--compact source-card-switch">
+                          <input
+                            type="checkbox"
+                            checked={sourceDisplaySettings[source.key]?.cleanPublicTitles ?? true}
+                            disabled={!canEditSources}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              void (async () => {
+                                const result = await updateSourceDisplaySettings(source.key, { clean_public_titles: checked });
+                                if (result.ok) {
+                                  setSourceDisplaySettings((prev) => ({
+                                    ...prev,
+                                    [source.key]: {
+                                      descriptionMode: prev[source.key]?.descriptionMode ?? "text",
+                                      images: prev[source.key]?.images ?? true,
+                                      cleanPublicTitles: checked,
+                                    },
+                                  }));
+                                }
+                                pushToast(result.message);
+                              })();
+                            }}
+                          />
+                          <span className="ui-switch-track">
+                            <span className="ui-switch-thumb" />
+                          </span>
+                          <span className="ui-switch-text">Очищать названия для витрины</span>
+                        </label>
                       </div>
                     </details>
                   </div>

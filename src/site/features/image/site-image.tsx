@@ -12,8 +12,6 @@ import "./site-image.css";
 
 export type SiteImageSkeletonVariant = "spotlight" | "admin-image" | "pulse" | "shine" | "wave";
 
-const SITE_IMAGE_MOCK_NETWORK_DELAY_MS = 200;
-
 function clearTimer(timerRef: { current: number | null }) {
   if (timerRef.current === null) {
     return;
@@ -21,51 +19,6 @@ function clearTimer(timerRef: { current: number | null }) {
 
   window.clearTimeout(timerRef.current);
   timerRef.current = null;
-}
-
-function isLocalMockImageSource(src: string) {
-  return src.startsWith("/site-mock/");
-}
-
-function getResourceTiming(src: string) {
-  if (typeof performance === "undefined" || typeof performance.getEntriesByName !== "function") {
-    return null;
-  }
-
-  const entries = performance.getEntriesByName(src);
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = entries[index];
-    if (entry.entryType === "resource") {
-      return entry as PerformanceResourceTiming;
-    }
-  }
-
-  return null;
-}
-
-function isResourceServedFromCache(src: string) {
-  const timing = getResourceTiming(src);
-  if (!timing) {
-    return false;
-  }
-
-  if (timing.transferSize === 0 && timing.decodedBodySize > 0) {
-    return true;
-  }
-
-  return false;
-}
-
-function resolveAbsoluteImageUrl(src: string) {
-  if (typeof window === "undefined") {
-    return src;
-  }
-
-  try {
-    return new URL(src, window.location.origin).toString();
-  } catch {
-    return src;
-  }
 }
 
 type SiteImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "children"> & {
@@ -97,12 +50,10 @@ export function SiteImage({
 }: SiteImageProps) {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const revealTimeoutRef = useRef<number | null>(null);
-  const loadStartTimeRef = useRef(0);
   const [isImageVisible, setIsImageVisible] = useState(false);
   const [isSkeletonVisible, setIsSkeletonVisible] = useState(false);
   const [hasError, setHasError] = useState(false);
   const resolvedSrc = useMemo(() => (typeof src === "string" ? resolveSitePublicAssetUrl(src) : src), [src]);
-  const isMockImage = typeof resolvedSrc === "string" && isLocalMockImageSource(resolvedSrc);
 
   const showImage = (keepSkeleton = false) => {
     setIsImageVisible(true);
@@ -123,7 +74,6 @@ export function SiteImage({
       };
     }
 
-    loadStartTimeRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();
     setIsImageVisible(false);
     setIsSkeletonVisible(false);
     setHasError(false);
@@ -165,30 +115,7 @@ export function SiteImage({
     setHasError(false);
     clearTimer(revealTimeoutRef);
 
-    const currentImageSrc = event.currentTarget.currentSrc || (typeof resolvedSrc === "string" ? resolveAbsoluteImageUrl(resolvedSrc) : "");
-    const servedFromCache = currentImageSrc !== "" && isResourceServedFromCache(currentImageSrc);
-
-    if (servedFromCache || !isMockImage) {
-      showImage();
-      onLoad?.(event);
-      return;
-    }
-
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    const elapsed = now - loadStartTimeRef.current;
-    const remainingDelay = Math.max(0, SITE_IMAGE_MOCK_NETWORK_DELAY_MS - elapsed);
-
-    if (remainingDelay <= 0) {
-      showImage();
-      onLoad?.(event);
-      return;
-    }
-
-    setIsSkeletonVisible(enableSkeleton);
-    revealTimeoutRef.current = window.setTimeout(() => {
-      revealTimeoutRef.current = null;
-      showImage();
-    }, remainingDelay);
+    showImage();
     onLoad?.(event);
   };
 

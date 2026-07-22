@@ -216,15 +216,15 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [patchSource]);
 
-  const updateSourceAttributeVisibility = useCallback(async (sourceKey: string, payload: { description_mode?: DescriptionMode; show_images?: boolean }) => {
+  const updateSourceDisplaySettings = useCallback(async (sourceKey: string, payload: { description_mode?: DescriptionMode; show_images?: boolean; clean_public_titles?: boolean }) => {
     try {
-      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/attribute-visibility`, {
+      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/display-settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       patchSource(sourceKey, updated);
-      return okResult("Правила атрибутов обновлены");
+      return okResult("Настройки отображения обновлены");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
@@ -368,7 +368,7 @@ export function useLiveDataSourceSettingsActions(params: {
     reorderSources,
     uploadSourceLogo,
     clearSourceLogo,
-    updateSourceAttributeVisibility,
+    updateSourceDisplaySettings,
     assignSourceSupplier,
     createWeightRule,
     updateWeightRule,

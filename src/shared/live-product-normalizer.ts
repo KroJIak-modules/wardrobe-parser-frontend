@@ -55,7 +55,7 @@ type RawProduct = {
   image_urls?: string[];
   variants?: RawVariant[];
   description?: string | null;
-  description_mode?: "hidden" | "text" | "html" | null;
+  description_mode?: "hidden" | "text" | null;
   description_public_visible?: boolean | null;
   description_text?: string | null;
   description_html?: string | null;

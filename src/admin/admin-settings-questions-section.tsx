@@ -87,6 +87,7 @@ export function AdminSettingsQuestionsSection({
                           type="checkbox"
                           checked={item.isEnabled}
                           onChange={(event) => onUpdateQuestion(item.id, { isEnabled: Boolean(event.target.checked) })}
+                          disabled={loading}
                         />
                         <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
                         <span className="ui-switch-text">Показывать вопрос</span>
@@ -97,6 +98,7 @@ export function AdminSettingsQuestionsSection({
                           type="checkbox"
                           checked={item.isExpandedByDefault}
                           onChange={(event) => onUpdateQuestion(item.id, { isExpandedByDefault: Boolean(event.target.checked) })}
+                          disabled={loading}
                         />
                         <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
                         <span className="ui-switch-text">Развернуть по умолчанию</span>
@@ -104,18 +106,18 @@ export function AdminSettingsQuestionsSection({
                     </div>
 
                     <div className="admin-settings-question__actions">
-                      <button type="button" className="admin-settings-ghost-btn" onClick={() => onMoveQuestion(item.id, -1)} disabled={index === 0}>
+                      <button type="button" className="admin-settings-ghost-btn" onClick={() => onMoveQuestion(item.id, -1)} disabled={loading || index === 0}>
                         Выше
                       </button>
                       <button
                         type="button"
                         className="admin-settings-ghost-btn"
                         onClick={() => onMoveQuestion(item.id, 1)}
-                        disabled={index === questions.length - 1}
+                        disabled={loading || index === questions.length - 1}
                       >
                         Ниже
                       </button>
-                      <button type="button" className="topbar-cta--danger" onClick={() => onDeleteQuestion(item.id)}>
+                      <button type="button" className="topbar-cta--danger" onClick={() => onDeleteQuestion(item.id)} disabled={loading}>
                         Удалить
                       </button>
                     </div>
@@ -126,6 +128,7 @@ export function AdminSettingsQuestionsSection({
                         className="input"
                         value={item.question}
                         onChange={(event) => onUpdateQuestion(item.id, { question: event.target.value })}
+                        disabled={loading}
                       />
                     </label>
 
@@ -136,6 +139,7 @@ export function AdminSettingsQuestionsSection({
                       <textarea
                         value={item.answer}
                         onChange={(event) => onUpdateQuestion(item.id, { answer: event.target.value })}
+                        disabled={loading}
                       />
                     </label>
                   </div>

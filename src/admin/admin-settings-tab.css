@@ -90,6 +90,12 @@
   gap: 12px;
 }
 
+.admin-settings-field .input,
+.admin-settings-field textarea {
+  box-sizing: border-box;
+  font: inherit;
+}
+
 .admin-settings-field textarea {
   width: 100%;
   min-height: 128px;
@@ -99,7 +105,6 @@
   padding: 13px 15px;
   background: #ffffff;
   color: #243247;
-  font: inherit;
   line-height: 1.55;
 }
 
@@ -223,16 +228,13 @@
   font-weight: 700;
 }
 
-.admin-site-access__switch {
-  flex: 0 0 auto;
-}
-
 .admin-site-access__grid {
   max-width: 760px;
 }
 
 .admin-site-access__password {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px 38px auto;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -245,8 +247,16 @@
 }
 
 .admin-site-access__password .input {
-  flex: 1 1 auto;
   min-width: 0;
+}
+
+.admin-site-access__password-input--masked {
+  -webkit-text-security: disc;
+}
+
+.admin-site-access__switch {
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .admin-site-access__icon-btn {
@@ -337,8 +347,17 @@
   min-height: 132px;
 }
 
-.admin-settings-split-grid--notification {
+.admin-settings-notification-form {
+  display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 14px;
+  align-items: start;
+}
+
+.admin-settings-notification-form__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .admin-settings-notification-image {
@@ -577,7 +596,7 @@
   }
 
   .admin-settings-form-grid--two,
-  .admin-settings-split-grid--notification,
+  .admin-settings-notification-form,
   .admin-settings-history__item,
   .admin-settings-notification-card {
     grid-template-columns: 1fr;
@@ -593,6 +612,15 @@
 
   .admin-settings-preview-card__columns {
     grid-template-columns: 1fr;
+  }
+
+  .admin-site-access__password {
+    grid-template-columns: minmax(0, 1fr) 38px 38px;
+  }
+
+  .admin-site-access__switch {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
 }

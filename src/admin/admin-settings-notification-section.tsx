@@ -62,20 +62,15 @@ export function AdminSettingsNotificationSection({
 
   return (
     <div className="admin-settings-pane">
-      <div className="admin-settings-split-grid admin-settings-split-grid--notification">
-        <section className="card admin-settings-panel">
-          <div className="admin-settings-panel__head">
-            <div>
-              <h2>Новое уведомление</h2>
-            </div>
-            <div className="admin-settings-panel__actions">
-              <button type="button" onClick={onCreate} disabled={busy || !dirty}>
-                {saving ? "Создание..." : "Создать"}
-              </button>
-            </div>
+      <section className="card admin-settings-panel">
+        <div className="admin-settings-panel__head">
+          <div>
+            <h2>Новое уведомление</h2>
           </div>
+        </div>
 
-          <div className="admin-settings-form-grid">
+          <div className="admin-settings-notification-form">
+            <div className="admin-settings-form-grid">
             <label className="admin-settings-field">
               <span>Заголовок</span>
               <input
@@ -116,37 +111,37 @@ export function AdminSettingsNotificationSection({
                 />
               </label>
             </div>
-          </div>
-        </section>
-
-        <section className="card admin-settings-panel">
-          <div className="admin-settings-panel__head">
-            <div>
-              <h3>Фото</h3>
             </div>
-          </div>
 
-          <div className="admin-settings-notification-image">
-            {draft.imagePreviewUrl ? (
-              <div className="admin-settings-notification-image__preview">
-                <img src={draft.imagePreviewUrl} alt="" />
+            <div className="admin-settings-field admin-settings-notification-photo">
+              <span>Фото</span>
+              <div className="admin-settings-notification-image">
+                {draft.imagePreviewUrl ? (
+                  <div className="admin-settings-notification-image__preview">
+                    <img src={draft.imagePreviewUrl} alt="" />
+                  </div>
+                ) : (
+                  <button type="button" className="admin-settings-photo-add admin-settings-notification-image__add" onClick={() => inputRef.current?.click()} disabled={busy}>
+                    <IconPlus className="icon-svg icon-svg--sm" />
+                    <span>{uploadingImage ? "Загрузка..." : "Добавить фото"}</span>
+                  </button>
+                )}
+                {draft.imagePreviewUrl ? (
+                  <button type="button" className="admin-settings-ghost-btn" onClick={() => inputRef.current?.click()} disabled={busy}>
+                    {uploadingImage ? "Загрузка..." : "Заменить фото"}
+                  </button>
+                ) : null}
               </div>
-            ) : (
-              <button type="button" className="admin-settings-photo-add admin-settings-notification-image__add" onClick={() => inputRef.current?.click()} disabled={busy}>
-                <IconPlus className="icon-svg icon-svg--sm" />
-                <span>{uploadingImage ? "Загрузка..." : "Добавить фото"}</span>
-              </button>
-            )}
-            {draft.imagePreviewUrl ? (
-              <button type="button" className="admin-settings-ghost-btn" onClick={() => inputRef.current?.click()} disabled={busy}>
-                {uploadingImage ? "Загрузка..." : "Заменить фото"}
-              </button>
-            ) : null}
-          </div>
+            </div>
 
           <input ref={inputRef} type="file" accept="image/*" className="input-hidden" onChange={onPickFile} />
-        </section>
-      </div>
+          <div className="admin-settings-notification-form__actions">
+            <button type="button" onClick={onCreate} disabled={busy || !dirty}>
+              {saving ? "Создание..." : "Создать"}
+            </button>
+          </div>
+        </div>
+      </section>
 
       <section className="card admin-settings-panel">
         <div className="admin-settings-panel__head">

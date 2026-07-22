@@ -1,10 +1,6 @@
 const SITE_PUBLIC_ASSET_VERSION = "site-2026-06-28-2";
 const SITE_PUBLIC_IMAGE_PATH_RE = /\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
 
-const SITE_DEFAULT_HERO_URL = `/site-mock/landing-hero.jpg?v=${SITE_PUBLIC_ASSET_VERSION}`;
-
-export const SITE_HERO_DESKTOP_URL = import.meta.env.VITE_SITE_HERO_DESKTOP_URL || SITE_DEFAULT_HERO_URL;
-export const SITE_HERO_MOBILE_URL = import.meta.env.VITE_SITE_HERO_MOBILE_URL || SITE_DEFAULT_HERO_URL;
 export const SITE_LOGO_URL = import.meta.env.VITE_SITE_LOGO_URL || `/logo_anton_shell.svg?v=${SITE_PUBLIC_ASSET_VERSION}`;
 
 function splitHash(value: string) {

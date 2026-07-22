@@ -1,4 +1,4 @@
-export type DescriptionMode = "hidden" | "text" | "html";
+export type DescriptionMode = "hidden" | "text";
 export type SourceMode = "auto" | "manual" | "personal";
 export type ProductWriteState = {
   visibility_status: "visible" | "hidden";
@@ -20,6 +20,7 @@ export type Source = {
   hide_auto_added_products?: boolean;
   description_mode?: DescriptionMode;
   show_images?: boolean;
+  clean_public_titles?: boolean;
   products_count: number;
   manual_products_count?: number;
   bound_sync_products_count?: number;
@@ -829,9 +830,9 @@ export type LiveDataContextValue = {
   reorderSources: (sourceKeys: string[]) => Promise<{ ok: boolean; message: string }>;
   uploadSourceLogo: (sourceKey: string, file: File) => Promise<{ ok: boolean; message: string }>;
   clearSourceLogo: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
-  updateSourceAttributeVisibility: (
+  updateSourceDisplaySettings: (
     sourceKey: string,
-    payload: { description_mode?: DescriptionMode; show_images?: boolean }
+    payload: { description_mode?: DescriptionMode; show_images?: boolean; clean_public_titles?: boolean }
   ) => Promise<{ ok: boolean; message: string }>;
   createWeightRule: (weightGrams: number) => Promise<{ ok: boolean; message: string }>;
   updateWeightRule: (id: number, weightGrams: number) => Promise<{ ok: boolean; message: string }>;

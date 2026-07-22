@@ -597,9 +597,7 @@ export function ShowcaseProductPage() {
   }
 
   const description = String(product.description || "").trim();
-  const descriptionMode = String(product.description_mode || "text").trim().toLowerCase();
   const descriptionText = String(product.description_text || product.description || "").trim();
-  const descriptionHtml = String(product.description_html || "").trim();
   const hasVariants = Array.isArray(product.variants) && product.variants.length > 1;
   const originalPrice = withPriceRangePrefix(
     formatMoney(priceDisplay.sourcePrice, priceDisplay.sourceCurrency),
@@ -1738,12 +1736,9 @@ export function ShowcaseProductPage() {
                   onChange={(event) => { setDescriptionTextDraft(event.target.value); queueCoreSave(); }}
                   onBlur={flushCoreSave}
                   rows={8}
-                  disabled={!descriptionVisibleDraft || descriptionMode === "html"}
+                  disabled={!descriptionVisibleDraft}
                   placeholder="Текстовое описание"
                 />
-                {descriptionMode === "html" ? (
-                  <small>Источник уже использует HTML-описание, поэтому текст сейчас заблокирован.</small>
-                ) : null}
               </section>
               {canEditVariants ? (
                 <section className="svp-editor-variants">
@@ -1853,11 +1848,6 @@ export function ShowcaseProductPage() {
               </div>
               {!descriptionVisibleEffective ? (
                 <p className="svp-empty-note">Описание сейчас скрыто{descriptionVisibilityLocked ? " для этого товара" : " глобальным правилом"}.</p>
-              ) : descriptionMode === "html" && (descriptionHtml || descriptionText) ? (
-                <div
-                  className="product-description-text product-description-html svp-description-content"
-                  dangerouslySetInnerHTML={{ __html: descriptionHtml || descriptionText }}
-                />
               ) : (
                 <p className="product-description-text svp-description-content">{description || "Описание отсутствует"}</p>
               )}

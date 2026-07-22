@@ -55,6 +55,7 @@ async function readJsonOrError<T>(response: Response): Promise<T> {
 export function AdminSiteAccessSection({ pushToast }: Props) {
   const [draft, setDraft] = useState<SiteAccessSettings>(EMPTY_SETTINGS);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const draftRef = useRef<SiteAccessSettings>(EMPTY_SETTINGS);
@@ -88,6 +89,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
     const requestSeq = saveSeqRef.current + 1;
     saveSeqRef.current = requestSeq;
     const snapshotSignature = settingsSignature(snapshot);
+    setSaving(true);
     try {
       const response = await authFetch(`${API_BASE}/admin/site-content/access`, {
         method: "PUT",
@@ -99,22 +101,21 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
           password: snapshot.password,
         }),
       });
-      const payload = await readJsonOrError<SiteAccessSettings>(response);
-      const currentSignature = settingsSignature(draftRef.current);
-      if (requestSeq === saveSeqRef.current && currentSignature === snapshotSignature) {
-        draftRef.current = payload;
-        lastSavedSignatureRef.current = settingsSignature(payload);
-        setDraft(payload);
-      } else if (currentSignature === snapshotSignature) {
+      await readJsonOrError<SiteAccessSettings>(response);
+      if (requestSeq === saveSeqRef.current) {
         lastSavedSignatureRef.current = snapshotSignature;
       }
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Не удалось сохранить защиту сайта", "error");
+    } finally {
+      if (requestSeq === saveSeqRef.current) {
+        setSaving(false);
+      }
     }
   }, [pushToast]);
 
   useEffect(() => {
-    if (loading) {
+    if (loading || saving) {
       return;
     }
     const currentSignature = settingsSignature(draft);
@@ -125,7 +126,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
       void saveSettings(draftRef.current);
     }, AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [draft, loading, saveSettings]);
+  }, [draft, loading, saveSettings, saving]);
 
   const generatePassword = useCallback(async () => {
     setGenerating(true);
@@ -147,16 +148,6 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
         <div>
           <h2>Пароль сайта</h2>
         </div>
-        <label className="ui-switch ui-switch--compact admin-site-access__switch">
-          <input
-            type="checkbox"
-            checked={draft.enabled}
-            onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))}
-            disabled={loading}
-          />
-          <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
-          <span className="ui-switch-text">{draft.enabled ? "Включен" : "Выключен"}</span>
-        </label>
       </div>
 
       <div className="admin-settings-form-grid admin-site-access__grid">
@@ -177,12 +168,15 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
             disabled={loading}
           />
         </label>
-        <label className="admin-settings-field">
+        <div className="admin-settings-field">
           <span>Пароль</span>
-          <span className="admin-site-access__password">
+          <div className="admin-site-access__password">
             <input
-              className="input"
-              type={passwordVisible ? "text" : "password"}
+              className={`input${passwordVisible ? "" : " admin-site-access__password-input--masked"}`}
+              type="text"
+              name="site-access-code"
+              autoComplete="off"
+              aria-label="Пароль сайта"
               value={draft.password}
               onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
               disabled={loading}
@@ -205,8 +199,18 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
             >
               <RotateCcw className="icon-svg" />
             </button>
-          </span>
-        </label>
+            <label className="ui-switch ui-switch--compact admin-site-access__switch">
+              <input
+                type="checkbox"
+                checked={draft.enabled}
+                onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))}
+                disabled={loading}
+              />
+              <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
+              <span className="ui-switch-text">{draft.enabled ? "Включен" : "Выключен"}</span>
+            </label>
+          </div>
+        </div>
       </div>
     </section>
   );

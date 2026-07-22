@@ -3,6 +3,7 @@ import type { AdminFilterFacetOption } from "./admin-types";
 type Props = {
   productSearch: string;
   setProductSearch: (value: string) => void;
+  resetProductFilters: () => void;
   productSourceFilter: string;
   setProductSourceFilter: (value: string) => void;
   productSourceModeFilter: string;
@@ -32,6 +33,7 @@ export function AdminProductsFilters(props: Props) {
   const {
     productSearch,
     setProductSearch,
+    resetProductFilters,
     productSourceFilter,
     setProductSourceFilter,
     productSourceModeFilter,
@@ -125,18 +127,7 @@ export function AdminProductsFilters(props: Props) {
       </select>
       <button
         type="button"
-        onClick={() => {
-          setProductSearch("");
-          setProductSourceFilter("");
-          setProductSourceModeFilter("");
-          setProductDesignerFilter("");
-          setProductCatalogFilter("");
-          setProductSectionFilter("");
-          setProductGenderFilter("");
-          setProductVisibilityFilter("");
-          setProductAvailabilityModeFilter("");
-          setProductOrderabilityFilter("");
-        }}
+        onClick={resetProductFilters}
       >
         Сбросить
       </button>

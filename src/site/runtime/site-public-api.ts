@@ -140,7 +140,7 @@ export type SiteApiProductResponse = {
   handle: string;
   brand: { name: string; slug: string | null };
   name: string;
-  description: { format: "text" | "html"; content: string } | null;
+  description: { format: "text"; content: string } | null;
   status: "in_stock" | "preorder" | "sold_out";
   photos: string[];
   variants: Array<{
