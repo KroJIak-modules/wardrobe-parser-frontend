@@ -23,7 +23,9 @@ const INTRO_TRANSITION_MS = 880;
 export function SiteHomePage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isStorefrontRequested = resolveHomeView(location.state) === "storefront";
+  const [isStorefrontRequested, setIsStorefrontRequested] = useState(
+    () => resolveHomeView(location.state) === "storefront",
+  );
   const shouldAnimateIntoStorefront = shouldAnimateHomeIntro(location.state);
   const shouldOpenStorefront = isStorefrontRequested;
   const [phase, setPhase] = useState<IntroPhase>(() => {
@@ -33,13 +35,16 @@ export function SiteHomePage() {
     return shouldAnimateIntoStorefront ? "transition" : "entered";
   });
   const [isCtaTransitionPending, setIsCtaTransitionPending] = useState(false);
-  const { media, isCarouselReady, loading: isShowcaseMediaLoading } = useSiteShowcaseMedia({ preloadCarousel: true });
+  const { media, isCarouselReady, isCarouselResolved, loading: isShowcaseMediaLoading } = useSiteShowcaseMedia({ preloadCarousel: true });
   const { payload: navigation } = useSiteNavigation();
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
   const heroAsset = isMobileLayout ? media.heroMobile ?? media.heroDesktop : media.heroDesktop;
   const hasHeroForViewport = heroAsset !== null;
   const isHeroAvailabilityResolved = !isShowcaseMediaLoading;
-  const shouldHoldHeroEntry = !shouldOpenStorefront && !isHeroAvailabilityResolved;
+
+  useEffect(() => {
+    setIsStorefrontRequested(resolveHomeView(location.state) === "storefront");
+  }, [location.key, location.state]);
 
   useEffect(() => {
     document.title = "Anton Shell";
@@ -50,21 +55,32 @@ export function SiteHomePage() {
       return;
     }
 
-    if (!hasHeroForViewport || !shouldOpenStorefront) {
-      setPhase((currentPhase) => (currentPhase === "intro" ? currentPhase : "intro"));
-      if (!hasHeroForViewport) {
-        setPhase("entered");
-      }
+    if (!hasHeroForViewport) {
+      setPhase("entered");
+      return;
+    }
+
+    if (!shouldOpenStorefront) {
+      setPhase("intro");
       return;
     }
 
     setPhase((currentPhase) => {
-      if (shouldAnimateIntoStorefront && currentPhase === "intro") {
+      if (currentPhase === "transition" || currentPhase === "entered") {
+        return currentPhase;
+      }
+      if (shouldAnimateIntoStorefront || isCtaTransitionPending) {
         return "transition";
       }
-      return currentPhase === "entered" ? currentPhase : "entered";
+      return "entered";
     });
-  }, [hasHeroForViewport, isHeroAvailabilityResolved, shouldAnimateIntoStorefront, shouldOpenStorefront]);
+  }, [
+    hasHeroForViewport,
+    isCtaTransitionPending,
+    isHeroAvailabilityResolved,
+    shouldAnimateIntoStorefront,
+    shouldOpenStorefront,
+  ]);
 
   useEffect(() => {
     const previousHtmlBackground = document.documentElement.style.background;
@@ -86,12 +102,6 @@ export function SiteHomePage() {
     }
 
     if (!hasHeroForViewport || !shouldOpenStorefront) {
-      return;
-    }
-
-    if (phase === "intro") {
-      setPhase("entered");
-      window.scrollTo(0, 0);
       return;
     }
 
@@ -150,15 +160,13 @@ export function SiteHomePage() {
           }}
         />
       ) : null}
-      {shouldHoldHeroEntry ? (
-        <section className="site-landing__hero" aria-label="Титульная страница" />
-      ) : hasHeroForViewport ? (
+      {!isHeroAvailabilityResolved || hasHeroForViewport ? (
         <div
           className={`site-landing__track${phase === "transition" ? " site-landing__track--shifted" : ""}`}
           style={transitionStyle}
         >
           <section className="site-landing__hero" aria-label="Титульная страница">
-            {heroAsset.mediaKind === "video" ? (
+            {heroAsset?.mediaKind === "video" ? (
               <video
                 src={heroAsset.url}
                 className="site-landing__image"
@@ -168,14 +176,23 @@ export function SiteHomePage() {
                 playsInline
                 preload="metadata"
               />
+            ) : heroAsset ? (
+              <SiteImage
+                src={heroAsset.url}
+                alt=""
+                className="site-landing__image"
+                fillContainer
+                skeletonVariant="spotlight"
+              />
             ) : (
-              <SiteImage src={heroAsset.url} alt="" className="site-landing__image" fillContainer enableSkeleton={false} />
+              <div className="site-landing__image site-landing__image--placeholder" aria-hidden="true" />
             )}
             <div className="site-landing__scrim" aria-hidden="true" />
             <LandingGlassButtons
               label={landingHeroButtonLabel}
               heroAsset={heroAsset}
               onEnter={() => {
+                setIsStorefrontRequested(true);
                 setIsCtaTransitionPending(true);
                 setPhase("transition");
               }}
@@ -191,6 +208,7 @@ export function SiteHomePage() {
                 navigate("/", { replace: true, state: heroHomeState() });
               }}
               isCarouselReady={isCarouselReady}
+              isCarouselResolved={isCarouselResolved}
               showcaseMedia={media}
             />
           </section>
@@ -205,6 +223,7 @@ export function SiteHomePage() {
             navigate("/", { replace: true, state: heroHomeState() });
           }}
           isCarouselReady={isCarouselReady}
+          isCarouselResolved={isCarouselResolved}
           showcaseMedia={media}
         />
       )}

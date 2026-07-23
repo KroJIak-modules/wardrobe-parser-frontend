@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { storefrontHomeState } from "../../app/site-home-entry";
+import { prepareSiteCatalogFilterNavigation } from "../catalog/site-catalog-navigation";
 import type { SiteDesignersLocationState } from "../designers/site-designers-navigation";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import type { SiteHeaderProps } from "./site-header-contracts";
@@ -78,7 +79,8 @@ export function SiteHeader({
   const navigateFromDropdown = useCallback(
     (to: string, navigationState?: SiteDesignersLocationState) => {
       resetMenuState();
-      navigate(to, navigationState ? { state: navigationState } : undefined);
+      const destination = prepareSiteCatalogFilterNavigation(to, navigationState);
+      navigate(destination.to, destination.state ? { state: destination.state } : undefined);
     },
     [navigate, resetMenuState],
   );
@@ -87,7 +89,8 @@ export function SiteHeader({
     (index: number, item: SiteNavItem) => {
       const hasDropdown = syncMenuActivation(index, item.label);
       if (!hasDropdown && item.to) {
-        navigate(item.to);
+        const destination = prepareSiteCatalogFilterNavigation(item.to);
+        navigate(destination.to, destination.state ? { state: destination.state } : undefined);
       }
     },
     [navigate, syncMenuActivation],
@@ -106,7 +109,8 @@ export function SiteHeader({
       }
 
       if (item.to) {
-        navigate(item.to);
+        const destination = prepareSiteCatalogFilterNavigation(item.to);
+        navigate(destination.to, destination.state ? { state: destination.state } : undefined);
       }
     },
     [expandSearch, handleSearchSubmit, isSearchExpanded, isSearchInteractive, navigate],

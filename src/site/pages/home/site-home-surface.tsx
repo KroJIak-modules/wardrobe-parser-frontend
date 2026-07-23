@@ -13,6 +13,7 @@ import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
 import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import { useSiteProducts } from "../../runtime/use-site-products";
 import { useSiteShowcaseMedia } from "../../runtime/use-site-showcase-media";
+import { resolveSitePublicAssetUrl } from "../../app/site-public-asset";
 
 export function SiteHomeSurface({
   showHeader = true,
@@ -20,6 +21,7 @@ export function SiteHomeSurface({
   notificationsEnabled = true,
   onLogoActivate,
   isCarouselReady = false,
+  isCarouselResolved = false,
   showcaseMedia,
 }: {
   showHeader?: boolean;
@@ -27,6 +29,7 @@ export function SiteHomeSurface({
   notificationsEnabled?: boolean;
   onLogoActivate?: () => void;
   isCarouselReady?: boolean;
+  isCarouselResolved?: boolean;
   showcaseMedia: ReturnType<typeof useSiteShowcaseMedia>["media"];
 }) {
   const navigate = useNavigate();
@@ -110,15 +113,37 @@ export function SiteHomeSurface({
         ) : null
       ) : null}
       <div className="site-home-surface__content">
-        {hasCarouselForViewport ? (
-          <div ref={carouselRef} className="site-home-surface__carousel">
+        {!isCarouselResolved || hasCarouselForViewport ? (
+          <div
+            ref={carouselRef}
+            className={isCarouselReady ? "site-home-surface__carousel site-home-surface__carousel--ready" : "site-home-surface__carousel"}
+          >
             {isCarouselReady ? (
               <SiteCarouselSection
                 slides={carouselSlides}
                 layout={isMobileLayout ? "mobile" : "desktop"}
               />
             ) : (
-              <div className="site-home-surface__carousel-placeholder" aria-hidden="true" />
+              <div className="site-home-surface__carousel-placeholder" aria-hidden="true">
+                {isCarouselResolved && hasCarouselForViewport && !isMobileLayout ? (
+                  <>
+                    <span className="site-carousel__arrow site-carousel__arrow--left">
+                      <img
+                        src={resolveSitePublicAssetUrl("/site-mock/carousel-arrow.svg")}
+                        alt=""
+                        className="site-carousel__arrow-body"
+                      />
+                    </span>
+                    <span className="site-carousel__arrow site-carousel__arrow--right">
+                      <img
+                        src={resolveSitePublicAssetUrl("/site-mock/carousel-arrow.svg")}
+                        alt=""
+                        className="site-carousel__arrow-body site-carousel__arrow-body--left"
+                      />
+                    </span>
+                  </>
+                ) : null}
+              </div>
             )}
           </div>
         ) : null}

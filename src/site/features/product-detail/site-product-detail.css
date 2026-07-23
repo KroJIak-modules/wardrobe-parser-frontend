@@ -21,7 +21,8 @@
 .site-product-detail__hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--site-product-detail-main-image-width) minmax(0, 1fr);
-  align-items: flex-start;
+  grid-template-rows: var(--site-product-detail-main-image-height);
+  align-items: center;
   justify-items: center;
   width: 100%;
   padding-top: var(--site-product-detail-hero-top-gap);
@@ -33,8 +34,8 @@
   flex: 0 0 auto;
   display: grid;
   gap: var(--site-product-detail-thumb-gap);
-  margin-top: 109px;
-  align-self: start;
+  margin-top: 0;
+  align-self: center;
   justify-self: center;
   width: var(--site-product-detail-thumb-width);
   max-height: calc((var(--site-product-detail-thumb-height) * 4) + (var(--site-product-detail-thumb-gap) * 3));
@@ -131,9 +132,9 @@
 .site-product-detail__summary {
   flex: 0 0 auto;
   width: 302px;
-  margin-top: 50px;
+  margin-top: 0;
   display: grid;
-  align-self: start;
+  align-self: center;
   justify-items: center;
   align-content: start;
   justify-self: center;

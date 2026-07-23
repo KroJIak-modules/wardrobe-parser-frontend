@@ -91,12 +91,29 @@
 
 .site-home-surface__carousel {
   margin-bottom: 49px;
+  min-height: 573px;
+  overflow: hidden;
 }
 
 .site-home-surface__carousel-placeholder {
+  position: relative;
   width: 100%;
   min-height: 573px;
   background: #fff;
+}
+
+.site-home-surface__carousel--ready .site-carousel {
+  animation: site-home-carousel-reveal 280ms ease-out both;
+}
+
+@keyframes site-home-carousel-reveal {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .site-home-surface__products {
@@ -136,6 +153,12 @@
 @media (max-width: 640px) {
   .site-home-surface__carousel {
     margin-bottom: 10px;
+    min-height: 0;
+  }
+
+  .site-home-surface__carousel-placeholder {
+    min-height: 0;
+    aspect-ratio: 2 / 3;
   }
 
   .site-landing-cta {

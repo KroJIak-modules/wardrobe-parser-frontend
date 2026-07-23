@@ -52,6 +52,7 @@ export function useSiteShowcaseMedia({
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCarouselResolved, setIsCarouselResolved] = useState(false);
   const [isCarouselReady, setIsCarouselReady] = useState(false);
 
   useEffect(() => {
@@ -62,19 +63,16 @@ export function useSiteShowcaseMedia({
     Promise.all([
       siteApiJson<{ viewport: "desktop" | "mobile"; asset: SiteApiMediaAsset | null }>("/site/home/hero?viewport=desktop"),
       siteApiJson<{ viewport: "desktop" | "mobile"; asset: SiteApiMediaAsset | null }>("/site/home/hero?viewport=mobile"),
-      siteApiJson<{ viewport: "desktop" | "mobile"; items: SiteApiMediaAsset[] }>("/site/home/carousel?viewport=desktop"),
-      siteApiJson<{ viewport: "desktop" | "mobile"; items: SiteApiMediaAsset[] }>("/site/home/carousel?viewport=mobile"),
     ])
-      .then(([desktopHero, mobileHero, desktopCarousel, mobileCarousel]) => {
+      .then(([desktopHero, mobileHero]) => {
         if (isDisposed) {
           return;
         }
-        setMedia({
+        setMedia((current) => ({
+          ...current,
           heroDesktop: toAsset(desktopHero.asset),
           heroMobile: toAsset(mobileHero.asset) ?? toAsset(desktopHero.asset),
-          carouselSlidesDesktop: desktopCarousel.items.map(toSlide),
-          carouselSlidesMobile: mobileCarousel.items.map(toSlide),
-        });
+        }));
         setLoading(false);
       })
       .catch((error: unknown) => {
@@ -83,6 +81,27 @@ export function useSiteShowcaseMedia({
         }
         setLoading(false);
         setError(error instanceof Error ? error.message : "Не удалось загрузить витрину");
+      });
+
+    Promise.all([
+      siteApiJson<{ viewport: "desktop" | "mobile"; items: SiteApiMediaAsset[] }>("/site/home/carousel?viewport=desktop"),
+      siteApiJson<{ viewport: "desktop" | "mobile"; items: SiteApiMediaAsset[] }>("/site/home/carousel?viewport=mobile"),
+    ])
+      .then(([desktopCarousel, mobileCarousel]) => {
+        if (isDisposed) {
+          return;
+        }
+        setMedia((current) => ({
+          ...current,
+          carouselSlidesDesktop: desktopCarousel.items.map(toSlide),
+          carouselSlidesMobile: mobileCarousel.items.map(toSlide),
+        }));
+        setIsCarouselResolved(true);
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          setIsCarouselResolved(true);
+        }
       });
 
     return () => {
@@ -106,7 +125,7 @@ export function useSiteShowcaseMedia({
   }, [media.carouselSlidesDesktop, media.carouselSlidesMobile]);
 
   useEffect(() => {
-    if (!preloadCarousel) {
+    if (!preloadCarousel || !isCarouselResolved) {
       setIsCarouselReady(false);
       return;
     }
@@ -134,12 +153,13 @@ export function useSiteShowcaseMedia({
     return () => {
       isDisposed = true;
     };
-  }, [carouselSources, preloadCarousel]);
+  }, [carouselSources, isCarouselResolved, preloadCarousel]);
 
   return {
     media,
     loading,
     error,
+    isCarouselResolved,
     isCarouselReady,
   };
 }

@@ -199,9 +199,33 @@ export type JobsLatest = {
   products_seen: number;
   products_applied: number;
   failed_products: number;
+  warning_products?: number;
+  source_issues?: SyncSourceIssue[];
+  current_source_name?: string | null;
+  current_stage?: {
+    code: string | null;
+    label: string | null;
+    detail: string | null;
+    updated_at: string | null;
+  } | null;
   can_cancel: boolean;
   error: string | null;
 } | null;
+
+export type SyncSourceIssueReason = {
+  code: string;
+  label: string;
+  count: number;
+};
+
+export type SyncSourceIssue = {
+  source_id: string;
+  source_name: string;
+  kind: string;
+  title: string;
+  affected_products: number;
+  reasons: SyncSourceIssueReason[];
+};
 
 export type SyncJobHistoryItem = {
   id: string;

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import type { SiteCatalogTopKey } from "../../features/catalog/site-catalog-contracts";
 import { resolveOptimisticCatalogHeader } from "../../features/catalog/site-catalog-optimistic-header";
 import { SiteCatalogMobileView } from "../../features/catalog/site-catalog-mobile-view";
+import { isSiteCatalogFilterNavigation } from "../../features/catalog/site-catalog-navigation";
 import { clearSiteCatalogReturnSnapshot, readSiteCatalogReturnSnapshot } from "../../features/catalog/site-catalog-return";
 import { readCatalogListParam } from "../../features/catalog/site-catalog-query";
 import { SiteCatalogExperienceView } from "../../features/catalog/site-catalog-sections";
@@ -18,12 +19,31 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   const actionItems = useSiteActionItems();
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const [searchParams, setSearchParams] = useSearchParams();
+  const catalogReturnSnapshotRef = useRef<ReturnType<typeof readSiteCatalogReturnSnapshot>>(null);
+  const hasMountedCatalogRef = useRef(false);
+  const pendingFilterScrollRef = useRef(false);
+  const previousFilterSignatureRef = useRef<string | null>(null);
   const persistSearchParams = useCallback(
     (nextParams: URLSearchParams) => {
       const normalized = new URLSearchParams(nextParams);
       normalized.delete("top");
 
+      setSearchParams(normalized);
+    },
+    [setSearchParams]
+  );
+  const applyFilterSearchParams = useCallback(
+    (nextParams: URLSearchParams) => {
+      const normalized = new URLSearchParams(nextParams);
+      normalized.delete("top");
+      normalized.delete("page");
+
+      clearSiteCatalogReturnSnapshot();
+      catalogReturnSnapshotRef.current = null;
+      pendingFilterScrollRef.current = true;
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
       setSearchParams(normalized);
     },
     [setSearchParams]
@@ -37,6 +57,11 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
     next.set("top", forcedTop);
     return next;
   }, [forcedTop, searchParams]);
+  const filterSignature = useMemo(() => {
+    const normalized = new URLSearchParams(effectiveSearchParams);
+    normalized.delete("page");
+    return normalized.toString();
+  }, [effectiveSearchParams]);
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
   const { menuItems, dropdownMenus, payload: navigation } = useSiteNavigation();
@@ -53,12 +78,12 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
 
     return snapshot;
   }, [location.key, location.pathname, location.search]);
+  const isCatalogFilterNavigation = isSiteCatalogFilterNavigation(location.state);
   const { header, filterGroups, products, currentPage: normalizedPage, totalPages, loading, errorMessage } = useSiteCatalog(
     effectiveSearchParams,
     { forcedTop, restoreFromHistory: catalogReturnSnapshot !== null },
   );
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
-  const catalogReturnSnapshotRef = useRef<ReturnType<typeof readSiteCatalogReturnSnapshot>>(null);
   const optimisticHeader = useMemo(
     () =>
       resolveOptimisticCatalogHeader({
@@ -74,10 +99,32 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   useLayoutEffect(() => {
     catalogReturnSnapshotRef.current = catalogReturnSnapshot;
 
-    if (!catalogReturnSnapshot) {
+    if (!hasMountedCatalogRef.current && !catalogReturnSnapshot && !isCatalogFilterNavigation) {
       window.scrollTo(0, 0);
     }
-  }, [catalogReturnSnapshot]);
+    hasMountedCatalogRef.current = true;
+  }, [catalogReturnSnapshot, isCatalogFilterNavigation]);
+
+  useEffect(() => {
+    const previousSignature = previousFilterSignatureRef.current;
+    previousFilterSignatureRef.current = filterSignature;
+
+    const shouldScrollForFilterChange = previousSignature === null
+      ? isCatalogFilterNavigation && navigationType !== "POP"
+      : previousSignature !== filterSignature && navigationType !== "POP";
+    if (!shouldScrollForFilterChange) {
+      return;
+    }
+
+    if (pendingFilterScrollRef.current) {
+      pendingFilterScrollRef.current = false;
+      return;
+    }
+
+    clearSiteCatalogReturnSnapshot();
+    catalogReturnSnapshotRef.current = null;
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }, [filterSignature, isCatalogFilterNavigation, navigationType]);
 
   useLayoutEffect(() => {
     const snapshot = catalogReturnSnapshotRef.current;
@@ -153,7 +200,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
           description={optimisticHeader.description}
           filterGroups={filterGroups}
           searchParams={effectiveSearchParams}
-          onSearchParamsChange={persistSearchParams}
+          onSearchParamsChange={applyFilterSearchParams}
           products={products}
           currentPage={normalizedPage}
           totalPages={totalPages}
@@ -186,7 +233,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
               } else {
                 nextParams.set("q", value);
               }
-              persistSearchParams(nextParams);
+              applyFilterSearchParams(nextParams);
             }}
           />
           <SiteCatalogExperienceView
@@ -195,7 +242,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
             descriptionSource={optimisticHeader.source}
             filterGroups={filterGroups}
             searchParams={effectiveSearchParams}
-            onSearchParamsChange={persistSearchParams}
+            onSearchParamsChange={applyFilterSearchParams}
             products={products}
             currentPage={normalizedPage}
             totalPages={totalPages}

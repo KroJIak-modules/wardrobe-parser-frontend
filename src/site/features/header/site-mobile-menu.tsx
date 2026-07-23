@@ -4,6 +4,7 @@ import { siteFooterColumns } from "../../app/site-static-content";
 import type { SiteFooterColumn } from "../storefront/site-storefront-contracts";
 import type { SiteApiNavigation } from "../../runtime/site-public-api";
 import { SiteMobileDrawerShell } from "../shared/site-mobile-drawer-shell";
+import { prepareSiteCatalogFilterNavigation } from "../catalog/site-catalog-navigation";
 import {
   buildSiteMobileSearchHref,
   getSiteMobileMenuGroups,
@@ -188,7 +189,8 @@ export function SiteMobileMenu({
     }
 
     onClose();
-    navigate(action.to, action.navigationState ? { state: action.navigationState } : undefined);
+    const destination = prepareSiteCatalogFilterNavigation(action.to, action.navigationState);
+    navigate(destination.to, destination.state ? { state: destination.state } : undefined);
   };
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -199,7 +201,8 @@ export function SiteMobileMenu({
     }
 
     onClose();
-    navigate(buildSiteMobileSearchHref(query));
+    const destination = prepareSiteCatalogFilterNavigation(buildSiteMobileSearchHref(query));
+    navigate(destination.to, destination.state ? { state: destination.state } : undefined);
   };
 
   return (
@@ -238,7 +241,8 @@ export function SiteMobileMenu({
           className="site-mobile-menu__tab"
           onClick={() => {
             onClose();
-            navigate("/sale");
+            const destination = prepareSiteCatalogFilterNavigation("/sale");
+            navigate(destination.to, destination.state ? { state: destination.state } : undefined);
           }}
         >
           СКИДКИ

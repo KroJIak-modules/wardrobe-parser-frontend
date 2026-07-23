@@ -1,11 +1,11 @@
 import { SyncSummary } from "./sync-summary";
-import type { SyncJobSummary } from "./admin-types";
+import type { JobsLatest } from "../shared/live-data-types";
 
 type AdminHeadProps = {
   isSyncInProgress: boolean;
   canRunSync: boolean;
   canCancelSync: boolean;
-  latestJob: SyncJobSummary | null;
+  latestJob: JobsLatest;
   onRunSync: () => void;
   onCancelSync: () => void;
   onOpenCreateProduct: () => void;

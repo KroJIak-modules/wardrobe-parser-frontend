@@ -1,0 +1,143 @@
+.sync-summary {
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #dfe4eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #243040;
+}
+
+.sync-summary__header,
+.sync-summary__headline,
+.sync-summary__metrics,
+.sync-summary__issue summary,
+.sync-summary__issue-heading {
+  display: flex;
+  align-items: center;
+}
+
+.sync-summary__header {
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.sync-summary__layout--with-issues {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.sync-summary__primary {
+  width: min(100%, 50%);
+}
+
+.sync-summary__layout--with-issues .sync-summary__primary {
+  width: auto;
+}
+
+.sync-summary__eyebrow {
+  margin: 0 0 4px;
+  color: #6a7482;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sync-summary__headline {
+  flex-wrap: wrap;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.sync-summary__headline > span:not(:first-child) {
+  color: #6a7482;
+}
+
+.sync-summary__activity {
+  display: grid;
+  gap: 2px;
+  margin-top: 9px;
+  color: #526071;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.sync-summary__activity strong {
+  color: #2f7ae5;
+  font-size: 13px;
+}
+
+.sync-summary__status,
+.sync-summary__issue-kind,
+.sync-summary__issue-count {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sync-summary__status { padding: 4px 8px; }
+.sync-summary__status--success { background: #eaf9ee; color: #16713d; }
+.sync-summary__status--warning { background: #fff4dd; color: #8a5700; }
+.sync-summary__status--error { background: #fdeaea; color: #a63232; }
+
+.sync-summary__progress {
+  height: 7px;
+  margin-top: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf0f4;
+}
+.sync-summary__progress > span { display: block; height: 100%; border-radius: inherit; background: #2f7ae5; transition: width 300ms ease; }
+
+.sync-summary__body {
+  margin-top: 14px;
+}
+
+.sync-summary__metrics {
+  gap: 8px;
+}
+
+.sync-summary__metrics > div {
+  display: grid;
+  flex: 1 1 130px;
+  gap: 3px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f6f8fa;
+}
+.sync-summary__metrics span { color: #6a7482; font-size: 11px; }
+.sync-summary__metrics strong { font-size: 15px; }
+.sync-summary__metrics strong em {
+  margin-left: 7px;
+  color: #2f7ae5;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+}
+.sync-summary__metric--warning { background: #fff8eb !important; color: #885800; }
+
+.sync-summary__job-error { margin: 12px 0 0; color: #a63232; font-size: 13px; line-height: 1.4; }
+.sync-summary__issues { border-left: 1px solid #e6e9ee; padding-left: 18px; }
+.sync-summary__issues-title { margin-bottom: 7px; font-size: 12px; font-weight: 700; }
+.sync-summary__issue { border-top: 1px solid #edf0f3; }
+.sync-summary__issue:first-of-type { border-top: 0; }
+.sync-summary__issue summary { min-height: 38px; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; font-size: 13px; }
+.sync-summary__issue summary::-webkit-details-marker { display: none; }
+.sync-summary__issue-heading { min-width: 0; gap: 7px; }
+.sync-summary__issue-heading > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sync-summary__issue-kind { flex: 0 0 auto; padding: 3px 6px; background: #f0f2f5; color: #66707e; font-size: 10px; }
+.sync-summary__issue-count { flex: 0 0 auto; min-width: 22px; padding: 3px 6px; background: #fff4dd; color: #8a5700; text-align: center; }
+.sync-summary__issue-body { padding: 0 0 10px; color: #596474; font-size: 12px; line-height: 1.45; }
+.sync-summary__issue-body p { margin: 0; }
+.sync-summary__issue-body ul { margin: 7px 0 0; padding-left: 18px; }
+
+@media (max-width: 640px) {
+  .sync-summary { padding: 12px; }
+  .sync-summary__primary { width: 100%; }
+  .sync-summary__header { align-items: flex-start; }
+  .sync-summary__metrics { flex-wrap: wrap; }
+  .sync-summary__metrics > div { min-width: calc(50% - 4px); }
+  .sync-summary__layout--with-issues { display: block; }
+  .sync-summary__issues { margin-top: 14px; border-top: 1px solid #e6e9ee; border-left: 0; padding: 12px 0 0; }
+}

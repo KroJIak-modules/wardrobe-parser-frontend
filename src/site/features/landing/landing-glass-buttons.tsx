@@ -12,21 +12,18 @@ type LandingGlassButtonsProps = {
 export function LandingGlassButtons({ label, onEnter, heroAsset }: LandingGlassButtonsProps) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const imageAsset = heroAsset?.mediaKind === "image" ? heroAsset : null;
-  const { tone, isResolved } = useSiteImageTone({
+  const { tone } = useSiteImageTone({
     asset: imageAsset,
     targetRef: buttonRef,
     surfaceSelector: ".site-landing__hero",
   });
-  const isToneResolved = imageAsset !== null && isResolved;
-
   return (
-    <div className={isToneResolved ? "site-landing-cta site-landing-cta--ready" : "site-landing-cta site-landing-cta--pending"}>
+    <div className="site-landing-cta site-landing-cta--ready">
       <button
         ref={buttonRef}
         type="button"
         className="site-landing-cta__button"
         data-tone={tone}
-        disabled={!isToneResolved}
         onClick={onEnter}
         aria-label={label}
       >

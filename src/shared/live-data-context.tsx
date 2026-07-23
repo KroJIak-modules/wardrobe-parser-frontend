@@ -365,7 +365,13 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         return { ok: false, message: `Ошибка запуска: ${res.status}` };
       }
 
-      await refresh();
+      const startedJob = (await res.json()) as JobsLatest;
+      if (!startedJob?.job_id || !["queued", "running"].includes(String(startedJob.status || ""))) {
+        return { ok: false, message: "Сервис вернул некорректный статус запуска" };
+      }
+      // The POST response is the server-confirmed job state. Do not wait for a full
+      // catalogue refresh before reflecting the new state in every admin session.
+      setLatestJob(startedJob);
       return { ok: true, message: "Синхронизация запущена" };
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Ошибка запуска синхронизации" };
@@ -397,7 +403,11 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       if (!res.ok) {
         return { ok: false, message: `Ошибка запуска: ${res.status}` };
       }
-      await refresh();
+      const startedJob = (await res.json()) as JobsLatest;
+      if (!startedJob?.job_id || !["queued", "running"].includes(String(startedJob.status || ""))) {
+        return { ok: false, message: "Сервис вернул некорректный статус запуска" };
+      }
+      setLatestJob(startedJob);
       return { ok: true, message: `Синхронизация запущена: ${normalized}` };
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Ошибка запуска синхронизации" };

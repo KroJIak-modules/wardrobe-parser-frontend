@@ -62,7 +62,7 @@
   text-align: center;
   position: relative;
   z-index: 2;
-  color: transparent;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .site-landing-cta__button[data-tone="dark"] .site-landing-cta__label {
