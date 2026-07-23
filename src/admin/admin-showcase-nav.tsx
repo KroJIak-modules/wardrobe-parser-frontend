@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LatexBrand } from "../shared/latex-brand";
+import { Link, useNavigate } from "react-router-dom";
 import type {
   ShowcaseNavigationMenu,
   ShowcaseNavigationMenuBlock,
@@ -128,12 +127,7 @@ function ShowcaseNavColumnEntries({
           entry.presentation === "heading"
             ? "showcase-nav__link showcase-nav__link--heading"
             : "showcase-nav__link";
-        const label =
-          sectionKey === "designers" ? (
-            <LatexBrand value={entry.label} className="showcase-nav__link-label showcase-nav__link-label--latex" />
-          ) : (
-            <span className="showcase-nav__link-label">{entry.label}</span>
-          );
+        const label = <span className="showcase-nav__link-label">{entry.label}</span>;
 
         if (entry.target) {
           return (
@@ -155,11 +149,9 @@ function ShowcaseNavColumnEntries({
 
 function ShowcaseNavMenu({
   section,
-  currentSearchParams,
   onNavigate,
 }: {
   section: ShowcaseNavigationSection;
-  currentSearchParams: URLSearchParams;
   onNavigate: () => void;
 }) {
   if (!section.menu) {
@@ -212,7 +204,8 @@ function ShowcaseNavMenu({
             <div className="showcase-nav__footer">
               <Link
                 className="showcase-nav__footer-link"
-                to={buildRouteTargetHrefWithCarry(section.menu.footerLink.target, currentSearchParams, ["designer"])}
+                to={buildRouteTargetHref(section.menu.footerLink.target)}
+                state={{ designersEntryMode: "browse" }}
                 onClick={onNavigate}
               >
                 {section.menu.footerLink.label}
@@ -227,11 +220,9 @@ function ShowcaseNavMenu({
 
 export function AdminShowcaseNav() {
   const navigate = useNavigate();
-  const location = useLocation();
   // Top tabs from shell immediately; menus from shared navigation cache/API.
   const { sections } = useAdminShowcaseNavigation();
   const [activeSectionKey, setActiveSectionKey] = useState<ShowcaseTopSectionKey | null>(null);
-  const currentSearchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
   const activeSection = useMemo(
     () => sections.find((section) => section.key === activeSectionKey) ?? null,
@@ -267,11 +258,7 @@ export function AdminShowcaseNav() {
         </div>
 
         {activeSection?.menu ? (
-          <ShowcaseNavMenu
-            section={activeSection}
-            currentSearchParams={currentSearchParams}
-            onNavigate={() => setActiveSectionKey(null)}
-          />
+          <ShowcaseNavMenu section={activeSection} onNavigate={() => setActiveSectionKey(null)} />
         ) : null}
       </div>
     </section>

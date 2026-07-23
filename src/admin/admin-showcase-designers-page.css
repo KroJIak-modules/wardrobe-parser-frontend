@@ -151,6 +151,79 @@
   color: #11151c;
 }
 
+.designers-page__alphabet-skeleton {
+  pointer-events: none;
+  border-color: transparent;
+  background:
+    linear-gradient(90deg, rgba(241, 244, 249, 0.95) 0%, rgba(255, 255, 255, 0.98) 48%, rgba(241, 244, 249, 0.95) 100%);
+  background-size: 220% 100%;
+  animation: designers-skeleton-pulse 1.45s ease infinite;
+}
+
+.designers-page__alphabet-skeleton--dim {
+  opacity: 0.55;
+  animation-delay: 0.18s;
+}
+
+.designers-page__grid--skeleton {
+  min-height: 420px;
+}
+
+.designers-page__letter-skeleton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  color: transparent;
+  background:
+    linear-gradient(90deg, rgba(232, 236, 243, 0.95) 0%, rgba(248, 250, 252, 0.98) 50%, rgba(232, 236, 243, 0.95) 100%);
+  background-size: 220% 100%;
+  border-radius: 8px;
+  animation: designers-skeleton-pulse 1.45s ease infinite;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.designers-page__designer--skeleton {
+  pointer-events: none;
+  border-color: transparent;
+  background: transparent;
+}
+
+.designers-page__designer-skeleton-bar {
+  display: block;
+  width: var(--designer-skeleton-width, 70%);
+  height: 14px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(236, 240, 246, 0.98) 0%, rgba(255, 255, 255, 0.98) 48%, rgba(236, 240, 246, 0.98) 100%);
+  background-size: 220% 100%;
+  animation: designers-skeleton-pulse 1.45s ease infinite;
+}
+
+.designers-page__section--skeleton:nth-child(2n) .designers-page__designer-skeleton-bar {
+  animation-delay: 0.12s;
+}
+
+.designers-page__section--skeleton:nth-child(3n) .designers-page__designer-skeleton-bar {
+  animation-delay: 0.24s;
+}
+
+.designers-page__section--skeleton:nth-child(4n) .designers-page__letter-skeleton {
+  animation-delay: 0.1s;
+}
+
+@keyframes designers-skeleton-pulse {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .designers-page__designer-label {
   display: block;
   width: 100%;
@@ -158,33 +231,6 @@
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.designers-page__designer-label .katex {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.designers-page__designer-label-wrap {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.designers-page__designer-measure {
-  position: fixed;
-  top: -9999px;
-  left: -9999px;
-  display: inline-block;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  visibility: hidden;
-  pointer-events: none;
   white-space: nowrap;
 }
 

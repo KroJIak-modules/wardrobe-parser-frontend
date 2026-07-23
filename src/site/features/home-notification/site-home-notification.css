@@ -46,7 +46,7 @@
 
 .site-home-notification__window {
   width: 100%;
-  --site-window-shell-radius: 2px;
+  --site-window-shell-radius: 4px;
   --site-window-shell-gap: 2px;
   --site-window-shell-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
 }
@@ -203,8 +203,8 @@
 
   .site-home-notification__window {
     --site-window-shell-border-width: 1px;
-    --site-window-shell-radius: 2px;
-    --site-window-shell-gap: 1px;
+    --site-window-shell-radius: 4px;
+    --site-window-shell-gap: 2px;
     --site-window-shell-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
   }
 

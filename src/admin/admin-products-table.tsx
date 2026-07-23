@@ -220,7 +220,7 @@ function AdminProductsTableRow({
     sourceMode: product.source_mode,
     emptyLabel: "—",
   });
-  const adminProductHref = `/product/${product.id}?from=admin`;
+  const adminProductHref = `/product/${product.id}`;
   const orderabilityStatus = String(product.orderability_status || "").trim().toLowerCase();
   const unavailableReason = orderabilityStatus === "unavailable" ? unavailableReasonRu(product.status_reason) : null;
   const hidden = String(product.visibility_status || "").trim().toLowerCase() === "hidden";
@@ -273,7 +273,7 @@ function AdminProductsTableRow({
         <Link
           className="thumb-mini-link"
           to={adminProductHref}
-          state={{ adminReturnHref: productsReturnHref }}
+          state={{ fromControlPanel: true, adminReturnHref: productsReturnHref }}
           title={unavailableReason || undefined}
           onClick={rememberTableState}
         >
@@ -291,7 +291,7 @@ function AdminProductsTableRow({
         <Link
           className="btn-link"
           to={adminProductHref}
-          state={{ adminReturnHref: productsReturnHref }}
+          state={{ fromControlPanel: true, adminReturnHref: productsReturnHref }}
           title={unavailableReason || undefined}
           onClick={rememberTableState}
         >
@@ -362,7 +362,7 @@ function AdminProductsTableRow({
           <Link
             className="products-table-icon-btn"
             to={adminProductHref}
-            state={{ openEditMode: true, adminReturnHref: productsReturnHref }}
+            state={{ openEditMode: true, fromControlPanel: true, adminReturnHref: productsReturnHref }}
             title={unavailableReason || "Открыть товар сразу в режиме редактирования"}
             aria-label="Редактировать товар"
             onClick={rememberTableState}

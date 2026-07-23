@@ -3,16 +3,42 @@ import { LogOut } from "lucide-react";
 import { logoutAdminSession } from "../shared/admin-auth";
 import { SiteHeader } from "../shared/site-header";
 import { AdminShowcaseNav } from "./admin-showcase-nav";
+import { AdminShowcaseSearch } from "./admin-showcase-search";
+import "./admin-showcase-search.css";
+
+export type ShowcaseProductNavigationState = {
+  openEditMode?: boolean;
+  adminReturnHref?: string;
+  /** True when opened from control panel product list / admin tools. */
+  fromControlPanel?: boolean;
+};
+
+function isShowcaseProductPath(pathname: string) {
+  return pathname.startsWith("/product/");
+}
+
+function isFromControlPanelNavigation(state: ShowcaseProductNavigationState | null) {
+  if (!state) {
+    return false;
+  }
+  if (state.fromControlPanel) {
+    return true;
+  }
+  // Legacy links used query ?from=admin from control panel.
+  return Boolean(state.adminReturnHref);
+}
 
 export function AdminShowcaseLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const isProductDetailPage = location.pathname.startsWith("/product/");
-  const isAdminOriginProduct = isProductDetailPage && searchParams.get("from") === "admin";
+  const isProductDetailPage = isShowcaseProductPath(location.pathname);
+  const productNavState = (location.state as ShowcaseProductNavigationState | null) ?? null;
+  const fromControlPanel = isProductDetailPage && isFromControlPanelNavigation(productNavState);
 
-  const ctaTo = isAdminOriginProduct ? "/" : "/control/products";
-  const ctaLabel = isAdminOriginProduct ? "Витрина" : "Панель управления";
+  // Control panel → product: top CTA stays "Витрина".
+  // Showcase → product: top CTA stays "Панель управления".
+  const ctaTo = fromControlPanel ? "/" : "/control/products";
+  const ctaLabel = fromControlPanel ? "Витрина" : "Панель управления";
   const actions = [
     { label: ctaLabel, to: ctaTo, variant: "primary" as const },
     {
@@ -30,9 +56,14 @@ export function AdminShowcaseLayout() {
 
   return (
     <div className="shell">
-      {isProductDetailPage ? null : <SiteHeader actions={actions} />}
+      <SiteHeader actions={actions} />
       <main className={isProductDetailPage ? "container container--product-detail" : "container"}>
-        {isProductDetailPage ? null : <AdminShowcaseNav />}
+        {isProductDetailPage ? null : (
+          <div className="showcase-nav-row">
+            <AdminShowcaseNav />
+            <AdminShowcaseSearch />
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

@@ -20,7 +20,10 @@ export function SiteCatalogProductsGrid({
 }) {
   const normalizedProducts = useMemo(() => normalizeCatalogProductsForGrid(products), [products]);
 
-  if (loading) {
+  // Keep the already rendered page while another page is loading. Replacing a
+  // full grid with a short skeleton grid changes document height mid-scroll and
+  // lets the browser clamp a smooth scroll before it reaches the true top.
+  if (loading && normalizedProducts.length === 0) {
     return (
       <div className="site-catalog-products__grid">
         {Array.from({ length: SITE_CATALOG_SKELETON_COUNT }, (_, index) => (

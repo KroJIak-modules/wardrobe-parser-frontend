@@ -900,13 +900,13 @@ function ManualProductList({
               item.visibility_status === "hidden" ? "manual-product-row--hidden" : "",
             ].filter(Boolean).join(" ")}
           >
-            <Link className="manual-product-thumb-link" to={`/product/${item.product_id}?from=admin`} title={unavailableTitle || undefined}>
+            <Link className="manual-product-thumb-link" to={`/product/${item.product_id}`} state={{ fromControlPanel: true }} title={unavailableTitle || undefined}>
               <div className="manual-product-media">
                 {item.image_url ? <img src={item.image_url} alt={item.title} loading="lazy" decoding="async" /> : <span className="manual-product-media-placeholder photo-placeholder">Нет фото</span>}
               </div>
             </Link>
             <div className="manual-product-main">
-              <a className="btn-link manual-product-title-link" href={`/product/${item.product_id}?from=admin`} target="_blank" rel="noreferrer" title={unavailableTitle || undefined}>
+              <a className="btn-link manual-product-title-link" href={`/product/${item.product_id}`} target="_blank" rel="noreferrer" title={unavailableTitle || undefined}>
                 {item.designer_name} {item.title}
               </a>
               <div className="manual-product-meta-stack">

@@ -1,6 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { LatexBrand, renderBrandLatexHtml } from "../shared/latex-brand";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { IconChevronLeft } from "../shared/mono-icons";
 import type { ShowcaseDesignersDirectoryEntry, ShowcaseDesignersDirectoryResponse } from "./showcase-contracts";
 import { fetchShowcaseDesignersDirectory } from "./showcase-api";
@@ -33,102 +32,44 @@ function buildGroupedEntries(alphabet: readonly string[], entries: readonly Show
     .filter((group) => group.entries.length > 0);
 }
 
-function normalizeDesignerLabel(value: string | null | undefined) {
-  return String(value || "")
-    .trim()
-    .replace(/\s+/g, " ");
+type DesignersEntryMode = "browse" | "catalog-filter";
+
+type DesignersNavigationState = {
+  designersEntryMode?: DesignersEntryMode;
+};
+
+function resolveDesignersEntryMode(locationState: unknown, searchParams: URLSearchParams): DesignersEntryMode {
+  if (locationState && typeof locationState === "object" && "designersEntryMode" in locationState) {
+    const mode = (locationState as DesignersNavigationState).designersEntryMode;
+    if (mode === "browse" || mode === "catalog-filter") {
+      return mode;
+    }
+  }
+
+  return searchParams.toString() === "" ? "browse" : "catalog-filter";
 }
 
 function buildSelectionSignature(ids: readonly string[]) {
   return [...ids].sort().join(",");
 }
 
-function TruncatedLatexBrand({
-  value,
-  className,
-}: {
-  value: string;
-  className?: string;
-}) {
-  const fullLabel = normalizeDesignerLabel(value);
-  const [displayLabel, setDisplayLabel] = useState(fullLabel);
-  const containerRef = useRef<HTMLSpanElement | null>(null);
-  const measureRef = useRef<HTMLSpanElement | null>(null);
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const measure = measureRef.current;
-    if (!container || !measure) {
-      return;
-    }
-
-    let frameId = 0;
-
-    const measureFits = (candidate: string, maxWidth: number) => {
-      measure.innerHTML = renderBrandLatexHtml(candidate);
-      return measure.scrollWidth <= maxWidth;
-    };
-
-    const updateLabel = () => {
-      const maxWidth = Math.floor(container.clientWidth);
-      if (!maxWidth || !fullLabel) {
-        setDisplayLabel(fullLabel);
-        return;
-      }
-
-      if (measureFits(fullLabel, maxWidth)) {
-        setDisplayLabel(fullLabel);
-        return;
-      }
-
-      let low = 0;
-      let high = fullLabel.length;
-
-      while (low < high) {
-        const mid = Math.floor((low + high + 1) / 2);
-        const candidate = `${fullLabel.slice(0, mid).trimEnd()}...`;
-        if (measureFits(candidate, maxWidth)) {
-          low = mid;
-        } else {
-          high = mid - 1;
-        }
-      }
-
-      const nextLabel = low > 0 ? `${fullLabel.slice(0, low).trimEnd()}...` : "...";
-      setDisplayLabel(nextLabel);
-    };
-
-    const scheduleUpdate = () => {
-      window.cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(updateLabel);
-    };
-
-    scheduleUpdate();
-
-    const observer = new ResizeObserver(scheduleUpdate);
-    observer.observe(container);
-
-    void document.fonts.ready.then(scheduleUpdate);
-
-    return () => {
-      observer.disconnect();
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [fullLabel]);
-
-  return (
-    <>
-      <span ref={containerRef} className="designers-page__designer-label-wrap">
-        <LatexBrand value={displayLabel} className={className} />
-      </span>
-      <span ref={measureRef} className="latex-brand designers-page__designer-measure" aria-hidden="true" />
-    </>
-  );
-}
+/** Varied column counts/widths so loading reads as real content, not a frozen block. */
+const DESIGNERS_SKELETON_COLUMNS: ReadonlyArray<{ letter: string; widths: readonly number[] }> = [
+  { letter: "A", widths: [72, 48, 86, 54, 64, 78] },
+  { letter: "B", widths: [58, 82, 44, 70, 90, 52, 66] },
+  { letter: "C", widths: [80, 46, 68, 55, 74] },
+  { letter: "D", widths: [62, 88, 50, 76, 42, 70, 58, 84] },
+  { letter: "E", widths: [54, 78, 66, 48, 90, 60] },
+  { letter: "F", widths: [70, 44, 82, 56, 74, 48, 68] },
+  { letter: "G", widths: [86, 52, 64, 78, 46] },
+  { letter: "H", widths: [48, 72, 90, 58, 66, 80, 44] },
+];
 
 export function AdminShowcaseDesignersPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const entryMode = resolveDesignersEntryMode(location.state, searchParams);
   const [directory, setDirectory] = useState<ShowcaseDesignersDirectoryResponse | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>(() => readSelectedDesigners(searchParams));
   const alphabetCardRef = useRef<HTMLDivElement | null>(null);
@@ -162,6 +103,13 @@ export function AdminShowcaseDesignersPage() {
   );
 
   const toggleDesigner = (designerId: string) => {
+    if (entryMode === "browse") {
+      const next = new URLSearchParams();
+      next.set("designer", designerId);
+      navigate({ pathname: "/catalog", search: `?${next.toString()}` });
+      return;
+    }
+
     setSelectedIds((current) => (current.includes(designerId) ? current.filter((item) => item !== designerId) : [...current, designerId]));
   };
 
@@ -208,74 +156,120 @@ export function AdminShowcaseDesignersPage() {
     });
   };
 
+  const isDirectoryLoading = directory === null;
+
   return (
     <section className="designers-page" aria-label="Страница дизайнеров">
       <div ref={alphabetCardRef} className="designers-page__alphabet-card">
         <div className="designers-page__alphabet" aria-label="Алфавит дизайнеров">
-          {alphabet.map((letter) => {
-            const isAvailable = availableLetters.has(letter);
-            return (
-              <button
-                key={letter}
-                type="button"
-                className={isAvailable ? "designers-page__alphabet-btn" : "designers-page__alphabet-btn designers-page__alphabet-btn--disabled"}
-                onClick={() => scrollToLetter(letter)}
-                disabled={!isAvailable}
-              >
-                {letter}
-              </button>
-            );
-          })}
+          {isDirectoryLoading
+            ? Array.from({ length: 27 }, (_, index) => (
+                <span
+                  key={`alphabet-skeleton-${index}`}
+                  className={
+                    index % 5 === 0
+                      ? "designers-page__alphabet-btn designers-page__alphabet-skeleton designers-page__alphabet-skeleton--dim"
+                      : "designers-page__alphabet-btn designers-page__alphabet-skeleton"
+                  }
+                  aria-hidden="true"
+                />
+              ))
+            : alphabet.map((letter) => {
+                const isAvailable = availableLetters.has(letter);
+                return (
+                  <button
+                    key={letter}
+                    type="button"
+                    className={isAvailable ? "designers-page__alphabet-btn" : "designers-page__alphabet-btn designers-page__alphabet-btn--disabled"}
+                    onClick={() => scrollToLetter(letter)}
+                    disabled={!isAvailable}
+                  >
+                    {letter}
+                  </button>
+                );
+              })}
         </div>
       </div>
 
       <div className="designers-page__directory-card">
-        <div className="designers-page__grid" aria-live="polite">
-          {groupedEntries.map((group) => (
-            <section key={group.letter} id={`designers-letter-${group.letter}`} className="designers-page__section">
-              <div className="designers-page__section-head">
-                <h2 className="designers-page__letter">{group.letter}</h2>
-              </div>
-              <ul className="designers-page__list">
-                {group.entries.map((entry) => {
-                  const designerKey = entry.slug || entry.id;
-                  const isSelected = selectedIds.includes(designerKey);
-                  return (
-                    <li key={designerKey}>
-                      <button
-                        type="button"
-                        className={isSelected ? "designers-page__designer designers-page__designer--selected" : "designers-page__designer"}
-                        onClick={() => toggleDesigner(designerKey)}
-                        title={entry.label}
+        {isDirectoryLoading ? (
+          <div className="designers-page__grid designers-page__grid--skeleton" aria-busy="true" aria-label="Загрузка дизайнеров">
+            {DESIGNERS_SKELETON_COLUMNS.map((column) => (
+              <section key={column.letter} className="designers-page__section designers-page__section--skeleton">
+                <div className="designers-page__section-head">
+                  <span className="designers-page__letter-skeleton" aria-hidden="true">
+                    {column.letter}
+                  </span>
+                </div>
+                <ul className="designers-page__list">
+                  {column.widths.map((width, rowIndex) => (
+                    <li key={`${column.letter}-row-${rowIndex}`}>
+                      <div
+                        className="designers-page__designer designers-page__designer--skeleton"
+                        style={{ ["--designer-skeleton-width" as string]: `${width}%` }}
+                        aria-hidden="true"
                       >
-                        <TruncatedLatexBrand value={entry.label} className="designers-page__designer-label" />
-                      </button>
+                        <span className="designers-page__designer-skeleton-bar" />
+                      </div>
                     </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="designers-page__grid" aria-live="polite">
+            {groupedEntries.map((group) => (
+              <section key={group.letter} id={`designers-letter-${group.letter}`} className="designers-page__section">
+                <div className="designers-page__section-head">
+                  <h2 className="designers-page__letter">{group.letter}</h2>
+                </div>
+                <ul className="designers-page__list">
+                  {group.entries.map((entry) => {
+                    const designerKey = entry.slug || entry.id;
+                    const isSelected = selectedIds.includes(designerKey);
+                    return (
+                      <li key={designerKey}>
+                        <button
+                          type="button"
+                          className={isSelected ? "designers-page__designer designers-page__designer--selected" : "designers-page__designer"}
+                          onClick={() => toggleDesigner(designerKey)}
+                          title={entry.label}
+                        >
+                          <span className="designers-page__designer-label">{entry.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="designers-page__actions-wrap">
         <div className="designers-page__actions">
-          <button
-            type="button"
-            className={hasPendingChanges ? "designers-page__action-btn designers-page__action-btn--primary" : "designers-page__action-btn"}
-            onClick={applySelection}
-          >
-            ПРИМЕНИТЬ
-          </button>
-          <button
-            type="button"
-            className="designers-page__action-btn"
-            onClick={clearSelection}
-            disabled={!hasSelection}
-          >
-            ОЧИСТИТЬ
-          </button>
+          {entryMode === "catalog-filter" ? (
+            <>
+              <button
+                type="button"
+                className={hasPendingChanges ? "designers-page__action-btn designers-page__action-btn--primary" : "designers-page__action-btn"}
+                onClick={applySelection}
+                disabled={isDirectoryLoading}
+              >
+                ПРИМЕНИТЬ
+              </button>
+              <button
+                type="button"
+                className="designers-page__action-btn"
+                onClick={clearSelection}
+                disabled={!hasSelection || isDirectoryLoading}
+              >
+                ОЧИСТИТЬ
+              </button>
+            </>
+          ) : null}
           <button type="button" className="designers-page__scroll-top" aria-label="Наверх" onClick={scrollToTop}>
             <IconChevronLeft className="designers-page__scroll-top-icon" />
           </button>

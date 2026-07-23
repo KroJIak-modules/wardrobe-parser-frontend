@@ -10,6 +10,9 @@
 .site-window-shell__frame {
   display: grid;
   gap: var(--site-window-shell-gap, 2px);
+  /* The shell has the outer 4px corner; its children must be clipped to 2px. */
+  border-radius: var(--site-window-shell-inner-radius, 2px);
+  overflow: hidden;
 }
 
 .site-window-titlebar {
@@ -23,7 +26,8 @@
   margin: -1px;
   padding: var(--site-window-titlebar-padding, 7px);
   border: var(--site-window-titlebar-border, 1px solid #9c9c9c);
-  border-radius: var(--site-window-titlebar-radius, 4px);
+  border-radius: var(--site-window-titlebar-radius, 2px);
+  overflow: hidden;
   background: var(--site-window-titlebar-background, center / 100% 100% no-repeat url("/site-mock/product-detail/sources-modal/titlebar.png?v=site-2026-06-24-1"));
 }
 

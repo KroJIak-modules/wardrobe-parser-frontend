@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { EmptyState } from "../shared/empty-state";
 import { toExternalHttpUrl } from "../shared/external-links";
 import { ImageWithFallback } from "../shared/image-with-fallback";
@@ -335,12 +336,13 @@ export function AdminProductCreateModal({
 
                   <div className="product-create__found-body">
                     {hasExistingLookupProduct ? (
-                      <a
+                      <Link
                         className="product-create__found-title"
-                        href={`/product/${lookup.product.id}?from=admin`}
+                        to={`/product/${lookup.product.id}`}
+                        state={{ fromControlPanel: true }}
                       >
                         {lookup.product.title || `Товар #${lookup.product.id}`}
-                      </a>
+                      </Link>
                     ) : (
                       <span className="product-create__found-title">
                         {lookup.product.title || "Данные источника готовы"}

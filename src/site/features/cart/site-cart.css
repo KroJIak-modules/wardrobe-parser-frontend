@@ -43,7 +43,7 @@
 
 .site-cart-card {
   width: 719px;
-  --site-window-shell-radius: 2px;
+  --site-window-shell-radius: 4px;
   --site-window-shell-gap: 2px;
 }
 
@@ -386,8 +386,8 @@
   .site-cart-card {
     width: 100%;
     --site-window-shell-border-width: 1px;
-    --site-window-shell-radius: 2px;
-    --site-window-shell-gap: 1px;
+    --site-window-shell-radius: 4px;
+    --site-window-shell-gap: 2px;
   }
 
   .site-cart-card__window-bar {

@@ -4,8 +4,10 @@ import { resolveSiteProductDetailSourceVariant } from "../../runtime/site-produc
 
 const GALLERY_WHEEL_THROTTLE_MS = 240;
 const PRODUCT_GALLERY_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
-const PRODUCT_GALLERY_SWIPE_THRESHOLD_PX = 28;
-const PRODUCT_GALLERY_DRAG_LOCK_THRESHOLD_PX = 8;
+const PRODUCT_GALLERY_SWIPE_MIN_DISTANCE_PX = 44;
+const PRODUCT_GALLERY_SWIPE_DISTANCE_RATIO = 0.14;
+const PRODUCT_GALLERY_SWIPE_FAST_VELOCITY_PX_PER_MS = 0.45;
+const PRODUCT_GALLERY_DRAG_LOCK_THRESHOLD_PX = 10;
 const PRODUCT_GALLERY_EDGE_RESISTANCE = 0.35;
 
 export function useSiteProductHeroState(product: SiteProductDetailItem) {
@@ -19,6 +21,7 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
     x: number;
     y: number;
     pointerId: number;
+    startedAt: number;
     isHorizontal: boolean | null;
   } | null>(null);
   const [isMobileGallery, setIsMobileGallery] = useState(false);
@@ -151,6 +154,7 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
         x: event.clientX,
         y: event.clientY,
         pointerId: event.pointerId,
+        startedAt: event.timeStamp,
         isHorizontal: null,
       };
       viewport.setPointerCapture?.(event.pointerId);
@@ -200,7 +204,16 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
       viewport.releasePointerCapture?.(event.pointerId);
 
       const deltaX = event.clientX - start.x;
-      const shouldNavigate = start.isHorizontal === true && Math.abs(deltaX) >= PRODUCT_GALLERY_SWIPE_THRESHOLD_PX;
+      const viewportWidth = Math.max(1, viewport.clientWidth);
+      const durationMs = Math.max(1, event.timeStamp - start.startedAt);
+      const velocity = Math.abs(deltaX) / durationMs;
+      const distanceThreshold = Math.min(
+        Math.max(PRODUCT_GALLERY_SWIPE_MIN_DISTANCE_PX, viewportWidth * PRODUCT_GALLERY_SWIPE_DISTANCE_RATIO),
+        viewportWidth * 0.32,
+      );
+      const shouldNavigate =
+        start.isHorizontal === true &&
+        (Math.abs(deltaX) >= distanceThreshold || velocity >= PRODUCT_GALLERY_SWIPE_FAST_VELOCITY_PX_PER_MS);
 
       setIsDraggingGallery(false);
       setDragOffsetPx(0);

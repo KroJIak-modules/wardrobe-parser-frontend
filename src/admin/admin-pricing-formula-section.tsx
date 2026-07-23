@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml, pricingExample, pricingExampleLoading, pricingExampleError }: Props) {
-  const pricingExampleHref = pricingExample?.productId ? `/product/${pricingExample.productId}?from=admin` : null;
+  const pricingExampleHref = pricingExample?.productId ? `/product/${pricingExample.productId}` : null;
   const pricingExampleSourceHref = toExternalHttpUrl(pricingExample?.url);
   const formatMetricMoney = (value: number, currency: string, hasRange: boolean) => {
     const formatted = formatDisplayMoney(value, currency);
@@ -44,7 +44,7 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
           </p>
           <div className="pricing-example-head">
             {pricingExampleHref ? (
-              <Link className="pricing-example-thumb-link" to={pricingExampleHref}>
+              <Link className="pricing-example-thumb-link" to={pricingExampleHref} state={{ fromControlPanel: true }}>
                 <ImageWithFallback
                   src={toCompressedThumbUrl(pricingExample.imageUrl, 240, 240, 55)}
                   alt={pricingExample.title}
@@ -68,7 +68,7 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
             )}
             <div className="pricing-example-title-row">
               {pricingExampleHref ? (
-                <Link className="btn-link pricing-example-title-link" to={pricingExampleHref}>
+                <Link className="btn-link pricing-example-title-link" to={pricingExampleHref} state={{ fromControlPanel: true }}>
                   {pricingExample.title}
                 </Link>
               ) : (

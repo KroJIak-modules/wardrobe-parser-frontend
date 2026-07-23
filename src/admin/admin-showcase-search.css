@@ -1,0 +1,117 @@
+.showcase-nav-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  margin: 0 auto 18px;
+  min-height: 49px;
+}
+
+.showcase-nav-row .showcase-nav {
+  margin-bottom: 0;
+}
+
+.showcase-search {
+  --showcase-search-height: 49px;
+  --showcase-search-icon: 22px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 49px;
+  height: var(--showcase-search-height);
+  overflow: hidden;
+  border: 1px solid #e3e7ee;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
+  box-sizing: border-box;
+  transition: width 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.showcase-search--expanded {
+  width: min(280px, calc(100vw - 48px));
+}
+
+.showcase-search__field {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  padding: 0 0 0 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.showcase-search--expanded .showcase-search__field {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.showcase-search__input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1f2430;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  outline: none;
+}
+
+.showcase-search__input::placeholder {
+  color: #8b93a1;
+}
+
+.showcase-search__button {
+  appearance: none;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 49px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.62);
+  cursor: pointer;
+  transition: color 0.14s ease, background-color 0.14s ease;
+}
+
+.showcase-search__button:hover,
+.showcase-search__button:focus-visible {
+  color: #11151c;
+  background: #eef1f6;
+  outline: none;
+}
+
+.showcase-search__icon {
+  display: block;
+  width: var(--showcase-search-icon);
+  height: var(--showcase-search-icon);
+}
+
+@media (max-width: 760px) {
+  .showcase-search {
+    position: static;
+    margin-left: auto;
+  }
+
+  .showcase-search--expanded {
+    width: min(100%, 280px);
+  }
+}

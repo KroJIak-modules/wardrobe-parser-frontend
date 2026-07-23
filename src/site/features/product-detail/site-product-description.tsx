@@ -33,13 +33,7 @@ function measureLastVisibleContentBottom(textNode: Text, visibleBottom: number):
   return bestBottom;
 }
 
-export function SiteProductDescription({
-  description,
-  onExpand,
-}: {
-  description: string;
-  onExpand?: () => void;
-}) {
+export function SiteProductDescription({ description }: { description: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const descriptionRef = useRef<HTMLDivElement | null>(null);
   const descriptionTextRef = useRef<HTMLParagraphElement | null>(null);
@@ -124,7 +118,6 @@ export function SiteProductDescription({
           className="site-product-detail__read-more"
           style={{ bottom: `${collapsedTailOffsetPx}px` }}
           onClick={() => {
-            onExpand?.();
             setIsExpanded(true);
           }}
         >

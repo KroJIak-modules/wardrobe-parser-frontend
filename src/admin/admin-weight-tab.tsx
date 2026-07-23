@@ -173,7 +173,7 @@ export function AdminWeightTab({
                       return (
                         <tr key={item.id}>
                           <td>
-                            <Link className="btn-link" to={`/product/${item.id}?from=admin`}>
+                            <Link className="btn-link" to={`/product/${item.id}`} state={{ fromControlPanel: true }}>
                               {item.title}
                             </Link>
                           </td>

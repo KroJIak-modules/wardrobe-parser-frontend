@@ -46,7 +46,6 @@ type Props = {
   updateSourceDisplaySettings: (key: string, payload: { description_mode?: "hidden" | "text"; show_images?: boolean; clean_public_titles?: boolean }) => Promise<{ ok: boolean; message: string }>;
   autoSyncPeriodMinutes: number;
   autoSyncNextRunAt: string | null;
-  autoSyncLastStatus: string | null;
   autoSyncLastError: string | null;
   updateAdminUiSettings: (payload: { auto_sync_period_minutes?: number }) => Promise<{ ok: boolean; message: string }>;
   latestJob: {
@@ -231,7 +230,6 @@ export function AdminSourcesTab({
   updateSourceDisplaySettings,
   autoSyncPeriodMinutes,
   autoSyncNextRunAt,
-  autoSyncLastStatus,
   autoSyncLastError,
   updateAdminUiSettings,
   latestJob,
@@ -330,17 +328,6 @@ export function AdminSourcesTab({
     if (minutes > 0) return `${minutes}м ${seconds}с`;
     return `${seconds}с`;
   };
-  const autoSyncStatusLabelMap: Record<string, string> = {
-    scheduled: "Запланировано",
-    started: "Запущено",
-    busy: "Ожидание: идет другая синхронизация",
-    error: "Ошибка",
-  };
-  const normalizedAutoSyncStatus = (() => {
-    const raw = String(autoSyncLastStatus || "").trim().toLowerCase();
-    return raw === "rescheduled" ? "scheduled" : raw;
-  })();
-  const autoSyncStatusLabel = autoSyncStatusLabelMap[normalizedAutoSyncStatus] || "—";
   const orderedSourceItems = useMemo(() => sortSourceItems(sources), [sources]);
   const orderedSourceKeys = useMemo(() => orderedSourceItems.map((source) => source.key), [orderedSourceItems]);
   const sourceByKey = useMemo(() => new Map(orderedSourceItems.map((source) => [source.key, source])), [orderedSourceItems]);

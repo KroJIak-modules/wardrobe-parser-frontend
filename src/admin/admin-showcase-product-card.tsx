@@ -77,7 +77,7 @@ function ShowcaseProductCardMedia({
 }
 
 export function AdminShowcaseProductCard({ product }: { product: ShowcaseCatalogProduct }) {
-  const href = `/product/${product.id}?from=admin`;
+  const href = `/product/${product.id}`;
   const designerHref = product.brand.slug
     ? `/catalog/designers?designer=${encodeURIComponent(product.brand.slug)}`
     : null;

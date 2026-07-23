@@ -56,9 +56,20 @@ function ShowcaseFilterFlyout({
     : undefined;
 
   const actionHref = group.actionItem
-    ? group.actionItem.carryKeys?.length
-      ? buildRouteTargetHrefWithCarry(group.actionItem.target, currentSearchParams, group.actionItem.carryKeys)
-      : buildRouteTargetHref(group.actionItem.target)
+    ? group.key === "designer"
+      // Public filter action opens the directory in catalog-filter mode: preserve
+      // the complete catalog query, not just the selected designers.
+      ? (() => {
+          const targetHref = buildRouteTargetHref(group.actionItem.target);
+          const currentQuery = currentSearchParams.toString();
+          if (!currentQuery) {
+            return targetHref;
+          }
+          return `${targetHref}${targetHref.includes("?") ? "&" : "?"}${currentQuery}`;
+        })()
+      : group.actionItem.carryKeys?.length
+        ? buildRouteTargetHrefWithCarry(group.actionItem.target, currentSearchParams, group.actionItem.carryKeys)
+        : buildRouteTargetHref(group.actionItem.target)
     : null;
 
   return (
@@ -231,8 +242,8 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
       } else {
         nextParams.set("page", String(page));
       }
-      setSearchParams(nextParams);
       window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      setSearchParams(nextParams);
     },
     [searchParams, setSearchParams],
   );
@@ -281,7 +292,7 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
                     applyFilterSearchParams(toggleShowcaseGroupOption(searchParams, group, option.value))
                   }
                   onReset={() => applyFilterSearchParams(clearShowcaseGroupSelection(searchParams, group))}
-                  onNavigate={(href) => navigate(href)}
+                  onNavigate={(href) => navigate(href, { state: group.key === "designer" ? { designersEntryMode: "catalog-filter" } : undefined })}
                 />
               ) : null}
             </section>
@@ -290,7 +301,7 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
       </div>
 
       <div className="showcase-catalog-products">
-        {loading ? (
+        {loading && products.length === 0 ? (
           <div className="showcase-catalog-products__grid">
             {Array.from({ length: SKELETON_COUNT }, (_, index) => (
               <AdminShowcaseProductCardSkeleton key={`showcase-catalog-skeleton-${index}`} />
@@ -309,9 +320,7 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
         )}
       </div>
 
-      {!loading && !errorMessage ? (
-        <ShowcaseCatalogPagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-      ) : null}
+      {!errorMessage ? <ShowcaseCatalogPagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} /> : null}
     </section>
   );
 }

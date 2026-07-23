@@ -213,6 +213,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
             } else {
               nextParams.set("page", String(page));
             }
+            window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
             persistSearchParams(nextParams);
           }}
         />
@@ -256,6 +257,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
                 nextParams.set("page", String(page));
               }
               persistSearchParams(nextParams);
+              window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
             }}
           />
           <SiteFooterSection />

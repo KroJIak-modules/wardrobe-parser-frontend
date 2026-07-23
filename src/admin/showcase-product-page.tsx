@@ -196,10 +196,20 @@ export function ShowcaseProductPage() {
     uploadProductImage,
     deleteProduct,
   } = useLiveData();
-  const fromAdmin = searchParams.get("from") === "admin";
-  const navigationState = location.state as { openEditMode?: boolean; adminReturnHref?: string } | null;
+  const navigationState = location.state as {
+    openEditMode?: boolean;
+    adminReturnHref?: string;
+    fromControlPanel?: boolean;
+  } | null;
   const openEditModeFromState = Boolean(navigationState?.openEditMode);
-  const adminBackHref = String(navigationState?.adminReturnHref || getAdminProductsReturnHref() || "/control/products").trim() || "/control/products";
+  // Control panel origin: explicit state, legacy ?from=admin, or stored products return href.
+  const fromControlPanel =
+    Boolean(navigationState?.fromControlPanel) ||
+    searchParams.get("from") === "admin" ||
+    Boolean(navigationState?.adminReturnHref);
+  const adminBackHref =
+    String(navigationState?.adminReturnHref || getAdminProductsReturnHref() || "/control/products").trim() ||
+    "/control/products";
   const canEdit = useShowcaseEditPermission();
 
   const productId = Number(id);
@@ -213,7 +223,7 @@ export function ShowcaseProductPage() {
   const [deletePending, setDeletePending] = useState<boolean>(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
   const [legendExpanded, setLegendExpanded] = useState<boolean>(false);
-  const [detailsEditMode, setDetailsEditMode] = useState<boolean>(() => fromAdmin && openEditModeFromState);
+  const [detailsEditMode, setDetailsEditMode] = useState<boolean>(() => fromControlPanel && openEditModeFromState);
   const [titleDraft, setTitleDraft] = useState<string>("");
   const [descriptionTextDraft, setDescriptionTextDraft] = useState<string>("");
   const [descriptionHtmlDraft, setDescriptionHtmlDraft] = useState<string>("");
@@ -292,7 +302,7 @@ export function ShowcaseProductPage() {
   }, [ensurePricingLoaded]);
 
   useEffect(() => {
-    if (!fromAdmin || !openEditModeFromState) {
+    if (!fromControlPanel || !openEditModeFromState) {
       return;
     }
     if (autoOpenedEditLocationKeyRef.current === location.key) {
@@ -300,7 +310,7 @@ export function ShowcaseProductPage() {
     }
     autoOpenedEditLocationKeyRef.current = location.key;
     setDetailsEditMode(true);
-  }, [fromAdmin, location.key, openEditModeFromState]);
+  }, [fromControlPanel, location.key, openEditModeFromState]);
 
   useEffect(() => {
     if (error) {
@@ -355,8 +365,8 @@ export function ShowcaseProductPage() {
   }, [product?.id]);
 
   useEffect(() => {
-    setDetailsEditMode(fromAdmin && openEditModeFromState);
-  }, [fromAdmin, openEditModeFromState, product?.id]);
+    setDetailsEditMode(fromControlPanel && openEditModeFromState);
+  }, [fromControlPanel, openEditModeFromState, product?.id]);
 
   useEffect(() => {
     if (!detailsEditMode) {
@@ -579,7 +589,7 @@ export function ShowcaseProductPage() {
           <EmptyState
             title="Товар не найден"
             action={
-              fromAdmin ? (
+              fromControlPanel ? (
                 <Link className="btn-link" to={adminBackHref}>
                   Вернуться в панель управления
                 </Link>
@@ -1267,7 +1277,7 @@ export function ShowcaseProductPage() {
         navigate(-1);
         return;
       }
-      navigate(fromAdmin ? adminBackHref : "/", { replace: true });
+      navigate(fromControlPanel ? adminBackHref : "/catalog", { replace: true });
     } finally {
       setDeletePending(false);
       setDeleteConfirmOpen(false);
@@ -1286,12 +1296,12 @@ export function ShowcaseProductPage() {
   return (
     <article className="section product-view svp-page">
       <div className="product-view-back">
-        {fromAdmin ? (
+        {fromControlPanel ? (
           <Link className="btn-link" to={adminBackHref}>
             ← Назад в панель управления
           </Link>
         ) : (
-          <Link className="btn-link" to="/">
+          <Link className="btn-link" to="/catalog">
             ← Назад на витрину
           </Link>
         )}
@@ -1431,7 +1441,7 @@ export function ShowcaseProductPage() {
                     <IconExternalLink className="icon-svg" />
                   </a>
                 ) : null}
-                {fromAdmin && canEdit ? (
+                {fromControlPanel && canEdit ? (
                   <>
                     <button
                       ref={deleteAnchorRef}

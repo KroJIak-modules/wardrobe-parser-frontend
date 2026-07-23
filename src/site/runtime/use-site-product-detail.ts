@@ -10,6 +10,7 @@ import {
   type SiteApiCatalogProductsResponse,
   type SiteApiProductResponse,
 } from "./site-public-api";
+import { optimizeImageUrl } from "../../shared/product-image";
 
 const SITE_RECOMMENDATIONS_LIMIT = 8;
 const SITE_RECOMMENDATIONS_MOBILE_QUERY = "(max-width: 640px)";
@@ -88,6 +89,9 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
   const description = payload.description?.content ?? "";
   const sourceVariants = groupVariants(payload.variants);
   const defaultPrice = payload.variants.find((variant) => variant.price_rub !== null)?.price_rub ?? 0;
+  const firstPhoto = payload.photos[0] ?? null;
+  const mainImage = optimizeImageUrl(firstPhoto, { width: 1280, quality: 80 }) ?? firstPhoto;
+
   return {
     id: String(payload.id),
     path: payload.path,
@@ -97,7 +101,7 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
     priceRub: defaultPrice,
     availability: statusLabel(payload.status),
     availabilityCode: statusCode(payload.status),
-    imageSrc: payload.photos[0] ?? null,
+    imageSrc: mainImage,
     imageAlt: "",
     genders: payload.recommendation_context.gender ? [payload.recommendation_context.gender] : [],
     sectionIds: payload.recommendation_context.section_slug ? [payload.recommendation_context.section_slug] : [],
@@ -105,14 +109,21 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
     sourceUrl: payload.primary_source_url,
     sizes: sourceVariants.map((variant) => variant.size),
     sourceVariants,
-    gallery: payload.photos.map((photo, index) => ({
-      id: `photo-${index + 1}`,
-      imageSrc: photo,
-      thumbSrc: photo,
-      thumbWidth: 95,
-      thumbHeight: 126,
-      alt: "",
-    })),
+    gallery: payload.photos.map((photo, index) => {
+      // Keep memory under control on product detail.
+      // Visual box is ~577x770. Requesting 480px is plenty sharp.
+      // Far slides get a thumbnail so Chrome doesn't decode 10 full bitmaps.
+      const main = optimizeImageUrl(photo, { width: 480, quality: 65 }) ?? photo;
+      const thumb = optimizeImageUrl(photo, { width: 80, quality: 55 }) ?? photo;
+      return {
+        id: `photo-${index + 1}`,
+        imageSrc: main,
+        thumbSrc: thumb,
+        thumbWidth: 95,
+        thumbHeight: 126,
+        alt: "",
+      };
+    }),
   };
 }
 

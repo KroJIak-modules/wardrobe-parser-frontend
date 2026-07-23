@@ -606,7 +606,6 @@ export function AdminPage() {
       updateSourceDisplaySettings,
       autoSyncPeriodMinutes: Math.max(60, Number(adminUiSettings?.auto_sync_period_minutes || 60)),
       autoSyncNextRunAt: adminUiSettings?.auto_sync_next_run_at || null,
-      autoSyncLastStatus: adminUiSettings?.auto_sync_last_status || null,
       autoSyncLastError: adminUiSettings?.auto_sync_last_error || null,
       updateAdminUiSettings,
       pushToast,

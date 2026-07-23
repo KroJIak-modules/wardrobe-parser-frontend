@@ -268,11 +268,6 @@
   line-height: var(--showcase-nav-item-line);
 }
 
-.showcase-nav__link-label--latex {
-  line-height: var(--showcase-nav-item-line);
-  white-space: nowrap;
-}
-
 .showcase-nav__footer {
   display: flex;
   flex: 0 0 auto;

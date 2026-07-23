@@ -98,7 +98,7 @@ export function AdminDedupDecisionsView({
                 {canOpenCreatedProduct ? (
                   <button
                     type="button"
-                    onClick={() => navigate(`/product/${createdProductId}?from=admin`)}
+                    onClick={() => navigate(`/product/${createdProductId}`, { state: { fromControlPanel: true } })}
                   >
                     Новый товар
                   </button>
