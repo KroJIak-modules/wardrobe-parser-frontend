@@ -770,10 +770,6 @@ export function AdminSourcesTab({
             <span className="muted">Следующая синхронизация через</span>
             <strong>{formatCountdown(secondsToNextRun)}</strong>
           </div>
-          <div className="admin-sync-next-run__item">
-            <span className="muted">Статус</span>
-            <strong>{autoSyncStatusLabel}</strong>
-          </div>
           {autoSyncLastError ? (
             <div className="admin-sync-next-run__item admin-sync-next-run__item--error">
               <span className="muted">Последняя ошибка</span>

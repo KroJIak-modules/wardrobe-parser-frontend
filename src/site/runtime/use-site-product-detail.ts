@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SiteProduct } from "../features/storefront/site-storefront-contracts";
+import { useSiteMediaQuery } from "./use-site-media-query";
 import type {
   SiteProductDetailItem,
   SiteProductDetailSourceVariant,
@@ -11,6 +12,27 @@ import {
 } from "./site-public-api";
 
 const SITE_RECOMMENDATIONS_LIMIT = 8;
+const SITE_RECOMMENDATIONS_MOBILE_QUERY = "(max-width: 640px)";
+const SITE_RECOMMENDATIONS_TABLET_QUERY = "(max-width: 1120px)";
+
+type RecommendationAttempt = { gender: boolean; section: boolean; designer: boolean };
+type RecommendationItems = SiteApiCatalogProductsResponse["items"];
+
+const RECOMMENDATION_ATTEMPTS: readonly RecommendationAttempt[] = [
+  { gender: true, section: true, designer: true },
+  { gender: true, section: false, designer: true },
+  { gender: true, section: true, designer: false },
+  { gender: true, section: false, designer: false },
+  { gender: false, section: true, designer: true },
+  { gender: false, section: false, designer: true },
+  { gender: false, section: true, designer: false },
+  { gender: false, section: false, designer: false },
+];
+
+type RecommendationCache = {
+  productId: number;
+  attempts: Map<number, Promise<RecommendationItems>>;
+};
 
 function statusLabel(status: "in_stock" | "preorder" | "sold_out") {
   if (status === "in_stock") {
@@ -110,46 +132,43 @@ function adaptRecommendation(item: SiteApiCatalogProductsResponse["items"][numbe
 
 async function fetchRecommendationCandidates(
   payload: SiteApiProductResponse,
-): Promise<SiteApiCatalogProductsResponse["items"]> {
+  minimumCount: number,
+  cache: RecommendationCache,
+): Promise<RecommendationItems> {
   const gender = String(payload.recommendation_context.gender || "").trim();
 
-  const attempts: Array<{ gender: boolean; section: boolean; designer: boolean }> = [
-    { gender: true, section: true, designer: true },
-    { gender: true, section: false, designer: true },
-    { gender: true, section: true, designer: false },
-    { gender: true, section: false, designer: false },
-    { gender: false, section: true, designer: true },
-    { gender: false, section: false, designer: true },
-    { gender: false, section: true, designer: false },
-    { gender: false, section: false, designer: false },
-  ];
-
-  for (const attempt of attempts) {
+  for (const [attemptIndex, attempt] of RECOMMENDATION_ATTEMPTS.entries()) {
     if (attempt.gender && !gender) {
       continue;
     }
 
-    const params = new URLSearchParams();
-    // Request one extra item because the current product may be part of the
-    // matching catalog result and must not occupy a recommendation slot.
-    params.set("limit", String(SITE_RECOMMENDATIONS_LIMIT + 1));
-    params.set("offset", "0");
-    if (attempt.gender) {
-      params.set("gender", gender);
-    }
-    if (attempt.section && payload.recommendation_context.section_slug) {
-      params.set("section", payload.recommendation_context.section_slug);
-    }
-    if (attempt.designer && payload.recommendation_context.designer_slug) {
-      params.set("designer", payload.recommendation_context.designer_slug);
+    let candidates = cache.attempts.get(attemptIndex);
+    if (!candidates) {
+      const params = new URLSearchParams();
+      // Request one extra item because the current product may be part of the
+      // matching catalog result and must not occupy a recommendation slot.
+      params.set("limit", String(SITE_RECOMMENDATIONS_LIMIT + 1));
+      params.set("offset", "0");
+      if (attempt.gender) {
+        params.set("gender", gender);
+      }
+      if (attempt.section && payload.recommendation_context.section_slug) {
+        params.set("section", payload.recommendation_context.section_slug);
+      }
+      if (attempt.designer && payload.recommendation_context.designer_slug) {
+        params.set("designer", payload.recommendation_context.designer_slug);
+      }
+
+      candidates = siteApiJson<SiteApiCatalogProductsResponse>(
+        `/site/catalog/products?${params.toString()}`,
+      )
+        .then((response) => response.items.filter((item) => item.id !== payload.id))
+        .catch(() => []);
+      cache.attempts.set(attemptIndex, candidates);
     }
 
-    const recommendationPayload = await siteApiJson<SiteApiCatalogProductsResponse>(
-      `/site/catalog/products?${params.toString()}`,
-    ).catch(() => ({ items: [], total: 0, limit: SITE_RECOMMENDATIONS_LIMIT + 1, offset: 0 }));
-
-    const filteredItems = recommendationPayload.items.filter((item) => item.id !== payload.id);
-    if (filteredItems.length > 0) {
+    const filteredItems = await candidates;
+    if (filteredItems.length >= minimumCount) {
       return filteredItems.slice(0, SITE_RECOMMENDATIONS_LIMIT);
     }
   }
@@ -158,15 +177,21 @@ async function fetchRecommendationCandidates(
 }
 
 export function useSiteProductDetail(productPath?: string) {
+  const isMobileRecommendationsLayout = useSiteMediaQuery(SITE_RECOMMENDATIONS_MOBILE_QUERY);
+  const isTabletRecommendationsLayout = useSiteMediaQuery(SITE_RECOMMENDATIONS_TABLET_QUERY);
+  const recommendationMinimum = isMobileRecommendationsLayout ? 2 : isTabletRecommendationsLayout ? 3 : 4;
   const [product, setProduct] = useState<SiteProductDetailItem | null>(null);
+  const [recommendationPayload, setRecommendationPayload] = useState<SiteApiProductResponse | null>(null);
   const [recommendations, setRecommendations] = useState<SiteProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(false);
   const [loadedProductPath, setLoadedProductPath] = useState<string | null>(null);
+  const recommendationCacheRef = useRef<RecommendationCache | null>(null);
 
   useEffect(() => {
     if (!productPath) {
       setProduct(null);
+      setRecommendationPayload(null);
       setRecommendations([]);
       setIsLoading(false);
       setIsRecommendationsLoading(false);
@@ -178,6 +203,8 @@ export function useSiteProductDetail(productPath?: string) {
     setIsLoading(true);
     setIsRecommendationsLoading(false);
     setLoadedProductPath(null);
+    setRecommendationPayload(null);
+    setRecommendations([]);
 
     siteApiJson<SiteApiProductResponse>(`/site/products/${productPath}`)
       .then(async (payload) => {
@@ -187,20 +214,14 @@ export function useSiteProductDetail(productPath?: string) {
         const nextProduct = adaptProduct(payload);
         setProduct(nextProduct);
         setLoadedProductPath(productPath);
-        setRecommendations([]);
         setIsLoading(false);
-        setIsRecommendationsLoading(true);
-
-        const recommendationItems = await fetchRecommendationCandidates(payload);
-        if (isDisposed) {
-          return;
-        }
-        setRecommendations(recommendationItems.map(adaptRecommendation));
-        setIsRecommendationsLoading(false);
+        recommendationCacheRef.current = { productId: payload.id, attempts: new Map() };
+        setRecommendationPayload(payload);
       })
       .catch(() => {
         if (!isDisposed) {
           setProduct(null);
+          setRecommendationPayload(null);
           setRecommendations([]);
           setIsLoading(false);
           setIsRecommendationsLoading(false);
@@ -212,6 +233,38 @@ export function useSiteProductDetail(productPath?: string) {
       isDisposed = true;
     };
   }, [productPath]);
+
+  useEffect(() => {
+    if (!recommendationPayload) {
+      return;
+    }
+
+    const cache = recommendationCacheRef.current;
+    if (!cache || cache.productId !== recommendationPayload.id) {
+      return;
+    }
+
+    let isDisposed = false;
+    setIsRecommendationsLoading(true);
+
+    fetchRecommendationCandidates(recommendationPayload, recommendationMinimum, cache)
+      .then((items) => {
+        if (!isDisposed) {
+          setRecommendations(items.map(adaptRecommendation));
+          setIsRecommendationsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          setRecommendations([]);
+          setIsRecommendationsLoading(false);
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [recommendationMinimum, recommendationPayload]);
 
   return useMemo(
     () => ({

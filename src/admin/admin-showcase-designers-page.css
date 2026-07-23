@@ -8,7 +8,8 @@
 .designers-page__alphabet-card {
   position: sticky;
   top: 94px;
-  z-index: 32;
+  /* Below showcase-nav (50) so top menu dropdowns stay above the alphabet strip. */
+  z-index: 20;
   width: 100%;
   align-self: stretch;
   padding: 12px 14px;

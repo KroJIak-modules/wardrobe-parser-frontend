@@ -17,8 +17,11 @@ function replaceParamValues(searchParams: URLSearchParams, key: string, values: 
   }
 }
 
-export function applyQueryPatch(patch: ShowcaseQueryPatch = {}): URLSearchParams {
+export function applyQueryPatch(patch?: ShowcaseQueryPatch | null): URLSearchParams {
   const next = new URLSearchParams();
+  if (!patch) {
+    return next;
+  }
   for (const [key, value] of Object.entries(patch)) {
     if (value === null || value === undefined) {
       continue;
@@ -31,17 +34,33 @@ export function applyQueryPatch(patch: ShowcaseQueryPatch = {}): URLSearchParams
   return next;
 }
 
-export function buildRouteTargetHref(target: ShowcaseRouteTarget): string {
-  const next = applyQueryPatch(target.query);
+function normalizeShowcasePathname(pathname: string): string {
+  const raw = String(pathname || "").trim() || "/catalog";
+  // Backend still emits /catalog/sale; admin UI uses clean /sale like public.
+  if (raw === "/catalog/sale") {
+    return "/sale";
+  }
+  return raw;
+}
+
+export function buildRouteTargetHref(target: ShowcaseRouteTarget | null | undefined): string {
+  const pathname = normalizeShowcasePathname(String(target?.pathname || "").trim() || "/catalog");
+  const next = applyQueryPatch(target?.query);
+  if (pathname === "/sale") {
+    // Public sale is a clean path without ctx/query noise.
+    next.delete("ctx");
+    next.delete("ctx_ref");
+  }
   const search = next.toString();
-  return search ? `${target.pathname}?${search}` : target.pathname;
+  return search ? `${pathname}?${search}` : pathname;
 }
 
 export function buildRouteTargetHrefWithCarry(
-  target: ShowcaseRouteTarget,
+  target: ShowcaseRouteTarget | null | undefined,
   currentSearchParams: URLSearchParams,
   carryKeys: readonly string[]
 ): string {
+  const pathname = normalizeShowcasePathname(String(target?.pathname || "").trim() || "/catalog");
   const next = new URLSearchParams();
 
   for (const key of carryKeys) {
@@ -51,7 +70,7 @@ export function buildRouteTargetHrefWithCarry(
     }
   }
 
-  for (const [key, value] of Object.entries(target.query ?? {})) {
+  for (const [key, value] of Object.entries(target?.query ?? {})) {
     if (value === null || value === undefined) {
       next.delete(key);
       continue;
@@ -60,8 +79,13 @@ export function buildRouteTargetHrefWithCarry(
     replaceParamValues(next, key, normalizedValues);
   }
 
+  if (pathname === "/sale") {
+    next.delete("ctx");
+    next.delete("ctx_ref");
+  }
+
   const search = next.toString();
-  return search ? `${target.pathname}?${search}` : target.pathname;
+  return search ? `${pathname}?${search}` : pathname;
 }
 
 export function getGroupSelection(searchParams: URLSearchParams, group: Pick<CatalogFilterGroup, "queryParam">): string[] {

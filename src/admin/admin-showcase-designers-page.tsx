@@ -238,13 +238,14 @@ export function AdminShowcaseDesignersPage() {
               </div>
               <ul className="designers-page__list">
                 {group.entries.map((entry) => {
-                  const isSelected = selectedIds.includes(entry.id);
+                  const designerKey = entry.slug || entry.id;
+                  const isSelected = selectedIds.includes(designerKey);
                   return (
-                    <li key={entry.id}>
+                    <li key={designerKey}>
                       <button
                         type="button"
                         className={isSelected ? "designers-page__designer designers-page__designer--selected" : "designers-page__designer"}
-                        onClick={() => toggleDesigner(entry.id)}
+                        onClick={() => toggleDesigner(designerKey)}
                         title={entry.label}
                       >
                         <TruncatedLatexBrand value={entry.label} className="designers-page__designer-label" />

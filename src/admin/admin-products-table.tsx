@@ -278,7 +278,7 @@ function AdminProductsTableRow({
           onClick={rememberTableState}
         >
           <ImageWithFallback
-            src={getProductPrimaryImageUrl(product, { w: 180, h: 180, q: 55 })}
+            src={getProductPrimaryImageUrl(product, { w: 216, h: 288, q: 55 })}
             alt={product.title}
             className="thumb-mini-image"
             placeholderClassName="thumb-mini photo-placeholder"
@@ -443,7 +443,7 @@ export function AdminProductsTable({
       {!tableLoading && tableProducts.length === 0 ? (
         <EmptyState compact title="По текущим фильтрам товаров нет" />
       ) : null}
-      {tableLoadingMore ? <AdminTableSkeleton rows={3} cols={9} /> : null}
+      {tableLoadingMore ? <AdminTableSkeleton rows={3} cols={9} portraitThumbs /> : null}
       <div ref={productsSentinelRef} className="products-sentinel" />
     </div>
   );

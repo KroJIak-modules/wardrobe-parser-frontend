@@ -13,7 +13,6 @@ import {
 import { DEFAULT_ADMIN_TAB } from "./admin-constants";
 import { AdminShowcaseCatalogPage } from "./admin-showcase-catalog-page";
 import { AdminShowcaseDesignersPage } from "./admin-showcase-designers-page";
-import { AdminShowcaseHomePage } from "./admin-showcase-home-page";
 import { AdminPage } from "./admin-page";
 import { AdminShowcaseLayout } from "./admin-showcase-layout";
 import { ShowcaseProductPage } from "./showcase-product-page";
@@ -221,10 +220,11 @@ function AdminRoutes() {
   const routes = (
     <Routes>
       <Route path="/" element={<AdminShowcaseRoute />}>
-        <Route index element={<AdminShowcaseHomePage />} />
+        <Route index element={<Navigate to="/catalog" replace />} />
         <Route path="catalog" element={<AdminShowcaseCatalogPage viewKey="default" />} />
         <Route path="catalog/designers" element={<AdminShowcaseCatalogPage viewKey="designers" />} />
-        <Route path="catalog/sale" element={<AdminShowcaseCatalogPage viewKey="sale" />} />
+        <Route path="catalog/sale" element={<Navigate to="/sale" replace />} />
+        <Route path="sale" element={<AdminShowcaseCatalogPage viewKey="sale" />} />
         <Route path="designers" element={<AdminShowcaseDesignersPage />} />
         <Route path="product/:id" element={<ShowcaseProductPage />} />
       </Route>

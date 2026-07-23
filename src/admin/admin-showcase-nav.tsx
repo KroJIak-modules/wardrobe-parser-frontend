@@ -1,40 +1,155 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LatexBrand } from "../shared/latex-brand";
-import type { ShowcaseNavigationMenuItem, ShowcaseNavigationSection, ShowcaseTopSectionKey } from "./showcase-contracts";
-import { fetchShowcaseNavigation } from "./showcase-api";
+import type {
+  ShowcaseNavigationMenu,
+  ShowcaseNavigationMenuBlock,
+  ShowcaseNavigationSection,
+  ShowcaseRouteTarget,
+  ShowcaseTopSectionKey,
+} from "./showcase-contracts";
+import { useAdminShowcaseNavigation } from "./hooks/use-admin-showcase-navigation";
 import { buildRouteTargetHref, buildRouteTargetHrefWithCarry } from "./showcase-url-state";
 import "./admin-showcase-nav.css";
 
-function ShowcaseNavMenuItems({
-  items,
+type ShowcaseNavColumnEntry = {
+  id: string;
+  label: string;
+  presentation: "heading" | "item";
+  target: ShowcaseRouteTarget | null;
+};
+
+type ShowcaseNavColumn = {
+  id: string;
+  align: "start" | "center";
+  title: { label: string; target: ShowcaseRouteTarget | null } | null;
+  entries: readonly ShowcaseNavColumnEntry[];
+};
+
+function blockEntries(block: ShowcaseNavigationMenuBlock): ShowcaseNavColumnEntry[] {
+  const entries: ShowcaseNavColumnEntry[] = [];
+
+  for (const group of block.groups ?? []) {
+    if (group.title) {
+      entries.push({
+        id: `${block.id}-${group.id}-heading`,
+        label: group.title,
+        presentation: "heading",
+        target: group.titleTarget ?? null,
+      });
+    }
+    for (const item of group.items) {
+      entries.push({
+        id: item.id,
+        label: item.label,
+        presentation: item.presentation === "heading" ? "heading" : "item",
+        target: item.target,
+      });
+    }
+  }
+
+  for (const item of block.items) {
+    entries.push({
+      id: item.id,
+      label: item.label,
+      presentation: item.presentation === "heading" ? "heading" : "item",
+      target: item.target,
+    });
+  }
+
+  return entries;
+}
+
+function buildMenuColumns(sectionKey: ShowcaseTopSectionKey, menu: ShowcaseNavigationMenu): ShowcaseNavColumn[] {
+  const baseColumns = menu.blocks.map((block) => ({
+    id: block.id,
+    align: (sectionKey === "designers" ? "center" : "start") as "start" | "center",
+    title: block.title
+      ? {
+          label: block.title,
+          target: block.titleTarget ?? null,
+        }
+      : null,
+    entries: blockEntries(block),
+  }));
+
+  // Public desktop: left column = first block (Одежда), right = remaining blocks
+  // flattened with their titles as headings (Обувь, Аксессуары).
+  if ((sectionKey === "men" || sectionKey === "women") && baseColumns.length > 1) {
+    const [leftColumn, ...rightColumns] = baseColumns;
+    if (rightColumns.length === 0) {
+      return baseColumns;
+    }
+
+    if (rightColumns.length === 1) {
+      return [leftColumn, rightColumns[0]];
+    }
+
+    const mergedRightEntries = rightColumns.flatMap((column) => {
+      const titleEntry: ShowcaseNavColumnEntry | null = column.title
+        ? {
+            id: `${column.id}-title`,
+            label: column.title.label,
+            presentation: "heading",
+            target: column.title.target,
+          }
+        : null;
+      // Nested group titles stay as headings; block body items stay items.
+      return titleEntry ? [titleEntry, ...column.entries] : column.entries;
+    });
+
+    return [
+      leftColumn,
+      {
+        id: rightColumns.map((column) => column.id).join("-"),
+        align: "start",
+        title: null,
+        entries: mergedRightEntries,
+      },
+    ];
+  }
+
+  return baseColumns;
+}
+
+function ShowcaseNavColumnEntries({
+  entries,
   sectionKey,
   onNavigate,
 }: {
-  items: readonly ShowcaseNavigationMenuItem[];
+  entries: readonly ShowcaseNavColumnEntry[];
   sectionKey: ShowcaseTopSectionKey;
   onNavigate: () => void;
 }) {
   return (
-    <ul className="showcase-nav__block-list">
-      {items.map((item) => (
-        <li key={item.id}>
-          <Link
-            className={
-              item.presentation === "heading" ? "showcase-nav__link showcase-nav__link--heading" : "showcase-nav__link"
-            }
-            to={buildRouteTargetHref(item.target)}
-            onClick={onNavigate}
-          >
-            {sectionKey === "designers" ? (
-              <LatexBrand value={item.label} className="showcase-nav__link-label showcase-nav__link-label--latex" />
-            ) : (
-              <span className="showcase-nav__link-label">{item.label}</span>
-            )}
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <div className="showcase-nav__column-items">
+      {entries.map((entry) => {
+        const className =
+          entry.presentation === "heading"
+            ? "showcase-nav__link showcase-nav__link--heading"
+            : "showcase-nav__link";
+        const label =
+          sectionKey === "designers" ? (
+            <LatexBrand value={entry.label} className="showcase-nav__link-label showcase-nav__link-label--latex" />
+          ) : (
+            <span className="showcase-nav__link-label">{entry.label}</span>
+          );
+
+        if (entry.target) {
+          return (
+            <Link key={entry.id} className={className} to={buildRouteTargetHref(entry.target)} onClick={onNavigate}>
+              {label}
+            </Link>
+          );
+        }
+
+        return (
+          <p key={entry.id} className={className}>
+            {label}
+          </p>
+        );
+      })}
+    </div>
   );
 }
 
@@ -51,10 +166,14 @@ function ShowcaseNavMenu({
     return null;
   }
 
+  const columns = buildMenuColumns(section.key, section.menu);
   const panelContentClassName = [
     "showcase-nav__panel-content",
     `showcase-nav__panel-content--${section.menu.layout}`,
-  ].join(" ");
+    section.key === "men" || section.key === "women" ? "showcase-nav__panel-content--gender" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className="showcase-nav__overlay">
@@ -62,34 +181,30 @@ function ShowcaseNavMenu({
       <div className="showcase-nav__panel">
         <div className="showcase-nav__panel-body">
           <div className={panelContentClassName}>
-            {section.menu.blocks.map((block) => (
-              <section key={block.id} className="showcase-nav__block" aria-label={block.title || undefined}>
-                {block.title ? (
-                  block.titleTarget ? (
+            {columns.map((column, index) => (
+              <section
+                key={column.id}
+                className={[
+                  "showcase-nav__column",
+                  index === 0 ? "showcase-nav__column--left" : "showcase-nav__column--right",
+                  column.align === "center" ? "showcase-nav__column--center" : "showcase-nav__column--start",
+                ].join(" ")}
+                aria-label={column.title?.label || undefined}
+              >
+                {column.title ? (
+                  column.title.target ? (
                     <Link
-                      className="showcase-nav__block-title showcase-nav__block-title--link"
-                      to={buildRouteTargetHref(block.titleTarget)}
+                      className="showcase-nav__column-title showcase-nav__column-title--link"
+                      to={buildRouteTargetHref(column.title.target)}
                       onClick={onNavigate}
                     >
-                      {block.title}
+                      {column.title.label}
                     </Link>
                   ) : (
-                    <h3 className="showcase-nav__block-title">{block.title}</h3>
+                    <h3 className="showcase-nav__column-title">{column.title.label}</h3>
                   )
                 ) : null}
-                {Array.isArray(block.groups) && block.groups.length > 0 ? (
-                  <div className="showcase-nav__block-groups">
-                    {block.groups.map((group) => (
-                      <div key={group.id} className="showcase-nav__group">
-                        <h4 className="showcase-nav__group-title">{group.title}</h4>
-                        <ShowcaseNavMenuItems items={group.items} sectionKey={section.key} onNavigate={onNavigate} />
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {block.items.length > 0 ? (
-                  <ShowcaseNavMenuItems items={block.items} sectionKey={section.key} onNavigate={onNavigate} />
-                ) : null}
+                <ShowcaseNavColumnEntries entries={column.entries} sectionKey={section.key} onNavigate={onNavigate} />
               </section>
             ))}
           </div>
@@ -113,26 +228,14 @@ function ShowcaseNavMenu({
 export function AdminShowcaseNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [sections, setSections] = useState<readonly ShowcaseNavigationSection[]>([]);
+  // Top tabs from shell immediately; menus from shared navigation cache/API.
+  const { sections } = useAdminShowcaseNavigation();
   const [activeSectionKey, setActiveSectionKey] = useState<ShowcaseTopSectionKey | null>(null);
   const currentSearchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
-  useEffect(() => {
-    let aborted = false;
-    void (async () => {
-      const response = await fetchShowcaseNavigation().catch(() => ({ sections: [] }));
-      if (!aborted) {
-        setSections(response.sections);
-      }
-    })();
-    return () => {
-      aborted = true;
-    };
-  }, []);
-
   const activeSection = useMemo(
     () => sections.find((section) => section.key === activeSectionKey) ?? null,
-    [activeSectionKey, sections]
+    [activeSectionKey, sections],
   );
 
   return (
@@ -141,12 +244,13 @@ export function AdminShowcaseNav() {
         <div className="showcase-nav__bar" aria-label="Верхняя навигация">
           {sections.map((section) => {
             const isActive = activeSectionKey === section.key;
+            const hasMenu = Boolean(section.menu);
             return (
               <button
                 key={section.key}
                 type="button"
                 className={isActive ? "showcase-nav__item showcase-nav__item--active" : "showcase-nav__item"}
-                aria-expanded={activeSectionKey === section.key && section.menu ? true : undefined}
+                aria-expanded={isActive && hasMenu ? true : undefined}
                 onMouseEnter={() => setActiveSectionKey(section.key)}
                 onFocus={() => setActiveSectionKey(section.key)}
                 onClick={() => {
@@ -162,7 +266,7 @@ export function AdminShowcaseNav() {
           })}
         </div>
 
-        {activeSection ? (
+        {activeSection?.menu ? (
           <ShowcaseNavMenu
             section={activeSection}
             currentSearchParams={currentSearchParams}

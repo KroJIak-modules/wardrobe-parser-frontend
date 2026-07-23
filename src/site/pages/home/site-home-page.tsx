@@ -182,7 +182,7 @@ export function SiteHomePage() {
                 alt=""
                 className="site-landing__image"
                 fillContainer
-                skeletonVariant="spotlight"
+                enableSkeleton={false}
               />
             ) : (
               <div className="site-landing__image site-landing__image--placeholder" aria-hidden="true" />

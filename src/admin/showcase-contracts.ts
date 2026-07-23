@@ -7,8 +7,8 @@ export type ShowcaseQueryValue = string | readonly string[];
 export type ShowcaseQueryPatch = Record<string, ShowcaseQueryValue | null | undefined>;
 
 export type ShowcaseRouteTarget = {
-  pathname: "/" | "/catalog" | "/catalog/designers" | "/catalog/sale" | "/designers";
-  query?: ShowcaseQueryPatch;
+  pathname: "/" | "/catalog" | "/catalog/designers" | "/catalog/sale" | "/sale" | "/designers";
+  query?: ShowcaseQueryPatch | null;
 };
 
 export type ShowcaseNavigationMenuItemKind = "curated_listing" | "system_link" | "filter_link" | "filter_bundle";
@@ -24,6 +24,7 @@ export type ShowcaseNavigationMenuItem = {
 export type ShowcaseNavigationMenuGroup = {
   id: string;
   title: string;
+  titleTarget?: ShowcaseRouteTarget | null;
   items: readonly ShowcaseNavigationMenuItem[];
 };
 
@@ -120,8 +121,33 @@ export type CatalogExperienceResponse = {
   previewMetrics: readonly CatalogPreviewMetric[];
 };
 
+export type ShowcaseCatalogProductStatus = "in_stock" | "preorder" | "sold_out";
+
+export type ShowcaseCatalogProductBrand = {
+  name: string;
+  slug: string | null;
+};
+
+export type ShowcaseCatalogProduct = {
+  id: number;
+  path: string;
+  brand: ShowcaseCatalogProductBrand;
+  name: string;
+  price_rub: number | null;
+  status: ShowcaseCatalogProductStatus;
+  image_url: string | null;
+};
+
+export type ShowcaseCatalogProductsResponse = {
+  items: readonly ShowcaseCatalogProduct[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type ShowcaseDesignersDirectoryEntry = {
   id: string;
+  slug: string;
   label: string;
   letter: string;
 };

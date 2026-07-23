@@ -1423,6 +1423,11 @@ button.topbar-cta {
   border-radius: 8px;
 }
 
+.admin-skeleton-table--portrait-thumbs .admin-skeleton-table-thumb {
+  width: 72px;
+  height: 96px;
+}
+
 .admin-skeleton-table-cell {
   height: 14px;
   border-radius: 999px;
@@ -4960,6 +4965,16 @@ textarea {
 .thumb-mini-link {
   display: inline-flex;
   border-radius: 8px;
+}
+
+.products-table .thumb-mini,
+.products-table .thumb-mini-image {
+  width: 72px;
+  height: 96px;
+}
+
+.products-table .thumb-mini-image {
+  object-position: center;
 }
 
 .status-pill {

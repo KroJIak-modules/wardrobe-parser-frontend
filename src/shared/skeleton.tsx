@@ -30,18 +30,19 @@ export function AdminSectionSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
-export function AdminTableSkeleton({ rows = 6, cols = 6 }: { rows?: number; cols?: number }) {
+export function AdminTableSkeleton({ rows = 6, cols = 6, portraitThumbs = false }: { rows?: number; cols?: number; portraitThumbs?: boolean }) {
   const columns = Math.max(1, cols);
+  const thumbColumnWidth = portraitThumbs ? 80 : 72;
   return (
-    <div className="admin-skeleton-table" aria-hidden="true">
-      <div className="admin-skeleton-table-head" style={{ gridTemplateColumns: `72px repeat(${Math.max(1, columns - 1)}, minmax(90px, 1fr))` }}>
+    <div className={`admin-skeleton-table${portraitThumbs ? " admin-skeleton-table--portrait-thumbs" : ""}`} aria-hidden="true">
+      <div className="admin-skeleton-table-head" style={{ gridTemplateColumns: `${thumbColumnWidth}px repeat(${Math.max(1, columns - 1)}, minmax(90px, 1fr))` }}>
         <SkeletonBlock className="admin-skeleton-table-head-cell admin-skeleton-table-head-cell--thumb" />
         {Array.from({ length: Math.max(0, columns - 1) }).map((_, idx) => (
           <SkeletonBlock key={`admin-table-head-cell-${idx}`} className="admin-skeleton-table-head-cell" />
         ))}
       </div>
       {Array.from({ length: rows }).map((_, ridx) => (
-        <div key={`admin-table-row-${ridx}`} className="admin-skeleton-table-row" style={{ gridTemplateColumns: `72px repeat(${Math.max(1, columns - 1)}, minmax(90px, 1fr))` }}>
+        <div key={`admin-table-row-${ridx}`} className="admin-skeleton-table-row" style={{ gridTemplateColumns: `${thumbColumnWidth}px repeat(${Math.max(1, columns - 1)}, minmax(90px, 1fr))` }}>
           <SkeletonBlock className="admin-skeleton-table-thumb" />
           {Array.from({ length: Math.max(0, columns - 1) }).map((_, cidx) => (
             <SkeletonBlock
@@ -72,7 +73,7 @@ export function AdminProductsSkeleton() {
           <SkeletonBlock className="admin-products-skeleton-button" />
         </aside>
         <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
-          <AdminTableSkeleton rows={8} cols={8} />
+          <AdminTableSkeleton rows={8} cols={8} portraitThumbs />
         </div>
       </div>
     </div>

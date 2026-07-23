@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SiteCatalogFilterGroup, SiteCatalogHeader, SiteCatalogProduct } from "../features/catalog/site-catalog-contracts";
 import { SHOW_ALL_DESIGNERS_VALUE } from "../features/catalog/site-catalog-filter-constants";
+import { createSiteCatalogFilterShell, getSiteCatalogFilterUiPreset } from "../features/catalog/site-catalog-filter-shell";
 import { readCatalogListParam } from "../features/catalog/site-catalog-query";
 import { siteApiJson, type SiteApiCatalogExperience, type SiteApiCatalogProductsResponse } from "./site-public-api";
 
@@ -21,63 +22,6 @@ type CachedCatalogProducts = {
 // naturally clears it, while history back can restore the exact catalog view.
 const catalogExperienceCache = new Map<string, CachedCatalogExperience>();
 const catalogProductsCache = new Map<string, CachedCatalogProducts>();
-
-const FILTER_UI_PRESETS: Record<string, Partial<SiteCatalogFilterGroup>> = {
-  sort: {
-    triggerWidthPx: 140,
-    panelHeightPx: 65,
-    panelListWidthPx: 112,
-    panelFlyoutWidthPx: 134,
-    panelListTopPx: 7,
-    panelListLeftPx: 11,
-    panelListHeightPx: 45,
-    panelListAlign: "start",
-  },
-  availability: {
-    triggerWidthPx: 80,
-    panelHeightPx: 46,
-    panelListWidthPx: 72,
-    panelFlyoutWidthPx: 134,
-    panelListTopPx: 7,
-    panelListHeightPx: 32,
-    panelListAlign: "center",
-  },
-  section: {
-    triggerWidthPx: 65,
-    panelHeightPx: 369,
-    panelListWidthPx: 117,
-    panelFlyoutWidthPx: 133,
-    panelListTopPx: 7,
-    panelListLeftPx: 7,
-    panelListHeightPx: 355,
-    panelListAlign: "start",
-    panelWidth: "wide",
-    maxVisibleOptions: 19,
-    prioritizeSelected: true,
-  },
-  designer: {
-    triggerWidthPx: 105,
-    panelHeightPx: 160,
-    panelListWidthPx: 120,
-    panelFlyoutWidthPx: 134,
-    panelListTopPx: 7,
-    panelListLeftPx: 7,
-    panelListHeightPx: 146,
-    panelListAlign: "start",
-    panelWidth: "wide",
-    maxVisibleOptions: 8,
-    prioritizeSelected: true,
-  },
-  gender: {
-    triggerWidthPx: 35,
-    panelHeightPx: 46,
-    panelListWidthPx: 72,
-    panelFlyoutWidthPx: 134,
-    panelListTopPx: 7,
-    panelListHeightPx: 32,
-    panelListAlign: "center",
-  },
-};
 
 function adaptFilterOptionValue(groupKey: string, value: string) {
   if (groupKey === "availability" && value === "by_order") {
@@ -178,7 +122,7 @@ function adaptFilterGroups(payload: SiteApiCatalogExperience["filter_groups"]): 
       panelWidth: group.panel_width ?? undefined,
       maxVisibleOptions: group.max_visible_options ?? undefined,
       prioritizeSelected: group.prioritize_selected ?? undefined,
-      ...FILTER_UI_PRESETS[group.key],
+      ...getSiteCatalogFilterUiPreset(group.key),
     };
   });
 }
@@ -275,7 +219,9 @@ export function useSiteCatalog(
   const restoredExperience = restoreFromHistory ? catalogExperienceCache.get(experienceQuery) : undefined;
   const restoredProducts = restoreFromHistory ? catalogProductsCache.get(productsQuery) : undefined;
   const [header, setHeader] = useState<SiteCatalogHeader>(() => restoredExperience?.header ?? { title: "Каталог", description: null, source: "catalog" });
-  const [filterGroups, setFilterGroups] = useState<SiteCatalogFilterGroup[]>(() => restoredExperience?.filterGroups ?? []);
+  const [filterGroups, setFilterGroups] = useState<SiteCatalogFilterGroup[]>(
+    () => restoredExperience?.filterGroups ?? createSiteCatalogFilterShell(),
+  );
   const [products, setProducts] = useState<SiteCatalogProduct[]>(() => restoredProducts?.products ?? []);
   const [total, setTotal] = useState(() => restoredProducts?.total ?? 0);
   const [loading, setLoading] = useState(() => restoredProducts === undefined);
@@ -312,7 +258,7 @@ export function useSiteCatalog(
           return;
         }
         setHeader({ title: "Каталог", description: null, source: "catalog" });
-        setFilterGroups([]);
+        // Keep shell / previous bar visible — do not collapse filters on error.
       });
 
     return () => {

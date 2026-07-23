@@ -36,6 +36,8 @@ export function SiteCatalogFilters({
             ? selectedValues.length > 0
             : selectedValues.length > 1);
 
+        const optionsReady = group.options.length > 0;
+
         return (
           <section
             key={group.key}
@@ -57,14 +59,14 @@ export function SiteCatalogFilters({
                   ? "site-catalog-filters__trigger site-catalog-filters__trigger--active"
                   : "site-catalog-filters__trigger"
               }
-              aria-expanded={isActive}
+              aria-expanded={isActive && optionsReady}
               onClick={() => setActiveGroupKey((current) => (current === group.key ? null : group.key))}
             >
               <span>{triggerLabel}</span>
               {shouldShowCount ? <span className="site-catalog-filters__trigger-note">({selectedValues.length})</span> : null}
             </button>
             <div className="site-catalog-filters__safe-zone" aria-hidden="true" />
-            {isActive ? (
+            {isActive && optionsReady ? (
               <SiteCatalogFilterFlyout
                 group={group}
                 selectedValues={selectedValues}

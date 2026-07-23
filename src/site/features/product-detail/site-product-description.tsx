@@ -35,14 +35,20 @@ function measureLastVisibleContentBottom(textNode: Text, visibleBottom: number):
 
 export function SiteProductDescription({
   description,
+  onExpand,
 }: {
   description: string;
+  onExpand?: () => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const descriptionRef = useRef<HTMLDivElement | null>(null);
   const descriptionTextRef = useRef<HTMLParagraphElement | null>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
   const [collapsedTailOffsetPx, setCollapsedTailOffsetPx] = useState(0);
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [description]);
 
   useEffect(() => {
     const node = descriptionRef.current;
@@ -117,7 +123,10 @@ export function SiteProductDescription({
           type="button"
           className="site-product-detail__read-more"
           style={{ bottom: `${collapsedTailOffsetPx}px` }}
-          onClick={() => setIsExpanded(true)}
+          onClick={() => {
+            onExpand?.();
+            setIsExpanded(true);
+          }}
         >
           ...Читать дальше
         </button>
