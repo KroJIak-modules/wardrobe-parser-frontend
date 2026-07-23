@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { formatSiteRubles } from "../../app/site-format";
 import type { SiteProductDetailItem } from "../../runtime/site-product-detail";
@@ -22,6 +22,10 @@ export function SiteProductHero({
   const { addItem } = useSiteCart();
   const designerHref = product.designerId ? buildDesignerCatalogHref(product.designerId) : null;
   const thumbButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const summaryRef = useRef<HTMLDivElement | null>(null);
+  const collapsedSummaryHeightRef = useRef<number | null>(null);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [summaryExpansionHeightPx, setSummaryExpansionHeightPx] = useState(0);
   const {
     dragOffsetPx,
     hasMultipleSourceVariants,
@@ -56,9 +60,45 @@ export function SiteProductHero({
     });
   }, [selectedGalleryItem]);
 
+  useEffect(() => {
+    setIsDescriptionExpanded(false);
+    setSummaryExpansionHeightPx(0);
+    collapsedSummaryHeightRef.current = null;
+  }, [product.id]);
+
+  useLayoutEffect(() => {
+    const summary = summaryRef.current;
+    if (!summary) {
+      return undefined;
+    }
+
+    const updateExpansionHeight = () => {
+      const height = summary.getBoundingClientRect().height;
+      if (!isDescriptionExpanded) {
+        collapsedSummaryHeightRef.current = height;
+        setSummaryExpansionHeightPx((current) => (current === 0 ? current : 0));
+        return;
+      }
+
+      const collapsedHeight = collapsedSummaryHeightRef.current;
+      if (collapsedHeight === null) {
+        return;
+      }
+      const expansionHeight = Math.max(0, height - collapsedHeight);
+      setSummaryExpansionHeightPx((current) => (Math.abs(current - expansionHeight) < 0.5 ? current : expansionHeight));
+    };
+
+    updateExpansionHeight();
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateExpansionHeight);
+    resizeObserver?.observe(summary);
+    return () => resizeObserver?.disconnect();
+  }, [isDescriptionExpanded]);
 
   return (
-    <section className="site-product-detail__hero">
+    <section
+      className="site-product-detail__hero"
+      style={{ "--site-product-detail-summary-expansion-height": `${summaryExpansionHeightPx}px` } as CSSProperties}
+    >
       <div className="site-product-detail__thumbs" aria-label="Миниатюры товара">
         {product.gallery.map((item, index) => {
           const isActive = item.id === selectedGalleryItem?.id;
@@ -129,7 +169,7 @@ export function SiteProductHero({
         </div>
       </div>
 
-      <div className="site-product-detail__summary">
+      <div ref={summaryRef} className="site-product-detail__summary">
         <div className="site-product-detail__summary-head">
           <div className="site-product-detail__title-block">
             {designerHref ? (
@@ -165,7 +205,7 @@ export function SiteProductHero({
           ДОБАВИТЬ В КОРЗИНУ
         </button>
 
-        <SiteProductDescription description={product.description} />
+        <SiteProductDescription description={product.description} onExpand={() => setIsDescriptionExpanded(true)} />
 
         {product.sourceUrl || hasMultipleSourceVariants ? (
           hasMultipleSourceVariants ? (

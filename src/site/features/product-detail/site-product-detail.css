@@ -21,13 +21,16 @@
 .site-product-detail__hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--site-product-detail-main-image-width) minmax(0, 1fr);
-  grid-template-rows: minmax(var(--site-product-detail-main-image-height), max-content);
+  grid-template-rows: var(--site-product-detail-main-image-height);
+  /* The summary remains vertically anchored to the gallery. Its growth becomes
+     explicit bottom space in the same grid cell, so recommendations move down
+     without moving the product title, price, or controls upward. */
+  padding-bottom: calc(var(--site-product-detail-hero-bottom-gap) + var(--site-product-detail-summary-expansion-height, 0px));
   align-items: center;
   justify-items: center;
   width: 100%;
   padding-top: var(--site-product-detail-hero-top-gap);
   min-height: 100dvh;
-  padding-bottom: var(--site-product-detail-hero-bottom-gap);
 }
 
 .site-product-detail__thumbs {
@@ -138,6 +141,9 @@
   justify-items: center;
   align-content: start;
   justify-self: center;
+  /* Grid centering would otherwise grow in both directions. The parent owns
+     the measured extra height, so counter-shift by half to retain the top edge. */
+  transform: translateY(calc(var(--site-product-detail-summary-expansion-height, 0px) * 0.5));
 }
 
 @media (min-width: 641px) {

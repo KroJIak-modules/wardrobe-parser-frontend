@@ -12,16 +12,18 @@ type HeaderAction = {
 
 type SiteHeaderProps = {
   actions?: HeaderAction[];
+  belowActions?: ReactNode;
 };
 
-export function SiteHeader({ actions = [] }: SiteHeaderProps) {
+export function SiteHeader({ actions = [], belowActions }: SiteHeaderProps) {
   return (
     <header className="topbar">
       <div className="topbar-inner">
         <Link to="/" className="brand" aria-label="Anton Shell">
           <img src="/logo_anton_shell.svg" alt="Anton Shell" className="brand-logo" />
         </Link>
-        <div className="topbar-actions">
+        <div className="topbar-actions-stack">
+          <div className="topbar-actions">
           {actions.map((action, index) => {
             const cls = `topbar-cta topbar-cta--${action.variant || "default"}`;
             if (action.to) {
@@ -67,6 +69,8 @@ export function SiteHeader({ actions = [] }: SiteHeaderProps) {
               </button>
             );
           })}
+          </div>
+          {belowActions ? <div className="topbar-below-actions">{belowActions}</div> : null}
         </div>
       </div>
     </header>
