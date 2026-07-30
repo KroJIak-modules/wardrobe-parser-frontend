@@ -206,11 +206,12 @@ function isAbortError(error: unknown) {
 
 export function useSiteCatalog(
   searchParams: URLSearchParams,
-  options?: { forcedTop?: string; pageSize?: number; restoreFromHistory?: boolean },
+  options?: { forcedTop?: string; pageSize?: number; restoreFromHistory?: boolean; enabled?: boolean },
 ) {
   const forcedTop = options?.forcedTop;
   const pageSize = options?.pageSize ?? 48;
   const restoreFromHistory = Boolean(options?.restoreFromHistory);
+  const enabled = options?.enabled ?? true;
   const pageParam = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const currentPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const searchKey = searchParams.toString();
@@ -228,6 +229,10 @@ export function useSiteCatalog(
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const cached = restoreFromHistory ? catalogExperienceCache.get(experienceQuery) : undefined;
     if (cached) {
       setHeader(cached.header);
@@ -265,9 +270,13 @@ export function useSiteCatalog(
       isDisposed = true;
       controller.abort();
     };
-  }, [experienceQuery, restoreFromHistory]);
+  }, [enabled, experienceQuery, restoreFromHistory]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const cached = restoreFromHistory ? catalogProductsCache.get(productsQuery) : undefined;
     if (cached) {
       setProducts(cached.products);
@@ -312,7 +321,7 @@ export function useSiteCatalog(
       isDisposed = true;
       controller.abort();
     };
-  }, [productsQuery, restoreFromHistory, searchKey]);
+  }, [enabled, productsQuery, restoreFromHistory, searchKey]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [pageSize, total]);
 

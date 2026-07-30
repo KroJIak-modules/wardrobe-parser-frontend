@@ -9,9 +9,7 @@ import {
 import { landingHeroButtonLabel } from "../../app/site-static-content";
 import { SiteImage } from "../../features/image/site-image";
 import { LandingGlassButtons } from "../../features/landing/landing-glass-buttons";
-import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
-import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import { useSiteShowcaseMedia } from "../../runtime/use-site-showcase-media";
 import { SiteHomeSurface } from "./site-home-surface";
 import "./site-home-page.css";
@@ -36,7 +34,6 @@ export function SiteHomePage() {
   });
   const [isCtaTransitionPending, setIsCtaTransitionPending] = useState(false);
   const { media, isCarouselReady, isCarouselResolved, loading: isShowcaseMediaLoading } = useSiteShowcaseMedia({ preloadCarousel: true });
-  const { payload: navigation } = useSiteNavigation();
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
   const heroAsset = isMobileLayout ? media.heroMobile ?? media.heroDesktop : media.heroDesktop;
   const hasHeroForViewport = heroAsset !== null;
@@ -151,15 +148,6 @@ export function SiteHomePage() {
 
   return (
     <main className="site-landing" data-phase={phase}>
-      {isMobileLayout && phase === "entered" ? (
-        <SiteMobileHomeHeader
-          navigation={navigation}
-          onLogoActivate={() => {
-            window.scrollTo({ top: 0, behavior: "smooth" });
-            navigate("/", { replace: true, state: heroHomeState() });
-          }}
-        />
-      ) : null}
       {!isHeroAvailabilityResolved || hasHeroForViewport ? (
         <div
           className={`site-landing__track${phase === "transition" ? " site-landing__track--shifted" : ""}`}

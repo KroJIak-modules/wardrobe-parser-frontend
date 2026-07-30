@@ -8,11 +8,17 @@
   --site-product-detail-thumb-mobile-width: 47px;
   --site-product-detail-thumb-mobile-height: 63px;
   --site-product-detail-thumb-mobile-gap: 15px;
-  --site-product-detail-main-image-height: max(
+  --site-product-detail-main-image-max-height: max(
     0px,
     calc(100dvh - var(--site-product-detail-hero-top-gap) - var(--site-product-detail-hero-bottom-gap))
   );
-  --site-product-detail-main-image-width: calc(var(--site-product-detail-main-image-height) * 577 / 770);
+  /* The desktop summary is 302px wide. Reserve that width on both sides
+   * instead of letting the gallery create page-level horizontal overflow. */
+  --site-product-detail-main-image-width: min(
+    calc(var(--site-product-detail-main-image-max-height) * 577 / 770),
+    max(0px, calc(100vw - 604px))
+  );
+  --site-product-detail-main-image-height: calc(var(--site-product-detail-main-image-width) * 770 / 577);
   width: 100%;
   margin: 0 auto;
   background: #fff;
@@ -645,9 +651,12 @@
 
 .site-product-detail__recommendations-grid {
   display: grid;
-  grid-template-columns: repeat(4, 325px);
+  /* The recommendation section keeps 24px page gutters and 20px gaps.
+   * Its tracks are the only responsive dimension. */
+  grid-template-columns: repeat(4, minmax(0, min(325px, calc((100% - 60px) / 4))));
+  justify-content: center;
   gap: 20px;
-  width: 1360px;
+  width: min(1360px, calc(100% - 48px));
   margin: 20px auto 0;
 }
 
@@ -1035,29 +1044,54 @@
     width: 100%;
   }
 
-  .site-product-detail__recommendations-grid {
-    width: calc(100% - 48px);
-    grid-template-columns: repeat(4, minmax(0, 325px));
-    justify-content: center;
-  }
-
   .site-product-detail__sources-dialog {
     top: 180px;
   }
 }
 
-@media (max-width: 1120px) {
+/* The tablet header does not change the product-grid layout. From 1360px to
+ * the real mobile layout at 640px there are always three fixed-gap tracks. */
+@media (max-width: 1360px) and (min-width: 641px) {
+  .site-product-detail__recommendations-grid {
+    grid-template-columns: repeat(3, minmax(0, min(325px, calc((100% - 40px) / 3))));
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1360px) and (min-width: 641px) {
+  .site-product-detail {
+    --site-product-detail-hero-top-gap: 124px;
+    --site-product-detail-main-image-width: min(577px, calc(100vw - var(--site-product-detail-thumbs-width) - 72px));
+    --site-product-detail-main-image-height: calc(var(--site-product-detail-main-image-width) * 770 / 577);
+  }
+
   .site-product-detail__hero {
-    display: grid;
-    justify-items: center;
+    grid-template-columns: var(--site-product-detail-thumbs-width) minmax(0, var(--site-product-detail-main-image-width));
+    grid-template-rows: var(--site-product-detail-main-image-height) auto;
+    justify-content: center;
+    column-gap: 24px;
+    row-gap: 32px;
+    min-height: 0;
+    /* A 302px summary is allowed to occupy only the available page width,
+     * preventing a 1361px detail page from creating horizontal overflow. */
+    padding-inline: 24px;
+    box-sizing: border-box;
   }
 
   .site-product-detail__thumbs {
+    grid-column: 1;
+    grid-row: 1;
     grid-auto-flow: column;
   }
 
-  .site-product-detail__recommendations-grid {
-    grid-template-columns: repeat(2, 325px);
+  .site-product-detail__main-image-shell {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .site-product-detail__summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .site-product-detail__sources-dialog {
@@ -1472,9 +1506,13 @@
   }
 
   .site-product-detail__recommendations-grid {
+    /* Keep the same phone gutter contract as all product-card grids. */
+    --site-mobile-product-grid-gutter: clamp(0px, calc(50vw - 200px), 20px);
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
     width: 100%;
+    padding-inline: var(--site-mobile-product-grid-gutter);
+    box-sizing: border-box;
     margin: 15px 0 0;
   }
 

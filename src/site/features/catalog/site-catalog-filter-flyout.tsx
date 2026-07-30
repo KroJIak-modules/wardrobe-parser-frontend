@@ -39,18 +39,13 @@ export function SiteCatalogFilterFlyout({
   const shouldScroll =
     isAdaptiveSectionFlyout && maxListHeightPx > 0 ? naturalListHeightPx > maxListHeightPx : Boolean(group.maxVisibleOptions && finalOptions.length > group.maxVisibleOptions);
   const listStyle = {
-    width: `${group.panelListWidthPx ?? 90}px`,
+    /* The options share the panel's fixed 155px width, so every label has a
+     * single, genuinely centred alignment regardless of legacy data offsets. */
+    width: "100%",
     top: `${group.panelListTopPx ?? 7}px`,
     ...(computedListHeightPx ? { height: `${computedListHeightPx}px` } : group.panelListHeightPx ? { minHeight: `${group.panelListHeightPx}px` } : {}),
-    ...(group.panelListLeftPx !== undefined
-      ? {
-          left: `${group.panelListLeftPx}px`,
-          transform: "none",
-        }
-      : {
-          left: "50%",
-          transform: "translateX(-50%)",
-        }),
+    left: "0",
+    transform: "none",
     ...(shouldScroll && computedListHeightPx ? { "--site-catalog-list-height": `${computedListHeightPx}px` } : {}),
   } as CSSProperties;
   const panelStyle = {

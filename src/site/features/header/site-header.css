@@ -58,6 +58,10 @@
   filter: brightness(0);
 }
 
+.site-header__logo-image--tablet {
+  display: none;
+}
+
 .site-header__menu,
 .site-header__actions {
   position: absolute;
@@ -492,20 +496,143 @@
   width: auto;
 }
 
+.site-header__action-cart-icon,
+.site-header__action-search-icon {
+  display: none;
+}
+
+/* 1360px – 1101px: keep the normal logo implementation and only scale it down.
+ * At 1360px it stays desktop-sized (325×89), at 1101px it reaches 262×72.
+ * Do not swap assets, do not add backgrounds, do not override mix-blend inversion. */
+@media (max-width: 1360px) and (min-width: 1101px) {
+  .site-header__logo-shell {
+    --site-header-logo-adaptive-height: clamp(72px, calc(6.564vw - 0.3px), 89px);
+    top: calc((89px - var(--site-header-logo-adaptive-height)) / 2);
+    left: clamp(20px, calc(7.722vw - 65px), 40px);
+    width: clamp(262px, calc(24.324vw - 5.8px), 325px);
+    height: var(--site-header-logo-adaptive-height);
+  }
+
+  .site-header__logo-image {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Closed compact panel: 10px + 43px + 43px + 10px.
+     The row is centered through equal inline insets, so the left edge before search
+     matches the right edge after cart exactly. */
+  .site-header__actions {
+    top: 23px;
+    right: 20px;
+    width: 106px !important;
+    height: 49px;
+    border-radius: 15px;
+  }
+
+  /* Expanded panel keeps the 261px Figma width. */
+  .site-header__actions--expanded {
+    width: 261px !important;
+  }
+
+  /* Closed: two 43px hover zones sit between equal 10px insets. */
+  .site-header__actions-row {
+    left: 10px;
+    right: 10px;
+    gap: 0;
+    width: auto;
+    height: 49px;
+  }
+
+  /* Expanded: move the compact icon actions to the right of the input.
+     This restores the desktop interaction structure instead of letting the row
+     overlap the input from the left. */
+  .site-header__actions--expanded .site-header__actions-row {
+    left: auto;
+    right: 10px;
+    width: max-content;
+  }
+
+  .site-header__actions--expanded .site-header__search-field {
+    left: 15px;
+    width: 150px;
+  }
+
+  .site-header__action-item {
+    width: 43px;
+    height: 49px;
+    min-height: 49px;
+    padding: 0;
+  }
+
+  .site-header__action-item-label {
+    width: 43px;
+    height: 35px;
+  }
+
+  .site-header__action-item-text {
+    display: none;
+  }
+
+  .site-header__action-search-icon {
+    display: block;
+    width: 23px;
+    height: 23px;
+    object-fit: contain;
+  }
+
+  .site-header__action-cart-icon {
+    display: block;
+    width: 29px;
+    height: 25px;
+    object-fit: contain;
+  }
+
+  .site-header__actions-indicator {
+    width: 43px;
+    height: 35px;
+    border-radius: 10px;
+  }
+
+  /* Keep both compact action icons visible. The existing header state opens the
+     input on search hover/click or while it contains text, just like desktop. */
+  .site-header__action-item:first-of-type {
+    display: inline-flex;
+  }
+
+  /* The compact search action is itself the trigger. Do not render desktop's
+     separate submit icon a second time after the input expands. */
+  .site-header__search-icon-button,
+  .site-header__actions--expanded .site-header__search-icon-button {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .site-header__logo-shell {
+    left: clamp(16px, calc(2.84vw - 15px), 20px);
+    width: clamp(220px, calc(29.787vw - 108px), 262px);
+    height: clamp(60px, calc(8.511vw - 34px), 72px);
+  }
+
+  .site-header__logo-image {
+    width: 100%;
+    height: 100%;
+  }
+
+  .site-header__menu {
+    width: min(498px, calc(100vw - 32px));
+  }
+
+  .site-header__actions {
+    right: clamp(16px, calc(2.84vw - 15px), 20px);
+  }
+}
+
 @media (max-width: 960px) {
   .site-header__logo-shell {
     left: 16px;
     width: 220px;
     height: 60px;
-  }
-
-  .site-header__logo-image {
-    width: 220px;
-    height: 60px;
-  }
-
-  .site-header__menu {
-    width: min(498px, calc(100vw - 32px));
   }
 
   .site-header__actions {

@@ -94,7 +94,7 @@ export function resolveOptimisticCatalogHeader({
   const query = normalizeText(searchParams.get("q"));
   if (query) {
     return {
-      title: `Поиск: ${query}`,
+      title: `Результаты поиска: ${query}`,
       description: null,
       source: "search",
     };

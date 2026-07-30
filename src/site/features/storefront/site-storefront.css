@@ -438,7 +438,9 @@
 
 .site-products__grid {
   display: grid;
-  grid-template-columns: repeat(4, 325px);
+  /* 40px outer gutters and 20px inter-card gaps stay fixed. Tracks are the
+   * only responsive value, so every desktop card scales as one unit. */
+  grid-template-columns: repeat(4, minmax(0, min(325px, calc((100% - 60px) / 4))));
   justify-content: center;
   gap: 20px;
 }
@@ -551,42 +553,20 @@
   outline: none;
 }
 
-@media (max-width: 1180px) {
-  .site-products__grid {
-    grid-template-columns: repeat(3, 325px);
+/* Desktop/tablet keeps its 40px outer gutters and 20px inter-card gaps.
+ * At 1360px the column count changes; between breakpoints, only the tracks
+ * shrink. The mobile component is mounted only at 640px and below. */
+@media (max-width: 1360px) and (min-width: 641px) {
+  .site-products__grid:not(.site-products__grid--mobile) {
+    grid-template-columns: repeat(3, minmax(0, min(325px, calc((100% - 40px) / 3))));
+    justify-content: center;
   }
 }
 
+/* Keep the desktop carousel geometry while neighbouring images can still be seen.
+ * Do not shrink the central card to 80vw: that was distorting the intended view and
+ * artificially preserving side previews. */
 @media (max-width: 960px) {
-  .site-carousel__viewport {
-    height: clamp(300px, 66vw, 460px);
-  }
-
-  .site-carousel__slide {
-    flex-basis: 80vw;
-    height: 100%;
-    margin-top: 0;
-  }
-
-  .site-carousel__arrow {
-    top: 50%;
-    width: 66px;
-    height: 118px;
-    transform: translateY(-50%);
-  }
-
-  .site-carousel__arrow--left {
-    left: 14px;
-  }
-
-  .site-carousel__arrow--right {
-    right: 14px;
-  }
-
-  .site-products__grid {
-    grid-template-columns: repeat(2, 325px);
-  }
-
   .site-footer {
     grid-template-columns: minmax(183px, 229px);
     align-items: center;
@@ -595,19 +575,39 @@
   }
 }
 
-@media (max-width: 640px) {
-  .site-carousel__viewport {
-    aspect-ratio: 2 / 3;
+/* Once one desktop-width photo is all that fits, switch to a true single-photo
+ * carousel: image width follows viewport and height follows its original 808:543 ratio.
+ * No side preview is retained and no photo is cropped by a fixed height. */
+@media (max-width: 808px) {
+  .site-carousel:not(.site-carousel--mobile) {
+    --site-carousel-slide-width: 100%;
+    --site-carousel-seam-overlap: 0px;
+  }
+
+  .site-carousel:not(.site-carousel--mobile) .site-carousel__viewport {
+    aspect-ratio: 808 / 543;
     height: auto;
     min-height: 0;
   }
 
-  .site-carousel__slide {
+  .site-carousel:not(.site-carousel--mobile) .site-carousel__slide {
     height: 100%;
   }
 
   .site-carousel__arrow {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-carousel--mobile .site-carousel__viewport {
+    aspect-ratio: 2 / 3;
+    height: auto;
+    min-height: 0;
+  }
+
+  .site-carousel--mobile .site-carousel__slide {
+    height: 100%;
   }
 
   .site-carousel__dots {
@@ -646,9 +646,15 @@
   }
 
   .site-products__grid {
+    /* Below 400px cards reach the screen edge. From 400px to 440px, the
+     * gutters grow linearly to 20px; above 440px they stay at that maximum
+     * while the tracks themselves keep growing. */
+    --site-mobile-product-grid-gutter: clamp(0px, calc(50vw - 200px), 20px);
     grid-template-columns: repeat(2, minmax(0, 1fr));
     justify-content: stretch;
     gap: 16px;
+    padding-inline: var(--site-mobile-product-grid-gutter);
+    box-sizing: border-box;
   }
 
   .site-products__grid--mobile {

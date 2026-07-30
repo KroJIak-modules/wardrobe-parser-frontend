@@ -8,6 +8,7 @@ import { clearSiteCatalogReturnSnapshot, readSiteCatalogReturnSnapshot } from ".
 import { readCatalogListParam } from "../../features/catalog/site-catalog-query";
 import { SiteCatalogExperienceView } from "../../features/catalog/site-catalog-sections";
 import { SiteHeader } from "../../features/header/site-header";
+import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
 import { useSiteActionItems } from "../../runtime/use-site-cart";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
@@ -83,7 +84,19 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
     effectiveSearchParams,
     { forcedTop, restoreFromHistory: catalogReturnSnapshot !== null },
   );
+  const fallbackSearchParams = useMemo(() => {
+    const next = new URLSearchParams(effectiveSearchParams);
+    next.delete("q");
+    next.delete("page");
+    return next;
+  }, [effectiveSearchParams]);
+  const fallbackCatalog = useSiteCatalog(fallbackSearchParams, {
+    forcedTop,
+    enabled: urlQuery !== "",
+  });
+  const isEmptySearchResult = urlQuery !== "" && !loading && !errorMessage && products.length === 0;
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
+  const usesTabletHeader = useSiteMediaQuery("(max-width: 1100px)");
   const optimisticHeader = useMemo(
     () =>
       resolveOptimisticCatalogHeader({
@@ -206,6 +219,32 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
           totalPages={totalPages}
           loading={loading}
           errorMessage={errorMessage}
+          fallback={
+            isEmptySearchResult
+              ? {
+                  products: fallbackCatalog.products,
+                  loading: fallbackCatalog.loading,
+                  errorMessage: fallbackCatalog.errorMessage,
+                  currentPage: fallbackCatalog.currentPage,
+                  totalPages: fallbackCatalog.totalPages,
+                  searchParams: fallbackSearchParams,
+                  onSearchParamsChange: (next) => {
+                    const nextParams = new URLSearchParams(next);
+                    nextParams.set("q", urlQuery);
+                    applyFilterSearchParams(nextParams);
+                  },
+                  onPageChange: (page) => {
+                    const nextParams = new URLSearchParams(fallbackSearchParams);
+                    nextParams.set("q", urlQuery);
+                    if (page > 1) {
+                      nextParams.set("page", String(page));
+                    }
+                    persistSearchParams(nextParams);
+                    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+                  },
+                }
+              : undefined
+          }
           onPageChange={(page) => {
             const nextParams = new URLSearchParams(searchParams);
             if (page <= 1) {
@@ -219,24 +258,34 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
         />
       ) : (
         <>
-          <SiteHeader
-            theme="light"
-            menuItems={menuItems}
-            dropdownMenus={dropdownMenus}
-            actionItems={actionItems}
-            searchValue={searchValue}
-            allowEmptySearchSubmit
-            onSearchValueChange={setSearchValue}
-            onSearchSubmit={(value) => {
-              const nextParams = new URLSearchParams(searchParams);
-              if (value === "") {
-                nextParams.delete("q");
-              } else {
-                nextParams.set("q", value);
-              }
-              applyFilterSearchParams(nextParams);
-            }}
-          />
+          {usesTabletHeader ? (
+            <SiteMobileHomeHeader
+              navigation={navigation}
+              layout="tablet"
+              onLogoActivate={() => {
+                navigate("/", { state: { view: "storefront" } });
+              }}
+            />
+          ) : (
+            <SiteHeader
+              theme="light"
+              menuItems={menuItems}
+              dropdownMenus={dropdownMenus}
+              actionItems={actionItems}
+              searchValue={searchValue}
+              allowEmptySearchSubmit
+              onSearchValueChange={setSearchValue}
+              onSearchSubmit={(value) => {
+                const nextParams = new URLSearchParams(searchParams);
+                if (value === "") {
+                  nextParams.delete("q");
+                } else {
+                  nextParams.set("q", value);
+                }
+                applyFilterSearchParams(nextParams);
+              }}
+            />
+          )}
           <SiteCatalogExperienceView
             title={optimisticHeader.title}
             description={optimisticHeader.description}
@@ -249,6 +298,32 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
             totalPages={totalPages}
             loading={loading}
             errorMessage={errorMessage}
+            fallback={
+              isEmptySearchResult
+                ? {
+                    products: fallbackCatalog.products,
+                    loading: fallbackCatalog.loading,
+                    errorMessage: fallbackCatalog.errorMessage,
+                    currentPage: fallbackCatalog.currentPage,
+                    totalPages: fallbackCatalog.totalPages,
+                    searchParams: fallbackSearchParams,
+                    onSearchParamsChange: (next) => {
+                      const nextParams = new URLSearchParams(next);
+                      nextParams.set("q", urlQuery);
+                      applyFilterSearchParams(nextParams);
+                    },
+                    onPageChange: (page) => {
+                      const nextParams = new URLSearchParams(fallbackSearchParams);
+                      nextParams.set("q", urlQuery);
+                      if (page > 1) {
+                        nextParams.set("page", String(page));
+                      }
+                      persistSearchParams(nextParams);
+                      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+                    },
+                  }
+                : undefined
+            }
             onPageChange={(page) => {
               const nextParams = new URLSearchParams(searchParams);
               if (page <= 1) {

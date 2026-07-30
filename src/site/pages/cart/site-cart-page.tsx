@@ -11,6 +11,7 @@ import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import "./site-cart-page.css";
 
 const SITE_CART_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
+const SITE_CART_TABLET_HEADER_MEDIA_QUERY = "(max-width: 1100px)";
 
 function formatTelegramRubles(value: number) {
   return `${new Intl.NumberFormat("ru-RU").format(value).replace(/\s/g, ".")}₽`;
@@ -41,6 +42,7 @@ export function SiteCartPage() {
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_CART_MOBILE_MEDIA_QUERY);
+  const usesTabletHeader = useSiteMediaQuery(SITE_CART_TABLET_HEADER_MEDIA_QUERY);
   const telegramMessage = useMemo(() => buildTelegramMessage(items, totalPriceRub), [items, totalPriceRub]);
 
   useEffect(() => {
@@ -79,9 +81,10 @@ export function SiteCartPage() {
 
   return (
     <main className={`site-cart-page${isMobileLayout ? " site-cart-page--mobile" : ""}`}>
-      {isMobileLayout ? (
+      {usesTabletHeader ? (
         <SiteMobileHomeHeader
           navigation={navigation}
+          layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
             navigate("/", { state: storefrontHomeState() });
           }}

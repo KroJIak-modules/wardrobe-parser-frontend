@@ -12,6 +12,7 @@ import { useSiteProductDetail } from "../../runtime/use-site-product-detail";
 import "./site-product-page.css";
 
 const SITE_PRODUCT_PAGE_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
+const SITE_PRODUCT_PAGE_TABLET_HEADER_MEDIA_QUERY = "(max-width: 1100px)";
 
 export function SiteProductPage({ defaultProductId }: { defaultProductId?: string }) {
   const params = useParams<{ productPath?: string }>();
@@ -20,6 +21,7 @@ export function SiteProductPage({ defaultProductId }: { defaultProductId?: strin
   const actionItems = useSiteActionItems();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_PRODUCT_PAGE_MOBILE_MEDIA_QUERY);
+  const usesTabletHeader = useSiteMediaQuery(SITE_PRODUCT_PAGE_TABLET_HEADER_MEDIA_QUERY);
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const { product, recommendations, isLoading, isRecommendationsLoading, loadedProductPath } = useSiteProductDetail(params.productPath ?? defaultProductId);
   const returnTarget = useMemo(() => {
@@ -51,9 +53,10 @@ export function SiteProductPage({ defaultProductId }: { defaultProductId?: strin
 
   return (
     <main className="site-product-page">
-      {isMobileLayout ? (
+      {usesTabletHeader ? (
         <SiteMobileHomeHeader
           navigation={navigation}
+          layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
             navigate("/", { state: storefrontHomeState() });
           }}

@@ -93,12 +93,33 @@
   margin-bottom: 20px;
 }
 
+.site-catalog-shell__search-empty {
+  margin: 15px 0 40px;
+  color: #7f7f7f;
+  font-family: "SF Compact Rounded", var(--site-font-ui);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 26px;
+  text-align: center;
+}
+
+.site-catalog-shell__fallback-title {
+  margin: 0 0 32px;
+  color: rgba(0, 0, 0, 0.8);
+  font-family: "SF Compact Rounded", var(--site-font-ui);
+  font-size: 36px;
+  font-weight: 500;
+  line-height: normal;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .site-catalog-filters {
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  gap: 91px;
+  gap: 107px;
   width: 100%;
   min-height: 21px;
 }
@@ -225,7 +246,7 @@
   background: transparent;
   color: rgba(0, 0, 0, 0.8);
   font-family: "SF Compact Rounded", var(--site-font-ui);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 100%;
   letter-spacing: 0;
@@ -287,7 +308,9 @@
 
 .site-catalog-products__grid {
   display: grid;
-  grid-template-columns: repeat(4, 325px);
+  /* Keep the desktop 40px gutters and 20px gaps intact. Only grid tracks
+   * contract, and the product tile derives its complete scale from a track. */
+  grid-template-columns: repeat(4, minmax(0, min(325px, calc((100% - 60px) / 4))));
   justify-content: center;
   gap: 20px;
 }
@@ -419,10 +442,24 @@
   font-size: var(--site-catalog-pagination-font-size);
 }
 
-@media (max-width: 1180px) {
+/* Product cards use the same three-column desktop range as every other grid.
+ * The grid owns the responsive track; each child derives all of its dimensions
+ * from that track through --site-product-tile-grid-track-width. */
+.site-catalog-products__grid {
+  --site-product-tile-grid-track-width: 325px;
+}
+
+@media (max-width: 1439px) {
   .site-catalog-shell {
     width: min(100%, calc(100% - 32px));
     padding-top: 132px;
+  }
+
+  .site-catalog-products__grid {
+    /* The shell itself has 16px gutters at this breakpoint. Reserve another
+     * 24px per side for the cards, keeping their 40px page gutter unchanged. */
+    width: calc(100% - 48px);
+    margin-inline: auto;
   }
 
   .site-catalog-filters {
@@ -430,9 +467,15 @@
     gap: 24px 18px;
     min-height: auto;
   }
+}
 
+/* Do not drop to two desktop cards just because the tablet header appears.
+ * Through 641px the desktop grid preserves 20px gaps and its shell gutters;
+ * only each three-column track contracts proportionally. */
+@media (max-width: 1360px) and (min-width: 641px) {
   .site-catalog-products__grid {
-    grid-template-columns: repeat(3, 325px);
+    grid-template-columns: repeat(3, minmax(0, min(325px, calc((100% - 40px) / 3))));
+    justify-content: center;
   }
 }
 
@@ -497,10 +540,6 @@
     text-align: left;
   }
 
-  .site-catalog-products__grid {
-    grid-template-columns: repeat(2, 325px);
-  }
-
   .site-catalog-pagination {
     flex-wrap: nowrap;
     width: max-content;
@@ -508,8 +547,14 @@
   }
 }
 
-@media (max-width: 720px) {
+/* The catalog page still renders its desktop component above 640px. Preserve
+ * all three tracks in that interval even though its surrounding controls use
+ * compact tablet styling. */
+@media (min-width: 641px) and (max-width: 760px) {
   .site-catalog-products__grid {
-    grid-template-columns: 325px;
+    grid-template-columns: repeat(3, minmax(0, min(325px, calc((100% - 40px) / 3))));
+    justify-content: center;
+    width: calc(100vw - 80px);
+    margin-inline: auto;
   }
 }

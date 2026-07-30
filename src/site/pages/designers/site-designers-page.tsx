@@ -6,7 +6,10 @@ import {
   buildBrowseDesignerCatalogSearchParams,
   resolveSiteDesignersEntryMode,
 } from "../../features/designers/site-designers-navigation";
-import { SITE_DESIGNERS_MOBILE_MEDIA_QUERY } from "../../features/designers/site-designers-constants";
+import {
+  SITE_DESIGNERS_MOBILE_MEDIA_QUERY,
+  SITE_DESIGNERS_TABLET_HEADER_MEDIA_QUERY,
+} from "../../features/designers/site-designers-constants";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
@@ -28,6 +31,7 @@ export function SiteDesignersPage() {
   const [searchValue, setSearchValue] = useState(urlQuery);
   const persistedSearchParams = useMemo(() => new URLSearchParams(searchParams), [searchParams]);
   const isMobileLayout = useSiteMediaQuery(SITE_DESIGNERS_MOBILE_MEDIA_QUERY);
+  const usesTabletHeader = useSiteMediaQuery(SITE_DESIGNERS_TABLET_HEADER_MEDIA_QUERY);
   const entryMode = useMemo(
     () => resolveSiteDesignersEntryMode(location.state, persistedSearchParams),
     [location.state, persistedSearchParams],
@@ -55,9 +59,10 @@ export function SiteDesignersPage() {
 
   return (
     <main className="site-designers-page">
-      {isMobileLayout ? (
+      {usesTabletHeader ? (
         <SiteMobileHomeHeader
           navigation={navigation}
+          layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
             navigate("/", { state: storefrontHomeState() });
           }}

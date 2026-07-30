@@ -45,7 +45,7 @@ export function SiteCatalogFilters({
             style={
               ({
                 ...(group.triggerWidthPx ? { "--site-catalog-trigger-width": `${group.triggerWidthPx}px` } : {}),
-                "--site-catalog-flyout-width": `${group.panelFlyoutWidthPx ?? Math.max(134, (group.panelListWidthPx ?? 90) + 14)}px`,
+                "--site-catalog-flyout-width": "155px",
               } as CSSProperties)
             }
             onMouseEnter={() => setActiveGroupKey(group.key)}

@@ -12,6 +12,7 @@ import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import "./site-about-page.css";
 
 const SITE_ABOUT_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
+const SITE_ABOUT_TABLET_HEADER_MEDIA_QUERY = "(max-width: 1100px)";
 
 export function SiteAboutPage() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export function SiteAboutPage() {
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_ABOUT_MOBILE_MEDIA_QUERY);
+  const usesTabletHeader = useSiteMediaQuery(SITE_ABOUT_TABLET_HEADER_MEDIA_QUERY);
 
   useEffect(() => {
     document.title = "Anton Shell — Обо мне";
@@ -28,9 +30,10 @@ export function SiteAboutPage() {
 
   return (
     <main className="site-about-page">
-      {isMobileLayout ? (
+      {usesTabletHeader ? (
         <SiteMobileHomeHeader
           navigation={navigation}
+          layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
             navigate("/", { state: storefrontHomeState() });
           }}

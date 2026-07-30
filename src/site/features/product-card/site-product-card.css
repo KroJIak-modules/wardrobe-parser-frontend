@@ -1,68 +1,87 @@
 .site-product-tile {
-  --site-product-tile-shell-width: 325px;
-  --site-product-tile-shell-height: 577px;
-  --site-product-tile-media-height: 431px;
-  --site-product-tile-divider-top: 431px;
-  --site-product-tile-meta-top: 452px;
-  --site-product-tile-meta-left: 21px;
-  --site-product-tile-meta-width: 283px;
-  --site-product-tile-meta-min-height: 103px;
-  --site-product-tile-brand-font-size: 16px;
+  container-type: inline-size;
+  /* 325×577 is the single desktop reference. Every card dimension is expressed
+   * in container units so it follows its actual grid track proportionally. */
+  --site-product-tile-shell-width: 100%;
+  --site-product-tile-shell-height: 177.5385cqw;
+  --site-product-tile-media-height: 132.6154cqw;
+  --site-product-tile-divider-top: var(--site-product-tile-media-height);
+  --site-product-tile-meta-top: 139.0769cqw;
+  --site-product-tile-meta-left: 6.4615cqw;
+  --site-product-tile-meta-width: 87.0769cqw;
+  --site-product-tile-meta-min-height: 31.6923cqw;
+  --site-product-tile-brand-font-size: var(--site-product-tile-name-font-size);
   --site-product-tile-brand-line-height: normal;
-  --site-product-tile-name-font-size: 16px;
+  --site-product-tile-name-font-size: 4.9231cqw;
   --site-product-tile-name-line-height: 1.1875;
-  --site-product-tile-price-font-size: 16px;
+  --site-product-tile-price-font-size: 4.9231cqw;
   --site-product-tile-price-line-height: normal;
-  --site-product-tile-divider-font-size: 12px;
+  --site-product-tile-divider-font-size: 3.6923cqw;
   --site-product-tile-divider-line-height: normal;
   --site-product-tile-divider-font-weight: 100;
-  --site-product-tile-availability-font-size: 12px;
+  --site-product-tile-availability-font-size: 3.6923cqw;
   --site-product-tile-availability-line-height: normal;
   --site-product-tile-availability-font-weight: 100;
-  --site-product-tile-statusline-gap: 4px;
-  --site-product-tile-compact-gap-top: 14px;
-  --site-product-tile-compact-gap-content: 12px;
-  width: 325px;
-  height: 577px;
+  --site-product-tile-statusline-gap: 1.2308cqw;
+  --site-product-tile-compact-gap-top: 4.3077cqw;
+  --site-product-tile-compact-gap-content: var(--site-product-tile-compact-gap-top);
+  --site-product-tile-content-min-height: 21.8462cqw;
+  --site-product-tile-name-min-height: 11.6923cqw;
+  width: 100%;
+  /* A container cannot query its own inline size. Aspect ratio owns the tile
+   * height; descendants resolve cqw against this tile as their query container. */
+  aspect-ratio: 100 / 177.5385;
 }
 
+
+
 .site-product-tile--compact {
+  /* Mobile has a separate 172px Figma reference, but it follows the same rule:
+   * every measurement comes from the actual card track, never from viewport vw. */
   --site-product-tile-shell-width: 100%;
-  --site-product-tile-shell-height: 317px;
-  --site-product-tile-media-height: 227px;
-  --site-product-tile-divider-top: 227px;
-  --site-product-tile-meta-top: 239.5px;
-  --site-product-tile-meta-left: 8px;
-  --site-product-tile-meta-width: calc(100% - 16px);
-  --site-product-tile-meta-min-height: 65px;
-  --site-product-tile-brand-font-size: 10px;
+  /* Every phone card reserves the two-line text budget. This gives a matching
+   * lower edge to both cards in a row, while preventing price/status clipping. */
+  --site-product-tile-shell-height: 198.2558cqw;
+  --site-product-tile-media-height: 132cqw;
+  --site-product-tile-divider-top: var(--site-product-tile-media-height);
+  --site-product-tile-meta-top: 139.25cqw;
+  --site-product-tile-meta-left: 4.65cqw;
+  --site-product-tile-meta-width: 90.7cqw;
+  --site-product-tile-meta-min-height: 37.8cqw;
+  --site-product-tile-brand-font-size: var(--site-product-tile-name-font-size);
   --site-product-tile-brand-line-height: 1.2;
-  --site-product-tile-name-font-size: 10px;
+  --site-product-tile-name-font-size: 5.81cqw;
   --site-product-tile-name-line-height: 1.2;
-  --site-product-tile-price-font-size: 10px;
+  --site-product-tile-price-font-size: 5.81cqw;
   --site-product-tile-price-line-height: 1.4;
-  --site-product-tile-divider-font-size: 7px;
+  --site-product-tile-divider-font-size: 4.07cqw;
   --site-product-tile-divider-line-height: 1;
   --site-product-tile-divider-font-weight: 100;
-  --site-product-tile-availability-font-size: 7px;
+  --site-product-tile-availability-font-size: 8px;
   --site-product-tile-availability-line-height: 1;
   --site-product-tile-availability-font-weight: 100;
-  --site-product-tile-statusline-gap: 2px;
-  --site-product-tile-compact-gap-top: 12px;
-  --site-product-tile-compact-gap-content: 12px;
+  --site-product-tile-statusline-gap: 1.16cqw;
+  --site-product-tile-compact-gap-top: 6.98cqw;
+  --site-product-tile-compact-gap-content: 6.98cqw;
+  --site-product-tile-content-min-height: 0px;
+  --site-product-tile-name-min-height: 6.98cqw;
   width: 100%;
-  height: 317px;
+  /* cqw is resolved by descendants against this tile. The tile itself must
+   * use a ratio, otherwise cqw would resolve against the parent grid and
+   * double its height. */
+  aspect-ratio: 100 / 198.2558;
+  align-self: start;
 }
 
 .site-product-tile--compact[data-title-lines="2"] {
-  --site-product-tile-compact-gap-top: 6px;
-  --site-product-tile-compact-gap-content: 6px;
+  --site-product-tile-compact-gap-top: 3.49cqw;
+  --site-product-tile-compact-gap-content: 3.49cqw;
 }
 
 .site-product-tile__shell {
   position: relative;
   width: var(--site-product-tile-shell-width);
-  height: var(--site-product-tile-shell-height);
+  height: 100%;
   box-sizing: border-box;
   border: 1px solid rgb(228 228 228);
   background: #fff;
@@ -122,18 +141,62 @@
   height: var(--site-product-tile-media-height);
 }
 
+/* Phone image behaviour is intentionally independent from card typography:
+ * <=359px shows every image edge in a smaller contain box; 360–399px fills
+ * the media height and crops only the horizontal sides. */
+@media (max-width: 359px) {
+  .site-product-tile--compact {
+    /* The phone card may contract below its 172px reference, but its readable
+     * text stays at the reference size. All non-text geometry still follows
+     * the card's cqw scale. The existing proportional shell height leaves a
+     * verified text-safe bottom area for both one- and two-line names. */
+    --site-product-tile-brand-font-size: 10px;
+    --site-product-tile-name-font-size: 10px;
+    --site-product-tile-price-font-size: 10px;
+    --site-product-tile-divider-font-size: 7px;
+    --site-product-tile-availability-font-size: 8px;
+  }
+
+  .site-product-tile--compact .site-product-tile__image.site-image__img {
+    width: auto;
+    height: 88%;
+    max-width: 100%;
+    margin: 6% auto;
+    object-fit: contain;
+  }
+}
+
+/* Only at truly ultra-narrow widths do fixed 10px text lines need extra room.
+ * This is card geometry, not a grid-row minimum: card and shell use the same
+ * explicit ratio, so the real space between rows remains the grid's 16px gap. */
+@media (max-width: 239px) {
+  .site-product-tile--compact {
+    --site-product-tile-shell-height: 212cqw;
+    aspect-ratio: 100 / 212;
+  }
+}
+
+@media (min-width: 360px) and (max-width: 399px) {
+  .site-product-tile--compact .site-product-tile__image.site-image__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+  }
+}
+
 .site-product-tile__watermark {
   position: absolute;
   inset: 0;
   background-image: url("/logo_anton_shell.svg?v=site-2026-06-24-1");
   background-repeat: repeat;
   background-position: center;
-  background-size: 206px auto;
+  background-size: 63.3846cqw auto;
   opacity: 0.14;
 }
 
 .site-product-tile--compact .site-product-tile__watermark {
-  background-size: 109px auto;
+  background-size: 63.3721cqw auto;
 }
 
 .site-product-tile__image {
@@ -142,7 +205,16 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* Product photos are never cropped by the card frame. The media box itself
+   * scales proportionally with the full card; contain preserves every source ratio. */
+  object-fit: contain;
+  object-position: center center;
+}
+
+.site-product-tile__image .site-image__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   object-position: center center;
 }
 
@@ -151,7 +223,7 @@
   place-items: center;
   color: rgb(32 28 24 / 52%);
   font-family: "SF Compact Rounded", var(--site-font-ui);
-  font-size: 18px;
+  font-size: 5.5385cqw;
 }
 
 .site-product-tile--skeleton .site-product-tile__shell {
@@ -203,12 +275,12 @@
 }
 
 .site-product-tile__skeleton-line--price {
-  width: 86px;
+  width: 26.4615cqw;
   height: 1em;
 }
 
 .site-product-tile__skeleton-line--availability {
-  width: 78px;
+  width: 24cqw;
   height: 1em;
 }
 
@@ -253,7 +325,7 @@
   display: grid;
   grid-template-rows: auto auto;
   row-gap: var(--site-product-tile-compact-gap-content);
-  min-height: 71px;
+  min-height: var(--site-product-tile-content-min-height);
   margin-top: var(--site-product-tile-compact-gap-top);
 }
 
@@ -268,7 +340,7 @@
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 38px;
+  min-height: var(--site-product-tile-name-min-height);
   color: rgb(0 0 0 / 80%);
   font-family: "SF Compact Rounded", var(--site-font-ui);
   font-size: var(--site-product-tile-name-font-size);
@@ -281,13 +353,13 @@
 }
 
 .site-product-tile--compact .site-product-tile__name {
-  min-height: 12px;
+  min-height: var(--site-product-tile-name-min-height);
   font-size: var(--site-product-tile-name-font-size);
   line-height: var(--site-product-tile-name-line-height);
 }
 
 .site-product-tile--compact[data-title-lines="2"] .site-product-tile__name {
-  min-height: 24px;
+  min-height: calc(var(--site-product-tile-name-min-height) * 2);
 }
 
 .site-product-tile__name-text {
@@ -344,12 +416,12 @@
 }
 
 .site-product-tile--compact .site-product-tile__skeleton-line--price {
-  width: 54px;
+  width: 31.3953cqw;
   height: 1em;
 }
 
 .site-product-tile--compact .site-product-tile__skeleton-line--availability {
-  width: 44px;
+  width: 25.5814cqw;
   height: 1em;
 }
 

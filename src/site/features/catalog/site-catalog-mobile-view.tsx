@@ -66,6 +66,7 @@ export function SiteCatalogMobileView({
   loading = false,
   errorMessage = null,
   onPageChange,
+  fallback,
 }: {
   navigation: SiteApiNavigation | null;
   title: string;
@@ -80,6 +81,16 @@ export function SiteCatalogMobileView({
   loading?: boolean;
   errorMessage?: string | null;
   onPageChange: (page: number) => void;
+  fallback?: {
+    products: readonly SiteCatalogProduct[];
+    loading: boolean;
+    errorMessage: string | null;
+    currentPage: number;
+    totalPages: number;
+    searchParams: URLSearchParams;
+    onSearchParamsChange: (next: URLSearchParams) => void;
+    onPageChange: (page: number) => void;
+  };
 }) {
   const navigate = useNavigate();
   const [openPanel, setOpenPanel] = useState<"filters" | "sort" | null>(null);
@@ -89,8 +100,10 @@ export function SiteCatalogMobileView({
   const sortGroup = useMemo(() => filterGroups.find((group) => group.key === "sort") ?? null, [filterGroups]);
   const hasSortControl = sortGroup !== null && sortGroup.options.length > 0;
   const filterPanelGroups = useMemo(() => filterGroups.filter((group) => group.key !== "sort"), [filterGroups]);
-  const selectedSortValues = sortGroup ? getCatalogSelectedValues(searchParams, sortGroup, { mode: "effective" }) : [];
-  const sortTriggerLabel = sortGroup ? getCatalogTriggerLabel(searchParams, sortGroup, selectedSortValues) : null;
+  const activeSearchParams = fallback?.searchParams ?? searchParams;
+  const activeSearchParamsChange = fallback?.onSearchParamsChange ?? onSearchParamsChange;
+  const selectedSortValues = sortGroup ? getCatalogSelectedValues(activeSearchParams, sortGroup, { mode: "effective" }) : [];
+  const sortTriggerLabel = sortGroup ? getCatalogTriggerLabel(activeSearchParams, sortGroup, selectedSortValues) : null;
   const orderedSortOptions = useMemo(() => (sortGroup ? orderMobileSortOptions(sortGroup) : []), [sortGroup]);
 
   useEffect(() => {
@@ -171,10 +184,10 @@ export function SiteCatalogMobileView({
                           type="button"
                           className={isSelected ? "site-catalog-mobile__sort-option site-catalog-mobile__sort-option--selected" : "site-catalog-mobile__sort-option"}
                           onClick={() => {
-                            onSearchParamsChange(
+                            activeSearchParamsChange(
                               isSelected
-                                ? clearCatalogGroupSelection(searchParams, sortGroup)
-                                : toggleCatalogGroupOption(searchParams, sortGroup, option.value)
+                                ? clearCatalogGroupSelection(activeSearchParams, sortGroup)
+                                : toggleCatalogGroupOption(activeSearchParams, sortGroup, option.value)
                             );
                             setOpenPanel(null);
                           }}
@@ -195,10 +208,10 @@ export function SiteCatalogMobileView({
         <SiteCatalogMobileFiltersDrawer
           ref={filtersDrawerRef}
           filterGroups={filterPanelGroups}
-          searchParams={searchParams}
+          searchParams={activeSearchParams}
           isClosing={isFiltersClosing}
           onApply={(next) => {
-            onSearchParamsChange(next);
+            activeSearchParamsChange(next);
             closeFilters();
           }}
           onClose={closeFilters}
@@ -210,12 +223,29 @@ export function SiteCatalogMobileView({
       ) : null}
 
       <div className="site-catalog-mobile__content">
+        {fallback ? (
+          <>
+            <p className="site-catalog-mobile__search-empty">Ничего не найдено</p>
+            <h2 className="site-catalog-mobile__fallback-title">ВСЕ ТОВАРЫ</h2>
+          </>
+        ) : null}
+
         <section className="site-catalog-mobile__products" aria-label="Товары каталога">
-          <SiteProductsGrid products={[...products]} layout="mobile" loading={loading} errorMessage={errorMessage} />
+          <SiteProductsGrid
+            products={[...(fallback?.products ?? products)]}
+            layout="mobile"
+            loading={fallback?.loading ?? loading}
+            errorMessage={fallback?.errorMessage ?? errorMessage}
+          />
         </section>
 
         <div className="site-catalog-mobile__pagination">
-          <SiteCatalogPagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} layout="mobile" />
+          <SiteCatalogPagination
+            currentPage={fallback?.currentPage ?? currentPage}
+            totalPages={fallback?.totalPages ?? totalPages}
+            onPageChange={fallback?.onPageChange ?? onPageChange}
+            layout="mobile"
+          />
         </div>
 
         <div className="site-catalog-mobile__footer">

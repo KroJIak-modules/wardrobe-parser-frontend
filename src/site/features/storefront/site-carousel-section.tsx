@@ -40,11 +40,13 @@ export function SiteCarouselSection({
     containScroll: false,
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [hasVisibleNeighbourSlides, setHasVisibleNeighbourSlides] = useState(false);
   const [dotOrbitDirection, setDotOrbitDirection] = useState<"next" | "prev" | null>(null);
   const [dotOrbitTick, setDotOrbitTick] = useState(0);
   const previousSelectedIndexRef = useRef<number | null>(null);
   const orbitResetRef = useRef<number | null>(null);
   const videoElementsRef = useRef<Record<string, HTMLVideoElement | null>>({});
+  const viewportElementRef = useRef<HTMLDivElement | null>(null);
   const lastArrowActivationRef = useRef<{ direction: "next" | "prev" | null; timestampMs: number }>({
     direction: null,
     timestampMs: 0,
@@ -130,6 +132,42 @@ export function SiteCarouselSection({
   }, [slides.length]);
 
   useEffect(() => {
+    if (layout !== "desktop" || slides.length <= 1) {
+      setHasVisibleNeighbourSlides(false);
+      return;
+    }
+
+    const viewport = viewportElementRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    const syncArrowVisibility = () => {
+      const viewportRect = viewport.getBoundingClientRect();
+      const hasVisibleNeighbour = Array.from(viewport.querySelectorAll<HTMLElement>(".site-carousel__slide")).some((slide) => {
+        if (slide.dataset.active === "true") {
+          return false;
+        }
+
+        const slideRect = slide.getBoundingClientRect();
+        return slideRect.right > viewportRect.left + 1 && slideRect.left < viewportRect.right - 1;
+      });
+      setHasVisibleNeighbourSlides(hasVisibleNeighbour);
+    };
+
+    syncArrowVisibility();
+    const observer = new ResizeObserver(syncArrowVisibility);
+    observer.observe(viewport);
+    emblaApi?.on("select", syncArrowVisibility);
+    emblaApi?.on("reInit", syncArrowVisibility);
+    return () => {
+      observer.disconnect();
+      emblaApi?.off("select", syncArrowVisibility);
+      emblaApi?.off("reInit", syncArrowVisibility);
+    };
+  }, [emblaApi, layout, selectedIndex, slides.length]);
+
+  useEffect(() => {
     const previousIndex = previousSelectedIndexRef.current;
     previousSelectedIndexRef.current = selectedIndex;
 
@@ -183,7 +221,13 @@ export function SiteCarouselSection({
   return (
     <section className={`site-carousel${layout === "mobile" ? " site-carousel--mobile" : ""}`} aria-label="Карусель фотографий">
       <div className="site-carousel__embla">
-        <div className="site-carousel__viewport" ref={emblaRef}>
+        <div
+          className="site-carousel__viewport"
+          ref={(node) => {
+            viewportElementRef.current = node;
+            emblaRef(node);
+          }}
+        >
           <div className="site-carousel__container">
             {slides.map((slide, index) => {
               const loopDistance = getLoopSlideDistance(index, selectedIndex, slides.length);
@@ -225,7 +269,7 @@ export function SiteCarouselSection({
             })}
           </div>
         </div>
-        {layout === "desktop" ? (
+        {layout === "desktop" && hasVisibleNeighbourSlides ? (
           <>
             <button
               type="button"

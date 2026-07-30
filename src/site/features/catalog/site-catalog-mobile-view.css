@@ -181,6 +181,26 @@
   padding-top: 0;
 }
 
+.site-catalog-mobile__search-empty {
+  margin: 15px 0 40px;
+  color: #7f7f7f;
+  font-family: "SF Compact Rounded", var(--site-font-ui);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 26px;
+  text-align: center;
+}
+
+.site-catalog-mobile__fallback-title {
+  margin: 0 0 24px;
+  color: rgba(0, 0, 0, 0.8);
+  font-family: "SF Compact Rounded", var(--site-font-ui);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: normal;
+  text-align: center;
+}
+
 .site-catalog-mobile__products .site-products__grid {
   gap: 16px;
 }

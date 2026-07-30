@@ -84,7 +84,9 @@
 }
 
 .site-home-surface--mobile .site-home-surface__content {
-  padding-top: 60px;
+  /* The fixed mobile header is 60px tall; keep a precise 26px clear space
+   * before the first carousel photo. */
+  padding-top: 86px;
   width: 100%;
   margin: 0;
 }

@@ -10,9 +10,11 @@ import "./site-mobile-home-header.css";
 export function SiteMobileHomeHeader({
   navigation,
   onLogoActivate,
+  layout = "mobile",
 }: {
   navigation: SiteApiNavigation | null;
   onLogoActivate?: () => void;
+  layout?: "mobile" | "tablet";
 }) {
   const navigate = useNavigate();
   const { totalItems } = useSiteCart();
@@ -47,11 +49,11 @@ export function SiteMobileHomeHeader({
   return (
     <>
       {onLogoActivate ? (
-        <button type="button" className="site-mobile-home-header__logo-shell" aria-label="Anton Shell" onClick={onLogoActivate}>
+        <button type="button" className={`site-mobile-home-header__logo-shell${layout === "tablet" ? " site-mobile-home-header__logo-shell--tablet" : ""}`} aria-label="Anton Shell" onClick={onLogoActivate}>
           <img className="site-mobile-home-header__logo-image" src={SITE_LOGO_URL} alt="" loading="eager" decoding="sync" />
         </button>
       ) : null}
-      <header className="site-mobile-home-header" aria-label="Мобильная шапка">
+      <header className={`site-mobile-home-header${layout === "tablet" ? " site-mobile-home-header--tablet" : ""}`} aria-label="Мобильная шапка">
         <button
           type="button"
           className="site-mobile-home-header__button site-mobile-home-header__button--burger"
@@ -62,7 +64,7 @@ export function SiteMobileHomeHeader({
           <img
             aria-hidden="true"
             className="site-mobile-home-header__button-image"
-            src={resolveSitePublicAssetUrl("/site-mock/mobile-header/burger.svg")}
+            src={resolveSitePublicAssetUrl(layout === "tablet" ? "/site-mock/header/tablet-burger.svg" : "/site-mock/mobile-header/burger.svg")}
             alt=""
           />
         </button>
@@ -75,7 +77,7 @@ export function SiteMobileHomeHeader({
           <img
             aria-hidden="true"
             className="site-mobile-home-header__button-image"
-            src={resolveSitePublicAssetUrl("/site-mock/mobile-header/cart.svg")}
+            src={resolveSitePublicAssetUrl(layout === "tablet" ? "/site-mock/header/actions-cart.svg" : "/site-mock/mobile-header/cart.svg")}
             alt=""
           />
           {hasCartCount ? (

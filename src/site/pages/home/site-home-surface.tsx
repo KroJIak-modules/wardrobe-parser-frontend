@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SiteHeader } from "../../features/header/site-header";
+import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteHomeNotification } from "../../features/home-notification/site-home-notification";
 import {
   SiteCarouselSection,
@@ -13,7 +14,6 @@ import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
 import { useSiteNavigation } from "../../runtime/use-site-navigation";
 import { useSiteProducts } from "../../runtime/use-site-products";
 import { useSiteShowcaseMedia } from "../../runtime/use-site-showcase-media";
-import { resolveSitePublicAssetUrl } from "../../app/site-public-asset";
 
 export function SiteHomeSurface({
   showHeader = true,
@@ -34,12 +34,13 @@ export function SiteHomeSurface({
 }) {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
-  const { menuItems, dropdownMenus } = useSiteNavigation();
+  const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const [headerTheme, setHeaderTheme] = useState<"light" | "dark">("light");
   const [searchValue, setSearchValue] = useState("");
   const homeNotification = useSiteHomeNotification(notificationsEnabled);
   const isMobileLayout = useSiteMediaQuery("(max-width: 640px)");
+  const usesTabletHeader = useSiteMediaQuery("(max-width: 1100px)");
   const {
     products,
     loading: productsLoading,
@@ -88,7 +89,13 @@ export function SiteHomeSurface({
   return (
     <div className={`site-home-surface${isMobileLayout ? " site-home-surface--mobile" : ""}`}>
       {showHeader ? (
-        !isMobileLayout ? (
+        usesTabletHeader && headerMode === "fixed" ? (
+          <SiteMobileHomeHeader
+            navigation={navigation}
+            layout={isMobileLayout ? "mobile" : "tablet"}
+            onLogoActivate={onLogoActivate}
+          />
+        ) : !usesTabletHeader ? (
           <SiteHeader
             theme={headerTheme}
             menuItems={menuItems}
@@ -124,26 +131,7 @@ export function SiteHomeSurface({
                 layout={isMobileLayout ? "mobile" : "desktop"}
               />
             ) : (
-              <div className="site-home-surface__carousel-placeholder" aria-hidden="true">
-                {isCarouselResolved && hasCarouselForViewport && !isMobileLayout ? (
-                  <>
-                    <span className="site-carousel__arrow site-carousel__arrow--left">
-                      <img
-                        src={resolveSitePublicAssetUrl("/site-mock/carousel-arrow.svg")}
-                        alt=""
-                        className="site-carousel__arrow-body"
-                      />
-                    </span>
-                    <span className="site-carousel__arrow site-carousel__arrow--right">
-                      <img
-                        src={resolveSitePublicAssetUrl("/site-mock/carousel-arrow.svg")}
-                        alt=""
-                        className="site-carousel__arrow-body site-carousel__arrow-body--left"
-                      />
-                    </span>
-                  </>
-                ) : null}
-              </div>
+              <div className="site-home-surface__carousel-placeholder" aria-hidden="true" />
             )}
           </div>
         ) : null}

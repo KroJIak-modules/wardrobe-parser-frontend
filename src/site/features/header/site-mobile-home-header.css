@@ -1,23 +1,36 @@
+/* Mobile action placement is derived from one centred logo strip. The logo is
+ * as wide as the viewport permits after reserving each 40px control and the
+ * two required 35px clear spaces; it then grows smoothly up to the tablet
+ * hand-off size. Buttons are positioned from the same geometry. */
 .site-mobile-home-header {
+  --site-mobile-header-button-width: 40px;
+  --site-mobile-header-button-height: 34px;
+  --site-mobile-header-logo-gap: 35px;
+  --site-mobile-header-logo-width: min(250px, max(10px, calc(100vw - 190px)));
+  --site-mobile-header-logo-height: calc(var(--site-mobile-header-logo-width) * 3 / 10);
+  --site-mobile-header-height: max(60px, var(--site-mobile-header-logo-height));
   position: fixed;
   inset: 0 0 auto;
   z-index: 60;
-  height: 60px;
+  height: var(--site-mobile-header-height);
   background: transparent;
   overflow: visible;
 }
 
 .site-mobile-home-header__logo-shell {
+  --site-mobile-header-logo-width: min(250px, max(10px, calc(100vw - 190px)));
+  --site-mobile-header-logo-height: calc(var(--site-mobile-header-logo-width) * 3 / 10);
+  --site-mobile-header-height: max(60px, var(--site-mobile-header-logo-height));
   position: fixed;
   top: 0;
   left: 50%;
   z-index: 61;
-  width: 200px;
-  height: 60px;
+  width: var(--site-mobile-header-logo-width);
+  height: var(--site-mobile-header-height);
   transform: translateX(-50%);
   display: inline-flex;
-  align-items: flex-start;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   border: 0;
   background: transparent;
@@ -30,8 +43,8 @@
 
 .site-mobile-home-header__logo-image {
   display: block;
-  width: 200px;
-  height: 60px;
+  width: var(--site-mobile-header-logo-width);
+  height: var(--site-mobile-header-logo-height);
   pointer-events: none;
   object-fit: contain;
   overflow: visible;
@@ -40,7 +53,7 @@
 
 .site-mobile-home-header__button {
   position: absolute;
-  top: 13px;
+  top: calc((var(--site-mobile-header-height) - var(--site-mobile-header-button-height)) / 2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -60,13 +73,25 @@
 }
 
 .site-mobile-home-header__button--burger {
-  left: 20px;
+  left: calc(50% - (var(--site-mobile-header-logo-width) / 2) - var(--site-mobile-header-logo-gap) - var(--site-mobile-header-button-width));
   padding: 9px 11px;
 }
 
 .site-mobile-home-header__button--cart {
-  right: 20px;
+  right: calc(50% - (var(--site-mobile-header-logo-width) / 2) - var(--site-mobile-header-logo-gap) - var(--site-mobile-header-button-width));
   padding: 0;
+}
+
+/* Once the logo has reached 250×75px, preserve its cap and keep both controls
+ * at the established 20px page gutters instead of moving them inward. */
+@media (min-width: 440px) and (max-width: 640px) {
+  .site-mobile-home-header__button--burger {
+    left: 20px;
+  }
+
+  .site-mobile-home-header__button--cart {
+    right: 20px;
+  }
 }
 
 .site-mobile-home-header__button:focus-visible {
@@ -110,4 +135,47 @@
 .site-mobile-home-header__button--cart .site-mobile-home-header__button-image {
   width: 22px;
   height: 19px;
+}
+
+/* Tablet header reuses mobile actions with the horizontal Figma container:
+ * 57×49. The icon sizes are their proportional tablet assets:
+ * 27×19 burger, 29×25 thin cart. */
+.site-mobile-home-header--tablet {
+  height: 89px;
+}
+
+.site-mobile-home-header__logo-shell--tablet {
+  width: 315px;
+  height: 89px;
+}
+
+.site-mobile-home-header__logo-shell--tablet .site-mobile-home-header__logo-image {
+  width: 315px;
+  height: 89px;
+}
+
+.site-mobile-home-header--tablet .site-mobile-home-header__button {
+  top: 20px;
+  width: 57px;
+  height: 49px;
+  padding: 0;
+  border-radius: 15px;
+}
+
+.site-mobile-home-header--tablet .site-mobile-home-header__button--burger {
+  left: 20px;
+}
+
+.site-mobile-home-header--tablet .site-mobile-home-header__button--cart {
+  right: 20px;
+}
+
+.site-mobile-home-header--tablet .site-mobile-home-header__button--burger .site-mobile-home-header__button-image {
+  width: 27px;
+  height: 19px;
+}
+
+.site-mobile-home-header--tablet .site-mobile-home-header__button--cart .site-mobile-home-header__button-image {
+  width: 29px;
+  height: 25px;
 }

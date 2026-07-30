@@ -4,6 +4,8 @@ import type { IndicatorState } from "./site-header-contracts";
 const EMPTY_INDICATOR: IndicatorState = { left: 0, width: 0, opacity: 0 };
 const MENU_INDICATOR_SIDE_PADDING = 10;
 const ACTION_INDICATOR_SIDE_PADDING = 7;
+const COMPACT_ACTION_INDICATOR_SIDE_PADDING = 0;
+const COMPACT_HEADER_MEDIA_QUERY = "(max-width: 1360px) and (min-width: 1101px)";
 const ACTIONS_SIDE_INSET = 18;
 const SEARCH_ICON_LEFT = 161;
 const SEARCH_ICON_WIDTH = 23;
@@ -101,11 +103,12 @@ export function useSiteHeaderState({
 
   const syncActionIndicator = useCallback(
     (index: number | null) => {
+      const isCompactHeader = window.matchMedia(COMPACT_HEADER_MEDIA_QUERY).matches;
       syncIndicator(
         actionItemRefs.current,
         actionLabelRefs.current,
         index,
-        ACTION_INDICATOR_SIDE_PADDING,
+        isCompactHeader ? COMPACT_ACTION_INDICATOR_SIDE_PADDING : ACTION_INDICATOR_SIDE_PADDING,
         setActionIndicator,
       );
     },

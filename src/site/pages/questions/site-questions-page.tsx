@@ -12,6 +12,7 @@ import { useSiteQuestions } from "../../runtime/use-site-questions";
 import "./site-questions-page.css";
 
 const SITE_QUESTIONS_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
+const SITE_QUESTIONS_TABLET_HEADER_MEDIA_QUERY = "(max-width: 1100px)";
 
 export function SiteQuestionsPage() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export function SiteQuestionsPage() {
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_QUESTIONS_MOBILE_MEDIA_QUERY);
+  const usesTabletHeader = useSiteMediaQuery(SITE_QUESTIONS_TABLET_HEADER_MEDIA_QUERY);
 
   useEffect(() => {
     document.title = "Anton Shell — Вопросы";
@@ -28,9 +30,10 @@ export function SiteQuestionsPage() {
 
   return (
     <main className="site-questions-page">
-      {isMobileLayout ? (
+      {usesTabletHeader ? (
         <SiteMobileHomeHeader
           navigation={navigation}
+          layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
             navigate("/", { state: storefrontHomeState() });
           }}

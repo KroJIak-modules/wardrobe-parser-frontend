@@ -1,7 +1,7 @@
 import type { MutableRefObject } from "react";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import type { IndicatorState } from "./site-header-contracts";
-import { SiteHeaderSearchIcon } from "./site-header-logo";
+import { SiteHeaderCartIcon, SiteHeaderSearchIcon } from "./site-header-logo";
 
 export function SiteHeaderActions({
   actionItems,
@@ -121,7 +121,19 @@ export function SiteHeaderActions({
               }}
               className="site-header__action-item-label"
             >
-              {item.label}
+              {index === 1 ? (
+                <>
+                  <span className="site-header__action-item-text">{item.label}</span>
+                  <SiteHeaderCartIcon className="site-header__action-cart-icon" />
+                </>
+              ) : index === 0 ? (
+                <>
+                  <span className="site-header__action-item-text">{item.label}</span>
+                  <SiteHeaderSearchIcon className="site-header__action-search-icon" />
+                </>
+              ) : (
+                item.label
+              )}
             </span>
           </button>
         ))}

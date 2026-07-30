@@ -18,6 +18,7 @@ export function SiteCatalogExperienceView({
   loading = false,
   errorMessage = null,
   onPageChange,
+  fallback,
 }: {
   title: string;
   description: string | null;
@@ -31,27 +32,55 @@ export function SiteCatalogExperienceView({
   loading?: boolean;
   errorMessage?: string | null;
   onPageChange: (page: number) => void;
+  fallback?: {
+    products: readonly SiteCatalogProduct[];
+    loading: boolean;
+    errorMessage: string | null;
+    currentPage: number;
+    totalPages: number;
+    searchParams: URLSearchParams;
+    onSearchParamsChange: (next: URLSearchParams) => void;
+    onPageChange: (page: number) => void;
+  };
 }) {
+  const activeSearchParams = fallback?.searchParams ?? searchParams;
+  const activeSearchParamsChange = fallback?.onSearchParamsChange ?? onSearchParamsChange;
+
   return (
-    <section className="site-catalog-shell" aria-label="Каталог Anton Shell">
+    <section className={fallback ? "site-catalog-shell site-catalog-shell--search-empty" : "site-catalog-shell"} aria-label="Каталог Anton Shell">
       <header className="site-catalog-shell__header">
         <h1 className="site-catalog-shell__title">{title}</h1>
         {description ? <SiteCatalogHeaderDescription description={description} source={descriptionSource} /> : null}
       </header>
 
+      {fallback ? (
+        <>
+          <p className="site-catalog-shell__search-empty">Ничего не найдено</p>
+          <h2 className="site-catalog-shell__fallback-title">ВСЕ ТОВАРЫ</h2>
+        </>
+      ) : null}
+
       <div className="site-catalog-shell__filters">
         <SiteCatalogFilters
           filterGroups={filterGroups}
-          searchParams={searchParams}
-          onChange={onSearchParamsChange}
+          searchParams={activeSearchParams}
+          onChange={activeSearchParamsChange}
         />
       </div>
 
       <div className="site-catalog-shell__products">
-        <SiteCatalogProductsGrid products={products} loading={loading} errorMessage={errorMessage} />
+        <SiteCatalogProductsGrid
+          products={fallback?.products ?? products}
+          loading={fallback?.loading ?? loading}
+          errorMessage={fallback?.errorMessage ?? errorMessage}
+        />
       </div>
 
-      <SiteCatalogPagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
+      <SiteCatalogPagination
+        currentPage={fallback?.currentPage ?? currentPage}
+        totalPages={fallback?.totalPages ?? totalPages}
+        onPageChange={fallback?.onPageChange ?? onPageChange}
+      />
     </section>
   );
 }
