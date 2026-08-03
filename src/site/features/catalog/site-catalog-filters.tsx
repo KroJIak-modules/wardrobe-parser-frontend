@@ -1,9 +1,13 @@
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { createSiteDesignersLocationState } from "../designers/site-designers-navigation";
 import type { SiteCatalogFilterGroup } from "./site-catalog-contracts";
 import { SHOW_ALL_DESIGNERS_VALUE } from "./site-catalog-filter-constants";
 import { SiteCatalogFilterFlyout } from "./site-catalog-filter-flyout";
+import {
+  SiteCatalogMobileFiltersDrawer,
+  type SiteCatalogMobileFiltersDrawerHandle,
+} from "./site-catalog-mobile-filters-drawer";
 import {
   clearCatalogGroupSelection,
   getCatalogSelectedValues,
@@ -15,13 +19,60 @@ export function SiteCatalogFilters({
   filterGroups,
   searchParams,
   onChange,
+  layout = "desktop",
 }: {
   filterGroups: readonly SiteCatalogFilterGroup[];
   searchParams: URLSearchParams;
   onChange: (next: URLSearchParams) => void;
+  layout?: "desktop" | "tablet";
 }) {
   const navigate = useNavigate();
   const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
+  const [isTabletDrawerOpen, setIsTabletDrawerOpen] = useState(false);
+  const [isTabletDrawerClosing, setIsTabletDrawerClosing] = useState(false);
+  const tabletDrawerRef = useRef<SiteCatalogMobileFiltersDrawerHandle | null>(null);
+
+  if (layout === "tablet") {
+    return (
+      <>
+        <div className="site-catalog-filters site-catalog-filters--tablet">
+          <button
+            type="button"
+            className="site-catalog-filters__tablet-trigger"
+            aria-expanded={isTabletDrawerOpen && !isTabletDrawerClosing}
+            onClick={() => {
+              if (isTabletDrawerOpen) {
+                tabletDrawerRef.current?.applyAndClose();
+                return;
+              }
+              setIsTabletDrawerClosing(false);
+              setIsTabletDrawerOpen(true);
+            }}
+          >
+            ФИЛЬТРЫ
+          </button>
+        </div>
+        {isTabletDrawerOpen ? (
+          <SiteCatalogMobileFiltersDrawer
+            ref={tabletDrawerRef}
+            filterGroups={filterGroups.filter((group) => group.key !== "sort")}
+            searchParams={searchParams}
+            presentation="tablet"
+            isClosing={isTabletDrawerClosing}
+            onApply={(next) => {
+              onChange(next);
+              setIsTabletDrawerClosing(true);
+            }}
+            onClose={() => setIsTabletDrawerClosing(true)}
+            onCloseAnimationEnd={() => {
+              setIsTabletDrawerOpen(false);
+              setIsTabletDrawerClosing(false);
+            }}
+          />
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <div className="site-catalog-filters">

@@ -77,6 +77,7 @@ export const SiteCatalogMobileFiltersDrawer = forwardRef<
   {
     filterGroups: readonly SiteCatalogFilterGroup[];
     searchParams: URLSearchParams;
+    presentation?: "mobile" | "tablet";
     isClosing: boolean;
     onApply: (next: URLSearchParams) => void;
     onClose: () => void;
@@ -85,6 +86,7 @@ export const SiteCatalogMobileFiltersDrawer = forwardRef<
 >(function SiteCatalogMobileFiltersDrawer({
   filterGroups,
   searchParams,
+  presentation = "mobile",
   isClosing,
   onApply,
   onClose,
@@ -199,6 +201,7 @@ export const SiteCatalogMobileFiltersDrawer = forwardRef<
     <SiteMobileDrawerShell
       ariaLabel="Фильтры каталога"
       className="site-catalog-mobile-filters-drawer"
+      presentation={presentation}
       isClosing={isClosing}
       onClose={applyDraftAndClose}
       onCloseAnimationEnd={onCloseAnimationEnd}

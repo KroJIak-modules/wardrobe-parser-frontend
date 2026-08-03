@@ -39,6 +39,10 @@
   min-height: 100dvh;
 }
 
+.site-product-detail__gallery {
+  display: contents;
+}
+
 .site-product-detail__thumbs {
   flex: 0 0 auto;
   display: grid;
@@ -1049,8 +1053,7 @@
   }
 }
 
-/* The tablet header does not change the product-grid layout. From 1360px to
- * the real mobile layout at 640px there are always three fixed-gap tracks. */
+/* Recommendations remain a compact three-column grid before the mobile layout. */
 @media (max-width: 1360px) and (min-width: 641px) {
   .site-product-detail__recommendations-grid {
     grid-template-columns: repeat(3, minmax(0, min(325px, calc((100% - 40px) / 3))));
@@ -1058,40 +1061,65 @@
   }
 }
 
-@media (max-width: 1360px) and (min-width: 641px) {
+@media (max-width: 1100px) and (min-width: 641px) {
   .site-product-detail {
     --site-product-detail-hero-top-gap: 124px;
-    --site-product-detail-main-image-width: min(577px, calc(100vw - var(--site-product-detail-thumbs-width) - 72px));
+    /* The gallery keeps its natural 577:770 proportion and contracts smoothly
+       until the actual mobile composition takes over at 640px. */
+    --site-product-detail-main-image-width: clamp(250px, calc(100vw - 438px), 577px);
     --site-product-detail-main-image-height: calc(var(--site-product-detail-main-image-width) * 770 / 577);
+    --site-product-detail-thumb-width: 72px;
+    --site-product-detail-thumb-height: 96px;
+    --site-product-detail-thumb-gap: 12px;
   }
 
   .site-product-detail__hero {
-    grid-template-columns: var(--site-product-detail-thumbs-width) minmax(0, var(--site-product-detail-main-image-width));
-    grid-template-rows: var(--site-product-detail-main-image-height) auto;
+    grid-template-columns: var(--site-product-detail-main-image-width) 302px;
+    grid-template-rows: auto;
     justify-content: center;
-    column-gap: 24px;
-    row-gap: 32px;
+    column-gap: clamp(32px, 5vw, 80px);
     min-height: 0;
-    /* A 302px summary is allowed to occupy only the available page width,
-     * preventing a 1361px detail page from creating horizontal overflow. */
     padding-inline: 24px;
     box-sizing: border-box;
   }
 
-  .site-product-detail__thumbs {
+  /* A gallery is one visual unit on tablet: the horizontal thumbnails sit
+     beneath the main photo, and the summary centers against that full unit. */
+  .site-product-detail__gallery {
+    display: grid;
     grid-column: 1;
     grid-row: 1;
-    grid-auto-flow: column;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--site-product-detail-main-image-height) auto;
+    row-gap: 18px;
+    width: var(--site-product-detail-main-image-width);
   }
 
   .site-product-detail__main-image-shell {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
   }
 
-  .site-product-detail__summary {
-    grid-column: 1 / -1;
+  .site-product-detail__thumbs {
+    display: flex;
+    grid-column: 1;
     grid-row: 2;
+    grid-auto-flow: initial;
+    justify-content: center;
+    gap: var(--site-product-detail-thumb-gap);
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0;
+  }
+
+  .site-product-detail__summary {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
   }
 
   .site-product-detail__sources-dialog {
@@ -1117,6 +1145,10 @@
 }
 
 @media (max-width: 640px) {
+  .site-product-detail__gallery {
+    display: contents;
+  }
+
   .site-product-detail__summary {
     transform: none;
   }

@@ -30,16 +30,6 @@ export function buildGroupedDesignerEntries(
     .filter((section) => section.entries.length > 0);
 }
 
-export function buildDesignerGridRows(sections: readonly SiteDesignersSection[], columns: number) {
-  const rows: SiteDesignersSection[][] = [];
-
-  for (let index = 0; index < sections.length; index += columns) {
-    rows.push(sections.slice(index, index + columns));
-  }
-
-  return rows;
-}
-
 export function buildDesignerLetterOffset(target: HTMLElement, topPadding: number) {
   const viewportTop = target.getBoundingClientRect().top + window.scrollY;
   return Math.max(0, viewportTop - topPadding);

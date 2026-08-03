@@ -61,7 +61,7 @@
 
 .site-designers-mobile__sections {
   display: grid;
-  gap: 25px;
+  gap: 45px;
   width: 100%;
   padding-inline: 24px;
   justify-items: center;
@@ -70,7 +70,7 @@
 .site-designers-mobile__section {
   display: grid;
   width: min(100%, 214px);
-  gap: 7px;
+  gap: 35px;
   justify-items: center;
 }
 
@@ -88,7 +88,7 @@
 .site-designers-mobile__list {
   display: grid;
   width: 100%;
-  gap: 0;
+  gap: 25px;
   margin: 0;
   padding: 0;
   list-style: none;

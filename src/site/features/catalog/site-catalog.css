@@ -124,6 +124,33 @@
   min-height: 21px;
 }
 
+.site-catalog-filters--tablet {
+  min-height: 21px;
+}
+
+.site-catalog-filters__tablet-trigger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 21px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.9);
+  font-family: "SF Compact Rounded", var(--site-font-ui);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: normal;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.site-catalog-filters__tablet-trigger:focus-visible {
+  outline: none;
+  opacity: 0.82;
+}
+
 .site-catalog-filters__group {
   position: relative;
   display: flex;

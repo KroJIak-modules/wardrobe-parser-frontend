@@ -52,24 +52,6 @@ function findMenuFilterLabel(
     }
   }
 
-  if (!ctxRef.startsWith("mobile:")) {
-    return null;
-  }
-
-  const multiFilterId = ctxRef.slice("mobile:".length);
-  for (const group of navigation.mobile_menu.root_groups) {
-    for (const rootFilter of group.root_multi_filters) {
-      if (rootFilter.id === multiFilterId) {
-        return rootFilter.label;
-      }
-    }
-    for (const child of group.children) {
-      if (child.multi_filter.id === multiFilterId) {
-        return child.multi_filter.label;
-      }
-    }
-  }
-
   return null;
 }
 

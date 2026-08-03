@@ -1,6 +1,7 @@
 import type { MutableRefObject } from "react";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import type { IndicatorState } from "./site-header-contracts";
+import { useSiteCart } from "../../runtime/use-site-cart";
 import { SiteHeaderCartIcon, SiteHeaderSearchIcon } from "./site-header-logo";
 
 export function SiteHeaderActions({
@@ -42,6 +43,10 @@ export function SiteHeaderActions({
   onActionActivate: (index: number, item: SiteNavItem) => void;
   onActionBlur: () => void;
 }) {
+  const { totalItems } = useSiteCart();
+  const cartCountLabel = totalItems >= 10 ? "9+" : `${totalItems}`;
+  const hasCartCount = totalItems > 0;
+
   return (
     <div
       className={`site-header__actions${isSearchExpanded ? " site-header__actions--expanded" : ""}${isActionsTransitionReady ? " site-header__actions--ready" : ""}`}
@@ -125,6 +130,18 @@ export function SiteHeaderActions({
                 <>
                   <span className="site-header__action-item-text">{item.label}</span>
                   <SiteHeaderCartIcon className="site-header__action-cart-icon" />
+                  {hasCartCount ? (
+                    <span
+                      aria-hidden="true"
+                      className={
+                        cartCountLabel.length > 1
+                          ? "site-header__action-cart-count site-header__action-cart-count--wide"
+                          : "site-header__action-cart-count"
+                      }
+                    >
+                      {cartCountLabel}
+                    </span>
+                  ) : null}
                 </>
               ) : index === 0 ? (
                 <>

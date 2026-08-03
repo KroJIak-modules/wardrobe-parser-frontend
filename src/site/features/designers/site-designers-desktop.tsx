@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SiteDesignersEntryMode } from "./site-designers-navigation";
 import type { SiteDesignersDirectoryEntry } from "../../runtime/site-designers";
 import {
-  buildDesignerGridRows,
   buildDesignerLetterOffset,
   buildGroupedDesignerEntries,
 } from "./site-designers-model";
@@ -84,7 +83,6 @@ export function SiteDesignersDesktopDirectory({
   onBrowseSelect: (designerId: string) => void;
 }) {
   const groupedEntries = useMemo(() => buildGroupedDesignerEntries(alphabet, entries), [alphabet, entries]);
-  const rows = useMemo(() => buildDesignerGridRows(groupedEntries, 6), [groupedEntries]);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const actionsRef = useRef<HTMLDivElement>(null);
   const actionsBottomOffset = useSiteDesignersActionsOffset({
@@ -132,57 +130,50 @@ export function SiteDesignersDesktopDirectory({
         })}
       </div>
 
-      <div className="site-designers-shell__rows">
-        {rows.map((row, rowIndex) => (
-          <div key={`row-${rowIndex + 1}`} className="site-designers-shell__row">
-            {row.map((section) => (
-              <section
-                key={section.letter}
-                ref={(node) => {
-                  if (node) {
-                    sectionRefs.current.set(section.letter, node);
-                    return;
-                  }
+      <div className="site-designers-shell__sections">
+        {groupedEntries.map((section) => (
+          <section
+            key={section.letter}
+            ref={(node) => {
+              if (node) {
+                sectionRefs.current.set(section.letter, node);
+                return;
+              }
 
-                  sectionRefs.current.delete(section.letter);
-                }}
-                className="site-designers-shell__section"
-              >
-                <h2 className="site-designers-shell__letter">{section.letter}</h2>
-                <ul className="site-designers-shell__list">
-                  {section.entries.map((entry) => {
-                    const isSelected = selectedDesignerIds.includes(entry.id);
+              sectionRefs.current.delete(section.letter);
+            }}
+            className="site-designers-shell__section"
+          >
+            <h2 className="site-designers-shell__letter">{section.letter}</h2>
+            <ul className="site-designers-shell__list">
+              {section.entries.map((entry) => {
+                const isSelected = selectedDesignerIds.includes(entry.id);
 
-                    return (
-                      <li key={entry.id}>
-                        <button
-                          type="button"
-                          className={
-                            isSelected
-                              ? "site-designers-shell__designer site-designers-shell__designer--selected"
-                              : "site-designers-shell__designer"
-                          }
-                          onClick={() => {
-                            if (mode === "browse") {
-                              onBrowseSelect(entry.id);
-                              return;
-                            }
+                return (
+                  <li key={entry.id}>
+                    <button
+                      type="button"
+                      className={
+                        isSelected
+                          ? "site-designers-shell__designer site-designers-shell__designer--selected"
+                          : "site-designers-shell__designer"
+                      }
+                      onClick={() => {
+                        if (mode === "browse") {
+                          onBrowseSelect(entry.id);
+                          return;
+                        }
 
-                            toggleDesigner(entry.id);
-                          }}
-                        >
-                          {entry.label}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
-            {Array.from({ length: Math.max(0, 6 - row.length) }, (_, fillerIndex) => (
-              <div key={`row-${rowIndex + 1}-filler-${fillerIndex + 1}`} className="site-designers-shell__section site-designers-shell__section--empty" />
-            ))}
-          </div>
+                        toggleDesigner(entry.id);
+                      }}
+                    >
+                      {entry.label}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         ))}
       </div>
 

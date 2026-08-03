@@ -293,6 +293,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
             filterGroups={filterGroups}
             searchParams={effectiveSearchParams}
             onSearchParamsChange={applyFilterSearchParams}
+            layout={usesTabletHeader ? "tablet" : "desktop"}
             products={products}
             currentPage={normalizedPage}
             totalPages={totalPages}

@@ -99,72 +99,74 @@ export function SiteProductHero({
       className="site-product-detail__hero"
       style={{ "--site-product-detail-summary-expansion-height": `${summaryExpansionHeightPx}px` } as CSSProperties}
     >
-      <div className="site-product-detail__thumbs" aria-label="Миниатюры товара">
-        {product.gallery.map((item, index) => {
-          const isActive = item.id === selectedGalleryItem?.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={isActive ? "site-product-detail__thumb site-product-detail__thumb--active" : "site-product-detail__thumb"}
-              ref={(node) => {
-                if (node) {
-                  thumbButtonRefs.current.set(item.id, node);
-                  return;
-                }
-                thumbButtonRefs.current.delete(item.id);
-              }}
-              onClick={() => {
-                setSelectedGalleryItemId(item.id);
-              }}
-              aria-label={`Фотография ${index + 1}`}
-            >
-              <SiteImage
-                src={item.thumbSrc}
-                alt=""
-                aria-hidden="true"
-                className="site-product-detail__thumb-image"
-                fillContainer
-                skeletonVariant="pulse"
-              />
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="site-product-detail__main-image-shell">
-        <div className="site-product-detail__main-image-viewport" ref={mainImageViewportRef}>
-          <div
-            className={
-              isDraggingGallery
-                ? "site-product-detail__main-image-container site-product-detail__main-image-container--dragging"
-                : "site-product-detail__main-image-container"
-            }
-            style={
-              {
-                "--site-product-detail-gallery-index": selectedGalleryIndex,
-                "--site-product-detail-gallery-drag-offset": `${dragOffsetPx}px`,
-              } as CSSProperties
-            }
-          >
-            {product.gallery.map((item, index) => (
-              <figure
+      <div className="site-product-detail__gallery">
+        <div className="site-product-detail__thumbs" aria-label="Миниатюры товара">
+          {product.gallery.map((item, index) => {
+            const isActive = item.id === selectedGalleryItem?.id;
+            return (
+              <button
                 key={item.id}
-                className="site-product-detail__main-image-slide"
-                aria-hidden={selectedGalleryItem?.id === item.id ? "false" : "true"}
+                type="button"
+                className={isActive ? "site-product-detail__thumb site-product-detail__thumb--active" : "site-product-detail__thumb"}
+                ref={(node) => {
+                  if (node) {
+                    thumbButtonRefs.current.set(item.id, node);
+                    return;
+                  }
+                  thumbButtonRefs.current.delete(item.id);
+                }}
+                onClick={() => {
+                  setSelectedGalleryItemId(item.id);
+                }}
+                aria-label={`Фотография ${index + 1}`}
               >
                 <SiteImage
-                  src={item.imageSrc}
-                  alt={item.alt}
-                  className="site-product-detail__main-image"
+                  src={item.thumbSrc}
+                  alt=""
+                  aria-hidden="true"
+                  className="site-product-detail__thumb-image"
                   fillContainer
-                  loading={index === 0 ? "eager" : "lazy"}
-                  decoding="async"
-                  fetchPriority={index === 0 ? "high" : "auto"}
                   skeletonVariant="pulse"
                 />
-              </figure>
-            ))}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="site-product-detail__main-image-shell">
+          <div className="site-product-detail__main-image-viewport" ref={mainImageViewportRef}>
+            <div
+              className={
+                isDraggingGallery
+                  ? "site-product-detail__main-image-container site-product-detail__main-image-container--dragging"
+                  : "site-product-detail__main-image-container"
+              }
+              style={
+                {
+                  "--site-product-detail-gallery-index": selectedGalleryIndex,
+                  "--site-product-detail-gallery-drag-offset": `${dragOffsetPx}px`,
+                } as CSSProperties
+              }
+            >
+              {product.gallery.map((item, index) => (
+                <figure
+                  key={item.id}
+                  className="site-product-detail__main-image-slide"
+                  aria-hidden={selectedGalleryItem?.id === item.id ? "false" : "true"}
+                >
+                  <SiteImage
+                    src={item.imageSrc}
+                    alt={item.alt}
+                    className="site-product-detail__main-image"
+                    fillContainer
+                    loading={index === 0 ? "eager" : "lazy"}
+                    decoding="async"
+                    fetchPriority={index === 0 ? "high" : "auto"}
+                    skeletonVariant="pulse"
+                  />
+                </figure>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -198,7 +200,10 @@ export function SiteProductHero({
               return;
             }
 
-            addItem(buildSiteCartItemFromProduct(product, selectedSize, selectedSourceId));
+            addItem(
+              buildSiteCartItemFromProduct(product, selectedSize, selectedSourceId),
+              { backdropImageSrc: selectedGalleryItem?.imageSrc ?? null },
+            );
           }}
           disabled={selectedSize === null}
         >

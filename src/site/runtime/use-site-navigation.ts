@@ -23,7 +23,7 @@ export function useSiteNavigation() {
       setPayload({
         top_sections: [],
         desktop_menus: {},
-        mobile_menu: { root_groups: [] },
+        mobile_menu: { groups_by_gender: {} },
         catalog_contexts: { designers: [], custom_catalogs: [] },
       });
     });

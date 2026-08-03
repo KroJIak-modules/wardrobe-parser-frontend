@@ -179,3 +179,11 @@
   width: 29px;
   height: 25px;
 }
+
+/* The tablet cart SVG is a 29×25 scale of mobile's 22×19 asset. Keep the
+ * count at the same point inside the basket rather than centring it in the
+ * larger button. */
+.site-mobile-home-header--tablet .site-mobile-home-header__cart-count {
+  bottom: 15px;
+  font-size: 12px;
+}

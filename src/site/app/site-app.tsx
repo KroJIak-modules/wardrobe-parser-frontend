@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import { storefrontHomeState } from "./site-home-entry";
 import { SiteAboutPage } from "../pages/about/site-about-page";
 import { SiteCatalogPage } from "../pages/catalog/site-catalog-page";
+import { SiteCartAddedToast } from "../features/cart/site-cart-added-toast";
 import { SiteCartPage } from "../pages/cart/site-cart-page";
 import { SiteDesignersPage } from "../pages/designers/site-designers-page";
 import { SiteHomePage } from "../pages/home/site-home-page";
@@ -69,6 +70,7 @@ export function SiteApp() {
   return (
     <BrowserRouter>
       <SiteAccessGate />
+      <SiteCartAddedToast />
     </BrowserRouter>
   );
 }

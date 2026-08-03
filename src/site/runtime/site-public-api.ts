@@ -70,15 +70,11 @@ export type SiteApiNavigation = {
   }>;
   desktop_menus: Partial<Record<"new" | "designers" | "men" | "women", SiteApiNavigationMenu>>;
   mobile_menu: {
-    root_groups: Array<{
+    groups_by_gender: Partial<Record<"men" | "women", Array<{
       id: string;
       label: string;
-      root_multi_filters: Array<{ id: string; label: string }>;
-      children: Array<{
-        multi_filter: { id: string; label: string };
-        sections: Array<{ id: string; label: string }>;
-      }>;
-    }>;
+      entries: SiteApiNavigationMenuEntry[];
+    }>>>;
   };
   catalog_contexts: {
     designers: Array<{

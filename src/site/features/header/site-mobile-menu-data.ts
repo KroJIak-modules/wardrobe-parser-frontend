@@ -1,5 +1,5 @@
 import { buildCatalogHref } from "../catalog/site-catalog-query";
-import type { SiteApiNavigation } from "../../runtime/site-public-api";
+import type { SiteApiNavigation, SiteApiNavigationMenuEntry } from "../../runtime/site-public-api";
 import { buildHrefFromTarget } from "../../runtime/use-site-navigation";
 
 export type SiteMobileMenuGender = "men" | "women";
@@ -18,38 +18,12 @@ export type SiteMobileMenuGroup = {
   actions: readonly SiteMobileMenuAction[];
 };
 
-function buildGenderPatch(gender: SiteMobileMenuGender) {
+function toAction(entry: SiteApiNavigationMenuEntry): SiteMobileMenuAction {
   return {
-    gender: [gender],
-    sort: null,
-    q: null,
+    label: entry.label,
+    presentation: entry.presentation,
+    to: buildHrefFromTarget(entry.target) ?? undefined,
   };
-}
-
-function buildRootGroupHref(gender: SiteMobileMenuGender, multiId: string, sectionIds: readonly string[]) {
-  return buildCatalogHref({
-    ...buildGenderPatch(gender),
-    top: gender,
-    collection: null,
-    multi: null,
-    availability: null,
-    section: sectionIds,
-    designer: null,
-    ctx: "menu_filter",
-    ctx_ref: `mobile:${multiId}`,
-  });
-}
-
-function buildSectionHref(gender: SiteMobileMenuGender, sectionId: string) {
-  return buildCatalogHref({
-    ...buildGenderPatch(gender),
-    top: gender,
-    collection: null,
-    multi: null,
-    availability: null,
-    section: [sectionId],
-    designer: null,
-  });
 }
 
 function createNewActions(payload: SiteApiNavigation): readonly SiteMobileMenuAction[] {
@@ -57,26 +31,21 @@ function createNewActions(payload: SiteApiNavigation): readonly SiteMobileMenuAc
   if (!menu) {
     return [];
   }
-  return menu.columns.flatMap((column) => {
-    const actions: SiteMobileMenuAction[] = [];
-    const titleLabel = String(column.title?.label || "").trim();
-    if (column.title && titleLabel !== "Разделы") {
-      actions.push({
-        label: column.title.label,
-        presentation: "heading",
-        to: buildHrefFromTarget(column.title.target) ?? undefined,
-      });
-    }
-    actions.push(
-      ...column.entries.map((entry) => ({
-        label: entry.label,
-        presentation: entry.presentation,
-        to: buildHrefFromTarget(entry.target) ?? undefined,
-      })),
-    );
-    return actions;
-  });
+
+  const collections = menu.columns.find((column) => column.id === "new-availability");
+  if (!collections) {
+    return [];
+  }
+
+  return [
+    ...(collections.title
+      ? [{ label: collections.title.label, presentation: "heading" as const }]
+      : []),
+    ...collections.entries.map(toAction),
+  ];
 }
+
+const MOBILE_DESIGNER_LIMIT = 10;
 
 function createDesignerActions(payload: SiteApiNavigation): readonly SiteMobileMenuAction[] {
   const menu = payload.desktop_menus.designers;
@@ -93,21 +62,19 @@ function createDesignerActions(payload: SiteApiNavigation): readonly SiteMobileM
           },
         ]
       : []),
-    ...menu.columns.flatMap((column) =>
-      column.entries.map((entry) => ({
-        label: entry.label,
-        presentation: "item" as const,
-        to: buildHrefFromTarget(entry.target) ?? undefined,
-      })),
-    ),
+    ...menu.columns.flatMap((column) => column.entries).slice(0, MOBILE_DESIGNER_LIMIT).map(toAction),
   ];
 }
 
-function createRootActions(payload: SiteApiNavigation): readonly SiteMobileMenuAction[] {
+function genderRootGroups(payload: SiteApiNavigation, gender: SiteMobileMenuGender) {
+  return payload.mobile_menu.groups_by_gender[gender] ?? [];
+}
+
+function createRootActions(payload: SiteApiNavigation, gender: SiteMobileMenuGender): readonly SiteMobileMenuAction[] {
   return [
     { label: "Новинки", presentation: "heading", panel: "new" },
     { label: "Дизайнеры", presentation: "heading", panel: "designers" },
-    ...payload.mobile_menu.root_groups.map((group) => ({
+    ...genderRootGroups(payload, gender).map((group) => ({
       label: group.label,
       presentation: "heading" as const,
       panel: `root-group:${group.id}` as const,
@@ -116,26 +83,12 @@ function createRootActions(payload: SiteApiNavigation): readonly SiteMobileMenuA
 }
 
 function createRootGroupActions(payload: SiteApiNavigation, groupId: string, gender: SiteMobileMenuGender): readonly SiteMobileMenuGroup[] {
-  const rootGroup = payload.mobile_menu.root_groups.find((group) => group.id === groupId);
+  const rootGroup = genderRootGroups(payload, gender).find((group) => group.id === groupId);
   if (!rootGroup) {
     return [];
   }
 
-  return rootGroup.children.map((child) => ({
-    id: child.multi_filter.id,
-    actions: [
-      {
-        label: child.multi_filter.label,
-        presentation: "heading",
-        to: buildRootGroupHref(gender, child.multi_filter.id, child.sections.map((section) => section.id)),
-      },
-      ...child.sections.map((section) => ({
-        label: section.label,
-        presentation: "item" as const,
-        to: buildSectionHref(gender, section.id),
-      })),
-    ],
-  }));
+  return [{ id: rootGroup.id, actions: rootGroup.entries.map(toAction) }];
 }
 
 export function getSiteMobileMenuGroups(
@@ -160,13 +113,13 @@ export function getSiteMobileMenuGroups(
   }
 
   if (panel === "root") {
-    return [{ id: "root", actions: createRootActions(payload) }];
+    return [{ id: "root", actions: createRootActions(payload, gender) }];
   }
 
   return [];
 }
 
-export function getSiteMobileMenuPanelTitle(payload: SiteApiNavigation | null, panel: SiteMobileMenuPanel): string | null {
+export function getSiteMobileMenuPanelTitle(payload: SiteApiNavigation | null, panel: SiteMobileMenuPanel, gender: SiteMobileMenuGender): string | null {
   if (!payload) {
     return null;
   }
@@ -180,7 +133,7 @@ export function getSiteMobileMenuPanelTitle(payload: SiteApiNavigation | null, p
   }
 
   if (panel.startsWith("root-group:")) {
-    return payload.mobile_menu.root_groups.find((group) => group.id === panel.slice("root-group:".length))?.label ?? null;
+    return genderRootGroups(payload, gender).find((group) => group.id === panel.slice("root-group:".length))?.label ?? null;
   }
 
   return null;

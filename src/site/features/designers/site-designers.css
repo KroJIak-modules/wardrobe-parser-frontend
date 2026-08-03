@@ -40,42 +40,32 @@
   cursor: default;
 }
 
-.site-designers-shell__rows {
-  margin-top: 63px;
-}
-
-.site-designers-shell__row {
+.site-designers-shell__sections {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  column-gap: 0;
-}
-
-.site-designers-shell__row + .site-designers-shell__row {
-  margin-top: 40px;
+  gap: 80px;
+  margin-top: 63px;
 }
 
 .site-designers-shell__section {
   min-width: 0;
-  min-height: 129px;
-}
-
-.site-designers-shell__section--empty {
-  pointer-events: none;
+  scroll-margin-top: 137px;
 }
 
 .site-designers-shell__letter {
   margin: 0;
   color: #000;
   font-family: var(--site-font-ui);
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 500;
   line-height: 1;
 }
 
 .site-designers-shell__list {
   display: grid;
-  gap: 0;
-  margin: 20px 0 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: 28px;
+  row-gap: 39px;
+  margin: 30px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -83,7 +73,6 @@
 .site-designers-shell__designer {
   display: inline-flex;
   width: 100%;
-  max-width: 213px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -91,7 +80,7 @@
   font-family: var(--site-font-ui);
   font-size: 18px;
   font-weight: 400;
-  line-height: 1.42155;
+  line-height: 1;
   text-align: left;
   text-decoration: none;
   overflow: hidden;
@@ -199,9 +188,8 @@
 }
 
 @media (max-width: 1220px) {
-  .site-designers-shell__row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    row-gap: 40px;
+  .site-designers-shell__list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -221,8 +209,8 @@
     letter-spacing: 0.22em;
   }
 
-  .site-designers-shell__row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .site-designers-shell__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .site-designers-actions__button--apply {
@@ -235,10 +223,6 @@
 }
 
 @media (max-width: 720px) {
-  .site-designers-shell__row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .site-designers-shell__designer {
     max-width: 100%;
   }

@@ -56,7 +56,13 @@
   right: 31px;
   bottom: 113px;
   overflow: hidden;
+  scrollbar-width: none;
   z-index: 2;
+}
+
+.site-catalog-mobile-filters-drawer__body::-webkit-scrollbar,
+.site-catalog-mobile-filters-drawer__options--scrollable::-webkit-scrollbar {
+  display: none;
 }
 
 .site-catalog-mobile-filters-drawer__groups {

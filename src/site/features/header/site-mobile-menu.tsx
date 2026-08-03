@@ -4,6 +4,7 @@ import { siteFooterColumns } from "../../app/site-static-content";
 import type { SiteFooterColumn } from "../storefront/site-storefront-contracts";
 import type { SiteApiNavigation } from "../../runtime/site-public-api";
 import { SiteMobileDrawerShell } from "../shared/site-mobile-drawer-shell";
+import { SiteWindowCloseButton } from "../window-shell/site-window-shell";
 import { prepareSiteCatalogFilterNavigation } from "../catalog/site-catalog-navigation";
 import {
   buildSiteMobileSearchHref,
@@ -118,11 +119,13 @@ function SiteMobileMenuFooterBlock({
 
 export function SiteMobileMenu({
   navigation,
+  presentation = "mobile",
   isClosing,
   onClose,
   onCloseAnimationEnd,
 }: {
   navigation: SiteApiNavigation | null;
+  presentation?: "mobile" | "tablet";
   isClosing: boolean;
   onClose: () => void;
   onCloseAnimationEnd: () => void;
@@ -178,6 +181,22 @@ export function SiteMobileMenu({
     return () => window.cancelAnimationFrame(frameId);
   }, [panelLayers]);
 
+  const getPanelFrameClassName = (menuPanel: SiteMobileMenuPanel) => {
+    if (menuPanel === "root") {
+      return "site-mobile-menu__panel-frame site-mobile-menu__panel-frame--root";
+    }
+
+    if (menuPanel === "new") {
+      return "site-mobile-menu__panel-frame site-mobile-menu__panel-frame--detail site-mobile-menu__panel-frame--new";
+    }
+
+    if (menuPanel === "designers") {
+      return "site-mobile-menu__panel-frame site-mobile-menu__panel-frame--detail site-mobile-menu__panel-frame--designers";
+    }
+
+    return "site-mobile-menu__panel-frame site-mobile-menu__panel-frame--detail site-mobile-menu__panel-frame--root-group";
+  };
+
   const activateAction = (action: SiteMobileMenuAction) => {
     if (action.panel) {
       startPanelTransition(action.panel);
@@ -210,10 +229,18 @@ export function SiteMobileMenu({
       ref={menuRef}
       ariaLabel="Мобильное меню"
       className="site-mobile-menu"
+      presentation={presentation}
       isClosing={isClosing}
       onClose={onClose}
       onCloseAnimationEnd={onCloseAnimationEnd}
     >
+      <SiteWindowCloseButton
+        className="site-mobile-menu__close"
+        ariaLabel="Закрыть меню"
+        onClick={onClose}
+        iconSrc="/site-mock/mobile-header/menu-close.svg"
+        rotateIcon={false}
+      />
       <div className={`site-mobile-menu__tabs site-mobile-menu__tabs--${gender}`}>
         <span className="site-mobile-menu__tabs-indicator" aria-hidden="true" />
         <button
@@ -252,7 +279,7 @@ export function SiteMobileMenu({
       <div className="site-mobile-menu__panel-stack">
         {panelLayers.map((layer) => {
           const layerGroups = getSiteMobileMenuGroups(navigation, layer.panel, gender);
-          const layerTitle = getSiteMobileMenuPanelTitle(navigation, layer.panel);
+          const layerTitle = getSiteMobileMenuPanelTitle(navigation, layer.panel, gender);
           const isRootPanel = layer.panel === "root";
           const isTopLayer = layer.id === panelLayers[panelLayers.length - 1]?.id;
 
@@ -271,13 +298,7 @@ export function SiteMobileMenu({
                 }
               }}
             >
-              <div
-                className={
-                  isRootPanel
-                    ? "site-mobile-menu__panel-frame site-mobile-menu__panel-frame--root"
-                    : "site-mobile-menu__panel-frame site-mobile-menu__panel-frame--detail"
-                }
-              >
+              <div className={getPanelFrameClassName(layer.panel)}>
                 {isRootPanel ? (
                   <form className="site-mobile-menu__search" role="search" onSubmit={submitSearch}>
                     <input

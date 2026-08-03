@@ -97,6 +97,7 @@ export function SiteMobileHomeHeader({
       {isMenuOpen ? (
         <SiteMobileMenu
           navigation={navigation}
+          presentation={layout}
           isClosing={isMenuClosing}
           onClose={closeMenu}
           onCloseAnimationEnd={() => {

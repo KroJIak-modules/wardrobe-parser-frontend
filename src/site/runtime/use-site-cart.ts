@@ -20,6 +20,10 @@ export type SiteCartItem = {
 
 const SITE_CART_STORAGE_KEY = "site-cart-items-v1";
 const SITE_CART_CHANGE_EVENT = "site-cart-change";
+export const SITE_CART_ITEM_ADDED_EVENT = "site-cart-item-added";
+export type SiteCartItemAddedDetail = {
+  backdropImageSrc: string | null;
+};
 
 function isSiteCartItem(value: unknown): value is SiteCartItem {
   if (!value || typeof value !== "object") {
@@ -138,24 +142,25 @@ export function useSiteCart() {
   );
 
   const addItem = useCallback(
-    (nextItem: SiteCartItem) => {
+    (nextItem: SiteCartItem, detail: SiteCartItemAddedDetail = { backdropImageSrc: null }) => {
       const existing = items.find((item) => item.id === nextItem.id);
 
       if (!existing) {
         persistItems([...items, nextItem]);
-        return;
+      } else {
+        persistItems(
+          items.map((item) =>
+            item.id === existing.id
+              ? {
+                  ...item,
+                  quantity: item.quantity + nextItem.quantity,
+                }
+              : item
+          )
+        );
       }
 
-      persistItems(
-        items.map((item) =>
-          item.id === existing.id
-            ? {
-                ...item,
-                quantity: item.quantity + nextItem.quantity,
-              }
-            : item
-        )
-      );
+      window.dispatchEvent(new CustomEvent<SiteCartItemAddedDetail>(SITE_CART_ITEM_ADDED_EVENT, { detail }));
     },
     [items, persistItems]
   );

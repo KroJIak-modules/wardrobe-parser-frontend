@@ -19,6 +19,7 @@ export function SiteCatalogExperienceView({
   errorMessage = null,
   onPageChange,
   fallback,
+  layout = "desktop",
 }: {
   title: string;
   description: string | null;
@@ -32,6 +33,7 @@ export function SiteCatalogExperienceView({
   loading?: boolean;
   errorMessage?: string | null;
   onPageChange: (page: number) => void;
+  layout?: "desktop" | "tablet";
   fallback?: {
     products: readonly SiteCatalogProduct[];
     loading: boolean;
@@ -65,6 +67,7 @@ export function SiteCatalogExperienceView({
           filterGroups={filterGroups}
           searchParams={activeSearchParams}
           onChange={activeSearchParamsChange}
+          layout={layout}
         />
       </div>
 

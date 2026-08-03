@@ -39,9 +39,9 @@
   /* Mobile has a separate 172px Figma reference, but it follows the same rule:
    * every measurement comes from the actual card track, never from viewport vw. */
   --site-product-tile-shell-width: 100%;
-  /* Every phone card reserves the two-line text budget. This gives a matching
-   * lower edge to both cards in a row, while preventing price/status clipping. */
-  --site-product-tile-shell-height: 198.2558cqw;
+  /* Both title variants end on the same price baseline. Keep just a measured
+   * 10–12px bottom inset instead of reserving unused space below the status. */
+  --site-product-tile-shell-height: 181.15cqw;
   --site-product-tile-media-height: 132cqw;
   --site-product-tile-divider-top: var(--site-product-tile-media-height);
   --site-product-tile-meta-top: 139.25cqw;
@@ -69,7 +69,7 @@
   /* cqw is resolved by descendants against this tile. The tile itself must
    * use a ratio, otherwise cqw would resolve against the parent grid and
    * double its height. */
-  aspect-ratio: 100 / 198.2558;
+  aspect-ratio: 100 / 181.15;
   align-self: start;
 }
 
@@ -155,6 +155,9 @@
     --site-product-tile-price-font-size: 10px;
     --site-product-tile-divider-font-size: 7px;
     --site-product-tile-availability-font-size: 8px;
+    /* Fixed 10px type needs a little more room below 360px. */
+    --site-product-tile-shell-height: 187cqw;
+    aspect-ratio: 100 / 187;
   }
 
   .site-product-tile--compact .site-product-tile__image.site-image__img {
@@ -169,10 +172,19 @@
 /* Only at truly ultra-narrow widths do fixed 10px text lines need extra room.
  * This is card geometry, not a grid-row minimum: card and shell use the same
  * explicit ratio, so the real space between rows remains the grid's 16px gap. */
+@media (min-width: 240px) and (max-width: 299px) {
+  .site-product-tile--compact {
+    /* Preserve the same bottom inset when the fixed 10px text approaches the
+     * card width. */
+    --site-product-tile-shell-height: 193cqw;
+    aspect-ratio: 100 / 193;
+  }
+}
+
 @media (max-width: 239px) {
   .site-product-tile--compact {
-    --site-product-tile-shell-height: 212cqw;
-    aspect-ratio: 100 / 212;
+    --site-product-tile-shell-height: 214cqw;
+    aspect-ratio: 100 / 214;
   }
 }
 
