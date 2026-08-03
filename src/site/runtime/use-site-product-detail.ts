@@ -64,6 +64,7 @@ function groupVariants(raw: SiteApiProductResponse["variants"]): SiteProductDeta
     const existing = groups.get(key);
     const sourceItem = {
       id: `${variant.source.id}-${variant.id}`,
+      variantId: variant.id,
       label: variant.source.name,
       priceRub: variant.price_rub ?? 0,
       url: variant.source.url ?? "#",

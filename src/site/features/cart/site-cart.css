@@ -16,7 +16,7 @@
 
 .site-cart__layout {
   display: grid;
-  grid-template-columns: 719px 341px;
+  grid-template-columns: 719px 406px;
   justify-content: center;
   align-items: start;
   column-gap: 80px;
@@ -310,7 +310,7 @@
   }
 
   .site-cart__layout {
-    grid-template-columns: minmax(0, 1fr) 341px;
+    grid-template-columns: minmax(0, 1fr) 406px;
     column-gap: clamp(24px, calc(100vw - 1261px), 60px);
   }
 

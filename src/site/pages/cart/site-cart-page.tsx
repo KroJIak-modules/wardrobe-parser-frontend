@@ -17,18 +17,19 @@ function formatTelegramRubles(value: number) {
   return `${new Intl.NumberFormat("ru-RU").format(value).replace(/\s/g, ".")}₽`;
 }
 
-function buildTelegramMessage(items: ReturnType<typeof useSiteCart>["items"], totalPriceRub: number) {
-  const itemBlocks = items.map((item) =>
+function buildTelegramMessage(items: ReturnType<typeof useSiteCart>["items"], quote: NonNullable<ReturnType<typeof useSiteCart>["quote"]>) {
+  const quoteLineTotalByVariantId = new Map(quote.items.map((item) => [item.variant_id, item.final_line_total_rub]));
+  const itemBlocks = items.map(({ snapshot, variantId, quantity }) =>
     [
-      `${item.brand} ${item.name} (${item.productUrl})`,
-      `Источник - ${item.sourceUrl}`,
-      `Размер - ${item.size}`,
-      `Количество - ${item.quantity}`,
-      `Стоимость - ${formatTelegramRubles(item.priceRub * item.quantity)}`,
+      `${snapshot.brand} ${snapshot.name} (${snapshot.productUrl})`,
+      `Источник - ${snapshot.sourceUrl}`,
+      `Размер - ${snapshot.size}`,
+      `Количество - ${quantity}`,
+      `Стоимость - ${formatTelegramRubles(quoteLineTotalByVariantId.get(variantId) ?? 0)}`,
     ].join("\n")
   );
 
-  return `Привет! Хочу приобрести:\n\n${itemBlocks.join("\n\n")}\n\nИтого - ${formatTelegramRubles(totalPriceRub)}`;
+  return `Привет! Хочу приобрести:\n\n${itemBlocks.join("\n\n")}\n\nИтого - ${formatTelegramRubles(quote.finalTotalRub)}`;
 }
 
 function buildTelegramHref(message: string) {
@@ -38,12 +39,13 @@ function buildTelegramHref(message: string) {
 export function SiteCartPage() {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
-  const { items, totalPriceRub, hasItems, updateQuantity, removeItem } = useSiteCart();
+  const { items, totalPriceRub, quote, quoteStatus, hasItems, updateQuantity, removeItem } = useSiteCart();
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_CART_MOBILE_MEDIA_QUERY);
   const usesTabletHeader = useSiteMediaQuery(SITE_CART_TABLET_HEADER_MEDIA_QUERY);
-  const telegramMessage = useMemo(() => buildTelegramMessage(items, totalPriceRub), [items, totalPriceRub]);
+  const quotedTotalPriceRub = quote?.finalTotalRub ?? totalPriceRub;
+  const telegramMessage = useMemo(() => (quote ? buildTelegramMessage(items, quote) : ""), [items, quote]);
 
   useEffect(() => {
     document.title = "Anton Shell — Корзина";
@@ -51,16 +53,16 @@ export function SiteCartPage() {
   }, []);
 
   const handleSendRequest = useCallback(() => {
-    if (!hasItems) {
+    if (!hasItems || !quote) {
       return;
     }
 
     const telegramHref = buildTelegramHref(telegramMessage);
     window.open(telegramHref, "_blank", "noopener,noreferrer");
-  }, [hasItems, telegramMessage]);
+  }, [hasItems, quote, telegramMessage]);
 
   const handleCopyRequest = useCallback(async () => {
-    if (!hasItems) {
+    if (!hasItems || !quote) {
       return;
     }
 
@@ -77,7 +79,7 @@ export function SiteCartPage() {
       document.execCommand("copy");
       textarea.remove();
     }
-  }, [hasItems, telegramMessage]);
+  }, [hasItems, quote, telegramMessage]);
 
   return (
     <main className={`site-cart-page${isMobileLayout ? " site-cart-page--mobile" : ""}`}>
@@ -113,7 +115,10 @@ export function SiteCartPage() {
 
       <SiteCartView
         items={items}
-        totalPriceRub={totalPriceRub}
+        originalTotalPriceRub={totalPriceRub}
+        finalTotalPriceRub={quotedTotalPriceRub}
+        quoteStatus={quoteStatus}
+        svcProgress={quote?.svcProgress ?? null}
         hasItems={hasItems}
         onIncrement={(itemId) => {
           const item = items.find((entry) => entry.id === itemId);

@@ -159,6 +159,36 @@ export type SiteApiProductResponse = {
   };
 };
 
+export type SiteApiCartQuoteRequest = {
+  items: Array<{ variant_id: number; quantity: number }>;
+};
+
+export type SiteApiCartQuoteResponse = {
+  items: Array<{
+    variant_id: number;
+    quantity: number;
+    availability: "in_stock" | "preorder";
+    original_line_total_rub: number;
+    final_line_total_rub: number;
+  }>;
+  original_total_rub: number;
+  final_total_rub: number;
+  total_rub: number;
+  svc_tiers: Array<{
+    min_rub: number;
+    max_rub: number | null;
+    mode: "fixed_rub" | "percent";
+    value: number;
+    amount_rub: number | null;
+    is_applied: boolean;
+  }>;
+  svc_progress: {
+    preorder_subtotal_rub: number;
+    applied_amount_rub: number;
+    next_threshold_rub: number | null;
+  };
+};
+
 export type SiteApiAboutResponse = {
   text: string;
   photos: SiteApiMediaAsset[];
@@ -208,28 +238,5 @@ export type SiteApiAdminSiteQuestionsResponse = {
     question: string;
     answer: string;
     is_enabled: boolean;
-    is_expanded_by_default: boolean;
-    position: number;
   }>;
-};
-
-export type SiteApiAdminSiteNotificationResponse = {
-  id: number;
-  version: number;
-  title: string;
-  description: string;
-  button_text: string;
-  button_url: string;
-  image: SiteApiMediaAsset | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type SiteApiAdminSiteNotificationsResponse = {
-  items: SiteApiAdminSiteNotificationResponse[];
-};
-
-export type SiteApiAdminSiteContentMediaUploadResponse = {
-  ok: boolean;
-  asset: SiteApiMediaAsset;
 };

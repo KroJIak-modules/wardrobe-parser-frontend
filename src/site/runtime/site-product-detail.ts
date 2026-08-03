@@ -15,6 +15,7 @@ export type SiteProductDetailGalleryItem = {
 
 export type SiteProductDetailSourceItem = {
   id: string;
+  variantId: number;
   label: string;
   priceRub: number;
   url: string;
@@ -98,20 +99,27 @@ export function buildSiteCartItemFromProduct(
   const fallbackSource = variant?.sources[0] ?? null;
   const effectiveSource = preferredSource ?? fallbackSource;
 
+  if (!effectiveSource) {
+    throw new Error("Невозможно добавить товар без варианта");
+  }
+
   return {
-    id: `cart-${product.id}-${size.toLowerCase()}${preferredSourceId ? `-${preferredSourceId}` : ""}`,
-    productId: product.id,
-    designerId: product.designerId,
-    brand: product.brand,
-    name: product.name,
-    imageSrc: product.imageSrc,
-    imageAlt: product.imageAlt,
-    availabilityLabel: product.availability,
-    availabilityCode: product.availabilityCode === "sold-out" ? "preorder" : product.availabilityCode,
-    priceRub: effectiveSource?.priceRub ?? product.priceRub,
-    size,
+    id: `cart-variant-${effectiveSource.variantId}`,
+    variantId: effectiveSource.variantId,
     quantity: 1,
-    sourceUrl: effectiveSource?.url ?? resolveSiteProductDetailSourceUrl(product, size, preferredSourceId) ?? productUrl,
-    productUrl,
+    snapshot: {
+      productId: product.id,
+      designerId: product.designerId,
+      brand: product.brand,
+      name: product.name,
+      imageSrc: product.imageSrc,
+      imageAlt: product.imageAlt,
+      availabilityLabel: product.availability,
+      availabilityCode: product.availabilityCode === "sold-out" ? "preorder" : product.availabilityCode,
+      priceRub: effectiveSource.priceRub,
+      size,
+      sourceUrl: effectiveSource.url ?? resolveSiteProductDetailSourceUrl(product, size, preferredSourceId) ?? productUrl,
+      productUrl,
+    },
   };
 }

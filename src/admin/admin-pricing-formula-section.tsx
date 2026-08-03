@@ -97,10 +97,6 @@ export function AdminPricingFormulaSection({ pricingSettings, pricingFormulaHtml
               <div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summaryFpLatex }} />
               <div className="pricing-example-metric-value">{formatMetricMoney(pricingExample.finalPrice, "RUB", pricingExample.finalHasRange)}</div>
             </div>
-            <div className="pricing-example-metric">
-              <div className="pricing-example-metric-key">Моржа</div>
-              <div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.marginRub, "RUB")}</div>
-            </div>
           </div>
         </div>
       ) : pricingExampleLoading ? (

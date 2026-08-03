@@ -50,7 +50,6 @@ export type PricingExampleView = {
   summarySpLatex: string;
   summaryFpLatex: string;
   summaryRubLatex: string;
-  marginRub: number;
   legendDim: Record<string, boolean>;
   formulaHtml: string;
 };

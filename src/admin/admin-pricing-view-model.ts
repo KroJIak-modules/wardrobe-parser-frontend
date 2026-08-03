@@ -189,7 +189,6 @@ export function buildPricingExampleView(
   const summarySpLatex = renderLatexInline("SP");
   const summaryFpLatex = renderLatexInline("FPR");
   const summaryRubLatex = renderLatexInline("SPR");
-  const marginRub = toFiniteNumber(components.margin_rub) ?? (finalPrice - sourcePriceRub);
   const usedKeys = new Set([
     "SP", "SPU", "SPE", "SPR", "BBR", "BEX", "BFX", "E2U", "G2U", "PRM", "BSC", "BUY", "PFRP", "PFR",
     "THR", "DUT", "CPR", "CFX", "CDR", "SSR", "SUP", "RNG", "SUB", "SVC", "SUBM", "TXR", "TAX", "MUP", "RND", "FPR",
@@ -267,7 +266,6 @@ export function buildPricingExampleView(
     summarySpLatex,
     summaryFpLatex,
     summaryRubLatex,
-    marginRub,
     legendDim,
     formulaHtml: renderLatexBlock(exampleLatex),
   };

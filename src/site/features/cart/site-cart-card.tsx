@@ -16,25 +16,26 @@ export function SiteCartCard({
   onDecrement: () => void;
   onRemove: () => void;
 }) {
-  const designerHref = buildDesignerCatalogHref(item.designerId);
+  const { snapshot } = item;
+  const designerHref = buildDesignerCatalogHref(snapshot.designerId);
   const productHref = (() => {
     try {
-      return new URL(item.productUrl).pathname;
+      return new URL(snapshot.productUrl).pathname;
     } catch {
-      return item.productUrl;
+      return snapshot.productUrl;
     }
   })();
 
   return (
     <SiteWindowShell as="article" className="site-cart-card" frameClassName="site-cart-card__frame">
       <SiteWindowTitlebar
-        title={item.availabilityLabel}
+        title={snapshot.availabilityLabel}
         className="site-cart-card__window-bar"
         titleClassName="site-cart-card__availability"
         closeButton={
           <SiteWindowCloseButton
             className="site-cart-card__close"
-            ariaLabel={`Убрать ${item.name} из корзины`}
+            ariaLabel={`Убрать ${snapshot.name} из корзины`}
             onClick={onRemove}
           />
         }
@@ -42,16 +43,16 @@ export function SiteCartCard({
 
       <div className="site-cart-card__body">
         <div className="site-cart-card__media">
-          {item.imageSrc ? <SiteImage src={item.imageSrc} alt={item.imageAlt} className="site-cart-card__image" fillContainer /> : null}
+          {snapshot.imageSrc ? <SiteImage src={snapshot.imageSrc} alt={snapshot.imageAlt} className="site-cart-card__image" fillContainer /> : null}
         </div>
 
         <div className="site-cart-card__content">
           <div className="site-cart-card__copy">
             <Link to={designerHref} className="site-cart-card__brand-link">
-              {item.brand}
+              {snapshot.brand}
             </Link>
             <Link to={productHref} className="site-cart-card__name-link">
-              {item.name.toUpperCase()}
+              {snapshot.name.toUpperCase()}
             </Link>
           </div>
 
@@ -59,23 +60,23 @@ export function SiteCartCard({
             <div className="site-cart-card__meta">
               <div className="site-cart-card__meta-row">
                 <span className="site-cart-card__meta-label">Размер</span>
-                <span className="site-cart-card__meta-value">{item.size}</span>
+                <span className="site-cart-card__meta-value">{snapshot.size}</span>
               </div>
               <div className="site-cart-card__meta-row">
                 <span className="site-cart-card__meta-label">Количество</span>
                 <div className="site-cart-card__quantity">
-                  <button type="button" className="site-cart-card__qty-btn" aria-label={`Уменьшить количество ${item.name}`} onClick={onDecrement}>
+                  <button type="button" className="site-cart-card__qty-btn" aria-label={`Уменьшить количество ${snapshot.name}`} onClick={onDecrement}>
                     -
                   </button>
                   <span className="site-cart-card__qty-value">{item.quantity}</span>
-                  <button type="button" className="site-cart-card__qty-btn" aria-label={`Увеличить количество ${item.name}`} onClick={onIncrement}>
+                  <button type="button" className="site-cart-card__qty-btn" aria-label={`Увеличить количество ${snapshot.name}`} onClick={onIncrement}>
                     +
                   </button>
                 </div>
               </div>
             </div>
 
-            <p className="site-cart-card__price">{formatSiteRubles(item.priceRub * item.quantity)} ₽</p>
+            <p className="site-cart-card__price">{formatSiteRubles(snapshot.priceRub * item.quantity)} ₽</p>
           </div>
         </div>
       </div>

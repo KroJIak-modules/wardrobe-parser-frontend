@@ -1883,7 +1883,6 @@ export function ShowcaseProductPage() {
                   <div className="pricing-example-metric"><div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summarySpLatex }} /><div className="pricing-example-metric-value">{formulaMetricMoney(pricingExample.sourcePrice, pricingExample.sourceCurrency, pricingExample.sourceHasRange)}</div></div>
                   <div className="pricing-example-metric"><div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summaryRubLatex }} /><div className="pricing-example-metric-value">{formulaMetricMoney(pricingExample.sourcePriceRub, "RUB", pricingExample.sourceHasRange)}</div></div>
                   <div className="pricing-example-metric"><div className="pricing-example-metric-key" dangerouslySetInnerHTML={{ __html: pricingExample.summaryFpLatex }} /><div className="pricing-example-metric-value">{formulaMetricMoney(pricingExample.finalPrice, "RUB", pricingExample.finalHasRange)}</div></div>
-                  <div className="pricing-example-metric"><div className="pricing-example-metric-key">Моржа</div><div className="pricing-example-metric-value">{formatDisplayMoney(pricingExample.marginRub, "RUB")}</div></div>
                 </div>
                 <div className="product-formula-legend-panel">
                   <button type="button" className={`product-formula-legend-toggle ${legendExpanded ? "is-open" : ""}`} onClick={() => setLegendExpanded((prev) => !prev)} aria-expanded={legendExpanded}>
