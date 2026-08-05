@@ -494,6 +494,8 @@
     --site-window-titlebar-height: 23px;
     --site-window-titlebar-padding: 4px;
     --site-window-titlebar-radius: 2px 2px 0 0;
+    /* The card shell already renders the mobile outer frame. */
+    --site-window-titlebar-border: 0;
   }
 
   .site-cart-card__availability {
