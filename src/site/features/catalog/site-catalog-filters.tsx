@@ -30,7 +30,15 @@ export function SiteCatalogFilters({
   const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
   const [isTabletDrawerOpen, setIsTabletDrawerOpen] = useState(false);
   const [isTabletDrawerClosing, setIsTabletDrawerClosing] = useState(false);
+  const [isTabletSortOpen, setIsTabletSortOpen] = useState(false);
   const tabletDrawerRef = useRef<SiteCatalogMobileFiltersDrawerHandle | null>(null);
+  const tabletSortGroup = filterGroups.find((group) => group.key === "sort") ?? null;
+  const tabletSelectedSortValues = tabletSortGroup
+    ? getCatalogSelectedValues(searchParams, tabletSortGroup, { mode: "effective" })
+    : [];
+  const tabletSortTriggerLabel = tabletSortGroup
+    ? getCatalogTriggerLabel(searchParams, tabletSortGroup, tabletSelectedSortValues)
+    : null;
 
   if (layout === "tablet") {
     return (
@@ -51,6 +59,48 @@ export function SiteCatalogFilters({
           >
             ФИЛЬТРЫ
           </button>
+          {tabletSortGroup && tabletSortTriggerLabel ? (
+            <div className="site-catalog-filters__tablet-sort-control">
+              <button
+                type="button"
+                className="site-catalog-filters__tablet-sort-trigger"
+                aria-expanded={isTabletSortOpen}
+                onClick={() => setIsTabletSortOpen((isOpen) => !isOpen)}
+              >
+                <span
+                  className={isTabletSortOpen ? "site-catalog-filters__tablet-sort-chevron site-catalog-filters__tablet-sort-chevron--open" : "site-catalog-filters__tablet-sort-chevron"}
+                  aria-hidden="true"
+                >
+                  <img src="/site-mock/catalog/sort-chevron-up.svg" alt="" />
+                </span>
+                <span>{tabletSortTriggerLabel}</span>
+              </button>
+              {isTabletSortOpen ? (
+                <section className="site-catalog-filters__tablet-sort-flyout" aria-label="Сортировка каталога">
+                  {tabletSortGroup.options.map((option) => {
+                    const isSelected = tabletSelectedSortValues.includes(option.value);
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={isSelected ? "site-catalog-filters__tablet-sort-option site-catalog-filters__tablet-sort-option--selected" : "site-catalog-filters__tablet-sort-option"}
+                        onClick={() => {
+                          onChange(
+                            isSelected
+                              ? clearCatalogGroupSelection(searchParams, tabletSortGroup)
+                              : toggleCatalogGroupOption(searchParams, tabletSortGroup, option.value)
+                          );
+                          setIsTabletSortOpen(false);
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </section>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         {isTabletDrawerOpen ? (
           <SiteCatalogMobileFiltersDrawer
