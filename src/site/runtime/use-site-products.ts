@@ -44,6 +44,7 @@ export function useSiteProducts(query: string, options?: { limit?: number }) {
             designerId: item.brand.slug ?? undefined,
             name: item.name,
             priceRub: item.price_rub ?? 0,
+            oldPriceRub: item.old_price_rub,
             availability: siteStatusLabel(item.status),
             imageSrc: item.image_url,
             imageAlt: "",

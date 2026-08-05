@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { storefrontHomeState } from "../../app/site-home-entry";
+import { heroHomeState } from "../../app/site-home-entry";
 import { prepareSiteCatalogFilterNavigation } from "../catalog/site-catalog-navigation";
 import type { SiteDesignersLocationState } from "../designers/site-designers-navigation";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
@@ -73,7 +73,7 @@ export function SiteHeader({
       return;
     }
 
-    navigate("/", { state: storefrontHomeState() });
+    navigate("/", { state: heroHomeState() });
   }, [location.pathname, navigate, onLogoActivate]);
 
   const navigateFromDropdown = useCallback(

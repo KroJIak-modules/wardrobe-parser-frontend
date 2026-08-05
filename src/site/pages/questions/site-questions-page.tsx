@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { storefrontHomeState } from "../../app/site-home-entry";
+import { heroHomeState } from "../../app/site-home-entry";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteQuestionsView } from "../../features/questions/site-questions";
@@ -35,7 +35,7 @@ export function SiteQuestionsPage() {
           navigation={navigation}
           layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
-            navigate("/", { state: storefrontHomeState() });
+            navigate("/", { state: heroHomeState() });
           }}
         />
       ) : (

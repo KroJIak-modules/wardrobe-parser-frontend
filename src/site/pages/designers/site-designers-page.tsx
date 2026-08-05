@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { storefrontHomeState } from "../../app/site-home-entry";
+import { heroHomeState } from "../../app/site-home-entry";
 import { SiteDesignersDirectory } from "../../features/designers/site-designers";
 import {
   buildBrowseDesignerCatalogSearchParams,
@@ -64,7 +64,7 @@ export function SiteDesignersPage() {
           navigation={navigation}
           layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
-            navigate("/", { state: storefrontHomeState() });
+            navigate("/", { state: heroHomeState() });
           }}
         />
       ) : (

@@ -72,8 +72,12 @@ body::-webkit-scrollbar {
   box-sizing: border-box;
 }
 
+html,
 body {
   background: var(--site-bg);
+}
+
+body {
   color: var(--site-text);
   font-family: var(--site-font-body);
   text-rendering: optimizeLegibility;

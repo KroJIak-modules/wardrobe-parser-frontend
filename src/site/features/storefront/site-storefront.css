@@ -6,7 +6,7 @@
   width: 100%;
   overflow-x: clip;
   --site-carousel-slide-width: 808px;
-  --site-carousel-seam-overlap: 4px;
+  --site-carousel-seam-overlap: 0px;
   --site-carousel-dot-left: 3px;
   --site-carousel-dot-center: 21px;
   --site-carousel-dot-right: 39px;
@@ -19,7 +19,7 @@
 .site-carousel--mobile {
   gap: 10px;
   --site-carousel-slide-width: 100%;
-  --site-carousel-seam-overlap: 4px;
+  --site-carousel-seam-overlap: 0px;
   --site-carousel-dot-left: 4px;
   --site-carousel-dot-center: 15px;
   --site-carousel-dot-right: 26px;
@@ -61,10 +61,9 @@
 
 .site-carousel__slide {
   position: relative;
-  flex: 0 0 calc(var(--site-carousel-slide-width) + var(--site-carousel-seam-overlap));
+  flex: 0 0 var(--site-carousel-slide-width);
   height: 543px;
   margin: 0;
-  margin-inline-end: calc(var(--site-carousel-seam-overlap) * -1);
   min-width: 0;
   border-radius: 0;
   overflow: hidden;
@@ -75,9 +74,8 @@
 
 .site-carousel__image {
   display: block;
-  width: calc(100% + var(--site-carousel-seam-overlap));
+  width: 100%;
   height: 100%;
-  margin-inline-start: calc(var(--site-carousel-seam-overlap) * -0.5);
   object-fit: cover;
   user-select: none;
   pointer-events: none;

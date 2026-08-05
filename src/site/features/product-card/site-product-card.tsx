@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { formatSiteRubles } from "../../app/site-format";
+import { SiteOldPrice } from "../price/site-old-price";
 import { clearSiteCatalogReturnSnapshot, saveSiteCatalogReturnSnapshot } from "../catalog/site-catalog-return";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
 import { SiteImage, type SiteImageSkeletonVariant } from "../image/site-image";
@@ -129,6 +130,7 @@ export function SiteProductCard({
               </span>
             </p>
             <p className="site-product-tile__statusline">
+              {product.oldPriceRub && product.oldPriceRub > product.priceRub ? <SiteOldPrice className="site-product-tile__old-price" valueRub={product.oldPriceRub} /> : null}
               <span className="site-product-tile__price">{formatSiteRubles(product.priceRub)} ₽</span>
               <span className="site-product-tile__divider">-</span>
               <span className="site-product-tile__availability">{product.availability}</span>

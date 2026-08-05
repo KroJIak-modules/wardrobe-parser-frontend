@@ -12,6 +12,7 @@ export type SiteCartItemSnapshot = {
   availabilityLabel: string;
   availabilityCode: "in-stock" | "preorder";
   priceRub: number;
+  oldPriceRub?: number | null;
   size: string;
   sourceUrl: string;
   productUrl: string;
@@ -41,6 +42,7 @@ export type SiteCartQuoteProgress = {
 };
 
 export type SiteCartQuote = {
+  /** Total before cart-wide SVC and “Выкуп +” consolidation; never a product compare-at total. */
   originalTotalRub: number;
   finalTotalRub: number;
   items: SiteApiCartQuoteResponse["items"];
@@ -52,8 +54,12 @@ export type SiteCartQuoteStatus = "idle" | "loading" | "ready" | "error";
 const SITE_CART_STORAGE_KEY = "site-cart-intent-basket-v2";
 const SITE_CART_CHANGE_EVENT = "site-cart-change";
 export const SITE_CART_ITEM_ADDED_EVENT = "site-cart-item-added";
+export const SITE_CART_ITEM_UNAVAILABLE_EVENT = "site-cart-item-unavailable";
 export type SiteCartItemAddedDetail = {
   backdropImageSrc: string | null;
+};
+export type SiteCartItemUnavailableDetail = {
+  itemNames: string[];
 };
 
 type SiteCartBasket = {
@@ -89,6 +95,7 @@ function isSiteCartItem(value: unknown): value is SiteCartItem {
     typeof snapshot.availabilityLabel === "string" &&
     (snapshot.availabilityCode === "in-stock" || snapshot.availabilityCode === "preorder") &&
     typeof snapshot.priceRub === "number" &&
+    (typeof snapshot.oldPriceRub === "number" || snapshot.oldPriceRub === null || snapshot.oldPriceRub === undefined) &&
     typeof snapshot.size === "string" &&
     typeof snapshot.sourceUrl === "string" &&
     typeof snapshot.productUrl === "string"
@@ -193,16 +200,14 @@ export function useSiteCart() {
   );
 
   useEffect(() => {
-    if (items.length === 0) {
-      setQuote(null);
-      setQuoteStatus("idle");
-      return;
-    }
-
     const controller = new AbortController();
     setQuoteStatus("loading");
     const request: SiteApiCartQuoteRequest = {
-      items: items.map(({ variantId, quantity }) => ({ variant_id: variantId, quantity })),
+      items: items.map(({ variantId, quantity, snapshot }) => ({
+        product_id: Number(snapshot.productId),
+        variant_id: variantId,
+        quantity,
+      })),
     };
 
     siteApiJson<SiteApiCartQuoteResponse>("/site/cart/quote", {
@@ -212,10 +217,26 @@ export function useSiteCart() {
       signal: controller.signal,
     })
       .then((response) => {
-        if (!controller.signal.aborted) {
-          setQuote(normalizeQuote(response));
-          setQuoteStatus("ready");
+        if (controller.signal.aborted) {
+          return;
         }
+        const unavailableVariantIds = new Set(response.unavailable_variant_ids);
+        if (unavailableVariantIds.size > 0) {
+          const unavailableItems = items.filter((item) => unavailableVariantIds.has(item.variantId));
+          const remainingItems = items.filter((item) => !unavailableVariantIds.has(item.variantId));
+          writeSiteCartItems(remainingItems);
+          setItems(remainingItems);
+          setQuote(null);
+          setQuoteStatus(remainingItems.length > 0 ? "loading" : "idle");
+          if (unavailableItems.length > 0) {
+            window.dispatchEvent(new CustomEvent<SiteCartItemUnavailableDetail>(SITE_CART_ITEM_UNAVAILABLE_EVENT, {
+              detail: { itemNames: unavailableItems.map((item) => item.snapshot.name) },
+            }));
+          }
+          return;
+        }
+        setQuote(normalizeQuote(response));
+        setQuoteStatus("ready");
       })
       .catch(() => {
         if (!controller.signal.aborted) {

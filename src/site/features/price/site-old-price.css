@@ -1,0 +1,25 @@
+.site-old-price {
+  position: relative;
+  display: inline-grid;
+  color: rgb(204 204 204 / 80%);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.site-old-price__value {
+  position: relative;
+  z-index: 0;
+}
+
+.site-old-price__strike {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: .65em;
+  overflow: visible;
+  pointer-events: none;
+  color: rgb(204 204 204 / 80%);
+  transform: translateY(-50%);
+}

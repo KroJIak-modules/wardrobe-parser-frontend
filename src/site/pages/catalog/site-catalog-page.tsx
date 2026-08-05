@@ -263,7 +263,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
               navigation={navigation}
               layout="tablet"
               onLogoActivate={() => {
-                navigate("/", { state: { view: "storefront" } });
+                navigate("/", { state: heroHomeState() });
               }}
             />
           ) : (

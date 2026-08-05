@@ -145,6 +145,7 @@ function adaptProducts(payload: SiteApiCatalogProductsResponse["items"], searchP
     designerId: item.brand.slug ?? "",
     name: item.name,
     priceRub: item.price_rub ?? 0,
+    oldPriceRub: item.old_price_rub,
     availability: statusLabel(item.status),
     availabilityCode: availabilityCode(item.status),
     imageSrc: item.image_url,

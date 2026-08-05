@@ -201,14 +201,27 @@
   text-align: center;
 }
 
+.site-cart-card__price-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.site-cart-card__old-price,
 .site-cart-card__price {
   font-size: 16px;
   font-weight: 500;
   white-space: nowrap;
 }
 
+.site-cart-card__price {
+  margin: 0;
+}
+
 .site-cart-summary {
-  width: 341px;
+  box-sizing: border-box;
+  width: 406px;
   min-height: 306px;
   padding: 21px 21px 24px;
   border: 2px solid #f0f0f0;
@@ -225,7 +238,9 @@
 .site-cart-summary__total {
   font-size: 24px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   text-align: center;
+  white-space: nowrap;
 }
 
 .site-cart-summary__description {
@@ -370,11 +385,28 @@
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .site-cart-card__price-stack {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
 }
 
 /* Tablet keeps the same cart-card component and its desktop internals. Only
  * the page composition changes: one centred, shrink-to-fit card column. */
 @media (min-width: 641px) and (max-width: 1100px) {
+  .site-cart-summary {
+    min-height: 0;
+    /* 20px content inset plus the 2px frame gives the 22px visual gap from the button to the block edge. */
+    padding-bottom: 20px;
+  }
+
+  .site-cart-summary__description {
+    width: 100%;
+    max-width: 612px;
+  }
+
   .site-cart {
     width: min(730px, calc(100vw - 64px));
     padding-top: 106px;
@@ -415,6 +447,11 @@
   .site-cart-card__footer {
     flex-direction: row;
     align-items: flex-end;
+  }
+
+  .site-cart-card__price-stack {
+    flex-direction: row;
+    align-items: center;
   }
 }
 
@@ -540,16 +577,21 @@
     gap: 9px;
   }
 
+  .site-cart-card__old-price,
   .site-cart-card__price {
     padding-bottom: 1px;
     font-size: 10px;
     font-weight: 500;
   }
 
-  .site-cart-summary {
+  .site-cart__layout .site-cart-summary-column,
+  .site-cart__layout .site-cart-summary-column .site-cart-summary {
     width: 100%;
+  }
+
+  .site-cart-summary {
     min-height: 166px;
-    padding: 12px 20px;
+    padding: 12px 10px;
     border-width: 1px;
     border-radius: 3px;
   }
@@ -560,8 +602,9 @@
   }
 
   .site-cart-summary__description {
-    width: 297px;
+    width: min(297px, calc(100vw - 62px));
     max-width: 100%;
+    min-width: 0;
     margin-top: 14px;
     font-size: 10px;
     font-weight: 400;

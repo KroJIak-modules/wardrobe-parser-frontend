@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { resolveSitePublicAssetUrl } from "../../app/site-public-asset";
 import type { SiteCarouselSlide } from "./site-storefront-contracts";
@@ -39,6 +39,18 @@ export function SiteCarouselSection({
     skipSnaps: false,
     containScroll: false,
   });
+  const renderSlides = useMemo(() => {
+    if (slides.length <= 1) {
+      return slides;
+    }
+    // Embla disables loop internally when the viewport can show most of a short
+    // source sequence (for example after browser zoom changes). Repeating the
+    // finite media sequence gives its loop engine enough physical content while
+    // preserving the same cyclic order and stable slide IDs.
+    const minimumLoopSlides = 12;
+    const repetitions = Math.max(1, Math.ceil(minimumLoopSlides / slides.length));
+    return Array.from({ length: repetitions }, () => slides).flat();
+  }, [slides]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [hasVisibleNeighbourSlides, setHasVisibleNeighbourSlides] = useState(false);
   const [dotOrbitDirection, setDotOrbitDirection] = useState<"next" | "prev" | null>(null);
@@ -124,12 +136,12 @@ export function SiteCarouselSection({
   useEffect(() => {
     previousSelectedIndexRef.current = null;
     setSelectedIndex((current) => {
-      if (slides.length === 0) {
+      if (renderSlides.length === 0) {
         return 0;
       }
-      return Math.min(current, slides.length - 1);
+      return Math.min(current, renderSlides.length - 1);
     });
-  }, [slides.length]);
+  }, [renderSlides.length]);
 
   useEffect(() => {
     if (layout !== "desktop" || slides.length <= 1) {
@@ -229,14 +241,16 @@ export function SiteCarouselSection({
           }}
         >
           <div className="site-carousel__container">
-            {slides.map((slide, index) => {
-              const loopDistance = getLoopSlideDistance(index, selectedIndex, slides.length);
+            {renderSlides.map((slide, index) => {
+              const sourceIndex = index % slides.length;
+              const selectedSourceIndex = selectedIndex % slides.length;
+              const loopDistance = getLoopSlideDistance(sourceIndex, selectedSourceIndex, slides.length);
               const isActiveSlide = selectedIndex === index;
               const shouldPrioritizeSlideMedia = loopDistance <= ACTIVE_SLIDE_MEDIA_RADIUS;
 
               return (
               <figure
-                key={slide.id}
+                key={`${slide.id}-${index}`}
                 className="site-carousel__slide"
                 data-active={isActiveSlide ? "true" : "false"}
                 aria-hidden={isActiveSlide ? "false" : "true"}

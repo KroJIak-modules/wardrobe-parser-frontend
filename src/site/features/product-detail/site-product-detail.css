@@ -224,6 +224,12 @@
   width: 100%;
 }
 
+.site-product-detail__old-price {
+  font-family: var(--site-font-ui);
+  font-size: 20px;
+  font-weight: 500;
+}
+
 .site-product-detail__price {
   font-size: 20px;
   font-weight: 500;

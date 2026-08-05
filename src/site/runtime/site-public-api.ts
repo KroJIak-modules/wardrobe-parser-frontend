@@ -114,6 +114,7 @@ export type SiteApiCatalogProduct = {
   brand: { name: string; slug: string | null };
   name: string;
   price_rub: number | null;
+  old_price_rub: number | null;
   status: "in_stock" | "preorder" | "sold_out";
   image_url: string | null;
 };
@@ -160,7 +161,7 @@ export type SiteApiProductResponse = {
 };
 
 export type SiteApiCartQuoteRequest = {
-  items: Array<{ variant_id: number; quantity: number }>;
+  items: Array<{ product_id: number; variant_id: number; quantity: number }>;
 };
 
 export type SiteApiCartQuoteResponse = {
@@ -169,8 +170,10 @@ export type SiteApiCartQuoteResponse = {
     quantity: number;
     availability: "in_stock" | "preorder";
     original_line_total_rub: number;
+    old_line_total_rub: number | null;
     final_line_total_rub: number;
   }>;
+  unavailable_variant_ids: number[];
   original_total_rub: number;
   final_total_rub: number;
   total_rub: number;

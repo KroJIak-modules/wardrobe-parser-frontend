@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { formatSiteRubles } from "../../app/site-format";
+import { SiteOldPrice } from "../price/site-old-price";
 import type { SiteProductDetailItem } from "../../runtime/site-product-detail";
 import {
   buildSiteCartItemFromProduct,
@@ -184,6 +185,7 @@ export function SiteProductHero({
             <h1 className="site-product-detail__name">{product.name.toUpperCase()}</h1>
           </div>
           <div className="site-product-detail__price-line">
+            {product.oldPriceRub && product.oldPriceRub > product.priceRub ? <SiteOldPrice className="site-product-detail__old-price" valueRub={product.oldPriceRub} /> : null}
             <span className="site-product-detail__price">{formatSiteRubles(product.priceRub)} ₽</span>
             <span className="site-product-detail__price-divider">-</span>
             <span className="site-product-detail__availability">{product.availability}</span>

@@ -18,6 +18,7 @@ export type SiteProductDetailSourceItem = {
   variantId: number;
   label: string;
   priceRub: number;
+  oldPriceRub?: number | null;
   url: string;
   logoSrc?: string;
 };
@@ -117,6 +118,7 @@ export function buildSiteCartItemFromProduct(
       availabilityLabel: product.availability,
       availabilityCode: product.availabilityCode === "sold-out" ? "preorder" : product.availabilityCode,
       priceRub: effectiveSource.priceRub,
+      oldPriceRub: effectiveSource.oldPriceRub ?? null,
       size,
       sourceUrl: effectiveSource.url ?? resolveSiteProductDetailSourceUrl(product, size, preferredSourceId) ?? productUrl,
       productUrl,

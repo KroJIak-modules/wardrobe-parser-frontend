@@ -27,6 +27,7 @@ export type SiteProduct = {
   designerId?: string;
   name: string;
   priceRub: number;
+  oldPriceRub?: number | null;
   availability: string;
   imageSrc: string | null;
   imageAlt: string;

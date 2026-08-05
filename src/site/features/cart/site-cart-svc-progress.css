@@ -1,15 +1,13 @@
 .site-cart-svc-progress {
   box-sizing: border-box;
   width: 406px;
-  height: 169px;
-  padding: 13px 33px;
+  min-height: 169px;
+  padding: 14px 20px;
   border: 2px solid #f0f0f0;
-  border-radius: 4px;
-  background: #fff;
   display: grid;
   justify-items: center;
   align-content: center;
-  row-gap: 16px;
+  row-gap: 18px;
 }
 
 .site-cart-svc-progress__title,
@@ -17,20 +15,16 @@
   margin: 0;
   color: #7f7f7f;
   font-family: var(--site-font-ui);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
   line-height: 1.16;
   text-align: center;
 }
 
-.site-cart-svc-progress__detail {
-  order: 3;
-}
-
 .site-cart-svc-progress__track {
   position: relative;
-  width: 100%;
-  height: 38px;
+  width: 362px;
+  height: 23px;
   overflow: hidden;
   border-radius: 25px;
   background: center / 100% 100% no-repeat url("/site-mock/cart/svc-progress/track.jpg");
@@ -39,12 +33,16 @@
 .site-cart-svc-progress__fill {
   position: absolute;
   z-index: 1;
-  inset: 4px auto 4px 4px;
-  width: var(--site-cart-svc-progress-fill-width, 0%);
-  min-width: 0;
-  max-width: calc(100% - 8px);
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: var(--site-cart-svc-progress-fill-width, 0px);
+  max-width: calc(100% - 4px);
   border-radius: 25px;
-  background: center / auto 100% repeat-x url("/site-mock/cart/svc-progress/fill-gradient.png");
+  /* The element's own paint is clipped before it reaches the track. Combined
+   * with the 2px positional inset, it can never cover the track background. */
+  clip-path: inset(0 round 25px);
+  background: center / 1px 100% repeat-x url("/site-mock/cart/svc-progress/fill-center-slice.png");
   transition: width 620ms cubic-bezier(.22, 1, .36, 1);
   will-change: width;
 }
@@ -52,17 +50,12 @@
 .site-cart-svc-progress__divider {
   position: absolute;
   z-index: 2;
-  top: 8px;
-  bottom: auto;
+  top: 0;
   width: 2px;
   height: 23px;
   transform: translateX(-50%);
   background: #9c9c9c;
   pointer-events: none;
-}
-
-.site-cart-svc-progress__tiers {
-  display: none;
 }
 
 .site-cart-summary-column {
@@ -73,13 +66,12 @@
 }
 
 .site-cart-summary-column .site-cart-summary {
-  width: 341px;
+  width: 406px;
 }
 
 .site-cart-summary__original-total {
   margin-right: 12px;
-  color: rgba(0, 0, 0, .22);
-  text-decoration-thickness: 1px;
+  font-size: inherit;
 }
 
 .site-cart-summary__quote-status {
@@ -91,18 +83,70 @@
   text-align: center;
 }
 
-@media (max-width: 1100px) {
+@media (min-width: 641px) and (max-width: 1100px) {
+  .site-cart-svc-progress,
+  .site-cart-summary-column,
+  .site-cart-summary-column .site-cart-summary {
+    width: 100%;
+  }
+
   .site-cart-svc-progress {
-    display: none;
+    min-height: 169px;
+  }
+
+  .site-cart-svc-progress__track {
+    width: 524px;
+    background-image: url("/site-mock/cart/svc-progress/tablet-track.png");
+  }
+}
+
+@media (max-width: 640px) {
+  .site-cart-svc-progress,
+  .site-cart-summary-column,
+  .site-cart-summary-column .site-cart-summary {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .site-cart-svc-progress {
+    min-height: 142px;
+    padding: 12px 10px;
+    border-width: 1px;
+    row-gap: 12px;
+  }
+
+  .site-cart-svc-progress__title,
+  .site-cart-svc-progress__detail {
+    font-size: 10px;
+  }
+
+  .site-cart-svc-progress__track {
+    width: min(282px, 100%);
+    height: 13px;
+    background-image: url("/site-mock/cart/svc-progress/mobile-track.png");
+  }
+
+  .site-cart-svc-progress__fill {
+    top: 1px;
+    bottom: 1px;
+    left: 1px;
+    max-width: calc(100% - 2px);
+  }
+
+  .site-cart-svc-progress__divider {
+    height: 13px;
+    width: 1px;
   }
 
   .site-cart-summary-column {
-    width: auto;
-    display: contents;
+    display: grid;
+    justify-items: center;
+    gap: 20px;
   }
 
   .site-cart-summary-column .site-cart-summary {
-    width: 341px;
+    margin: 0;
   }
 }
 

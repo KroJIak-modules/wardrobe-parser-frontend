@@ -395,6 +395,14 @@
   gap: var(--site-product-tile-statusline-gap);
 }
 
+.site-product-tile__old-price {
+  flex: 0 0 auto;
+  font-family: "SF Compact Rounded", var(--site-font-ui);
+  font-size: var(--site-product-tile-price-font-size);
+  font-weight: 500;
+  line-height: var(--site-product-tile-price-line-height);
+}
+
 .site-product-tile__price {
   color: rgb(0 0 0 / 80%);
   font-family: "SF Compact Rounded", var(--site-font-ui);

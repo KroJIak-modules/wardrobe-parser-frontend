@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { storefrontHomeState } from "../../app/site-home-entry";
+import { heroHomeState } from "../../app/site-home-entry";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteProductDetailView } from "../../features/product-detail/site-product-detail";
@@ -58,7 +58,7 @@ export function SiteProductPage({ defaultProductId }: { defaultProductId?: strin
           navigation={navigation}
           layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
-            navigate("/", { state: storefrontHomeState() });
+            navigate("/", { state: heroHomeState() });
           }}
         />
       ) : (

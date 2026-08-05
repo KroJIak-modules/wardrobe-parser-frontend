@@ -67,6 +67,7 @@ function groupVariants(raw: SiteApiProductResponse["variants"]): SiteProductDeta
       variantId: variant.id,
       label: variant.source.name,
       priceRub: variant.price_rub ?? 0,
+      oldPriceRub: variant.old_price_rub,
       url: variant.source.url ?? "#",
       logoSrc: variant.source.logo_url ?? undefined,
     };
@@ -100,6 +101,7 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
     designerId: payload.brand.slug ?? undefined,
     name: payload.name,
     priceRub: defaultPrice,
+    oldPriceRub: payload.variants.find((variant) => variant.price_rub !== null)?.old_price_rub ?? null,
     availability: statusLabel(payload.status),
     availabilityCode: statusCode(payload.status),
     imageSrc: mainImage,
@@ -136,6 +138,7 @@ function adaptRecommendation(item: SiteApiCatalogProductsResponse["items"][numbe
     designerId: item.brand.slug ?? undefined,
     name: item.name,
     priceRub: item.price_rub ?? 0,
+    oldPriceRub: item.old_price_rub,
     availability: statusLabel(item.status),
     imageSrc: item.image_url,
     imageAlt: "",

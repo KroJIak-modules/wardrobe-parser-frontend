@@ -3,20 +3,29 @@ import type { SiteCartItem } from "../../runtime/use-site-cart";
 import { formatSiteRubles } from "../../app/site-format";
 import { buildDesignerCatalogHref } from "../catalog/site-catalog-query";
 import { SiteImage } from "../image/site-image";
+import { SiteOldPrice } from "../price/site-old-price";
 import { SiteWindowCloseButton, SiteWindowShell, SiteWindowTitlebar } from "../window-shell/site-window-shell";
 
 export function SiteCartCard({
   item,
+  quotedLinePriceRub,
+  oldLinePriceRub,
   onIncrement,
   onDecrement,
   onRemove,
 }: {
   item: SiteCartItem;
+  quotedLinePriceRub: number | null;
+  oldLinePriceRub: number | null;
   onIncrement: () => void;
   onDecrement: () => void;
   onRemove: () => void;
 }) {
   const { snapshot } = item;
+  const snapshotLinePriceRub = snapshot.priceRub * item.quantity;
+  const currentLinePriceRub = quotedLinePriceRub ?? snapshotLinePriceRub;
+  const snapshotOldLinePriceRub = typeof snapshot.oldPriceRub === "number" ? snapshot.oldPriceRub * item.quantity : null;
+  const displayOldLinePriceRub = oldLinePriceRub ?? snapshotOldLinePriceRub;
   const designerHref = buildDesignerCatalogHref(snapshot.designerId);
   const productHref = (() => {
     try {
@@ -76,7 +85,12 @@ export function SiteCartCard({
               </div>
             </div>
 
-            <p className="site-cart-card__price">{formatSiteRubles(snapshot.priceRub * item.quantity)} ₽</p>
+            <div className="site-cart-card__price-stack">
+              {displayOldLinePriceRub !== null && displayOldLinePriceRub > currentLinePriceRub ? (
+                <SiteOldPrice className="site-cart-card__old-price" valueRub={displayOldLinePriceRub} />
+              ) : null}
+              <p className="site-cart-card__price">{formatSiteRubles(currentLinePriceRub)} ₽</p>
+            </div>
           </div>
         </div>
       </div>

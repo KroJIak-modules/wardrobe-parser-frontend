@@ -79,20 +79,6 @@ export function SiteHomePage() {
     shouldOpenStorefront,
   ]);
 
-  useEffect(() => {
-    const previousHtmlBackground = document.documentElement.style.background;
-    const previousBodyBackground = document.body.style.background;
-    const nextBackground = phase === "entered" ? "#fff" : "#0b0a09";
-
-    document.documentElement.style.background = nextBackground;
-    document.body.style.background = nextBackground;
-
-    return () => {
-      document.documentElement.style.background = previousHtmlBackground;
-      document.body.style.background = previousBodyBackground;
-    };
-  }, [phase]);
-
   useLayoutEffect(() => {
     if (!isHeroAvailabilityResolved) {
       return;
@@ -193,7 +179,7 @@ export function SiteHomePage() {
               notificationsEnabled={phase === "entered"}
               onLogoActivate={() => {
                 window.scrollTo({ top: 0, behavior: "smooth" });
-                navigate("/", { replace: true, state: heroHomeState() });
+                navigate("/", { state: heroHomeState() });
               }}
               isCarouselReady={isCarouselReady}
               isCarouselResolved={isCarouselResolved}
@@ -208,7 +194,7 @@ export function SiteHomePage() {
           notificationsEnabled
           onLogoActivate={() => {
             window.scrollTo({ top: 0, behavior: "smooth" });
-            navigate("/", { replace: true, state: heroHomeState() });
+            navigate("/", { state: heroHomeState() });
           }}
           isCarouselReady={isCarouselReady}
           isCarouselResolved={isCarouselResolved}

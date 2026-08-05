@@ -1,5 +1,6 @@
+import { useLayoutEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { storefrontHomeState } from "./site-home-entry";
+import { resolveHomeView, storefrontHomeState } from "./site-home-entry";
 import { SiteAboutPage } from "../pages/about/site-about-page";
 import { SiteCatalogPage } from "../pages/catalog/site-catalog-page";
 import { SiteCartAddedToast } from "../features/cart/site-cart-added-toast";
@@ -14,6 +15,19 @@ import { useSiteAccess } from "../runtime/use-site-access";
 function buildPasswordHref(location: ReturnType<typeof useLocation>) {
   const next = `${location.pathname}${location.search}${location.hash}`;
   return `/password?next=${encodeURIComponent(next)}`;
+}
+
+function SiteDocumentBackground() {
+  const location = useLocation();
+  const isHeroEntry = location.pathname === "/" && resolveHomeView(location.state) === "hero";
+
+  useLayoutEffect(() => {
+    const background = isHeroEntry ? "#0b0a09" : "#fff";
+    document.documentElement.style.background = background;
+    document.body.style.background = background;
+  }, [isHeroEntry]);
+
+  return null;
 }
 
 function SiteRoutes() {
@@ -63,7 +77,12 @@ function SiteAccessGate() {
     return <Navigate to={params.get("next") || "/"} state={params.get("next") ? undefined : storefrontHomeState()} replace />;
   }
 
-  return <SiteRoutes />;
+  return (
+    <>
+      <SiteDocumentBackground />
+      <SiteRoutes />
+    </>
+  );
 }
 
 export function SiteApp() {

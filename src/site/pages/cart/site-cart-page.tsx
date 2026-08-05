@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { storefrontHomeState } from "../../app/site-home-entry";
+import { heroHomeState } from "../../app/site-home-entry";
 import { SiteCartView } from "../../features/cart/site-cart";
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
@@ -39,12 +39,14 @@ function buildTelegramHref(message: string) {
 export function SiteCartPage() {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
-  const { items, totalPriceRub, quote, quoteStatus, hasItems, updateQuantity, removeItem } = useSiteCart();
+  const { items, quote, quoteStatus, hasItems, updateQuantity, removeItem } = useSiteCart();
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
   const [searchValue, setSearchValue] = useState("");
   const isMobileLayout = useSiteMediaQuery(SITE_CART_MOBILE_MEDIA_QUERY);
   const usesTabletHeader = useSiteMediaQuery(SITE_CART_TABLET_HEADER_MEDIA_QUERY);
-  const quotedTotalPriceRub = quote?.finalTotalRub ?? totalPriceRub;
+  // The quote is the sole source of payable cart prices. Until it arrives, price UI is withheld rather than using stale local snapshots.
+  const quotedOriginalPriceRub = quote?.originalTotalRub ?? null;
+  const quotedTotalPriceRub = quote?.finalTotalRub ?? 0;
   const telegramMessage = useMemo(() => (quote ? buildTelegramMessage(items, quote) : ""), [items, quote]);
 
   useEffect(() => {
@@ -88,7 +90,7 @@ export function SiteCartPage() {
           navigation={navigation}
           layout={isMobileLayout ? "mobile" : "tablet"}
           onLogoActivate={() => {
-            navigate("/", { state: storefrontHomeState() });
+            navigate("/", { state: heroHomeState() });
           }}
         />
       ) : (
@@ -115,9 +117,11 @@ export function SiteCartPage() {
 
       <SiteCartView
         items={items}
-        originalTotalPriceRub={totalPriceRub}
+        quoteItems={quote?.items ?? []}
+        originalTotalPriceRub={quotedOriginalPriceRub}
         finalTotalPriceRub={quotedTotalPriceRub}
         quoteStatus={quoteStatus}
+        hasQuote={quote !== null}
         svcProgress={quote?.svcProgress ?? null}
         hasItems={hasItems}
         onIncrement={(itemId) => {

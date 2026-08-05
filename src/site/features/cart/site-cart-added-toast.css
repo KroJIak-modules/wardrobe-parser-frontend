@@ -77,6 +77,17 @@
     filter 200ms ease-in;
 }
 
+.site-cart-added-toast--unavailable {
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+
+.site-cart-added-toast--unavailable .site-cart-added-toast__label {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
 @media (min-width: 641px) {
   .site-cart-added-toast {
     top: calc(env(safe-area-inset-top, 0px) + 102px);

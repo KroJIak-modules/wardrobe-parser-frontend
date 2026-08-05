@@ -121,6 +121,7 @@ export function normalizeCatalogProductsForGrid(products: readonly SiteCatalogPr
     designerId: product.designerId,
     name: product.name,
     priceRub: product.priceRub,
+    oldPriceRub: product.oldPriceRub,
     availability: product.availability,
     imageSrc: product.imageSrc,
     imageAlt: product.imageAlt,
