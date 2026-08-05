@@ -25,6 +25,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   const catalogReturnSnapshotRef = useRef<ReturnType<typeof readSiteCatalogReturnSnapshot>>(null);
   const hasMountedCatalogRef = useRef(false);
   const pendingFilterScrollRef = useRef(false);
+  const pendingPaginationScrollRef = useRef(false);
   const previousFilterSignatureRef = useRef<string | null>(null);
   const persistSearchParams = useCallback(
     (nextParams: URLSearchParams) => {
@@ -35,6 +36,10 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
     },
     [setSearchParams]
   );
+  const scrollCatalogToTop = useCallback(() => {
+    pendingPaginationScrollRef.current = true;
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }, []);
   const applyFilterSearchParams = useCallback(
     (nextParams: URLSearchParams) => {
       const normalized = new URLSearchParams(nextParams);
@@ -44,10 +49,10 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
       clearSiteCatalogReturnSnapshot();
       catalogReturnSnapshotRef.current = null;
       pendingFilterScrollRef.current = true;
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      scrollCatalogToTop();
       setSearchParams(normalized);
     },
-    [setSearchParams]
+    [scrollCatalogToTop, setSearchParams]
   );
   const effectiveSearchParams = useMemo(() => {
     if (!forcedTop) {
@@ -140,6 +145,11 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   }, [filterSignature, isCatalogFilterNavigation, navigationType]);
 
   useLayoutEffect(() => {
+    if (pendingPaginationScrollRef.current && !loading) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      pendingPaginationScrollRef.current = false;
+    }
+
     const snapshot = catalogReturnSnapshotRef.current;
     if (!snapshot || loading || errorMessage) {
       return;
@@ -240,7 +250,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
                       nextParams.set("page", String(page));
                     }
                     persistSearchParams(nextParams);
-                    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+                    scrollCatalogToTop();
                   },
                 }
               : undefined
@@ -252,8 +262,8 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
             } else {
               nextParams.set("page", String(page));
             }
-            window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
             persistSearchParams(nextParams);
+            scrollCatalogToTop();
           }}
         />
       ) : (
@@ -320,7 +330,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
                         nextParams.set("page", String(page));
                       }
                       persistSearchParams(nextParams);
-                      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+                      scrollCatalogToTop();
                     },
                   }
                 : undefined
@@ -333,7 +343,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
                 nextParams.set("page", String(page));
               }
               persistSearchParams(nextParams);
-              window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+              scrollCatalogToTop();
             }}
           />
           <SiteFooterSection />
