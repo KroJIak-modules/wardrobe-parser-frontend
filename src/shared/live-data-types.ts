@@ -549,7 +549,6 @@ export type SettingsTransferSourceEntry = {
   promo_only_no_discount: boolean;
   buyout_surcharge_value: number | null;
   buyout_surcharge_currency: string | null;
-  logo_asset_checksum: string | null;
 };
 
 export type SettingsTransferWeightRuleEntry = {
@@ -613,22 +612,8 @@ export type SettingsTransferTaxonomyState = {
   showcase_categories: SettingsTransferTaxonomyShowcaseCategory[];
 };
 
-export type SettingsTransferShowcaseCarouselEntry = {
-  asset_checksum: string;
-  viewport: "desktop" | "mobile";
-  position: number;
-};
-
-export type SettingsTransferShowcaseMedia = {
-  desktop_hero_asset_checksum: string | null;
-  mobile_hero_asset_checksum: string | null;
-  desktop_carousel: SettingsTransferShowcaseCarouselEntry[];
-  mobile_carousel: SettingsTransferShowcaseCarouselEntry[];
-};
-
 export type SettingsTransferSiteAbout = {
   text: string;
-  photo_asset_checksums: string[];
 };
 
 export type SettingsTransferSiteQuestionItem = {
@@ -644,7 +629,6 @@ export type SettingsTransferSiteNotification = {
   description: string;
   button_text: string;
   button_url: string;
-  image_asset_checksum: string | null;
   version: number;
   position: number;
 };
@@ -659,17 +643,6 @@ export type SettingsTransferSiteContent = {
   about: SettingsTransferSiteAbout;
   notifications: SettingsTransferSiteNotification[];
   questions: SettingsTransferSiteQuestionItem[];
-};
-
-export type SettingsTransferImageAssetEntry = {
-  checksum_sha256: string;
-  scope: string;
-  file_name: string;
-  mime_type: string;
-  byte_size: number;
-  width_px: number | null;
-  height_px: number | null;
-  content_base64: string;
 };
 
 export type SettingsTransferPricingSettings = {
@@ -709,9 +682,7 @@ export type SettingsTransferPayload = {
   designers: SettingsTransferDesignerEntry[];
   designer_source_names: SettingsTransferDesignerSourceNameEntry[];
   taxonomy: SettingsTransferTaxonomyState;
-  showcase_media: SettingsTransferShowcaseMedia;
   site_content: SettingsTransferSiteContent;
-  image_assets: SettingsTransferImageAssetEntry[];
 };
 
 export type LiveDataContextValue = {
