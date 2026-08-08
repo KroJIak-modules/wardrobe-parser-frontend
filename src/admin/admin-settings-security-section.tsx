@@ -9,10 +9,13 @@ type Props = {
   settingsImportInProgress: boolean;
   settingsResetInProgress: boolean;
   resetConfirmOpen: boolean;
+  pendingImport: unknown | null;
   onExportSettings: () => Promise<void>;
   onOpenImportDialog: () => void;
   settingsImportInputRef: RefObject<HTMLInputElement | null>;
   onImportSettingsFile: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onCancelImportSettings: () => void;
+  onConfirmImportSettings: () => Promise<void>;
   onRequestResetSettings: () => void;
   onCancelResetSettings: () => void;
   onConfirmResetSettings: () => Promise<void>;
@@ -24,10 +27,13 @@ export function AdminSettingsSecuritySection({
   settingsImportInProgress,
   settingsResetInProgress,
   resetConfirmOpen,
+  pendingImport,
   onExportSettings,
   onOpenImportDialog,
   settingsImportInputRef,
   onImportSettingsFile,
+  onCancelImportSettings,
+  onConfirmImportSettings,
   onRequestResetSettings,
   onCancelResetSettings,
   onConfirmResetSettings,
@@ -53,10 +59,13 @@ export function AdminSettingsSecuritySection({
           settingsImportInProgress={settingsImportInProgress}
           settingsResetInProgress={settingsResetInProgress}
           resetConfirmOpen={resetConfirmOpen}
+          pendingImport={pendingImport}
           onExportSettings={onExportSettings}
           onOpenImportDialog={onOpenImportDialog}
           settingsImportInputRef={settingsImportInputRef}
           onImportSettingsFile={onImportSettingsFile}
+          onCancelImportSettings={onCancelImportSettings}
+          onConfirmImportSettings={onConfirmImportSettings}
           onRequestResetSettings={onRequestResetSettings}
           onCancelResetSettings={onCancelResetSettings}
           onConfirmResetSettings={onConfirmResetSettings}

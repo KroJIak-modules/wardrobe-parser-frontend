@@ -274,7 +274,15 @@ export function useLiveDataSourceSettingsActions(params: {
 
   const importSettings = useCallback(async (payload: SettingsTransferPayload) => {
     try {
-      await apiNoContent(`${API_BASE}/settings/import`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      await apiJson(`${API_BASE}/settings/import`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+
+    // The import is committed at this point. Always notify dependent admin features,
+    // even if a best-effort screen refresh later fails.
+    notifySettingsTransferApplied();
+    try {
       await Promise.all([
         refresh(),
         refreshPricingOnly(),
@@ -283,10 +291,9 @@ export function useLiveDataSourceSettingsActions(params: {
         refreshCategoriesOnly({ includeCounts: true, silent: true }),
         refreshSourcesOnly(),
       ]);
-      notifySettingsTransferApplied();
       return okResult("Настройки импортированы");
     } catch (e) {
-      return errResult(e instanceof Error ? e.message : "Unknown error");
+      return okResult("Настройки импортированы. Обновите страницу, чтобы загрузить актуальные данные.");
     }
   }, [refresh, refreshAdminUiOnly, refreshCategoriesOnly, refreshPricingOnly, refreshSourcesOnly, refreshWeightOnly]);
 

@@ -6,10 +6,13 @@ type Props = {
   settingsImportInProgress: boolean;
   settingsResetInProgress: boolean;
   resetConfirmOpen: boolean;
+  pendingImport: unknown | null;
   onExportSettings: () => Promise<void>;
   onOpenImportDialog: () => void;
   settingsImportInputRef: RefObject<HTMLInputElement | null>;
   onImportSettingsFile: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onCancelImportSettings: () => void;
+  onConfirmImportSettings: () => Promise<void>;
   onRequestResetSettings: () => void;
   onCancelResetSettings: () => void;
   onConfirmResetSettings: () => Promise<void>;

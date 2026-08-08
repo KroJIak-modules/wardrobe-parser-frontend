@@ -61,6 +61,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
   const draftRef = useRef<SiteAccessSettings>(EMPTY_SETTINGS);
   const lastSavedSignatureRef = useRef(settingsSignature(EMPTY_SETTINGS));
   const saveSeqRef = useRef(0);
+  const saveAbortControllerRef = useRef<AbortController | null>(null);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -82,6 +83,17 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
   }, [loadSettings]);
 
   useEffect(() => {
+    const reloadAfterSettingsTransfer = () => {
+      // Discard any pending local draft so it cannot overwrite imported access settings.
+      saveSeqRef.current += 1;
+      saveAbortControllerRef.current?.abort();
+      void loadSettings();
+    };
+    window.addEventListener("admin:settings-transfer-applied", reloadAfterSettingsTransfer);
+    return () => window.removeEventListener("admin:settings-transfer-applied", reloadAfterSettingsTransfer);
+  }, [loadSettings]);
+
+  useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
 
@@ -91,8 +103,12 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
     const snapshotSignature = settingsSignature(snapshot);
     setSaving(true);
     try {
+      saveAbortControllerRef.current?.abort();
+      const controller = new AbortController();
+      saveAbortControllerRef.current = controller;
       const response = await authFetch(`${API_BASE}/admin/site-content/access`, {
         method: "PUT",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           enabled: snapshot.enabled,
@@ -106,7 +122,9 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
         lastSavedSignatureRef.current = snapshotSignature;
       }
     } catch (error) {
-      pushToast(error instanceof Error ? error.message : "Не удалось сохранить защиту сайта", "error");
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        pushToast(error instanceof Error ? error.message : "Не удалось сохранить защиту сайта", "error");
+      }
     } finally {
       if (requestSeq === saveSeqRef.current) {
         setSaving(false);

@@ -16,9 +16,12 @@ export function useAdminSettingsTransfer(params: UseAdminSettingsTransferParams)
   const [settingsImportInProgress, setSettingsImportInProgress] = useState<boolean>(false);
   const [settingsResetInProgress, setSettingsResetInProgress] = useState<boolean>(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState<boolean>(false);
+  const [pendingImport, setPendingImport] = useState<SettingsTransferPayload | null>(null);
+
+  const isTransferBusy = settingsExportInProgress || settingsImportInProgress || settingsResetInProgress;
 
   const onExportSettings = async () => {
-    if (settingsExportInProgress) {
+    if (isTransferBusy) {
       return;
     }
     setSettingsExportInProgress(true);
@@ -52,7 +55,7 @@ export function useAdminSettingsTransfer(params: UseAdminSettingsTransferParams)
   };
 
   const onOpenImportDialog = () => {
-    if (settingsImportInProgress) {
+    if (isTransferBusy) {
       return;
     }
     settingsImportInputRef.current?.click();
@@ -74,15 +77,38 @@ export function useAdminSettingsTransfer(params: UseAdminSettingsTransferParams)
         pushToast("Файл не похож на валидный JSON");
         return;
       }
-      const result = await importSettings(payload);
+      setPendingImport(payload);
+    } catch {
+      pushToast("Не удалось прочитать файл настроек");
+    } finally {
+      setSettingsImportInProgress(false);
+    }
+  };
+
+  const onCancelImportSettings = () => {
+    if (!settingsImportInProgress) {
+      setPendingImport(null);
+    }
+  };
+
+  const onConfirmImportSettings = async () => {
+    if (!pendingImport || isTransferBusy) {
+      return;
+    }
+    setSettingsImportInProgress(true);
+    try {
+      const result = await importSettings(pendingImport);
       pushToast(result.message);
+      if (result.ok) {
+        setPendingImport(null);
+      }
     } finally {
       setSettingsImportInProgress(false);
     }
   };
 
   const onRequestResetSettings = () => {
-    if (settingsResetInProgress || settingsExportInProgress || settingsImportInProgress) {
+    if (isTransferBusy || pendingImport) {
       return;
     }
     setResetConfirmOpen(true);
@@ -96,7 +122,7 @@ export function useAdminSettingsTransfer(params: UseAdminSettingsTransferParams)
   };
 
   const onConfirmResetSettings = async () => {
-    if (settingsResetInProgress) {
+    if (isTransferBusy) {
       return;
     }
     setSettingsResetInProgress(true);
@@ -117,9 +143,12 @@ export function useAdminSettingsTransfer(params: UseAdminSettingsTransferParams)
     settingsImportInProgress,
     settingsResetInProgress,
     resetConfirmOpen,
+    pendingImport,
     onExportSettings,
     onOpenImportDialog,
     onImportSettingsFile,
+    onCancelImportSettings,
+    onConfirmImportSettings,
     onRequestResetSettings,
     onCancelResetSettings,
     onConfirmResetSettings,

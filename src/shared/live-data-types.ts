@@ -508,6 +508,12 @@ export type PricingSupplier = {
   rates: PricingSupplierRate[];
 };
 
+export type SettingsTransferRoleEntry = {
+  name: string;
+  description: string | null;
+  permissions: string[];
+};
+
 export type SettingsTransferSupplierRateEntry = {
   min_kg: number;
   max_kg: number | null;
@@ -537,6 +543,7 @@ export type SettingsTransferSourceEntry = {
   hide_auto_added_products: boolean;
   description_mode: DescriptionMode;
   show_images: boolean;
+  clean_public_titles: boolean;
   supplier_key: string | null;
   promo_factor: number;
   promo_only_no_discount: boolean;
@@ -571,8 +578,10 @@ export type SettingsTransferTaxonomyFilterNode = {
   title: string;
   display_title: string | null;
   mobile_pair_slug: string | null;
+  default_weight_grams: number | null;
   node_kind: "filter" | "multifilter";
   is_enabled: boolean;
+  restrict_by_gender: boolean;
   local_category_keywords: string[];
   title_keywords: string[];
   children: SettingsTransferTaxonomyFilterNode[];
@@ -693,6 +702,7 @@ export type SettingsTransferPayload = {
   project: string | null;
   pricing_settings: SettingsTransferPricingSettings;
   admin_ui_settings: SettingsTransferAdminUiSettings;
+  roles: SettingsTransferRoleEntry[];
   suppliers: SettingsTransferSupplierEntry[];
   sources: SettingsTransferSourceEntry[];
   weight_rules: SettingsTransferWeightRuleEntry[];
