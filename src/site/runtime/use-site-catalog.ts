@@ -226,7 +226,9 @@ export function useSiteCatalog(
   );
   const [products, setProducts] = useState<SiteCatalogProduct[]>(() => restoredProducts?.products ?? []);
   const [total, setTotal] = useState(() => restoredProducts?.total ?? 0);
-  const [loading, setLoading] = useState(() => restoredProducts === undefined);
+  const [settledProductsQuery, setSettledProductsQuery] = useState<string | null>(() =>
+    restoredProducts === undefined ? null : productsQuery,
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -282,14 +284,14 @@ export function useSiteCatalog(
     if (cached) {
       setProducts(cached.products);
       setTotal(cached.total);
+      setSettledProductsQuery(productsQuery);
       setErrorMessage(null);
-      setLoading(false);
       return;
     }
 
     let isDisposed = false;
     const controller = new AbortController();
-    setLoading(true);
+    setSettledProductsQuery(null);
     setErrorMessage(null);
 
     siteApiJson<SiteApiCatalogProductsResponse>(`/site/catalog/products?${productsQuery}`, {
@@ -306,7 +308,7 @@ export function useSiteCatalog(
         catalogProductsCache.set(productsQuery, nextValue);
         setProducts(nextValue.products);
         setTotal(nextValue.total);
-        setLoading(false);
+        setSettledProductsQuery(productsQuery);
       })
       .catch((error: unknown) => {
         if (isDisposed || isAbortError(error)) {
@@ -314,8 +316,8 @@ export function useSiteCatalog(
         }
         setProducts([]);
         setTotal(0);
+        setSettledProductsQuery(productsQuery);
         setErrorMessage(error instanceof Error ? error.message : "Не удалось загрузить каталог");
-        setLoading(false);
       });
 
     return () => {
@@ -324,13 +326,18 @@ export function useSiteCatalog(
     };
   }, [enabled, productsQuery, restoreFromHistory, searchKey]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [pageSize, total]);
+  // The current response is valid only for its exact query. Do not render a
+  // previous page or filter result while the next request is in flight.
+  const loading = enabled && settledProductsQuery !== productsQuery;
+  const visibleProducts = loading ? [] : products;
+  const visibleTotal = loading ? 0 : total;
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(visibleTotal / pageSize)), [pageSize, visibleTotal]);
 
   return {
     header,
     filterGroups,
-    products,
-    total,
+    products: visibleProducts,
+    total: visibleTotal,
     currentPage: Math.min(currentPage, totalPages),
     totalPages,
     loading,
