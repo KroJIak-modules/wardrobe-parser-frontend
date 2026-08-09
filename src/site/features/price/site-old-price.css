@@ -9,6 +9,7 @@
 .site-old-price__value {
   position: relative;
   z-index: 0;
+  font-weight: 400;
 }
 
 .site-old-price__strike {
@@ -17,7 +18,7 @@
   top: 50%;
   left: 0;
   width: 100%;
-  height: .65em;
+  height: .5em;
   overflow: visible;
   pointer-events: none;
   color: rgb(204 204 204 / 80%);
