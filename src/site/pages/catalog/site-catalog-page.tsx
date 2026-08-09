@@ -25,7 +25,6 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   const catalogReturnSnapshotRef = useRef<ReturnType<typeof readSiteCatalogReturnSnapshot>>(null);
   const hasMountedCatalogRef = useRef(false);
   const pendingFilterScrollRef = useRef(false);
-  const pendingPaginationScrollRef = useRef(false);
   const previousFilterSignatureRef = useRef<string | null>(null);
   const persistSearchParams = useCallback(
     (nextParams: URLSearchParams) => {
@@ -37,8 +36,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
     [setSearchParams]
   );
   const scrollCatalogToTop = useCallback(() => {
-    pendingPaginationScrollRef.current = true;
-    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, []);
   const applyFilterSearchParams = useCallback(
     (nextParams: URLSearchParams) => {
@@ -145,11 +143,6 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   }, [filterSignature, isCatalogFilterNavigation, navigationType]);
 
   useLayoutEffect(() => {
-    if (pendingPaginationScrollRef.current && !loading) {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      pendingPaginationScrollRef.current = false;
-    }
-
     const snapshot = catalogReturnSnapshotRef.current;
     if (!snapshot || loading || errorMessage) {
       return;
