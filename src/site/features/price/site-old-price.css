@@ -15,12 +15,11 @@
 .site-old-price__strike {
   position: absolute;
   z-index: 1;
-  top: 50%;
+  top: 25%;
   left: 0;
   width: 100%;
-  height: .5em;
+  height: .575em;
   overflow: visible;
   pointer-events: none;
   color: rgb(204 204 204 / 80%);
-  transform: translateY(-50%);
 }
