@@ -465,6 +465,115 @@
   opacity: 0.48;
 }
 
+.showcase-product-card__quick-action--active {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #111827;
+}
+
+.showcase-product-card__custom-catalog-popover {
+  position: fixed;
+  z-index: 1400;
+  box-sizing: border-box;
+  width: min(280px, calc(100vw - 24px));
+  padding: 12px;
+  border: 1px solid rgba(211, 218, 228, 0.96);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.16);
+}
+
+.showcase-product-card__custom-catalog-title {
+  margin: 0 0 8px;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.showcase-product-card__custom-catalog-state,
+.showcase-product-card__custom-catalog-inline-error,
+.showcase-product-card__custom-catalog-error p {
+  margin: 0;
+  color: #697386;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.showcase-product-card__custom-catalog-inline-error,
+.showcase-product-card__custom-catalog-error p {
+  color: #b42318;
+}
+
+.showcase-product-card__custom-catalog-error {
+  display: grid;
+  gap: 8px;
+}
+
+.showcase-product-card__custom-catalog-error button {
+  justify-self: start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #344054;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.showcase-product-card__custom-catalog-list {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.showcase-product-card__custom-catalog-list legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.showcase-product-card__custom-catalog-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 3px;
+  border-radius: 5px;
+  color: #293241;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.showcase-product-card__custom-catalog-option:hover {
+  background: #f4f6fa;
+}
+
+.showcase-product-card__custom-catalog-option input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #344054;
+}
+
+.showcase-product-card__custom-catalog-option:has(input:disabled) {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .showcase-product-card__source-menu {
   position: relative;
 }

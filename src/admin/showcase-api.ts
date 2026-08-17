@@ -81,6 +81,31 @@ export type ShowcaseProductSource = {
   url: string;
 };
 
+export type ShowcaseCustomCatalogMembership = {
+  slug: string;
+  label: string;
+  is_assigned: boolean;
+};
+
+export async function fetchShowcaseProductCustomCatalogs(productId: number): Promise<ShowcaseCustomCatalogMembership[]> {
+  const payload = await apiJson<{ items?: ShowcaseCustomCatalogMembership[] }>(
+    `${API_BASE}/admin/showcase/products/${productId}/custom-catalogs`,
+  );
+  return Array.isArray(payload.items) ? payload.items : [];
+}
+
+export function setShowcaseProductCustomCatalogMembership(
+  productId: number,
+  catalogSlug: string,
+  isAssigned: boolean,
+): Promise<{ slug: string; is_assigned: boolean }> {
+  return apiJson(`${API_BASE}/admin/showcase/products/${productId}/custom-catalogs/${encodeURIComponent(catalogSlug)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_assigned: isAssigned }),
+  });
+}
+
 export async function fetchShowcaseProductSources(productId: number): Promise<ShowcaseProductSource[]> {
   const payload = await apiJson<{ listings?: Array<{ source_name?: string | null; url?: string | null }> }>(
     `${API_BASE}/admin/products/${productId}`,

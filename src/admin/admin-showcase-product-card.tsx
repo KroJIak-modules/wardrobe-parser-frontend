@@ -1,8 +1,15 @@
-import { useEffect, useState } from "react";
-import { Eye, EyeOff, ExternalLink } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Eye, EyeOff, ExternalLink, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { optimizeImageUrl } from "../shared/product-image";
-import { fetchShowcaseProductSources, type ShowcaseProductSource } from "./showcase-api";
+import { FloatingPopover } from "./floating-popover";
+import {
+  fetchShowcaseProductCustomCatalogs,
+  fetchShowcaseProductSources,
+  setShowcaseProductCustomCatalogMembership,
+  type ShowcaseCustomCatalogMembership,
+  type ShowcaseProductSource,
+} from "./showcase-api";
 import type { ShowcaseCatalogProduct } from "./showcase-contracts";
 
 function statusLabel(status: ShowcaseCatalogProduct["status"]): string {
@@ -78,6 +85,14 @@ function ShowcaseProductCardMedia({
   );
 }
 
+function updateMembership(
+  catalogs: readonly ShowcaseCustomCatalogMembership[],
+  slug: string,
+  isAssigned: boolean,
+): ShowcaseCustomCatalogMembership[] {
+  return catalogs.map((catalog) => catalog.slug === slug ? { ...catalog, is_assigned: isAssigned } : catalog);
+}
+
 export function AdminShowcaseProductCard({
   product,
   hidden = false,
@@ -93,9 +108,30 @@ export function AdminShowcaseProductCard({
   const [sources, setSources] = useState<ShowcaseProductSource[] | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [customCatalogs, setCustomCatalogs] = useState<ShowcaseCustomCatalogMembership[] | null>(null);
+  const [customCatalogsOpen, setCustomCatalogsOpen] = useState(false);
+  const [customCatalogsLoading, setCustomCatalogsLoading] = useState(false);
+  const [customCatalogsError, setCustomCatalogsError] = useState<string | null>(null);
+  const [updatingCatalogSlugs, setUpdatingCatalogSlugs] = useState<ReadonlySet<string>>(() => new Set());
+  const customCatalogTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const catalogLoadSequenceRef = useRef(0);
+  const catalogMutationSequenceRef = useRef(new Map<string, number>());
+  const customCatalogPopoverId = useId();
   const designerHref = product.brand.slug
     ? `/catalog/designers?designer=${encodeURIComponent(product.brand.slug)}`
     : null;
+
+  useEffect(() => {
+    catalogLoadSequenceRef.current += 1;
+    catalogMutationSequenceRef.current.clear();
+    setSources(null);
+    setSourcesOpen(false);
+    setCustomCatalogs(null);
+    setCustomCatalogsOpen(false);
+    setCustomCatalogsLoading(false);
+    setCustomCatalogsError(null);
+    setUpdatingCatalogSlugs(new Set());
+  }, [product.id]);
 
   const openSources = async () => {
     if (sourcesOpen) {
@@ -118,6 +154,66 @@ export function AdminShowcaseProductCard({
       setSourcesLoading(false);
     }
   };
+
+  const loadCustomCatalogs = async () => {
+    const requestSequence = catalogLoadSequenceRef.current + 1;
+    catalogLoadSequenceRef.current = requestSequence;
+    setCustomCatalogsLoading(true);
+    setCustomCatalogsError(null);
+    try {
+      const nextCatalogs = await fetchShowcaseProductCustomCatalogs(product.id);
+      if (catalogLoadSequenceRef.current === requestSequence) {
+        setCustomCatalogs(nextCatalogs);
+      }
+    } catch (error) {
+      if (catalogLoadSequenceRef.current === requestSequence) {
+        setCustomCatalogsError(error instanceof Error ? error.message : "Не удалось загрузить каталоги");
+      }
+    } finally {
+      if (catalogLoadSequenceRef.current === requestSequence) {
+        setCustomCatalogsLoading(false);
+      }
+    }
+  };
+
+  const toggleCustomCatalogs = () => {
+    if (customCatalogsOpen) {
+      setCustomCatalogsOpen(false);
+      return;
+    }
+    setCustomCatalogsOpen(true);
+    if (customCatalogs === null && !customCatalogsLoading) {
+      void loadCustomCatalogs();
+    }
+  };
+
+  const setCatalogMembership = async (catalog: ShowcaseCustomCatalogMembership, isAssigned: boolean) => {
+    if (updatingCatalogSlugs.has(catalog.slug)) {
+      return;
+    }
+    const requestSequence = (catalogMutationSequenceRef.current.get(catalog.slug) || 0) + 1;
+    catalogMutationSequenceRef.current.set(catalog.slug, requestSequence);
+    setUpdatingCatalogSlugs((previous) => new Set(previous).add(catalog.slug));
+    try {
+      const result = await setShowcaseProductCustomCatalogMembership(product.id, catalog.slug, isAssigned);
+      if (catalogMutationSequenceRef.current.get(catalog.slug) === requestSequence) {
+        setCustomCatalogs((previous) => previous ? updateMembership(previous, result.slug, result.is_assigned) : previous);
+      }
+    } catch (error) {
+      if (catalogMutationSequenceRef.current.get(catalog.slug) === requestSequence) {
+        setCustomCatalogsError(error instanceof Error ? error.message : "Не удалось сохранить выбор каталога");
+      }
+    } finally {
+      if (catalogMutationSequenceRef.current.get(catalog.slug) === requestSequence) {
+        setUpdatingCatalogSlugs((previous) => {
+          const next = new Set(previous);
+          next.delete(catalog.slug);
+          return next;
+        });
+      }
+    }
+  };
+
   const availableSources = sources || [];
 
   return (
@@ -152,6 +248,60 @@ export function AdminShowcaseProductCard({
           >
             {hidden ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
           </button>
+          <button
+            ref={customCatalogTriggerRef}
+            type="button"
+            className={customCatalogsOpen ? "showcase-product-card__quick-action showcase-product-card__quick-action--active" : "showcase-product-card__quick-action"}
+            onClick={toggleCustomCatalogs}
+            aria-expanded={customCatalogsOpen}
+            aria-controls={customCatalogPopoverId}
+            aria-label="Кастомные каталоги"
+            title="Кастомные каталоги"
+          >
+            <Star size={18} aria-hidden="true" />
+          </button>
+          <FloatingPopover
+            anchorRef={customCatalogTriggerRef}
+            open={customCatalogsOpen}
+            className="showcase-product-card__custom-catalog-popover"
+            onClose={() => setCustomCatalogsOpen(false)}
+          >
+            <div id={customCatalogPopoverId} aria-label="Кастомные каталоги">
+              <p className="showcase-product-card__custom-catalog-title">Кастомные каталоги</p>
+              {customCatalogsLoading ? <p className="showcase-product-card__custom-catalog-state">Загружаем…</p> : null}
+              {!customCatalogsLoading && customCatalogsError && customCatalogs === null ? (
+                <div className="showcase-product-card__custom-catalog-error">
+                  <p>{customCatalogsError}</p>
+                  <button type="button" onClick={() => void loadCustomCatalogs()}>Повторить</button>
+                </div>
+              ) : null}
+              {!customCatalogsLoading && customCatalogs !== null && customCatalogs.length === 0 ? (
+                <p className="showcase-product-card__custom-catalog-state">Кастомных каталогов пока нет</p>
+              ) : null}
+              {customCatalogs !== null && customCatalogs.length > 0 ? (
+                <fieldset className="showcase-product-card__custom-catalog-list">
+                  <legend className="sr-only">Выберите каталоги товара</legend>
+                  {customCatalogs.map((catalog) => {
+                    const isUpdating = updatingCatalogSlugs.has(catalog.slug);
+                    return (
+                      <label key={catalog.slug} className="showcase-product-card__custom-catalog-option">
+                        <input
+                          type="checkbox"
+                          checked={catalog.is_assigned}
+                          disabled={isUpdating}
+                          onChange={(event) => void setCatalogMembership(catalog, event.target.checked)}
+                        />
+                        <span>{catalog.label}</span>
+                      </label>
+                    );
+                  })}
+                </fieldset>
+              ) : null}
+              {customCatalogsError && customCatalogs !== null ? (
+                <p className="showcase-product-card__custom-catalog-inline-error" role="alert">{customCatalogsError}</p>
+              ) : null}
+            </div>
+          </FloatingPopover>
           <div className="showcase-product-card__source-menu">
             <button
               type="button"
