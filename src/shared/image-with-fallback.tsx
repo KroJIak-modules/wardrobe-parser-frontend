@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type ImageWithFallbackProps = {
   src: string | null | undefined;
@@ -27,12 +27,18 @@ function ImageWithFallbackBase({
     const raw = (src || "").trim();
     return raw.length > 0 ? raw : null;
   }, [src]);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [failed, setFailed] = useState<boolean>(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setLoaded(false);
     setFailed(false);
+
+    const image = imageRef.current;
+    if (image?.complete && image.naturalWidth > 0) {
+      setLoaded(true);
+    }
   }, [normalizedSrc]);
 
   const loadingLabel = loadingText ?? placeholderText;
@@ -50,6 +56,7 @@ function ImageWithFallbackBase({
         />
       ) : null}
       <img
+        ref={imageRef}
         className={className}
         src={normalizedSrc}
         alt={alt}

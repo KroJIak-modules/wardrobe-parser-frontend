@@ -69,11 +69,9 @@ export function optimizeImageUrl(
       // Vinted image URLs are signed and can break when arbitrary params are appended.
       return normalized;
     }
-    return withSearchParams(parsed, (params) => {
-      params.set("w", String(width));
-      params.set("h", String(height));
-      params.set("q", String(quality));
-    });
+    // Do not guess a transformation API for arbitrary hosts: many source URLs are
+    // signed or treat unknown query parameters as a different resource.
+    return normalized;
   } catch {
     return normalized;
   }
