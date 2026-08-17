@@ -189,6 +189,7 @@ export type SiteApiCartQuoteResponse = {
     preorder_subtotal_rub: number;
     applied_amount_rub: number;
     next_threshold_rub: number | null;
+    amount_to_next_threshold_rub: number | null;
   };
 };
 

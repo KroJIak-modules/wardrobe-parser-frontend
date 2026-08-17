@@ -152,12 +152,7 @@ function normalizeQuoteProgress(response: SiteApiCartQuoteResponse): SiteCartQuo
   }));
   const preorderSubtotalRub = response.svc_progress.preorder_subtotal_rub;
   const nextThresholdRub = response.svc_progress.next_threshold_rub;
-  const firstThresholdRub = tiers[0]?.minRub ?? null;
-  const amountToNextThresholdRub = nextThresholdRub !== null
-    ? Math.max(0, nextThresholdRub - preorderSubtotalRub)
-    : firstThresholdRub !== null && preorderSubtotalRub < firstThresholdRub
-      ? firstThresholdRub - preorderSubtotalRub
-      : null;
+  const amountToNextThresholdRub = response.svc_progress.amount_to_next_threshold_rub;
   const terminalThresholdRub = tiers.at(-1)?.minRub ?? 0;
   const percent = terminalThresholdRub > 0
     ? Math.min(100, Math.max(0, (preorderSubtotalRub / terminalThresholdRub) * 100))
