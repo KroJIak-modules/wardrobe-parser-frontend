@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { EyeOff, ExternalLink, ChevronDown } from "lucide-react";
+import { EyeOff, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { optimizeImageUrl } from "../shared/product-image";
 import { fetchShowcaseProductSources, type ShowcaseProductSource } from "./showcase-api";
@@ -125,41 +125,6 @@ export function AdminShowcaseProductCard({
       <Link to={href} className="showcase-product-card__media-link" aria-label={`${product.brand.name} ${product.name}`}>
         <ShowcaseProductCardMedia imageUrl={product.image_url} alt={product.name} />
       </Link>
-      <div className="showcase-product-card__quick-actions">
-        <button
-          type="button"
-          className="showcase-product-card__quick-action"
-          onClick={() => onHide(product.id)}
-          disabled={hidden || updating}
-          aria-label={hidden ? "Товар скрыт" : "Скрыть товар"}
-          title={hidden ? "Товар скрыт" : "Скрыть товар"}
-        >
-          <EyeOff size={18} aria-hidden="true" />
-        </button>
-        <div className="showcase-product-card__source-menu">
-          <button
-            type="button"
-            className="showcase-product-card__quick-action"
-            onClick={() => void openSources()}
-            aria-expanded={sourcesOpen}
-            aria-label="Перейти в источник"
-            title="Перейти в источник"
-          >
-            <ExternalLink size={18} aria-hidden="true" />
-            <ChevronDown size={14} aria-hidden="true" />
-          </button>
-          {sourcesOpen ? (
-            <div className="showcase-product-card__source-options">
-              {sourcesLoading ? <span>Загружаем…</span> : availableSources.length > 0 ? availableSources.map((source) => (
-                <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
-                  {source.label}
-                </a>
-              )) : <span>Источник не указан</span>}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
       <div className="showcase-product-card__meta">
         {designerHref ? (
           <Link to={designerHref} className="showcase-product-card__brand">
@@ -176,6 +141,39 @@ export function AdminShowcaseProductCard({
             <span className="showcase-product-card__availability">{statusLabel(product.status)}</span>
           </p>
         </Link>
+        <div className="showcase-product-card__quick-actions">
+          <button
+            type="button"
+            className="showcase-product-card__quick-action"
+            onClick={() => onHide(product.id)}
+            disabled={hidden || updating}
+            aria-label={hidden ? "Товар скрыт" : "Скрыть товар"}
+            title={hidden ? "Товар скрыт" : "Скрыть товар"}
+          >
+            <EyeOff size={18} aria-hidden="true" />
+          </button>
+          <div className="showcase-product-card__source-menu">
+            <button
+              type="button"
+              className="showcase-product-card__quick-action"
+              onClick={() => void openSources()}
+              aria-expanded={sourcesOpen}
+              aria-label="Перейти в источник"
+              title="Перейти в источник"
+            >
+              <ExternalLink size={18} aria-hidden="true" />
+            </button>
+            {sourcesOpen ? (
+              <div className="showcase-product-card__source-options">
+                {sourcesLoading ? <span>Загружаем…</span> : availableSources.length > 0 ? availableSources.map((source) => (
+                  <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
+                    {source.label}
+                  </a>
+                )) : <span>Источник не указан</span>}
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
     </article>
   );

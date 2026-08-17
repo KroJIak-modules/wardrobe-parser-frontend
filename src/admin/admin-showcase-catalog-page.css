@@ -423,12 +423,10 @@
 }
 
 .showcase-product-card__quick-actions {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 2;
   display: flex;
+  justify-content: flex-end;
   gap: 6px;
+  margin-top: 10px;
 }
 
 .showcase-product-card__quick-action {
@@ -472,7 +470,7 @@
 .showcase-product-card__source-options {
   position: absolute;
   right: 0;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
   display: grid;
   min-width: 170px;
   max-width: min(260px, calc(100vw - 32px));
