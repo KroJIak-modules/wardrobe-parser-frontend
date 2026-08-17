@@ -396,8 +396,10 @@
 }
 
 .site-catalog-filters__reset {
+  box-sizing: border-box;
+  width: 100%;
   margin-top: 6px;
-  align-self: center;
+  align-self: stretch;
   min-height: 25px;
   padding: 0 14px;
   border: 0;
