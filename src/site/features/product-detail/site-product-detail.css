@@ -1111,7 +1111,9 @@
     grid-column: 1;
     grid-row: 2;
     grid-auto-flow: initial;
-    justify-content: center;
+    /* Center short rows, but anchor overflowing rows at the first thumbnail.
+       Centering an overflowing flex row creates unreachable negative overflow. */
+    justify-content: safe center;
     gap: var(--site-product-detail-thumb-gap);
     width: 100%;
     max-width: 100%;
