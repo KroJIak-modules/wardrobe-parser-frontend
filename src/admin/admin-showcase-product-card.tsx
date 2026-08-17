@@ -146,9 +146,9 @@ export function AdminShowcaseProductCard({
             type="button"
             className="showcase-product-card__quick-action"
             onClick={() => onHide(product.id)}
-            disabled={hidden || updating}
-            aria-label={hidden ? "Товар скрыт" : "Скрыть товар"}
-            title={hidden ? "Товар скрыт" : "Скрыть товар"}
+            disabled={updating}
+            aria-label={hidden ? "Показать товар" : "Скрыть товар"}
+            title={hidden ? "Показать товар" : "Скрыть товар"}
           >
             {hidden ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
           </button>

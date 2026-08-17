@@ -232,14 +232,23 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
     if (updatingProductIds.has(productId)) {
       return;
     }
+    const nextVisibilityStatus = hiddenProductIds.has(productId) ? "visible" : "hidden";
     setUpdatingProductIds((previous) => new Set(previous).add(productId));
     try {
       await apiJson(`${API_BASE}/products/${productId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visibility_status: "hidden" }),
+        body: JSON.stringify({ visibility_status: nextVisibilityStatus }),
       });
-      setHiddenProductIds((previous) => new Set(previous).add(productId));
+      setHiddenProductIds((previous) => {
+        const next = new Set(previous);
+        if (nextVisibilityStatus === "hidden") {
+          next.add(productId);
+        } else {
+          next.delete(productId);
+        }
+        return next;
+      });
     } finally {
       setUpdatingProductIds((previous) => {
         const next = new Set(previous);
@@ -247,7 +256,7 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
         return next;
       });
     }
-  }, [updatingProductIds]);
+  }, [hiddenProductIds, updatingProductIds]);
 
   const applyFilterSearchParams = useCallback(
     (nextParams: URLSearchParams) => {
