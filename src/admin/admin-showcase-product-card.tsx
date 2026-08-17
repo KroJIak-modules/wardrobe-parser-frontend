@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { EyeOff, ExternalLink } from "lucide-react";
+import { Eye, EyeOff, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { optimizeImageUrl } from "../shared/product-image";
 import { fetchShowcaseProductSources, type ShowcaseProductSource } from "./showcase-api";
@@ -150,7 +150,7 @@ export function AdminShowcaseProductCard({
             aria-label={hidden ? "Товар скрыт" : "Скрыть товар"}
             title={hidden ? "Товар скрыт" : "Скрыть товар"}
           >
-            <EyeOff size={18} aria-hidden="true" />
+            {hidden ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
           </button>
           <div className="showcase-product-card__source-menu">
             <button

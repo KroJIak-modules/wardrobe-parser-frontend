@@ -338,16 +338,15 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
           <div className="showcase-catalog-products__empty">Ничего не найдено</div>
         ) : (
           <div className="showcase-catalog-products__grid">
-            {products
-              .filter((product) => !hiddenProductIds.has(product.id))
-              .map((product) => (
-                <AdminShowcaseProductCard
-                  key={product.id}
-                  product={product}
-                  updating={updatingProductIds.has(product.id)}
-                  onHide={toggleProductVisibility}
-                />
-              ))}
+            {products.map((product) => (
+              <AdminShowcaseProductCard
+                key={product.id}
+                product={product}
+                hidden={hiddenProductIds.has(product.id)}
+                updating={updatingProductIds.has(product.id)}
+                onHide={toggleProductVisibility}
+              />
+            ))}
           </div>
         )}
       </div>
