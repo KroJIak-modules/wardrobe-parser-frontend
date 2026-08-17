@@ -421,6 +421,7 @@
 
 .site-products--mobile .site-products__cta {
   width: 88px;
+  min-width: 88px;
   height: 20px;
   border-radius: 7px;
   font-size: 10px;
