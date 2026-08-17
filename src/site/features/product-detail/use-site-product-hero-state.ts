@@ -4,10 +4,11 @@ import { resolveSiteProductDetailSourceVariant } from "../../runtime/site-produc
 
 const GALLERY_WHEEL_THROTTLE_MS = 240;
 const PRODUCT_GALLERY_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
-const PRODUCT_GALLERY_SWIPE_MIN_DISTANCE_PX = 44;
-const PRODUCT_GALLERY_SWIPE_DISTANCE_RATIO = 0.14;
-const PRODUCT_GALLERY_SWIPE_FAST_VELOCITY_PX_PER_MS = 0.45;
-const PRODUCT_GALLERY_DRAG_LOCK_THRESHOLD_PX = 10;
+const PRODUCT_GALLERY_SWIPE_MIN_DISTANCE_PX = 32;
+const PRODUCT_GALLERY_SWIPE_DISTANCE_RATIO = 0.1;
+const PRODUCT_GALLERY_SWIPE_FAST_VELOCITY_PX_PER_MS = 0.35;
+const PRODUCT_GALLERY_DRAG_LOCK_THRESHOLD_PX = 8;
+const PRODUCT_GALLERY_HORIZONTAL_SWIPE_AXIS_RATIO = 0.65;
 const PRODUCT_GALLERY_EDGE_RESISTANCE = 0.35;
 
 export function useSiteProductHeroState(product: SiteProductDetailItem) {
@@ -157,7 +158,6 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
         startedAt: event.timeStamp,
         isHorizontal: null,
       };
-      viewport.setPointerCapture?.(event.pointerId);
     };
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -177,14 +177,17 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
           return;
         }
 
-        start.isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+        start.isHorizontal =
+          Math.abs(deltaX) > Math.abs(deltaY) * PRODUCT_GALLERY_HORIZONTAL_SWIPE_AXIS_RATIO;
       }
 
       if (!start.isHorizontal) {
         return;
       }
 
-      event.preventDefault();
+      if (event.cancelable) {
+        event.preventDefault();
+      }
 
       const isAtLeftEdge = selectedGalleryIndex === 0 && deltaX > 0;
       const isAtRightEdge = selectedGalleryIndex === product.gallery.length - 1 && deltaX < 0;
@@ -201,7 +204,6 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
       }
 
       swipeStateRef.current = null;
-      viewport.releasePointerCapture?.(event.pointerId);
 
       const deltaX = event.clientX - start.x;
       const viewportWidth = Math.max(1, viewport.clientWidth);

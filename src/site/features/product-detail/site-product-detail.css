@@ -1183,6 +1183,9 @@
 
   .site-product-detail__main-image-viewport {
     cursor: default;
+    /* The viewport is the gesture surface: keep vertical page scrolling, but
+       reserve horizontal movement for gallery navigation from the first pixel. */
+    touch-action: pan-y pinch-zoom;
   }
 
   .site-product-detail__main-image-container {
