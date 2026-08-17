@@ -7,6 +7,7 @@ import type { AdminFilterFacetOption, AdminProductsTableItem } from "../admin-ty
 import { useDebouncedValue } from "../../shared/hooks/use-debounced-value";
 import { normalizeServiceProduct } from "../../shared/live-product-normalizer";
 import type { ProductWriteState } from "../../shared/product-state";
+import { readAdminProductsTableCache, saveAdminProductsTableCache } from "../admin-products-table-cache";
 import { markAdminProductsReturnStateRestored, readAdminProductsReturnState } from "../admin-products-return-state";
 
 type ProductsTablePayload = {
@@ -127,6 +128,29 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const backgroundReloadInFlightRef = useRef(false);
   const previousJobStatusRef = useRef<string | null>(latestJobStatus ?? null);
   const restoreRequestInFlightRef = useRef(false);
+  const cachedReturnState = useRef(false);
+
+  useEffect(() => {
+    if (tab !== "products") {
+      return;
+    }
+    const href = `${location.pathname}${location.search}`;
+    const returnState = readAdminProductsReturnState();
+    const cached = returnState?.pending && returnState.href === href
+      ? readAdminProductsTableCache(href)
+      : null;
+    if (!cached) {
+      return;
+    }
+    cachedReturnState.current = true;
+    tableOffsetRef.current = cached.offset;
+    setTableProducts(cached.items);
+    setTableTotal(cached.total);
+    setTableOverallTotal(cached.overallTotal);
+    setTableOffset(cached.offset);
+    setTableHasMore(cached.hasMore);
+    setTableLoadedOnce(true);
+  }, [location.pathname, location.search, tab]);
 
   const loadMoreTableProducts = useCallback(async () => {
     if (!tableHasMore || loadMoreInFlightRef.current) {
@@ -260,6 +284,13 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
 
   useEffect(() => {
     if (tab !== "products") {
+      return;
+    }
+    if (cachedReturnState.current) {
+      cachedReturnState.current = false;
+      void reloadTableFacets().catch((error) => {
+        pushToast(error instanceof Error ? error.message : "Ошибка обновления фильтров товаров");
+      });
       return;
     }
 
@@ -485,6 +516,19 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       setStatusUpdatingProductId((current) => (current === normalizedProductId ? null : current));
     }
   }, [debouncedQuery, pushToast, reloadTableFacets]);
+
+  useEffect(() => {
+    if (tab !== "products" || tableProducts.length === 0) {
+      return;
+    }
+    saveAdminProductsTableCache(`${location.pathname}${location.search}`, {
+      items: tableProducts,
+      total: tableTotal,
+      overallTotal: tableOverallTotal,
+      offset: tableOffset,
+      hasMore: tableHasMore,
+    });
+  }, [location.pathname, location.search, tab, tableHasMore, tableOffset, tableOverallTotal, tableProducts, tableTotal]);
 
   const refreshProductsTable = useCallback(async () => {
     if (tab !== "products") {
