@@ -43,7 +43,7 @@ export function SiteCartView({
             <SiteCartCard
               key={item.id}
               item={item}
-              quotedLinePriceRub={quoteItemByVariantId.get(item.variantId)?.final_line_total_rub ?? null}
+              independentLinePriceRub={quoteItemByVariantId.get(item.variantId)?.original_line_total_rub ?? null}
               oldLinePriceRub={quoteItemByVariantId.get(item.variantId)?.old_line_total_rub ?? null}
               onIncrement={() => onIncrement(item.id)}
               onDecrement={() => onDecrement(item.id)}

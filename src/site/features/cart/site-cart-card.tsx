@@ -8,14 +8,14 @@ import { SiteWindowCloseButton, SiteWindowShell, SiteWindowTitlebar } from "../w
 
 export function SiteCartCard({
   item,
-  quotedLinePriceRub,
+  independentLinePriceRub,
   oldLinePriceRub,
   onIncrement,
   onDecrement,
   onRemove,
 }: {
   item: SiteCartItem;
-  quotedLinePriceRub: number | null;
+  independentLinePriceRub: number | null;
   oldLinePriceRub: number | null;
   onIncrement: () => void;
   onDecrement: () => void;
@@ -23,7 +23,7 @@ export function SiteCartCard({
 }) {
   const { snapshot } = item;
   const snapshotLinePriceRub = snapshot.priceRub * item.quantity;
-  const currentLinePriceRub = quotedLinePriceRub ?? snapshotLinePriceRub;
+  const currentLinePriceRub = independentLinePriceRub ?? snapshotLinePriceRub;
   const snapshotOldLinePriceRub = typeof snapshot.oldPriceRub === "number" ? snapshot.oldPriceRub * item.quantity : null;
   const displayOldLinePriceRub = oldLinePriceRub ?? snapshotOldLinePriceRub;
   const designerHref = buildDesignerCatalogHref(snapshot.designerId);
