@@ -76,11 +76,13 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
   const [baselineRows, setBaselineRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsState().rows);
   const [baselineDesigners, setBaselineDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsState().designers);
   const saveTimeoutRef = useRef<number | null>(null);
+  const draftRevisionRef = useRef(0);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
       const payload = await fetchAdminDesignerMappings();
+      draftRevisionRef.current += 1;
       const nextRows = payload.rows.map(normalizeRow);
       const nextDesigners = sortDesignersForLoad(payload.designers.map(normalizeDesigner));
       setRows(nextRows);
@@ -115,30 +117,35 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
   }, [load, tab]);
 
   const onChangeDesignerName = useCallback((sourceBrand: string, designerName: string) => {
+    draftRevisionRef.current += 1;
     setRows((prev) =>
       prev.map((row) => (row.source_brand === sourceBrand ? { ...row, designer_name: designerName } : row))
     );
   }, []);
 
   const onToggleIncludeInDesigners = useCallback((sourceBrand: string, includeInDesigners: boolean) => {
+    draftRevisionRef.current += 1;
     setRows((prev) =>
       prev.map((row) => (row.source_brand === sourceBrand ? { ...row, include_in_designers: includeInDesigners } : row))
     );
   }, []);
 
   const onChangeFinalDesignerName = useCallback((designerId: string, designerName: string) => {
+    draftRevisionRef.current += 1;
     setDesigners((prev) =>
       prev.map((designer) => (designer.id === designerId ? { ...designer, name: designerName } : designer))
     );
   }, []);
 
   const onChangeFinalDesignerDescription = useCallback((designerId: string, description: string) => {
+    draftRevisionRef.current += 1;
     setDesigners((prev) =>
       prev.map((designer) => (designer.id === designerId ? { ...designer, description } : designer))
     );
   }, []);
 
   const onCreateDesigner = useCallback((designerName: string) => {
+    draftRevisionRef.current += 1;
     const normalizedDesignerName = String(designerName || "").trim();
     setDesigners((prev) => [
       {
@@ -151,10 +158,12 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
   }, []);
 
   const onDeleteDesigner = useCallback((designerId: string) => {
+    draftRevisionRef.current += 1;
     setDesigners((prev) => prev.filter((designer) => designer.id !== designerId));
   }, []);
 
   const persistState = useCallback(async (nextDraftRows: readonly AdminDesignerSourceRow[], nextDraftDesigners: readonly AdminFinalDesigner[]) => {
+    const savedDraftRevision = draftRevisionRef.current;
     try {
       setSaving(true);
       const normalizedRows = nextDraftRows.map(normalizeRow);
@@ -163,10 +172,16 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
         rows: normalizedRows,
         designers: normalizedDesigners,
       });
-      setRows(nextPayload.rows);
-      setDesigners(nextPayload.designers);
+      // Keep the server baseline current even when a newer local interaction exists:
+      // this makes the autosave queue persist that newer draft after this request.
       setBaselineRows(nextPayload.rows);
       setBaselineDesigners(nextPayload.designers);
+      // A delayed response must not overwrite an interaction made while it was saving.
+      if (draftRevisionRef.current !== savedDraftRevision) {
+        return;
+      }
+      setRows(nextPayload.rows);
+      setDesigners(nextPayload.designers);
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Ошибка сохранения дизайнеров");
     } finally {
