@@ -1,5 +1,7 @@
 import { useCallback, useState, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { API_BASE } from "../shared/admin-auth";
+import { apiJson } from "../shared/api-client";
 import { AdminShowcaseProductCard, AdminShowcaseProductCardSkeleton } from "./admin-showcase-product-card";
 import { useAdminShowcaseCatalog } from "./hooks/use-admin-showcase-catalog";
 import type { CatalogFilterGroup, CatalogFilterOption, CatalogViewKey } from "./showcase-contracts";
@@ -219,10 +221,33 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
+  const [hiddenProductIds, setHiddenProductIds] = useState<ReadonlySet<number>>(() => new Set());
+  const [updatingProductIds, setUpdatingProductIds] = useState<ReadonlySet<number>>(() => new Set());
   const { header, filterGroups, products, currentPage, totalPages, loading, errorMessage } = useAdminShowcaseCatalog(
     viewKey,
     searchParams,
   );
+
+  const toggleProductVisibility = useCallback(async (productId: number) => {
+    if (updatingProductIds.has(productId)) {
+      return;
+    }
+    setUpdatingProductIds((previous) => new Set(previous).add(productId));
+    try {
+      await apiJson(`${API_BASE}/products/${productId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility_status: "hidden" }),
+      });
+      setHiddenProductIds((previous) => new Set(previous).add(productId));
+    } finally {
+      setUpdatingProductIds((previous) => {
+        const next = new Set(previous);
+        next.delete(productId);
+        return next;
+      });
+    }
+  }, [updatingProductIds]);
 
   const applyFilterSearchParams = useCallback(
     (nextParams: URLSearchParams) => {
@@ -313,9 +338,16 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
           <div className="showcase-catalog-products__empty">Ничего не найдено</div>
         ) : (
           <div className="showcase-catalog-products__grid">
-            {products.map((product) => (
-              <AdminShowcaseProductCard key={product.id} product={product} />
-            ))}
+            {products
+              .filter((product) => !hiddenProductIds.has(product.id))
+              .map((product) => (
+                <AdminShowcaseProductCard
+                  key={product.id}
+                  product={product}
+                  updating={updatingProductIds.has(product.id)}
+                  onHide={toggleProductVisibility}
+                />
+              ))}
           </div>
         )}
       </div>

@@ -287,6 +287,7 @@
 }
 
 .showcase-product-card {
+  position: relative;
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -419,6 +420,89 @@
 
 .showcase-product-card__divider {
   color: #c3c9d4;
+}
+
+.showcase-product-card__quick-actions {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+
+.showcase-product-card__quick-action {
+  box-sizing: border-box;
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(211, 218, 228, 0.96);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #293241;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 3px 10px rgba(16, 24, 40, 0.12);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.showcase-product-card__quick-action:hover:not(:disabled),
+.showcase-product-card__quick-action:focus-visible:not(:disabled) {
+  border-color: #aab7c8;
+  background: #ffffff;
+  color: #111827;
+  outline: none;
+}
+
+.showcase-product-card__quick-action:disabled,
+.showcase-product-card__quick-action--disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.showcase-product-card__source-menu {
+  position: relative;
+}
+
+.showcase-product-card__source-options {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  display: grid;
+  min-width: 170px;
+  max-width: min(260px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid rgba(211, 218, 228, 0.96);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.15);
+}
+
+.showcase-product-card__source-options a,
+.showcase-product-card__source-options span {
+  padding: 9px 10px;
+  color: #293241;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.showcase-product-card__source-options span {
+  color: #697386;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.showcase-product-card__source-options a:hover,
+.showcase-product-card__source-options a:focus-visible {
+  background: #f4f6fa;
+  outline: none;
 }
 
 .showcase-product-card--skeleton {

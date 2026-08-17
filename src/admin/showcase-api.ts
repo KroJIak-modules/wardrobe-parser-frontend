@@ -76,6 +76,26 @@ export async function fetchCatalogProducts({
   return apiJson<ShowcaseCatalogProductsResponse>(`${API_BASE}/admin/showcase/catalog-products?${query.toString()}`);
 }
 
+export type ShowcaseProductSource = {
+  label: string;
+  url: string;
+};
+
+export async function fetchShowcaseProductSources(productId: number): Promise<ShowcaseProductSource[]> {
+  const payload = await apiJson<{ listings?: Array<{ source_name?: string | null; url?: string | null }> }>(
+    `${API_BASE}/admin/products/${productId}`,
+  );
+  const seen = new Set<string>();
+  return (payload.listings || []).flatMap((listing) => {
+    const url = String(listing.url || "").trim();
+    if (!url || seen.has(url)) {
+      return [];
+    }
+    seen.add(url);
+    return [{ label: String(listing.source_name || url).trim() || url, url }];
+  });
+}
+
 export async function fetchShowcaseDesignersDirectory(): Promise<ShowcaseDesignersDirectoryResponse> {
   return apiJson<ShowcaseDesignersDirectoryResponse>(`${API_BASE}/admin/showcase/designers-directory`);
 }
