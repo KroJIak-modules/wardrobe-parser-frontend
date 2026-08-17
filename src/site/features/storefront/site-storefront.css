@@ -12,6 +12,7 @@
   --site-carousel-dot-right: 39px;
   --site-carousel-dot-small: 6px;
   --site-carousel-dot-large: 10px;
+  --site-carousel-dot-small-to-large-scale: 1.6667;
   --site-carousel-dot-track-width: 42px;
   --site-carousel-dot-track-height: 10px;
 }
@@ -25,6 +26,7 @@
   --site-carousel-dot-right: 26px;
   --site-carousel-dot-small: 5px;
   --site-carousel-dot-large: 8px;
+  --site-carousel-dot-small-to-large-scale: 1.6;
   --site-carousel-dot-track-width: 30px;
   --site-carousel-dot-track-height: 20px;
 }
@@ -150,6 +152,7 @@
   position: relative;
   width: var(--site-carousel-dot-track-width);
   height: var(--site-carousel-dot-track-height);
+  overflow: visible;
 }
 
 .site-carousel__dot {
@@ -159,7 +162,9 @@
   height: var(--site-carousel-dot-small);
   border-radius: 999px;
   background: rgba(226, 226, 226, 0.86);
+  transform: translate(-50%, -50%) scale(1);
   transform-origin: center center;
+  will-change: transform, opacity;
   transition:
     transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -168,20 +173,16 @@
 
 .site-carousel__dot--left {
   left: var(--site-carousel-dot-left);
-  transform: translate(-50%, -50%) scale(1);
 }
 
 .site-carousel__dot--center {
   left: var(--site-carousel-dot-center);
-  width: var(--site-carousel-dot-large);
-  height: var(--site-carousel-dot-large);
   background: rgba(206, 206, 206, 0.98);
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
 }
 
 .site-carousel__dot--right {
   left: var(--site-carousel-dot-right);
-  transform: translate(-50%, -50%) scale(1);
 }
 
 .site-carousel__dots--orbiting[data-direction="next"] .site-carousel__dot--left {
@@ -211,8 +212,6 @@
 @keyframes site-dot-left-next {
   0% {
     left: var(--site-carousel-dot-left);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
     transform: translate(-50%, -50%) scale(1);
@@ -220,28 +219,22 @@
 
   100% {
     left: var(--site-carousel-dot-center);
-    width: var(--site-carousel-dot-large);
-    height: var(--site-carousel-dot-large);
     background: rgba(206, 206, 206, 0.98);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
   }
 }
 
 @keyframes site-dot-center-next {
   0% {
     left: var(--site-carousel-dot-center);
-    width: var(--site-carousel-dot-large);
-    height: var(--site-carousel-dot-large);
     background: rgba(206, 206, 206, 0.98);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
   }
 
   100% {
     left: var(--site-carousel-dot-right);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
     transform: translate(-50%, -50%) scale(1);
@@ -251,17 +244,13 @@
 @keyframes site-dot-right-next {
   0% {
     left: var(--site-carousel-dot-right);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
     transform: translate(-50%, -50%) scale(1);
   }
 
   32% {
-    left: 21px;
-    width: 2px;
-    height: 2px;
+    left: var(--site-carousel-dot-center);
     opacity: 0;
     background: rgba(214, 214, 214, 0.2);
     transform: translate(-50%, -50%) scale(0);
@@ -269,8 +258,6 @@
 
   64% {
     left: var(--site-carousel-dot-left);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     opacity: 0.82;
     background: rgba(226, 226, 226, 0.86);
     transform: translate(-50%, -50%) scale(1);
@@ -278,8 +265,6 @@
 
   100% {
     left: var(--site-carousel-dot-left);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
     transform: translate(-50%, -50%) scale(1);
@@ -289,8 +274,6 @@
 @keyframes site-dot-right-prev {
   0% {
     left: var(--site-carousel-dot-right);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
     transform: translate(-50%, -50%) scale(1);
@@ -298,28 +281,22 @@
 
   100% {
     left: var(--site-carousel-dot-center);
-    width: var(--site-carousel-dot-large);
-    height: var(--site-carousel-dot-large);
     background: rgba(206, 206, 206, 0.98);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
   }
 }
 
 @keyframes site-dot-center-prev {
   0% {
     left: var(--site-carousel-dot-center);
-    width: var(--site-carousel-dot-large);
-    height: var(--site-carousel-dot-large);
     background: rgba(206, 206, 206, 0.98);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
   }
 
   100% {
     left: var(--site-carousel-dot-left);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
     transform: translate(-50%, -50%) scale(1);
@@ -329,8 +306,6 @@
 @keyframes site-dot-left-prev {
   0% {
     left: var(--site-carousel-dot-left);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
     transform: translate(-50%, -50%) scale(1);
@@ -338,8 +313,6 @@
 
   32% {
     left: var(--site-carousel-dot-center);
-    width: 2px;
-    height: 2px;
     opacity: 0;
     background: rgba(214, 214, 214, 0.2);
     transform: translate(-50%, -50%) scale(0);
@@ -347,8 +320,6 @@
 
   64% {
     left: var(--site-carousel-dot-right);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     opacity: 0.82;
     background: rgba(226, 226, 226, 0.86);
     transform: translate(-50%, -50%) scale(1);
@@ -356,8 +327,6 @@
 
   100% {
     left: var(--site-carousel-dot-right);
-    width: var(--site-carousel-dot-small);
-    height: var(--site-carousel-dot-small);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
     transform: translate(-50%, -50%) scale(1);
