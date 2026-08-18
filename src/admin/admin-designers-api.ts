@@ -84,6 +84,18 @@ export async function saveAdminDesignerMappings(payload: AdminDesignerMappingsPa
   return writeStore(saved);
 }
 
+export async function setAdminDesignerSourceEnabled(sourceBrand: string, includeInDesigners: boolean): Promise<boolean> {
+  const payload = await apiJson<{ include_in_designers: boolean }>(
+    `${API_BASE}/admin/designers/editor/sources/${encodeURIComponent(sourceBrand)}/enabled`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source_brand: sourceBrand, include_in_designers: includeInDesigners }),
+    },
+  );
+  return Boolean(payload.include_in_designers);
+}
+
 export function readAdminDesignerMappingsState(): AdminDesignerMappingsPayload {
   return buildPayload();
 }

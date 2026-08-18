@@ -3,6 +3,7 @@ import {
   fetchAdminDesignerMappings,
   readAdminDesignerMappingsState,
   saveAdminDesignerMappings,
+  setAdminDesignerSourceEnabled,
 } from "../admin-designers-api";
 import type { AdminFinalDesigner, AdminDesignerSourceRow } from "../admin-types";
 
@@ -79,6 +80,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
   const [baselineDesigners, setBaselineDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsState().designers);
   const saveTimeoutRef = useRef<number | null>(null);
   const draftRevisionRef = useRef(0);
+  const sourceToggleRevisionRef = useRef(new Map<string, number>());
 
   const load = useCallback(async () => {
     try {
@@ -126,11 +128,31 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
   }, []);
 
   const onToggleIncludeInDesigners = useCallback((sourceBrand: string, includeInDesigners: boolean) => {
+    const previousValue = rows.find((row) => row.source_brand === sourceBrand)?.include_in_designers ?? !includeInDesigners;
+    const requestRevision = (sourceToggleRevisionRef.current.get(sourceBrand) ?? 0) + 1;
+    sourceToggleRevisionRef.current.set(sourceBrand, requestRevision);
     draftRevisionRef.current += 1;
     setRows((prev) =>
       prev.map((row) => (row.source_brand === sourceBrand ? { ...row, include_in_designers: includeInDesigners } : row))
     );
-  }, []);
+    setBaselineRows((prev) =>
+      prev.map((row) => (row.source_brand === sourceBrand ? { ...row, include_in_designers: includeInDesigners } : row))
+    );
+
+    void setAdminDesignerSourceEnabled(sourceBrand, includeInDesigners).catch((error) => {
+      if (sourceToggleRevisionRef.current.get(sourceBrand) !== requestRevision) {
+        return;
+      }
+      draftRevisionRef.current += 1;
+      setRows((prev) =>
+        prev.map((row) => (row.source_brand === sourceBrand ? { ...row, include_in_designers: previousValue } : row))
+      );
+      setBaselineRows((prev) =>
+        prev.map((row) => (row.source_brand === sourceBrand ? { ...row, include_in_designers: previousValue } : row))
+      );
+      pushToast(error instanceof Error ? error.message : "Не удалось изменить видимость дизайнера");
+    });
+  }, [pushToast, rows]);
 
   const onChangeFinalDesignerName = useCallback((designerId: string, designerName: string) => {
     draftRevisionRef.current += 1;
