@@ -66,15 +66,6 @@ export function SiteCatalogFilterFlyout({
           {finalOptions.map((option) => {
             const isSelected = selectedSet.has(option.value);
             const isStrongAction = option.value === SHOW_ALL_DESIGNERS_VALUE || Boolean(option.keepAtBottom);
-            if (option.keepAtBottom) {
-              return (
-                <li key={option.id}>
-                  <div className="site-catalog-filters__item site-catalog-filters__item--strong">
-                    <span>{option.label}</span>
-                  </div>
-                </li>
-              );
-            }
             return (
               <li key={option.id}>
                 <button
