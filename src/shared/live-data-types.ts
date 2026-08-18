@@ -556,22 +556,6 @@ export type SettingsTransferWeightRuleEntry = {
   keywords: string[];
 };
 
-export type SettingsTransferDesignerEntry = {
-  name: string;
-  slug: string;
-  description: string | null;
-  origin_kind: "auto" | "manual";
-  is_admin_touched: boolean;
-  is_enabled: boolean;
-};
-
-export type SettingsTransferDesignerSourceNameEntry = {
-  source_name: string;
-  designer_name: string | null;
-  is_enabled: boolean;
-  is_admin_touched: boolean;
-};
-
 export type SettingsTransferTaxonomyFilterNode = {
   slug: string;
   title: string;
@@ -679,8 +663,6 @@ export type SettingsTransferPayload = {
   suppliers: SettingsTransferSupplierEntry[];
   sources: SettingsTransferSourceEntry[];
   weight_rules: SettingsTransferWeightRuleEntry[];
-  designers: SettingsTransferDesignerEntry[];
-  designer_source_names: SettingsTransferDesignerSourceNameEntry[];
   taxonomy: SettingsTransferTaxonomyState;
   site_content: SettingsTransferSiteContent;
 };
