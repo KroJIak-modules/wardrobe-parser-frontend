@@ -41,6 +41,8 @@ function normalizePayload(payload: AdminDesignerMappingsPayload): AdminDesignerM
     rows: cloneRows(payload.rows).map((row) => ({
       source_brand: normalizeText(row.source_brand),
       source_product_count: Math.max(0, Math.trunc(Number(row.source_product_count) || 0)),
+      source_unavailable_product_count: Math.max(0, Math.trunc(Number(row.source_unavailable_product_count) || 0)),
+      source_public_product_count: Math.max(0, Math.trunc(Number(row.source_public_product_count) || 0)),
       designer_name: normalizeText(row.designer_name),
       include_in_designers: Boolean(row.include_in_designers),
     })),

@@ -12,6 +12,8 @@ function normalizeRow(row: AdminDesignerSourceRow): AdminDesignerSourceRow {
   return {
     source_brand: String(row.source_brand || "").trim(),
     source_product_count: Number.isFinite(row.source_product_count) ? Math.max(0, Math.trunc(row.source_product_count)) : 0,
+    source_unavailable_product_count: Number.isFinite(row.source_unavailable_product_count) ? Math.max(0, Math.trunc(row.source_unavailable_product_count)) : 0,
+    source_public_product_count: Number.isFinite(row.source_public_product_count) ? Math.max(0, Math.trunc(row.source_public_product_count)) : 0,
     designer_name: String(row.designer_name || "").trim(),
     include_in_designers: Boolean(row.include_in_designers),
   };
@@ -21,7 +23,7 @@ function createSignature(rows: readonly AdminDesignerSourceRow[]) {
   return rows
     .map((row) => {
       const normalized = normalizeRow(row);
-      return `${normalized.source_brand}|${normalized.source_product_count}|${normalized.designer_name}|${normalized.include_in_designers}`;
+      return `${normalized.source_brand}|${normalized.source_product_count}|${normalized.source_unavailable_product_count}|${normalized.source_public_product_count}|${normalized.designer_name}|${normalized.include_in_designers}`;
     })
     .sort()
     .join("||");

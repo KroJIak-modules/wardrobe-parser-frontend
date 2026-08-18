@@ -125,6 +125,8 @@ export type AdminFilterFacetOption = {
 export type AdminDesignerSourceRow = {
   source_brand: string;
   source_product_count: number;
+  source_unavailable_product_count: number;
+  source_public_product_count: number;
   designer_name: string;
   include_in_designers: boolean;
 };
