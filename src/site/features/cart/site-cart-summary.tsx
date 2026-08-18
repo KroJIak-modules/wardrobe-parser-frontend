@@ -101,10 +101,11 @@ export function SiteCartSummary({
         {hasItems ? (
           <>
             <p className="site-cart-summary__total">
+              <span>Итого:</span>
               {hasDisplayQuote && originalTotalPriceRub !== null && originalTotalPriceRub > finalTotalPriceRub ? (
                 <SiteOldPrice className="site-cart-summary__original-total" valueRub={originalTotalPriceRub} />
               ) : null}
-              <span>Итого: {formatSiteRubles(finalTotalPriceRub)} ₽</span>
+              <span>{formatSiteRubles(finalTotalPriceRub)} ₽</span>
             </p>
             {isQuoting ? <p className="site-cart-summary__quote-status">Пересчитываем стоимость…</p> : null}
             {quoteStatus === "error" ? <p className="site-cart-summary__quote-status">Не удалось пересчитать стоимость</p> : null}
