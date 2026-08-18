@@ -1262,8 +1262,10 @@
     font-size: 18px;
   }
 
+  .site-product-detail__old-price,
   .site-product-detail__price {
     font-size: 15px;
+    line-height: normal;
   }
 
   .site-product-detail__price-divider,
