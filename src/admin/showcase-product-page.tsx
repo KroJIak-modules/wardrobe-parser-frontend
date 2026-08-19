@@ -628,6 +628,7 @@ export function ShowcaseProductPage() {
     : null;
   const sourceDesignerName = String(product.source_designer_name || product.display_designer_name || "").trim();
   const displayDesignerName = String(product.display_designer_name || product.designer_name || product.source_designer_name || "").trim();
+  const finalDesignerName = String(product.designer_name || "").trim();
   const externalProductUrl = toExternalHttpUrl(product.url);
   const genderLabel =
     genderDraft === "female"
@@ -1170,7 +1171,7 @@ export function ShowcaseProductPage() {
         </div>
         <div>
           <dt>Итоговый дизайнер</dt>
-          <dd><LatexBrand value={displayDesignerName} fallback="—" /></dd>
+          <dd><LatexBrand value={finalDesignerName} fallback="—" /></dd>
         </div>
         <div>
           <dt>Источник</dt>
