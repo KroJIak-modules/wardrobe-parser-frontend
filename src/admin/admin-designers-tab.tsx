@@ -190,7 +190,7 @@ export function AdminDesignersTab({
         selectedByOthers,
         selectableNames: designerNameOptions,
         totalProductCount: linkedRows.reduce((sum, row) => sum + row.source_product_count, 0),
-        unavailableProductCount: linkedRows.reduce((sum, row) => sum + row.source_unavailable_product_count, 0),
+        nonPublicProductCount: linkedRows.reduce((sum, row) => sum + row.source_non_public_product_count, 0),
         publicProductCount: linkedRows.reduce(
           (sum, row) => sum + (row.include_in_designers ? row.source_public_product_count : 0),
           0,
@@ -406,7 +406,7 @@ export function AdminDesignersTab({
                   <div className="designers-item__header designers-item__header--between">
                     <div className="designers-item__actions">
                       <span className="designers-item__count-pill">
-                        {`${formatProductCount(item.publicProductCount)} (${item.totalProductCount} - ${item.unavailableProductCount})`}
+                        {`${formatProductCount(item.publicProductCount)} (${item.totalProductCount} - ${item.nonPublicProductCount})`}
                       </span>
                     </div>
                     <div className="designers-item__actions">
