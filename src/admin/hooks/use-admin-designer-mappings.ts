@@ -50,22 +50,6 @@ function normalizeDesigner(designer: AdminFinalDesigner): AdminFinalDesigner {
   };
 }
 
-function sortDesignersForLoad(designers: readonly AdminFinalDesigner[]) {
-  return [...designers].sort((left, right) => {
-    const leftName = String(left.name || "").trim();
-    const rightName = String(right.name || "").trim();
-    if (!leftName && !rightName) {
-      return String(left.id || "").localeCompare(String(right.id || ""), "en", { numeric: true, sensitivity: "base" });
-    }
-    if (!leftName) {
-      return 1;
-    }
-    if (!rightName) {
-      return -1;
-    }
-    return leftName.localeCompare(rightName, "en", { numeric: true, sensitivity: "base" });
-  });
-}
 
 function createDesignerId() {
   return `designer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -88,7 +72,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
       const payload = await fetchAdminDesignerMappings();
       draftRevisionRef.current += 1;
       const nextRows = payload.rows.map(normalizeRow);
-      const nextDesigners = sortDesignersForLoad(payload.designers.map(normalizeDesigner));
+      const nextDesigners = payload.designers.map(normalizeDesigner);
       setRows(nextRows);
       setDesigners(nextDesigners);
       setBaselineRows(nextRows);
