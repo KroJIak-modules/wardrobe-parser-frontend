@@ -38,6 +38,7 @@ type Props = {
   loading: boolean;
   toggleSourceEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
+  updateSourceMode: (key: string, mode: "auto" | "manual") => Promise<{ ok: boolean; message: string }>;
   toggleSourceDedupEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   reorderSources: (sourceKeys: string[]) => Promise<{ ok: boolean; message: string }>;
@@ -222,6 +223,7 @@ export function AdminSourcesTab({
   loading,
   toggleSourceEnabled,
   toggleSourceSyncEnabled,
+  updateSourceMode,
   toggleSourceDedupEnabled,
   toggleSourceAutoHideProducts,
   reorderSources,
@@ -783,9 +785,26 @@ export function AdminSourcesTab({
               >
                 <div className="source-card-head">
                   <div className="source-card-badges" aria-label="Метки источника">
-                    <span className={`source-badge ${sourceMode === "auto" ? "source-badge--ready" : sourceMode === "manual" ? "source-badge--manual" : "source-badge--personal"}`}>
-                      {getSourceModeLabel(sourceMode)}
-                    </span>
+                    {isPersonal ? (
+                      <span className="source-badge source-badge--personal">{getSourceModeLabel(sourceMode)}</span>
+                    ) : (
+                      <select
+                        className={`source-badge source-badge--mode-select source-badge--${sourceMode}`}
+                        value={sourceMode}
+                        disabled={!canEditSources || thisSourceDisabled}
+                        aria-label="Режим источника"
+                        onChange={(event) => {
+                          const mode = event.target.value === "manual" ? "manual" : "auto";
+                          void (async () => {
+                            const result = await updateSourceMode(source.key, mode);
+                            pushToast(result.message);
+                          })();
+                        }}
+                      >
+                        <option value="auto">Авто</option>
+                        <option value="manual">Ручной</option>
+                      </select>
+                    )}
                     <span className={`source-badge ${source.enabled ? "source-badge--ok" : "source-badge--danger"}`}>
                       {source.enabled ? "Включен" : "Выключен"}
                     </span>

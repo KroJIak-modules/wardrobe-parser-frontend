@@ -49,6 +49,16 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [patchSource]);
 
+  const updateSourceMode = useCallback(async (sourceKey: string, mode: "auto" | "manual") => {
+    try {
+      const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/mode`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) });
+      patchSource(sourceKey, updated);
+      return okResult(mode === "manual" ? "Источник переведён в ручной режим" : "Источник переведён в автоматический режим");
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [patchSource]);
+
   const toggleSourceDedupEnabled = useCallback(async (sourceKey: string, dedupEnabled: boolean) => {
     try {
       const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/dedup-enabled`, {
@@ -370,6 +380,7 @@ export function useLiveDataSourceSettingsActions(params: {
   return {
     toggleSourceEnabled,
     toggleSourceSyncEnabled,
+    updateSourceMode,
     toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
     reorderSources,

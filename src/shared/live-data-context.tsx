@@ -239,6 +239,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
   const {
     toggleSourceEnabled,
     toggleSourceSyncEnabled,
+    updateSourceMode,
     toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
     reorderSources,
@@ -578,6 +579,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensureAllProductsLoaded,
       toggleSourceEnabled,
       toggleSourceSyncEnabled,
+      updateSourceMode,
       toggleSourceDedupEnabled,
       toggleSourceAutoHideProducts,
       reorderSources,
@@ -673,6 +675,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
       ensureAllProductsLoaded,
       toggleSourceEnabled,
       toggleSourceSyncEnabled,
+      updateSourceMode,
       toggleSourceDedupEnabled,
       toggleSourceAutoHideProducts,
       reorderSources,

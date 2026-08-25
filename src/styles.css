@@ -4412,6 +4412,24 @@ textarea {
   border-color: #fdba74;
 }
 
+.source-badge--mode-select {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  outline: none;
+}
+
+.source-badge--mode-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.source-badge--auto {
+  color: #14532d;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
 .source-badge--ok {
   color: #1e3a8a;
   background: #dbeafe;
