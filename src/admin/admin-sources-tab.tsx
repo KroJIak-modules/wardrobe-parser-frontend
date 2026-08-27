@@ -33,12 +33,36 @@ type SourceItem = {
   clean_public_titles?: boolean;
 };
 
+type SourceStatusBadgeProps = {
+  className: string;
+  label: string;
+  actionLabel: string;
+  disabled: boolean;
+  onClick: () => void;
+};
+
+function SourceStatusBadge({ className, label, actionLabel, disabled, onClick }: SourceStatusBadgeProps) {
+  return (
+    <button
+      type="button"
+      className={`source-badge source-badge--action ${className}`}
+      disabled={disabled}
+      aria-label={actionLabel}
+      title={actionLabel}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
 type Props = {
   sources: SourceItem[];
   loading: boolean;
   toggleSourceEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceSyncEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   updateSourceMode: (key: string, mode: "auto" | "manual") => Promise<{ ok: boolean; message: string }>;
+  deleteSourceProducts: (key: string) => Promise<{ ok: boolean; message: string }>;
   toggleSourceDedupEnabled: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (key: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   reorderSources: (sourceKeys: string[]) => Promise<{ ok: boolean; message: string }>;
@@ -224,6 +248,7 @@ export function AdminSourcesTab({
   toggleSourceEnabled,
   toggleSourceSyncEnabled,
   updateSourceMode,
+  deleteSourceProducts,
   toggleSourceDedupEnabled,
   toggleSourceAutoHideProducts,
   reorderSources,
@@ -245,6 +270,8 @@ export function AdminSourcesTab({
   const [autoSyncValidationError, setAutoSyncValidationError] = useState<string>("");
   const [autoSyncNowMs, setAutoSyncNowMs] = useState<number>(() => Date.now());
   const [openSourceAttrsKey, setOpenSourceAttrsKey] = useState<string | null>(null);
+  const [deleteSourceKey, setDeleteSourceKey] = useState<string | null>(null);
+  const [deleteSourceSaving, setDeleteSourceSaving] = useState<boolean>(false);
 
   const [sourceProductsOpen, setSourceProductsOpen] = useState<boolean>(false);
   const [sourceProductsLoading, setSourceProductsLoading] = useState<boolean>(false);
@@ -788,26 +815,31 @@ export function AdminSourcesTab({
                     {isPersonal ? (
                       <span className="source-badge source-badge--personal">{getSourceModeLabel(sourceMode)}</span>
                     ) : (
-                      <select
-                        className={`source-badge source-badge--mode-select source-badge--${sourceMode}`}
-                        value={sourceMode}
+                      <SourceStatusBadge
+                        className={sourceMode === "auto" ? "source-badge--ready" : "source-badge--manual"}
+                        label={getSourceModeLabel(sourceMode)}
+                        actionLabel={sourceMode === "auto" ? "Перевести источник в ручной режим" : "Перевести источник в автоматический режим"}
                         disabled={!canEditSources || thisSourceDisabled}
-                        aria-label="Режим источника"
-                        onChange={(event) => {
-                          const mode = event.target.value === "manual" ? "manual" : "auto";
+                        onClick={() => {
                           void (async () => {
-                            const result = await updateSourceMode(source.key, mode);
+                            const result = await updateSourceMode(source.key, sourceMode === "auto" ? "manual" : "auto");
                             pushToast(result.message);
                           })();
                         }}
-                      >
-                        <option value="auto">Авто</option>
-                        <option value="manual">Ручной</option>
-                      </select>
+                      />
                     )}
-                    <span className={`source-badge ${source.enabled ? "source-badge--ok" : "source-badge--danger"}`}>
-                      {source.enabled ? "Включен" : "Выключен"}
-                    </span>
+                    <SourceStatusBadge
+                      className={source.enabled ? "source-badge--ok" : "source-badge--danger"}
+                      label={source.enabled ? "Включен" : "Выключен"}
+                      actionLabel={source.enabled ? "Выключить источник" : "Включить источник"}
+                      disabled={!canEditSources}
+                      onClick={() => {
+                        void (async () => {
+                          const result = await toggleSourceEnabled(source.key, !source.enabled);
+                          pushToast(result.message);
+                        })();
+                      }}
+                    />
                   </div>
                   <strong className="source-card-title">{source.name}</strong>
                   {!isPersonal ? (
@@ -829,12 +861,7 @@ export function AdminSourcesTab({
                   />
                   <div className="source-card-meta">
                     <span className="source-pill">Товары: {source.products_count}</span>
-                    {sourceMode === "auto" ? (
-                      <>
-                        <span className="source-pill">Ручных: {Number(source.manual_products_count || 0)}</span>
-                        <span className="source-pill">Прогон: {source.last_sync_duration_sec ?? 0}с</span>
-                      </>
-                    ) : sourceMode === "manual" ? (
+                    {sourceMode !== "personal" ? (
                       <span className="source-pill">Прогон: {source.last_sync_duration_sec ?? 0}с</span>
                     ) : null}
                   </div>
@@ -854,25 +881,16 @@ export function AdminSourcesTab({
                         Синхронизовать
                       </button>
                     ) : null}
+                    <button
+                      type="button"
+                      className="btn source-card-delete-products"
+                      disabled={thisSourceDisabled || !canEditSources || Number(source.products_count || 0) === 0}
+                      onClick={() => setDeleteSourceKey(source.key)}
+                    >
+                      Удалить все товары
+                    </button>
                   </div>
                   <div className="source-card-switches">
-                    <label className="ui-switch ui-switch--compact source-card-switch">
-                      <input
-                        type="checkbox"
-                        checked={source.enabled}
-                        disabled={!canEditSources}
-                        onChange={(event) => {
-                          void (async () => {
-                            const result = await toggleSourceEnabled(source.key, event.target.checked);
-                            pushToast(result.message);
-                          })();
-                        }}
-                      />
-                      <span className="ui-switch-track">
-                        <span className="ui-switch-thumb" />
-                      </span>
-                      <span className="ui-switch-text">Источник включен</span>
-                    </label>
                     {!isPersonal ? (
                       <label className="ui-switch ui-switch--compact source-card-switch">
                         <input
@@ -928,8 +946,11 @@ export function AdminSourcesTab({
                     </label>
                     <details
                       className="source-attrs"
+                      open={openSourceAttrsKey === source.key}
                       onToggle={(event) => {
-                        setOpenSourceAttrsKey(event.currentTarget.open ? source.key : null);
+                        if (event.currentTarget.open) {
+                          setOpenSourceAttrsKey(source.key);
+                        }
                       }}
                     >
                       <summary className="source-attrs__summary">Правила атрибутов</summary>
@@ -1133,6 +1154,39 @@ export function AdminSourcesTab({
         </section>
       ) : null}
 
+      {deleteSourceKey ? (
+        <div className="modal-backdrop" onClick={() => (!deleteSourceSaving ? setDeleteSourceKey(null) : undefined)}>
+          <div className="modal modal--danger-confirm" role="dialog" aria-modal="true" aria-labelledby="delete-source-products-title" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <h3 id="delete-source-products-title">Удалить все товары источника?</h3>
+            </div>
+            <p className="muted">
+              Будут удалены все товары и записи выбранного источника. Сам источник, его настройки и товары других источников не изменятся. Действие нельзя отменить.
+            </p>
+            <div className="settings-transfer-actions">
+              <button type="button" onClick={() => setDeleteSourceKey(null)} disabled={deleteSourceSaving}>Отменить</button>
+              <button
+                type="button"
+                className="topbar-cta--danger"
+                disabled={deleteSourceSaving}
+                onClick={() => {
+                  void (async () => {
+                    setDeleteSourceSaving(true);
+                    const result = await deleteSourceProducts(deleteSourceKey);
+                    setDeleteSourceSaving(false);
+                    if (result.ok) {
+                      setDeleteSourceKey(null);
+                    }
+                    pushToast(result.message);
+                  })();
+                }}
+              >
+                {deleteSourceSaving ? "Удаление..." : "Удалить все товары"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {sourceProductsOpen ? (
         <div className="modal-backdrop" onClick={() => setSourceProductsOpen(false)}>
           <div className="modal source-products-modal" onClick={(event) => event.stopPropagation()}>

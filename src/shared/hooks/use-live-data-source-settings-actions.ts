@@ -59,6 +59,16 @@ export function useLiveDataSourceSettingsActions(params: {
     }
   }, [patchSource]);
 
+  const deleteSourceProducts = useCallback(async (sourceKey: string) => {
+    try {
+      const result = await apiJson<{ deleted_listings: number; deleted_products: number }>(`${API_BASE}/sources/${sourceKey}/products`, { method: "DELETE" });
+      await refreshSourcesOnly();
+      return okResult(`Удалено товаров: ${result.deleted_products}`);
+    } catch (e) {
+      return errResult(e instanceof Error ? e.message : "Unknown error");
+    }
+  }, [refreshSourcesOnly]);
+
   const toggleSourceDedupEnabled = useCallback(async (sourceKey: string, dedupEnabled: boolean) => {
     try {
       const updated = await apiJson<Source>(`${API_BASE}/sources/${sourceKey}/dedup-enabled`, {
@@ -381,6 +391,7 @@ export function useLiveDataSourceSettingsActions(params: {
     toggleSourceEnabled,
     toggleSourceSyncEnabled,
     updateSourceMode,
+    deleteSourceProducts,
     toggleSourceDedupEnabled,
     toggleSourceAutoHideProducts,
     reorderSources,

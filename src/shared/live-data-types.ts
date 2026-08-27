@@ -813,6 +813,7 @@ export type LiveDataContextValue = {
   toggleSourceEnabled: (sourceKey: string, enabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceSyncEnabled: (sourceKey: string, syncEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
   updateSourceMode: (sourceKey: string, mode: "auto" | "manual") => Promise<{ ok: boolean; message: string }>;
+  deleteSourceProducts: (sourceKey: string) => Promise<{ ok: boolean; message: string }>;
   toggleSourceDedupEnabled: (sourceKey: string, dedupEnabled: boolean) => Promise<{ ok: boolean; message: string }>;
   toggleSourceAutoHideProducts: (sourceKey: string, hideAutoAddedProducts: boolean) => Promise<{ ok: boolean; message: string }>;
   reorderSources: (sourceKeys: string[]) => Promise<{ ok: boolean; message: string }>;
