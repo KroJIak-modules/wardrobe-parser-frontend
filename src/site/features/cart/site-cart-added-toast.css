@@ -78,14 +78,26 @@
 }
 
 .site-cart-added-toast--unavailable {
-  width: max-content;
+  width: auto;
+  min-width: max-content;
+  height: auto;
+  min-height: 28px;
   max-width: calc(100vw - 32px);
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
-
 .site-cart-added-toast--unavailable .site-cart-added-toast__label {
   overflow: visible;
-  text-overflow: clip;
   white-space: nowrap;
+  text-overflow: clip;
+}
+
+@media (min-width: 641px) {
+  .site-cart-added-toast--unavailable {
+    min-height: 48px;
+    padding-top: 13px;
+    padding-bottom: 13px;
+  }
 }
 
 @media (min-width: 641px) {
