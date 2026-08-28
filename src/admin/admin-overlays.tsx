@@ -1,4 +1,6 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, type Dispatch, type SetStateAction } from "react";
+import { X } from "lucide-react";
+import { useAdminBodyScrollLock } from "./hooks/use-admin-body-scroll-lock";
 import { ToastStack } from "../shared/toast-stack";
 import type { ToastItem } from "../shared/use-toasts";
 import { AdminProductCreateModal } from "./admin-product-create-modal";
@@ -98,6 +100,23 @@ export function AdminOverlays({
   onCreateProductDraft,
   onZoomProductImage,
 }: Props) {
+  useAdminBodyScrollLock(Boolean(zoomedImageUrl));
+  useEffect(() => {
+    if (!zoomedImageUrl) {
+      return undefined;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        setZoomedImageUrl(null);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [zoomedImageUrl, setZoomedImageUrl]);
+
   return (
     <>
       <ToastStack toasts={toasts} onClose={closeToast} onPause={pauseToast} onResume={resumeToast} />
@@ -129,9 +148,28 @@ export function AdminOverlays({
       />
 
       {zoomedImageUrl ? (
-        <div className="modal-backdrop" onClick={() => setZoomedImageUrl(null)}>
+        <div
+          className="modal-backdrop zoom-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Просмотр фото товара"
+          onClick={() => setZoomedImageUrl(null)}
+        >
           <div className="zoom-modal" onClick={(event) => event.stopPropagation()}>
             <img src={zoomedImageUrl} alt="preview" className="zoom-image" loading="eager" decoding="async" />
+            <button
+              type="button"
+              className="zoom-close"
+              aria-label="Закрыть просмотр"
+              title="Закрыть (Esc)"
+              autoFocus
+              onClick={(event) => {
+                event.stopPropagation();
+                setZoomedImageUrl(null);
+              }}
+            >
+              <X size={20} strokeWidth={2} />
+            </button>
           </div>
         </div>
       ) : null}

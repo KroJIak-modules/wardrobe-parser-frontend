@@ -6,6 +6,7 @@ import { ImageWithFallback } from "../shared/image-with-fallback";
 import { optimizeImageUrl } from "../shared/product-image";
 import { getProductPriceSummary, withPriceRangePrefix } from "../shared/product-pricing";
 import { SkeletonBlock } from "../shared/skeleton";
+import { useAdminBodyScrollLock } from "./hooks/use-admin-body-scroll-lock";
 import { IconClose, IconExternalLink, IconEye, IconEyeOff, IconPencil, IconPlus, IconStar } from "../shared/mono-icons";
 import type { ServiceProduct } from "../shared/live-data-types";
 import type { ProductCreateVariant } from "./hooks/use-admin-product-create";
@@ -159,6 +160,7 @@ export function AdminProductCreateModal({
   onCreate,
   onZoomImage,
 }: Props) {
+  useAdminBodyScrollLock(open);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const designerCloseTimerRef = useRef<number | null>(null);
   const [favoritePickerOpen, setFavoritePickerOpen] = useState<boolean>(false);

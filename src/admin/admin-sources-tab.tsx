@@ -832,7 +832,7 @@ export function AdminSourcesTab({
                       className={source.enabled ? "source-badge--ok" : "source-badge--danger"}
                       label={source.enabled ? "Включен" : "Выключен"}
                       actionLabel={source.enabled ? "Выключить источник" : "Включить источник"}
-                      disabled={!canEditSources}
+                      disabled={!canEditSources || thisSourceDisabled}
                       onClick={() => {
                         void (async () => {
                           const result = await toggleSourceEnabled(source.key, !source.enabled);
@@ -896,7 +896,7 @@ export function AdminSourcesTab({
                         <input
                           type="checkbox"
                           checked={source.sync_enabled}
-                          disabled={!canEditSources}
+                          disabled={!canEditSources || thisSourceDisabled}
                           onChange={(event) => {
                             void (async () => {
                               const result = await toggleSourceSyncEnabled(source.key, event.target.checked);
@@ -914,7 +914,7 @@ export function AdminSourcesTab({
                       <input
                         type="checkbox"
                         checked={source.dedup_enabled}
-                        disabled={!canEditSources}
+                        disabled={!canEditSources || thisSourceDisabled}
                         onChange={(event) => {
                           void (async () => {
                             const result = await toggleSourceDedupEnabled(source.key, event.target.checked);
@@ -931,7 +931,7 @@ export function AdminSourcesTab({
                       <input
                         type="checkbox"
                         checked={!Boolean(source.hide_auto_added_products)}
-                        disabled={!canEditSources}
+                        disabled={!canEditSources || thisSourceDisabled}
                         onChange={(event) => {
                           void (async () => {
                             const result = await toggleSourceAutoHideProducts(source.key, !event.target.checked);
@@ -959,7 +959,7 @@ export function AdminSourcesTab({
                           <input
                             type="checkbox"
                             checked={sourceDisplaySettings[source.key]?.images ?? true}
-                            disabled={!canEditSources}
+                            disabled={!canEditSources || thisSourceDisabled}
                             onChange={(event) => {
                               const checked = event.target.checked;
                               void (async () => {
@@ -987,7 +987,7 @@ export function AdminSourcesTab({
                           <input
                             type="checkbox"
                             checked={(sourceDisplaySettings[source.key]?.descriptionMode ?? "text") !== "hidden"}
-                            disabled={!canEditSources}
+                            disabled={!canEditSources || thisSourceDisabled}
                             onChange={(event) => {
                               const checked = event.target.checked;
                               void (async () => {
@@ -1016,7 +1016,7 @@ export function AdminSourcesTab({
                           <input
                             type="checkbox"
                             checked={sourceDisplaySettings[source.key]?.cleanPublicTitles ?? true}
-                            disabled={!canEditSources}
+                            disabled={!canEditSources || thisSourceDisabled}
                             onChange={(event) => {
                               const checked = event.target.checked;
                               void (async () => {

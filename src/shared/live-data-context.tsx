@@ -426,6 +426,12 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
         return { ok: false, message: `Ошибка отмены: ${res.status}` };
       }
 
+      // Apply the canceled job state before the heavy refresh so the UI flips instantly.
+      const payload = (await res.json().catch(() => null)) as JobsLatest | null;
+      if (payload && typeof payload === "object") {
+        setLatestJob(payload);
+      }
+
       await refresh();
       return { ok: true, message: "Синхронизация отменена" };
     } catch (e) {
