@@ -2,7 +2,7 @@ import type { MutableRefObject } from "react";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import type { IndicatorState } from "./site-header-contracts";
 import { useSiteCart } from "../../runtime/use-site-cart";
-import { SiteHeaderCartIcon, SiteHeaderSearchIcon } from "./site-header-logo";
+import { SiteHeaderCartIcon, SiteHeaderSearchExpandedIcon, SiteHeaderSearchIcon } from "./site-header-logo";
 
 export function SiteHeaderActions({
   actionItems,
@@ -88,7 +88,7 @@ export function SiteHeaderActions({
           onSearchSubmit();
         }}
       >
-        <SiteHeaderSearchIcon />
+        <SiteHeaderSearchExpandedIcon className="site-header__search-icon--expanded-sizing" />
       </button>
       <div ref={actionsRowRef} className="site-header__actions-row">
         <span

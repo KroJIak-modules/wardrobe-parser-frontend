@@ -56,11 +56,12 @@ export function AdminShowcaseLayout() {
 
   return (
     <div className="shell">
-      <SiteHeader actions={actions} belowActions={isProductDetailPage ? undefined : <AdminShowcaseSearch />} />
+      <SiteHeader actions={actions} />
       <main className={isProductDetailPage ? "container container--product-detail" : "container"}>
         {isProductDetailPage ? null : (
           <div className="showcase-nav-row">
             <AdminShowcaseNav />
+            <AdminShowcaseSearch />
           </div>
         )}
         <Outlet />

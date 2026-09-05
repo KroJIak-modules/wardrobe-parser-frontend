@@ -467,6 +467,12 @@
   pointer-events: none;
 }
 
+/* Лупа в раскрытом поле поиска — размер из макета Figma. */
+.site-header__search-icon--expanded-sizing {
+  width: 15.53px;
+  height: 15.51px;
+}
+
 .site-header__action-item {
   position: relative;
   height: 49px;

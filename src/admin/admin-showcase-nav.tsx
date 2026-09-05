@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type {
   ShowcaseNavigationMenu,
@@ -71,6 +71,31 @@ function buildMenuColumns(sectionKey: ShowcaseTopSectionKey, menu: ShowcaseNavig
       : null,
     entries: blockEntries(block),
   }));
+
+  // Designers: the "Смотреть все" entry always sits at the very bottom of the
+  // panel — on mobile the columns stack into one list, so mid-list placement
+  // looked broken.
+  if (sectionKey === "designers") {
+    const viewAllEntries: ShowcaseNavColumnEntry[] = [];
+    const columnsWithoutViewAll = baseColumns.map((column) => ({
+      ...column,
+      entries: column.entries.filter((entry) => {
+        if (entry.label.trim().toLowerCase() === "смотреть все") {
+          viewAllEntries.push(entry);
+          return false;
+        }
+        return true;
+      }),
+    }));
+    if (viewAllEntries.length > 0 && columnsWithoutViewAll.length > 0) {
+      const lastIndex = columnsWithoutViewAll.length - 1;
+      columnsWithoutViewAll[lastIndex] = {
+        ...columnsWithoutViewAll[lastIndex],
+        entries: [...columnsWithoutViewAll[lastIndex].entries, ...viewAllEntries],
+      };
+      return columnsWithoutViewAll;
+    }
+  }
 
   // Public desktop: left column = first block (Одежда), right = remaining blocks
   // flattened with their titles as headings (Обувь, Аксессуары).
@@ -168,7 +193,13 @@ function ShowcaseNavMenu({
     .join(" ");
 
   return (
-    <div className="showcase-nav__overlay">
+    <div
+      className="showcase-nav__overlay"
+      onClick={() => {
+        openSectionRef.current = { key: null, at: 0 };
+        setActiveSectionKey(null);
+      }}
+    >
       <div className="showcase-nav__safe-zone" aria-hidden="true" />
       <div className="showcase-nav__panel">
         <div className="showcase-nav__panel-body">
@@ -223,14 +254,63 @@ export function AdminShowcaseNav() {
   // Top tabs from shell immediately; menus from shared navigation cache/API.
   const { sections } = useAdminShowcaseNavigation();
   const [activeSectionKey, setActiveSectionKey] = useState<ShowcaseTopSectionKey | null>(null);
+  const openSectionRef = useRef<{ key: ShowcaseTopSectionKey | null; at: number }>({ key: null, at: 0 });
+
+  // Touch manages the menu through pointerup alone; hover/focus opening must
+  // not interfere (browsers emit compat mouseenter/focus after every tap).
+  const isHoverDevice = () => window.matchMedia("(hover: hover)").matches;
 
   const activeSection = useMemo(
     () => sections.find((section) => section.key === activeSectionKey) ?? null,
     [activeSectionKey, sections],
   );
 
+  // Mobile: the nav row is a horizontal scroll container that would clip the
+  // absolutely positioned panel, so the panel becomes fixed. Its top offset
+  // tracks the row's current bottom edge.
+  const syncPanelTop = () => {
+    const row = document.querySelector(".showcase-nav-row");
+    if (row) {
+      const bottom = Math.round(row.getBoundingClientRect().bottom);
+      document.documentElement.style.setProperty("--showcase-panel-top", `${bottom}px`);
+    }
+  };
+
+  // Touch: scrolling the page while the menu is open closes it; a tap on the
+  // dim overlay closes it too (native listener — reliable under emulation).
+  // Taps on the dim area are handled by the overlay click; pills manage themselves.
+  useEffect(() => {
+    if (!activeSectionKey || isHoverDevice()) {
+      return undefined;
+    }
+    const closeMenu = () => {
+      openSectionRef.current = { key: null, at: 0 };
+      setActiveSectionKey(null);
+    };
+    const overlay = document.querySelector(".showcase-nav__overlay");
+    const onOverlayClick = () => closeMenu();
+    const onScroll = () => closeMenu();
+    if (overlay) {
+      overlay.addEventListener("click", onOverlayClick);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      if (overlay) {
+        overlay.removeEventListener("click", onOverlayClick);
+      }
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [activeSectionKey]);
+
   return (
-    <section className="showcase-nav" aria-label="Разделы витрины" onMouseLeave={() => setActiveSectionKey(null)}>
+    <section
+      className="showcase-nav"
+      aria-label="Разделы витрины"
+      onMouseLeave={() => {
+        openSectionRef.current = null;
+        setActiveSectionKey(null);
+      }}
+    >
       <div className="showcase-nav__dock">
         <div className="showcase-nav__bar" aria-label="Верхняя навигация">
           {sections.map((section) => {
@@ -242,10 +322,39 @@ export function AdminShowcaseNav() {
                 type="button"
                 className={isActive ? "showcase-nav__item showcase-nav__item--active" : "showcase-nav__item"}
                 aria-expanded={isActive && hasMenu ? true : undefined}
-                onMouseEnter={() => setActiveSectionKey(section.key)}
-                onFocus={() => setActiveSectionKey(section.key)}
+                onMouseEnter={() => {
+                  if (!isHoverDevice()) {
+                    return;
+                  }
+                  syncPanelTop();
+                  setActiveSectionKey(section.key);
+                }}
+                onFocus={() => {
+                  if (!isHoverDevice()) {
+                    return;
+                  }
+                  setActiveSectionKey(section.key);
+                }}
                 onClick={() => {
-                  if (section.target) {
+                  if (!isHoverDevice() && hasMenu) {
+                    // Touch: first tap opens the dropdown (like hover on
+                    // desktop), second tap on the already-open section picks it.
+                    const recent = openSectionRef.current;
+                    if (recent && recent.key === section.key && Date.now() - recent.at < 2500) {
+                      openSectionRef.current = { key: null, at: 0 };
+                      setActiveSectionKey(null);
+                      if (section.key !== "designers" && section.target) {
+                        navigate(buildRouteTargetHref(section.target));
+                      }
+                      return;
+                    }
+                    openSectionRef.current = { key: section.key, at: Date.now() };
+                    syncPanelTop();
+                    setActiveSectionKey(section.key);
+                    return;
+                  }
+                  openSectionRef.current = null;
+                  if (section.target && section.key !== "designers") {
                     setActiveSectionKey(null);
                     navigate(buildRouteTargetHref(section.target));
                   }

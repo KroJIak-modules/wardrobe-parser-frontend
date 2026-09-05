@@ -5,6 +5,17 @@
   width: 100%;
   margin: 0 auto 18px;
   min-height: 49px;
+  position: relative;
+}
+
+.showcase-nav-row .showcase-search {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  z-index: 60;
+  pointer-events: auto;
 }
 
 .showcase-nav-row .showcase-nav {
@@ -16,15 +27,6 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-}
-
-.topbar-below-actions {
-  position: absolute;
-  /* Header actions are vertically centered in the 84px bar. This offset puts
-     the 49px search control on the exact baseline of the showcase menu below. */
-  top: calc(100% + 35px);
-  right: 0;
-  z-index: 1;
 }
 
 .showcase-search {
@@ -119,10 +121,6 @@
 }
 
 @media (max-width: 760px) {
-  .topbar-below-actions {
-    right: 0;
-  }
-
   .showcase-search--expanded {
     width: min(280px, calc(100vw - 32px));
   }

@@ -53,6 +53,8 @@
 
 .showcase-nav__item {
   appearance: none;
+  /* Убираем задержку/подавление второго тапа: тап = открытие меню или выбор. */
+  touch-action: manipulation;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -299,6 +301,17 @@
 }
 
 @media (max-width: 980px) {
+  /* Планшетная ширина: панель меню уже не помещается в две колонки. */
+  .showcase-nav__panel-content--new,
+  .showcase-nav__panel-content--designers,
+  .showcase-nav__panel-content--category_columns,
+  .showcase-nav__panel-content--gender {
+    grid-template-columns: 1fr;
+    row-gap: 18px;
+    column-gap: 0;
+    padding-left: 0;
+  }
+
   .showcase-nav__bar {
     justify-content: flex-start;
     gap: 0;

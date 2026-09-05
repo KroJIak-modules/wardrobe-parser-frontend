@@ -31,3 +31,8 @@ export function SiteHeaderCartIcon({ className }: { className?: string }) {
 export function SiteHeaderSearchIcon({ className }: { className?: string } = {}) {
   return <img aria-hidden="true" className={className ? `site-header__search-icon ${className}` : "site-header__search-icon"} src="/site-mock/header/actions-search.svg" alt="" />;
 }
+
+/** Иконка лупы внутри раскрытого поля поиска на широкой десктопной шапке. */
+export function SiteHeaderSearchExpandedIcon({ className }: { className?: string } = {}) {
+  return <img aria-hidden="true" className={className ? `site-header__search-icon site-header__search-icon--expanded ${className}` : "site-header__search-icon site-header__search-icon--expanded"} src="/site-mock/header/actions-search-expanded.svg" alt="" />;
+}

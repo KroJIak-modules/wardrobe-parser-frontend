@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { Trash2 } from "lucide-react";
 import type { PricingSupplier } from "../shared/live-data-context";
 import { HelpHint } from "./help-hint";
 
@@ -106,7 +107,16 @@ export function AdminPricingTariffsSection({
                           [item.id]: (prev[item.id] || []).map((entry) => (entry.id === row.id ? { ...entry, rub: event.target.value } : entry)),
                         }))}
                       />
-                      <button type="button" onClick={() => onRemoveTariffRange(item.id, row.id)}>Удалить</button>
+                      <button
+                        type="button"
+                        className="pricing-tariff-delete"
+                        aria-label="Удалить диапазон"
+                        title="Удалить диапазон"
+                        onClick={() => onRemoveTariffRange(item.id, row.id)}
+                      >
+                        <span className="pricing-tariff-delete-text">Удалить</span>
+                        <Trash2 size={16} aria-hidden="true" />
+                      </button>
                     </div>
                   ))}
                   <button type="button" onClick={() => onAddTariffRange(item.id)}>Добавить диапазон</button>

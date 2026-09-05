@@ -4056,6 +4056,10 @@ textarea {
   border-bottom: 0;
 }
 
+.pricing-tariff-delete svg {
+  display: none;
+}
+
 .pricing-ath-section {
   margin: 10px 0 14px;
 }
@@ -4082,6 +4086,15 @@ textarea {
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
+}
+
+.pricing-source-map-row .pricing-cell {
+  display: contents;
+}
+
+.pricing-source-map-row .pricing-cell > * {
+  min-width: 0;
+  width: 100%;
 }
 
 .pricing-source-map-head {
@@ -6058,6 +6071,192 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
+  /* Скрытые tooltip-попапы не должны распирать страницу по горизонтали:
+     ограничиваем их обрезкой внутри карточек и боксов. */
+  .admin .card,
+  .admin .pricing-worker-box,
+  .admin .pricing-formula-box,
+  .admin .pricing-example-box {
+    overflow-x: clip;
+  }
+
+  .admin .weight-rule-create-row > * {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .designers-tab-head,
+  .designers-tab-title-block,
+  .designers-tab-summary {
+    min-width: 0;
+  }
+
+  .designers-tab-modes {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .showcase-nav-row .showcase-nav__overlay {
+    position: fixed;
+    top: var(--showcase-panel-top, 170px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    transform: none;
+    z-index: 55;
+  }
+
+  .showcase-nav-row .showcase-nav__panel {
+    position: fixed;
+    top: calc(var(--showcase-panel-top, 170px) + 8px);
+    left: 16px;
+    right: 16px;
+    width: auto;
+    transform: none;
+    max-height: calc(100vh - var(--showcase-panel-top, 170px) - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    z-index: 60;
+  }
+
+  .cat-tree-column {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .showcase-nav-row {
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .showcase-nav-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .showcase-nav-row .showcase-nav {
+    flex: 0 0 auto;
+  }
+
+  /* Тарифы SSR: карточки в столбик, диапазон = 3 поля + компактная кнопка */
+  .pricing-tariff-main {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-tariff-card-head {
+    gap: 8px;
+  }
+
+  .pricing-tariff-card-head input {
+    min-width: 0;
+  }
+
+  .pricing-tariff-head,
+  .pricing-tariff-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 6px 2px;
+  }
+
+  .pricing-tariff-head {
+    font-size: 11px;
+  }
+
+  .pricing-tariff-row input {
+    min-width: 0;
+    width: 100%;
+    padding: 8px 6px;
+  }
+
+  .pricing-tariff-row button {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .admin .pricing-tariff-row .pricing-tariff-delete {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #a02525;
+    border-color: #e8b4b4;
+    background: #fff7f7;
+  }
+
+  .admin .pricing-tariff-row .pricing-tariff-delete .pricing-tariff-delete-text {
+    display: none;
+  }
+
+  .admin .pricing-tariff-row .pricing-tariff-delete svg {
+    display: block;
+  }
+
+  .pricing-tariff-ranges-block > button {
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  /* Настройки по источникам: вместо таблицы — карточки с подписями полей */
+  .pricing-source-map-head {
+    display: none;
+  }
+
+  .pricing-source-map-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #edf0f6;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+
+  .pricing-source-map-row > .muted {
+    grid-column: 1 / -1;
+    font-weight: 600;
+    color: #2a2f3a;
+  }
+
+  .pricing-source-map-row > select,
+  .pricing-source-map-row > .pricing-cell:has(select) {
+    grid-column: 1 / -1;
+  }
+
+  .pricing-source-map-row .pricing-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .pricing-source-map-row .pricing-cell::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    color: #667085;
+  }
+
+  .pricing-source-map-row .pricing-cell--row {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pricing-source-map-row .switch-wrap {
+    white-space: normal;
+  }
+
+  .admin .pricing-settings-grid,
+  .admin .pricing-worker-grid,
+  .admin .pricing-example-box {
+    min-width: 0;
+  }
+
   .product-create__entry-head,
   .product-create__section-head,
   .product-create__variants-head {
@@ -6203,11 +6402,11 @@ button:disabled {
   }
 
   .weight-rule-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .weight-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .pricing-supplier-create-row {
@@ -6272,13 +6471,60 @@ button:disabled {
   }
 
   .topbar {
-    height: 56px;
-    padding: 6px 16px;
+    min-height: 0;
+    height: auto;
+    padding: 10px 16px;
+  }
+
+  .topbar-inner {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    min-height: 0;
+    padding: 0;
   }
 
   .brand-logo {
-    height: 40px;
+    height: 32px;
   }
+
+  .topbar .topbar-actions-stack {
+    flex: 1 1 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .topbar .topbar-actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .shell .showcase-nav-row {
+    flex-wrap: wrap;
+  }
+
+  .shell .showcase-nav-row .showcase-search {
+    position: static;
+    transform: none;
+    margin: 10px 0 0;
+    flex: 0 0 auto;
+    /* Панель меню должна быть поверх поиска: на мобильном поиск в потоке
+       и не конкурирует по z-index с навигацией. */
+    z-index: auto;
+  }
+
+  .shell .showcase-nav-row .showcase-search--expanded {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: 64px;
+    width: auto;
+    z-index: 140;
+    flex: none;
+    margin: 0;
+  }
+
 
   .topbar-cta {
     min-height: 34px;

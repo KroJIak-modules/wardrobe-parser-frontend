@@ -13,18 +13,24 @@ export function AdminShowcaseSearch() {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const urlQuery = searchParams.get("q")?.trim() ?? "";
+  // Mobile keeps the search collapsed: it opens as a fixed overlay via the
+  // icon and closes on submit, so results stay visible after navigation.
+  const isMobileViewport = () => window.matchMedia("(max-width: 760px)").matches;
   const [value, setValue] = useState(urlQuery);
-  const [expanded, setExpanded] = useState(urlQuery !== "");
+  const [expanded, setExpanded] = useState(urlQuery !== "" && !isMobileViewport());
 
   useEffect(() => {
     setValue(urlQuery);
-    if (urlQuery !== "") {
+    if (urlQuery !== "" && !isMobileViewport()) {
       setExpanded(true);
     }
   }, [urlQuery, location.pathname]);
 
   const submitSearch = (raw: string) => {
     const nextValue = raw.trim();
+    if (isMobileViewport()) {
+      setExpanded(false);
+    }
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("page");
     if (nextValue === "") {

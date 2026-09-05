@@ -68,29 +68,36 @@ export function AdminPricingSourcesSection({
           return (
             <div key={source.key} className="pricing-source-map-row">
               <span className="muted">{source.name}</span>
-              <select
-                value={draft?.supplierId ?? String(sourceSupplierRaw || "")}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  setSourcePricingDrafts((prev) => ({
-                    ...prev,
-                    [source.key]: {
-                      ...ensureDraft(source.key, sourceSupplierRaw, prev),
-                      supplierId: nextValue,
-                    },
-                  }));
-                }}
-              >
-                <option value="">Не выбран</option>
-                {pricingSuppliers.map((supplier) => (
-                  <option key={`source-${source.key}-supplier-${supplier.id}`} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-              <input type="text" inputMode="decimal" placeholder="—" value={draft?.buyout.usd ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "usd", event.target.value)} />
-              <input type="text" inputMode="decimal" placeholder="—" value={draft?.buyout.eur ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "eur", event.target.value)} />
-              <div className="percent-input-wrap">
+              <div className="pricing-cell" data-label="Тариф">
+                <select
+                  value={draft?.supplierId ?? String(sourceSupplierRaw || "")}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setSourcePricingDrafts((prev) => ({
+                      ...prev,
+                      [source.key]: {
+                        ...ensureDraft(source.key, sourceSupplierRaw, prev),
+                        supplierId: nextValue,
+                      },
+                    }));
+                  }}
+                >
+                  <option value="">Не выбран</option>
+                  {pricingSuppliers.map((supplier) => (
+                    <option key={`source-${source.key}-supplier-${supplier.id}`} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="pricing-cell" data-label="Выкуп + (USD)">
+                <input type="text" inputMode="decimal" placeholder="—" value={draft?.buyout.usd ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "usd", event.target.value)} />
+              </div>
+              <div className="pricing-cell" data-label="Выкуп + (EUR)">
+                <input type="text" inputMode="decimal" placeholder="—" value={draft?.buyout.eur ?? ""} onChange={(event) => setSourceBuyoutField(source.key, "eur", event.target.value)} />
+              </div>
+              <div className="pricing-cell" data-label="PROMO (%)">
+                <div className="percent-input-wrap">
                 <input
                   type="text"
                   inputMode="decimal"
@@ -108,7 +115,8 @@ export function AdminPricingSourcesSection({
                 />
                 <span className="percent-input-sign">%</span>
               </div>
-              <label className="switch-wrap">
+              </div>
+              <label className="switch-wrap pricing-cell pricing-cell--row" data-label="Промокод">
                 <input
                   type="checkbox"
                   checked={draft?.promoOnlyNoDiscount ?? Boolean(source.promo_only_no_discount)}
