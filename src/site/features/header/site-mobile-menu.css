@@ -26,6 +26,10 @@
   min-height: 625px;
 }
 
+.site-mobile-drawer-shell--tablet .site-mobile-menu__panel-frame--root {
+  min-height: calc(263px + 351px + 40px);
+}
+
 .site-mobile-menu__close {
   position: absolute;
   top: 17.31px;
