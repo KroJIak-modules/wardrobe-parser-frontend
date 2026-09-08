@@ -3,6 +3,9 @@ import type { SiteFooterColumn } from "../features/storefront/site-storefront-co
 export const landingHeroButtonLabel = "НАЖМИТЕ ЧТОБЫ ВОЙТИ";
 export const siteTelegramHref = "https://t.me/antonshellog";
 
+export const publicOfferPdfHref = "/docs/public-offer.pdf";
+export const privacyPolicyPdfHref = "/docs/privacy-policy.pdf";
+
 export const siteFooterColumns: SiteFooterColumn[] = [
   {
     id: "social",
@@ -19,7 +22,8 @@ export const siteFooterColumns: SiteFooterColumn[] = [
       { label: "Обо мне", to: "/about" },
       { label: "Отзывы", href: "https://vk.ru/wall468554546_234" },
       { label: "Вопросы", to: "/questions" },
-      { label: "Публичная оферта" },
+      { label: "Публичная оферта", href: publicOfferPdfHref },
+      { label: "Политика конфиденциальности", href: privacyPolicyPdfHref },
     ],
   },
 ];
