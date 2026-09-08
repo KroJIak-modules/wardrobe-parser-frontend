@@ -15,6 +15,8 @@
 }
 
 .site-mobile-menu.site-mobile-drawer-shell {
+  overflow-y: auto;
+  overflow-x: hidden;
   border-radius: 15px;
 }
 
@@ -26,8 +28,8 @@
   min-height: 625px;
 }
 
-.site-mobile-drawer-shell--tablet .site-mobile-menu__panel-frame--root {
-  min-height: calc(263px + 351px + 40px);
+.site-mobile-menu__panel-frame--root {
+  min-height: 686px;
 }
 
 .site-mobile-menu__close {
@@ -353,8 +355,10 @@
   left: 0;
   right: 0;
   display: block;
-  height: 351px;
+  height: auto;
+  min-height: 351px;
   margin-top: 0;
+  padding-bottom: 40px;
 }
 
 .site-mobile-menu__panel-frame--root .site-mobile-menu__footer {
@@ -371,6 +375,7 @@
 .site-mobile-menu__panel-frame--root .site-mobile-menu__footer--info {
   /* With no Instagram row, keep a 30px rhythm after the social block. */
   top: 161px;
+  padding-bottom: 40px;
 }
 
 /* Figma 1758:1055 — «Новинки»: content starts at x40/y129, while the two
