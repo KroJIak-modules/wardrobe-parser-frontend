@@ -9,6 +9,12 @@ import { normalizeServiceProduct } from "../../shared/live-product-normalizer";
 import type { ProductWriteState } from "../../shared/product-state";
 import { readAdminProductsTableCache, saveAdminProductsTableCache } from "../admin-products-table-cache";
 import { markAdminProductsReturnStateRestored, readAdminProductsReturnState } from "../admin-products-return-state";
+import { markAdminProductViewed, markAllAdminProductsViewed } from "../admin-product-views-api";
+import {
+  forgetLocallyViewedProductIds,
+  readLocallyViewedProductIds,
+  rememberLocallyViewedProductIds,
+} from "../admin-product-views-local";
 
 type ProductsTablePayload = {
   items: Record<string, unknown>[];
@@ -26,7 +32,7 @@ type ProductsTableFacetsPayload = {
   overall_total?: number;
 };
 
-function mapAdminTableItem(raw: Record<string, unknown>): AdminProductsTableItem {
+function mapAdminTableItem(raw: Record<string, unknown>, locallyViewedIds?: Set<number>): AdminProductsTableItem {
   const normalized = normalizeServiceProduct(raw as never);
   const internalCategoryNames = Array.isArray(raw.internal_category_names)
     ? raw.internal_category_names.map((item) => String(item))
@@ -65,6 +71,7 @@ function mapAdminTableItem(raw: Record<string, unknown>): AdminProductsTableItem
       typeof raw.pricing_manual_required === "boolean" ? raw.pricing_manual_required : normalized.pricing_manual_required ?? null,
     internal_category_name: String(raw.internal_category_name || internalCategoryNames[0] || "").trim() || null,
     internal_category_names: internalCategoryNames,
+    is_new: Boolean(raw.is_new) && !(locallyViewedIds?.has(normalized.id) ?? false),
   };
 }
 
@@ -115,6 +122,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const [tableLoadedOnce, setTableLoadedOnce] = useState<boolean>(false);
   const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
   const [statusUpdatingProductId, setStatusUpdatingProductId] = useState<number | null>(null);
+  const [markAllViewedPending, setMarkAllViewedPending] = useState<boolean>(false);
   const [productSources, setProductSources] = useState<AdminFilterFacetOption[]>([]);
   const [productDesigners, setProductDesigners] = useState<AdminFilterFacetOption[]>([]);
   const [productCatalogs, setProductCatalogs] = useState<AdminFilterFacetOption[]>([]);
@@ -144,7 +152,10 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     }
     cachedReturnState.current = true;
     tableOffsetRef.current = cached.offset;
-    setTableProducts(cached.items);
+    const locallyViewedIds = readLocallyViewedProductIds();
+    setTableProducts(cached.items.map((item) => (
+      item.is_new && locallyViewedIds.has(item.id) ? { ...item, is_new: false } : item
+    )));
     setTableTotal(cached.total);
     setTableOverallTotal(cached.overallTotal);
     setTableOffset(cached.offset);
@@ -167,7 +178,8 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
         throw new Error(`Products table API error: ${response.status}`);
       }
       const payload = (await response.json()) as ProductsTablePayload;
-      const nextItems = (payload.items || []).map((item) => mapAdminTableItem(item));
+      const locallyViewedIds = readLocallyViewedProductIds();
+      const nextItems = (payload.items || []).map((item) => mapAdminTableItem(item, locallyViewedIds));
       setTableProducts((previous) => {
         const known = new Set(previous.map((item) => item.id));
         return [...previous, ...nextItems.filter((item) => !known.has(item.id))];
@@ -202,7 +214,8 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       if (requestSeq !== requestSeqRef.current) {
         return null;
       }
-      const items = (payload.items || []).map((item) => mapAdminTableItem(item));
+      const locallyViewedIds = readLocallyViewedProductIds();
+      const items = (payload.items || []).map((item) => mapAdminTableItem(item, locallyViewedIds));
       setTableTotal(payload.total || 0);
       setTableOverallTotal(payload.total || 0);
       setTableProducts((previous) => {
@@ -265,12 +278,12 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const reloadTableData = useCallback(async (signal?: AbortSignal) => {
     fullReloadInFlightRef.current = true;
     try {
-      const productsPayload = await reloadTableProducts({ signal });
-      if (productsPayload === null) {
-        return;
-      }
-      const facetsPayload = await reloadTableFacets(signal);
-      if (facetsPayload === null) {
+      // Table rows and filter facets are independent, fetch them concurrently.
+      const [productsPayload, facetsPayload] = await Promise.all([
+        reloadTableProducts({ signal }),
+        reloadTableFacets(signal),
+      ]);
+      if (productsPayload === null || facetsPayload === null) {
         return;
       }
       startTransition(() => {
@@ -290,6 +303,10 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       cachedReturnState.current = false;
       void reloadTableFacets().catch((error) => {
         pushToast(error instanceof Error ? error.message : "Ошибка обновления фильтров товаров");
+      });
+      // Cached rows carry a stale is_new flag, silent refresh picks up views made on product pages.
+      void reloadTableProducts({ silent: true }).catch((error) => {
+        pushToast(error instanceof Error ? error.message : "Ошибка обновления таблицы товаров");
       });
       return;
     }
@@ -500,8 +517,9 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
           });
           return;
         }
+        // The mutation payload has no is_new flag, keep the current badge state.
         setTableProducts((previous) => previous.map((item) => (
-          item.id === normalizedProductId ? nextItem : item
+          item.id === normalizedProductId ? { ...nextItem, is_new: item.is_new } : item
         )));
       });
       void reloadTableFacets().catch((error) => {
@@ -516,6 +534,86 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       setStatusUpdatingProductId((current) => (current === normalizedProductId ? null : current));
     }
   }, [debouncedQuery, pushToast, reloadTableFacets]);
+
+  const markTableProductViewed = useCallback(async (productId: number) => {
+    const normalizedProductId = Number(productId);
+    if (!Number.isFinite(normalizedProductId) || normalizedProductId <= 0) {
+      return;
+    }
+    if (!tableProducts.some((item) => item.id === normalizedProductId && item.is_new)) {
+      return;
+    }
+    rememberLocallyViewedProductIds([normalizedProductId]);
+    startTransition(() => {
+      setTableProducts((previous) => previous.map((item) => (
+        item.id === normalizedProductId ? { ...item, is_new: false } : item
+      )));
+    });
+    try {
+      const ok = await markAdminProductViewed(normalizedProductId);
+      if (!ok) {
+        throw new Error("Не удалось отметить товар просмотренным");
+      }
+      if (debouncedQuery.newOnly) {
+        // In "only new" mode the viewed row no longer matches the filter.
+        startTransition(() => {
+          setTableProducts((previous) => previous.filter((item) => item.id !== normalizedProductId));
+          setTableTotal((previous) => Math.max(0, previous - 1));
+          setTableOverallTotal((previous) => Math.max(0, previous - 1));
+          setTableOffset((previous) => {
+            const nextOffset = Math.max(0, previous - 1);
+            tableOffsetRef.current = nextOffset;
+            return nextOffset;
+          });
+        });
+        void reloadTableFacets().catch((error) => {
+          pushToast(error instanceof Error ? error.message : "Ошибка обновления фильтров товаров");
+        });
+      }
+    } catch (error) {
+      forgetLocallyViewedProductIds([normalizedProductId]);
+      startTransition(() => {
+        setTableProducts((previous) => previous.map((item) => (
+          item.id === normalizedProductId ? { ...item, is_new: true } : item
+        )));
+      });
+      pushToast(error instanceof Error ? error.message : "Не удалось отметить товар просмотренным");
+    }
+  }, [tableProducts, debouncedQuery, reloadTableFacets, pushToast]);
+
+  const markAllTableProductsViewed = useCallback(async () => {
+    if (markAllViewedPending) {
+      return;
+    }
+    setMarkAllViewedPending(true);
+    try {
+      const marked = await markAllAdminProductsViewed(debouncedQuery);
+      startTransition(() => {
+        if (debouncedQuery.newOnly) {
+          // Every matching product is now viewed, none fits the filter anymore.
+          setTableProducts([]);
+          setTableTotal(0);
+          setTableHasMore(false);
+          tableOffsetRef.current = 0;
+          setTableOffset(0);
+        } else {
+          setTableProducts((previous) => previous.map((item) => (
+            item.is_new ? { ...item, is_new: false } : item
+          )));
+        }
+      });
+      if (debouncedQuery.newOnly) {
+        void reloadTableFacets().catch((error) => {
+          pushToast(error instanceof Error ? error.message : "Ошибка обновления фильтров товаров");
+        });
+      }
+      pushToast(marked > 0 ? `Отмечено просмотренным: ${marked}` : "Все товары уже просмотрены");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Не удалось отметить товары просмотренными");
+    } finally {
+      setMarkAllViewedPending(false);
+    }
+  }, [markAllViewedPending, debouncedQuery, reloadTableFacets, pushToast]);
 
   useEffect(() => {
     if (tab !== "products" || tableProducts.length === 0) {
@@ -556,8 +654,11 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     productGenders,
     deletingProductId,
     statusUpdatingProductId,
+    markAllViewedPending,
+    markAllTableProductsViewed,
     deleteTableProduct,
     updateTableProductStatus,
+    markTableProductViewed,
     refreshProductsTable,
   };
 }

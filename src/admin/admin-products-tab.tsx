@@ -19,6 +19,8 @@ type Props = {
   productSearch: string;
   setProductSearch: (value: string) => void;
   resetProductFilters: () => void;
+  productNewOnlyFilter: boolean;
+  setProductNewOnlyFilter: (checked: boolean) => void;
   productSourceFilter: string;
   setProductSourceFilter: (value: string) => void;
   productSourceModeFilter: string;
@@ -47,8 +49,11 @@ type Props = {
   productsSentinelRef: RefObject<HTMLDivElement | null>;
   deletingProductId: number | null;
   statusUpdatingProductId: number | null;
+  markAllViewedPending: boolean;
+  onMarkAllProductsViewed: () => void;
   onDeleteProduct: (productId: number) => Promise<boolean>;
   onUpdateProductStatus: (productId: number, state: ProductWriteState) => Promise<boolean>;
+  onMarkProductViewed: (productId: number) => void;
 };
 
 export function AdminProductsTab({
@@ -61,6 +66,8 @@ export function AdminProductsTab({
   productSearch,
   setProductSearch,
   resetProductFilters,
+  productNewOnlyFilter,
+  setProductNewOnlyFilter,
   productSourceFilter,
   setProductSourceFilter,
   productSourceModeFilter,
@@ -89,8 +96,11 @@ export function AdminProductsTab({
   productsSentinelRef,
   deletingProductId,
   statusUpdatingProductId,
+  markAllViewedPending,
+  onMarkAllProductsViewed,
   onDeleteProduct,
   onUpdateProductStatus,
+  onMarkProductViewed,
 }: Props) {
   return (
     <div className="card">
@@ -105,6 +115,8 @@ export function AdminProductsTab({
               productSearch={productSearch}
               setProductSearch={setProductSearch}
               resetProductFilters={resetProductFilters}
+              productNewOnlyFilter={productNewOnlyFilter}
+              setProductNewOnlyFilter={setProductNewOnlyFilter}
               productSourceFilter={productSourceFilter}
               setProductSourceFilter={setProductSourceFilter}
               productSourceModeFilter={productSourceModeFilter}
@@ -128,6 +140,8 @@ export function AdminProductsTab({
               productCatalogs={productCatalogs}
               productSections={productSections}
               productGenders={productGenders}
+              markAllViewedPending={markAllViewedPending}
+              onMarkAllProductsViewed={onMarkAllProductsViewed}
             />
             <AdminProductsTable
               tableLoading={tableLoading}
@@ -140,6 +154,7 @@ export function AdminProductsTab({
               statusUpdatingProductId={statusUpdatingProductId}
               onDeleteProduct={onDeleteProduct}
               onUpdateProductStatus={onUpdateProductStatus}
+              onMarkProductViewed={onMarkProductViewed}
             />
           </div>
         </>

@@ -16,6 +16,8 @@ import { EmptyState } from "../shared/empty-state";
 import { buildProductPriceDisplay, getProductPriceSummary, withPriceRangePrefix } from "../shared/product-pricing";
 import { useToasts } from "../shared/use-toasts";
 import { useShowcaseEditPermission } from "../shared/use-showcase-edit-permission";
+import { markAdminProductViewed } from "./admin-product-views-api";
+import { forgetLocallyViewedProductIds, rememberLocallyViewedProductIds } from "./admin-product-views-local";
 import { getAdminProductsReturnHref } from "./admin-products-return-state";
 import { FloatingPopover } from "./floating-popover";
 import {
@@ -285,6 +287,18 @@ export function ShowcaseProductPage() {
       if (fetched) {
         setProduct(fetched);
         setError(null);
+        // Any open of the admin product page counts as viewing it, whatever link it came from.
+        void (async () => {
+          rememberLocallyViewedProductIds([productId]);
+          try {
+            const ok = await markAdminProductViewed(productId);
+            if (!ok) {
+              forgetLocallyViewedProductIds([productId]);
+            }
+          } catch {
+            forgetLocallyViewedProductIds([productId]);
+          }
+        })();
       } else {
         setProduct(null);
         setError(`Товар #${productId} не найден`);

@@ -1,0 +1,61 @@
+.products-filters-view-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 10px 12px;
+  border: 1px solid #e3e8ef;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.products-filters-view-mode__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: #243247;
+  cursor: pointer;
+  user-select: none;
+}
+
+.products-filters-view-mode__option input {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid #b6c0cd;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.products-filters-view-mode__option input::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #243247;
+  transform: scale(0);
+  transition: transform 0.12s ease-in-out;
+}
+
+.products-filters-view-mode__option input:hover:not(:checked) {
+  border-color: #8f9dad;
+}
+
+.products-filters-view-mode__option input:checked {
+  border-color: #243247;
+}
+
+.products-filters-view-mode__option input:checked::before {
+  transform: scale(1);
+}
+
+.products-filters-view-mode__option input:focus-visible {
+  outline: 2px solid #9db4d0;
+  outline-offset: 2px;
+}

@@ -1,5 +1,6 @@
 export const PRODUCTS_QUERY_KEYS = {
   search: "q",
+  newOnly: "new_only",
   sourceId: "source_id",
   sourceMode: "source_mode",
   designer: "designer_id",
@@ -13,6 +14,7 @@ export const PRODUCTS_QUERY_KEYS = {
 
 export type ProductsQueryState = {
   search: string;
+  newOnly: boolean;
   sourceId: string;
   sourceMode: string;
   designer: string;
@@ -27,6 +29,7 @@ export type ProductsQueryState = {
 export function readProductsQuery(searchParams: URLSearchParams): ProductsQueryState {
   return {
     search: searchParams.get(PRODUCTS_QUERY_KEYS.search) || "",
+    newOnly: searchParams.get(PRODUCTS_QUERY_KEYS.newOnly) === "1",
     sourceId: searchParams.get(PRODUCTS_QUERY_KEYS.sourceId) || "",
     sourceMode: searchParams.get(PRODUCTS_QUERY_KEYS.sourceMode) || "",
     designer: searchParams.get(PRODUCTS_QUERY_KEYS.designer) || "",
@@ -60,6 +63,9 @@ export function buildProductsApiQuery(
   }
   if (state.search.trim()) {
     query.set("q", state.search.trim());
+  }
+  if (state.newOnly) {
+    query.set(PRODUCTS_QUERY_KEYS.newOnly, "1");
   }
   if (state.sourceId) {
     query.set("source_id", state.sourceId);

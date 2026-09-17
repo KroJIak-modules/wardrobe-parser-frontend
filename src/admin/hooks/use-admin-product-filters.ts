@@ -23,6 +23,10 @@ export function useAdminProductFilters() {
     setSearchDraft(value);
   }, []);
 
+  const setProductNewOnlyFilter = useCallback((checked: boolean) => {
+    setParam(PRODUCTS_QUERY_KEYS.newOnly, checked ? "1" : "");
+  }, [setParam]);
+
   const resetProductFilters = useCallback(() => {
     resettingFiltersRef.current = true;
     setSearchDraft("");
@@ -91,6 +95,8 @@ export function useAdminProductFilters() {
     productSearch: searchDraft,
     setProductSearch,
     resetProductFilters,
+    productNewOnlyFilter: state.newOnly,
+    setProductNewOnlyFilter,
     productSourceFilter: state.sourceId,
     setProductSourceFilter,
     productSourceModeFilter: state.sourceMode,

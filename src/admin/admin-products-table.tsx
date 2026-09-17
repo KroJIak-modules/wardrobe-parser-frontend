@@ -41,6 +41,7 @@ type Props = {
   statusUpdatingProductId: number | null;
   onDeleteProduct: (productId: number) => Promise<boolean>;
   onUpdateProductStatus: (productId: number, state: ProductWriteState) => Promise<boolean>;
+  onMarkProductViewed: (productId: number) => void;
 };
 
 function formatPriceSummary(price: number | null | undefined, currency: string | null | undefined, hasRange: boolean): string {
@@ -192,6 +193,7 @@ function AdminProductsTableRow({
   updatingStatus,
   onDeleteProduct,
   onUpdateProductStatus,
+  onMarkProductViewed,
 }: {
   product: AdminProductsTableItem;
   productsReturnHref: string;
@@ -201,6 +203,7 @@ function AdminProductsTableRow({
   updatingStatus: boolean;
   onDeleteProduct: (productId: number) => Promise<boolean>;
   onUpdateProductStatus: (productId: number, state: ProductWriteState) => Promise<boolean>;
+  onMarkProductViewed: (productId: number) => void;
 }) {
   const deleteAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
@@ -288,15 +291,27 @@ function AdminProductsTableRow({
         </Link>
       </td>
       <td>
-        <Link
-          className="btn-link"
-          to={adminProductHref}
-          state={{ fromControlPanel: true, adminReturnHref: productsReturnHref }}
-          title={unavailableReason || undefined}
-          onClick={rememberTableState}
-        >
-          {product.title}
-        </Link>
+        <div className="products-table-title-cell">
+          <Link
+            className="btn-link"
+            to={adminProductHref}
+            state={{ fromControlPanel: true, adminReturnHref: productsReturnHref }}
+            title={unavailableReason || undefined}
+            onClick={rememberTableState}
+          >
+            {product.title}
+          </Link>
+          {product.is_new ? (
+            <button
+              type="button"
+              className="products-table-new-badge"
+              onClick={() => onMarkProductViewed(product.id)}
+              title="Вы еще не открывали этот товар"
+            >
+              NEW
+            </button>
+          ) : null}
+        </div>
       </td>
       <td>
         {externalProductUrl ? (
@@ -407,6 +422,7 @@ export function AdminProductsTable({
   statusUpdatingProductId,
   onDeleteProduct,
   onUpdateProductStatus,
+  onMarkProductViewed,
 }: Props) {
   return (
     <div className="table-wrap table-wrap--spaced">
@@ -436,6 +452,7 @@ export function AdminProductsTable({
               updatingStatus={statusUpdatingProductId === product.id}
               onDeleteProduct={onDeleteProduct}
               onUpdateProductStatus={onUpdateProductStatus}
+              onMarkProductViewed={onMarkProductViewed}
             />
           ))}
         </tbody>

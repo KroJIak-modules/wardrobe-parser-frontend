@@ -113,6 +113,7 @@ export type AdminProductsTableItem = {
   pricing_manual_required?: boolean | null;
   internal_category_name?: string | null;
   internal_category_names?: string[];
+  is_new?: boolean;
 };
 
 export type AdminFilterFacetOption = {
@@ -129,12 +130,14 @@ export type AdminDesignerSourceRow = {
   source_public_product_count: number;
   designer_name: string;
   include_in_designers: boolean;
+  is_new?: boolean;
 };
 
 export type AdminFinalDesigner = {
   id: string;
   name: string;
   description: string;
+  is_new?: boolean;
 };
 
 export type AdminUiSettings = {

@@ -1,4 +1,4 @@
-import { API_BASE } from "../shared/admin-auth";
+import { API_BASE, authFetch } from "../shared/admin-auth";
 import { apiJson } from "../shared/api-client";
 import type { AdminFinalDesigner, AdminDesignerSourceRow } from "./admin-types";
 
@@ -45,11 +45,13 @@ function normalizePayload(payload: AdminDesignerMappingsPayload): AdminDesignerM
       source_public_product_count: Math.max(0, Math.trunc(Number(row.source_public_product_count) || 0)),
       designer_name: normalizeText(row.designer_name),
       include_in_designers: Boolean(row.include_in_designers),
+      is_new: Boolean(row.is_new),
     })),
     designers: cloneDesigners(payload.designers).map((designer) => ({
       id: normalizeText(designer.id),
       name: normalizeText(designer.name),
       description: String(designer.description || "").trim(),
+      is_new: Boolean(designer.is_new),
     })),
   };
 }
@@ -94,6 +96,45 @@ export async function setAdminDesignerSourceEnabled(sourceBrand: string, include
     },
   );
   return Boolean(payload.include_in_designers);
+}
+
+export type DesignerViewKind = "brands" | "designers";
+
+async function postWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 15000);
+  try {
+    return await authFetch(url, { method: "POST", signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+export async function markAllAdminDesignerViewsViewed(kind: DesignerViewKind): Promise<number> {
+  const response = await postWithTimeout(`${API_BASE}/admin/designers/${kind}/mark-all-viewed`);
+  if (!response.ok) {
+    throw new Error(`Mark all viewed API error: ${response.status}`);
+  }
+  const payload = (await response.json()) as { marked?: number };
+  return typeof payload.marked === "number" ? payload.marked : 0;
+}
+
+export async function markAdminBrandViewed(sourceBrand: string): Promise<void> {
+  const response = await postWithTimeout(
+    `${API_BASE}/admin/designers/brands/${encodeURIComponent(sourceBrand)}/view`,
+  );
+  if (!response.ok) {
+    throw new Error(`Mark brand viewed API error: ${response.status}`);
+  }
+}
+
+export async function markAdminDesignerViewed(designerId: string): Promise<void> {
+  const response = await postWithTimeout(
+    `${API_BASE}/admin/designers/designers/${encodeURIComponent(designerId)}/view`,
+  );
+  if (!response.ok) {
+    throw new Error(`Mark designer viewed API error: ${response.status}`);
+  }
 }
 
 export function readAdminDesignerMappingsState(): AdminDesignerMappingsPayload {

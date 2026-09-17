@@ -1,9 +1,12 @@
 import type { AdminFilterFacetOption } from "./admin-types";
+import "./admin-products-filters.css";
 
 type Props = {
   productSearch: string;
   setProductSearch: (value: string) => void;
   resetProductFilters: () => void;
+  productNewOnlyFilter: boolean;
+  setProductNewOnlyFilter: (checked: boolean) => void;
   productSourceFilter: string;
   setProductSourceFilter: (value: string) => void;
   productSourceModeFilter: string;
@@ -22,6 +25,8 @@ type Props = {
   setProductAvailabilityModeFilter: (value: string) => void;
   productOrderabilityFilter: string;
   setProductOrderabilityFilter: (value: string) => void;
+  markAllViewedPending: boolean;
+  onMarkAllProductsViewed: () => void;
   sourceFacetOptions: AdminFilterFacetOption[];
   productDesigners: AdminFilterFacetOption[];
   productCatalogs: AdminFilterFacetOption[];
@@ -34,6 +39,8 @@ export function AdminProductsFilters(props: Props) {
     productSearch,
     setProductSearch,
     resetProductFilters,
+    productNewOnlyFilter,
+    setProductNewOnlyFilter,
     productSourceFilter,
     setProductSourceFilter,
     productSourceModeFilter,
@@ -52,6 +59,8 @@ export function AdminProductsFilters(props: Props) {
     setProductAvailabilityModeFilter,
     productOrderabilityFilter,
     setProductOrderabilityFilter,
+    markAllViewedPending,
+    onMarkAllProductsViewed,
     sourceFacetOptions,
     productDesigners,
     productCatalogs,
@@ -63,6 +72,28 @@ export function AdminProductsFilters(props: Props) {
     <aside className="products-filters card">
       <h3>Фильтры</h3>
       <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Поиск" />
+      <div className="products-filters-view-mode" role="group" aria-label="Показывать товары">
+        <label className="products-filters-view-mode__option">
+          <input
+            type="checkbox"
+            checked={!productNewOnlyFilter}
+            onChange={(event) => {
+              if (event.target.checked) {
+                setProductNewOnlyFilter(false);
+              }
+            }}
+          />
+          <span>Все товары</span>
+        </label>
+        <label className="products-filters-view-mode__option">
+          <input
+            type="checkbox"
+            checked={productNewOnlyFilter}
+            onChange={(event) => setProductNewOnlyFilter(event.target.checked)}
+          />
+          <span>Только новые</span>
+        </label>
+      </div>
       <select value={productSourceFilter} onChange={(event) => setProductSourceFilter(event.target.value)}>
         <option value="">Все источники</option>
         {sourceFacetOptions.map((source) => (
@@ -125,6 +156,14 @@ export function AdminProductsFilters(props: Props) {
         <option value="in_stock">В наличии</option>
         <option value="by_order">Под заказ</option>
       </select>
+      <button
+        type="button"
+        onClick={onMarkAllProductsViewed}
+        disabled={markAllViewedPending}
+        title="Пометить все товары по текущим фильтрам как просмотренные"
+      >
+        {markAllViewedPending ? "Отмечаем..." : "Отметить всё просмотренным"}
+      </button>
       <button
         type="button"
         onClick={resetProductFilters}

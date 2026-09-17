@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchAdminDesignerMappings,
+  markAdminBrandViewed,
+  markAdminDesignerViewed,
+  markAllAdminDesignerViewsViewed,
   readAdminDesignerMappingsState,
   saveAdminDesignerMappings,
   setAdminDesignerSourceEnabled,
+  type DesignerViewKind,
 } from "../admin-designers-api";
 import type { AdminFinalDesigner, AdminDesignerSourceRow } from "../admin-types";
 
@@ -17,6 +21,7 @@ function normalizeRow(row: AdminDesignerSourceRow): AdminDesignerSourceRow {
     source_public_product_count: Number.isFinite(row.source_public_product_count) ? Math.max(0, Math.trunc(row.source_public_product_count)) : 0,
     designer_name: String(row.designer_name || "").trim(),
     include_in_designers: Boolean(row.include_in_designers),
+    is_new: Boolean(row.is_new),
   };
 }
 
@@ -47,6 +52,7 @@ function normalizeDesigner(designer: AdminFinalDesigner): AdminFinalDesigner {
     id: String(designer.id || "").trim(),
     name: String(designer.name || "").trim(),
     description: String(designer.description || "").trim(),
+    is_new: Boolean(designer.is_new),
   };
 }
 
@@ -58,6 +64,7 @@ function createDesignerId() {
 export function useAdminDesignerMappings(tab: string, pushToast: (message: string) => void) {
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+  const [markAllViewedPending, setMarkAllViewedPending] = useState<DesignerViewKind | null>(null);
   const [rows, setRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsState().rows);
   const [designers, setDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsState().designers);
   const [baselineRows, setBaselineRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsState().rows);
@@ -170,6 +177,50 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     setDesigners((prev) => prev.filter((designer) => designer.id !== designerId));
   }, []);
 
+  const onMarkAllViewed = useCallback(async (kind: DesignerViewKind) => {
+    if (markAllViewedPending) {
+      return;
+    }
+    setMarkAllViewedPending(kind);
+    try {
+      const marked = await markAllAdminDesignerViewsViewed(kind);
+      if (kind === "brands") {
+        setRows((prev) => prev.map((row) => (row.is_new ? { ...row, is_new: false } : row)));
+      } else {
+        setDesigners((prev) => prev.map((designer) => (designer.is_new ? { ...designer, is_new: false } : designer)));
+      }
+      pushToast(marked > 0 ? `Отмечено просмотренным: ${marked}` : "Всё уже просмотрено");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Не удалось отметить просмотренным");
+    } finally {
+      setMarkAllViewedPending(null);
+    }
+  }, [markAllViewedPending, pushToast]);
+
+  const onMarkBrandViewed = useCallback((sourceBrand: string) => {
+    setRows((prev) => prev.map((row) => (
+      row.source_brand === sourceBrand ? { ...row, is_new: false } : row
+    )));
+    markAdminBrandViewed(sourceBrand).catch((error) => {
+      setRows((prev) => prev.map((row) => (
+        row.source_brand === sourceBrand ? { ...row, is_new: true } : row
+      )));
+      pushToast(error instanceof Error ? error.message : "Не удалось отметить бренд просмотренным");
+    });
+  }, [pushToast]);
+
+  const onMarkDesignerViewed = useCallback((designerId: string) => {
+    setDesigners((prev) => prev.map((designer) => (
+      designer.id === designerId ? { ...designer, is_new: false } : designer
+    )));
+    markAdminDesignerViewed(designerId).catch((error) => {
+      setDesigners((prev) => prev.map((designer) => (
+        designer.id === designerId ? { ...designer, is_new: true } : designer
+      )));
+      pushToast(error instanceof Error ? error.message : "Не удалось отметить дизайнера просмотренным");
+    });
+  }, [pushToast]);
+
   const persistState = useCallback(async (nextDraftRows: readonly AdminDesignerSourceRow[], nextDraftDesigners: readonly AdminFinalDesigner[]) => {
     const savedDraftRevision = draftRevisionRef.current;
     try {
@@ -245,6 +296,10 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     saving,
     rows,
     designers,
+    markAllViewedPending,
+    onMarkAllViewed,
+    onMarkBrandViewed,
+    onMarkDesignerViewed,
     onChangeDesignerName,
     onToggleIncludeInDesigners,
     onChangeFinalDesignerName,

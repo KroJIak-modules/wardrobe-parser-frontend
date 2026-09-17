@@ -1,7 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { AdminFinalDesigner, AdminDesignerSourceRow } from "./admin-types";
+import type { DesignerViewKind } from "./admin-designers-api";
 import { EmptyState } from "../shared/empty-state";
 import { AdminDesignersSkeleton } from "../shared/skeleton";
+import "./admin-designers-view-toggle.css";
 
 type DesignersViewMode = "designers" | "sources";
 
@@ -13,6 +15,10 @@ type Props = {
   loading: boolean;
   rows: AdminDesignerSourceRow[];
   designers: AdminFinalDesigner[];
+  markAllViewedPending: DesignerViewKind | null;
+  onMarkAllViewed: (kind: DesignerViewKind) => void;
+  onMarkBrandViewed: (sourceBrand: string) => void;
+  onMarkDesignerViewed: (designerId: string) => void;
   onChangeDesignerName: (sourceBrand: string, designerName: string) => void;
   onToggleIncludeInDesigners: (sourceBrand: string, includeInDesigners: boolean) => void;
   onChangeFinalDesignerName: (designerId: string, designerName: string) => void;
@@ -95,6 +101,10 @@ export function AdminDesignersTab({
   loading,
   rows,
   designers,
+  markAllViewedPending,
+  onMarkAllViewed,
+  onMarkBrandViewed,
+  onMarkDesignerViewed,
   onChangeDesignerName,
   onToggleIncludeInDesigners,
   onChangeFinalDesignerName,
@@ -104,6 +114,7 @@ export function AdminDesignersTab({
 }: Props) {
   const [search, setSearch] = useState<string>("");
   const [viewMode, setViewMode] = useState<DesignersViewMode>("sources");
+  const [showOnlyNew, setShowOnlyNew] = useState<boolean>(false);
   const deferredSearch = useDeferredValue(search);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [sourceVisibleCount, setSourceVisibleCount] = useState<number>(SOURCE_ROWS_BATCH);
@@ -204,30 +215,35 @@ export function AdminDesignersTab({
 
   const filteredRows = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase();
-    if (!query) {
-      return rows;
-    }
-
     return rows.filter((row) => {
+      if (showOnlyNew && !row.is_new) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
       const source = normalizeText(row.source_brand).toLowerCase();
       const designerName = normalizeText(row.designer_name).toLowerCase();
       return source.includes(query) || designerName.includes(query);
     });
-  }, [deferredSearch, rows]);
+  }, [deferredSearch, rows, showOnlyNew]);
 
   const filteredDesignerItems = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase();
-    if (!query) {
-      return designerItems;
-    }
 
     return designerItems.filter((item) => {
+      if (showOnlyNew && !item.designer.is_new) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
       const title = normalizeText(item.designer.name).toLowerCase();
       const description = normalizeText(item.designer.description).toLowerCase();
       const sources = item.linkedRows.map((row) => normalizeText(row.source_brand).toLowerCase()).join(" ");
       return title.includes(query) || description.includes(query) || sources.includes(query);
     });
-  }, [deferredSearch, designerItems]);
+  }, [deferredSearch, designerItems, showOnlyNew]);
 
   useEffect(() => {
     setSourceVisibleCount(SOURCE_ROWS_BATCH);
@@ -299,6 +315,40 @@ export function AdminDesignersTab({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
+            <div className="designers-view-mode" role="group" aria-label="Показывать">
+              <label className="designers-view-mode__option">
+                <input
+                  type="checkbox"
+                  checked={!showOnlyNew}
+                  onChange={(event) => {
+                    if (event.target.checked) {
+                      setShowOnlyNew(false);
+                    }
+                  }}
+                />
+                <span>Все</span>
+              </label>
+              <label className="designers-view-mode__option">
+                <input
+                  type="checkbox"
+                  checked={showOnlyNew}
+                  onChange={(event) => setShowOnlyNew(event.target.checked)}
+                />
+                <span>Новые</span>
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={() => onMarkAllViewed(viewMode === "sources" ? "brands" : "designers")}
+              disabled={markAllViewedPending !== null}
+              title={
+                viewMode === "sources"
+                  ? "Пометить все бренды-источники как просмотренные"
+                  : "Пометить всех дизайнеров каталога как просмотренные"
+              }
+            >
+              {markAllViewedPending !== null ? "Отмечаем..." : "Отметить все просмотренным"}
+            </button>
             <button
               type="button"
               className="designers-tab-create"
@@ -332,7 +382,19 @@ export function AdminDesignersTab({
                   key={row.source_brand}
                   className={row.include_in_designers ? "designers-item designers-item--enabled" : "designers-item"}
                 >
-                  <div className="designers-item__header">
+                  <div className="designers-item__header designers-item__header--between">
+                    <div className="designers-item__actions">
+                      {row.is_new ? (
+                        <button
+                          type="button"
+                          className="designers-new-badge"
+                          onClick={() => onMarkBrandViewed(row.source_brand)}
+                          title="Отметить бренд просмотренным"
+                        >
+                          NEW
+                        </button>
+                      ) : null}
+                    </div>
                     <label className="ui-switch designers-item__toggle">
                       <input
                         type="checkbox"
@@ -405,6 +467,16 @@ export function AdminDesignersTab({
                 >
                   <div className="designers-item__header designers-item__header--between">
                     <div className="designers-item__actions">
+                      {item.designer.is_new ? (
+                        <button
+                          type="button"
+                          className="designers-new-badge"
+                          onClick={() => onMarkDesignerViewed(item.designer.id)}
+                          title="Отметить дизайнера просмотренным"
+                        >
+                          NEW
+                        </button>
+                      ) : null}
                       <span className="designers-item__count-pill">
                         {`${formatProductCount(item.publicProductCount)} (${item.totalProductCount} - ${item.nonPublicProductCount})`}
                       </span>
