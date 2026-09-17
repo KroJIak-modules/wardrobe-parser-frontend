@@ -5,6 +5,9 @@ export const siteTelegramHref = "https://t.me/antonshellog";
 
 export const publicOfferPdfHref = "/docs/public-offer.pdf";
 export const privacyPolicyPdfHref = "/docs/privacy-policy.pdf";
+export const userAgreementPdfHref = "/docs/user-agreement.pdf";
+export const deliveryPolicyPdfHref = "/docs/delivery-policy.pdf";
+export const returnPolicyPdfHref = "/docs/return-policy.pdf";
 
 export const siteFooterColumns: SiteFooterColumn[] = [
   {
@@ -24,6 +27,9 @@ export const siteFooterColumns: SiteFooterColumn[] = [
       { label: "Вопросы", to: "/questions" },
       { label: "Публичная оферта", href: publicOfferPdfHref },
       { label: "Политика конфиденциальности", href: privacyPolicyPdfHref },
+      { label: "Пользовательское соглашение", href: userAgreementPdfHref },
+      { label: "Политика доставки", href: deliveryPolicyPdfHref },
+      { label: "Политика возврата", href: returnPolicyPdfHref },
     ],
   },
 ];
