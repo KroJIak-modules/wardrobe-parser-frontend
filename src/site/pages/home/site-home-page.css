@@ -156,6 +156,9 @@
   .site-home-surface__carousel {
     margin-bottom: 10px;
     min-height: 0;
+    /* Mobile shows a single full-width photo, nothing needs clipping here:
+       keep the pagination dots unclipped even with sub-pixel aspect rounding. */
+    overflow: visible;
   }
 
   .site-home-surface__carousel-placeholder {
