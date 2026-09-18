@@ -19,8 +19,10 @@ export type SiteHeaderDropdownColumn = {
   entries: readonly SiteHeaderMenuEntry[];
 };
 
+export type SiteHeaderDropdownMenuKind = "new" | "designers" | "men" | "women";
+
 export type SiteHeaderDropdownMenu = {
-  kind: "new" | "designers" | "men" | "women";
+  kind: SiteHeaderDropdownMenuKind;
   columns: readonly SiteHeaderDropdownColumn[];
   footerLink?: {
     label: string;

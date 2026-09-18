@@ -72,8 +72,8 @@
 }
 
 .site-header__menu {
-  --site-header-dropdown-content-top: 74px;
-  --site-header-dropdown-footer-top: 376px;
+  --menu-scale: 1;
+  --menu-open-height: 400px;
   left: 50%;
   width: 498px;
   height: 49px;
@@ -82,7 +82,8 @@
 }
 
 .site-header__menu--open {
-  height: 400px;
+  height: var(--menu-open-height);
+  min-height: 400px;
 }
 
 .site-header__menu:not(.site-header__menu--open) {
@@ -219,32 +220,78 @@
   position: absolute;
   inset: 0;
   z-index: 2;
+  /* The scaled gap between the lowest element (or the footer button of the
+     designers tab) and the window border. */
+  padding-bottom: calc(var(--dropdown-bottom-gap, 32px) * var(--menu-scale));
   opacity: 0;
+  visibility: hidden;
   transition: opacity 180ms ease;
 }
 
-.site-header__menu--open .site-header__menu-dropdown {
+.site-header__menu-dropdown--active {
   opacity: 1;
+  visibility: visible;
+}
+
+/* 42px clears the hover pill of the top button, 32px is the design gap to the
+   first row of the dropdown; this top gap scales with the window height. The
+   dropdown padding owns the scaled offsets, the measured wrapper holds only
+   the rows, so its height never depends on the window height. */
+.site-header__menu-dropdown {
+  padding-top: calc(42px + 32px * var(--menu-scale));
+}
+
+.site-header__menu-columns {
+  display: grid;
+  align-items: start;
+  gap: var(--dropdown-items-gap, 13px);
 }
 
 .site-header__menu-dropdown--new,
 .site-header__menu-dropdown--designers {
-  display: grid;
-  align-items: start;
-  justify-content: start;
+  --dropdown-items-gap: 13px;
+  --dropdown-bottom-gap: 32px;
 }
 
-.site-header__menu-dropdown--new {
+.site-header__menu-dropdown--new .site-header__menu-columns {
   grid-template-columns: max-content max-content;
-  gap: 109px;
-  padding: var(--site-header-dropdown-content-top) 0 0 80px;
+  column-gap: 109px;
+  padding-left: 80px;
 }
 
 .site-header__menu-dropdown--designers {
+  --dropdown-items-gap: 14px;
+  --dropdown-bottom-gap: 21px;
+}
+
+/* 21px between the last designer and the footer button, 24px button height;
+   the button itself is pinned above the scaled bottom gap. The footer reserve
+   (wrapper padding-bottom) provides the 21px + 24px space. */
+.site-header__menu-dropdown--designers .site-header__menu-columns {
   grid-template-columns: max-content max-content;
-  gap: 45px;
+  column-gap: 45px;
   justify-content: center;
-  padding: var(--site-header-dropdown-content-top) 0 0;
+}
+
+.site-header__menu-dropdown--men,
+.site-header__menu-dropdown--women {
+  --dropdown-bottom-gap: 31px;
+}
+
+.site-header__menu-dropdown--men .site-header__menu-columns {
+  --dropdown-items-gap: 12px;
+  grid-template-columns: 222px max-content;
+  padding-left: 80px;
+}
+
+.site-header__menu-dropdown--women {
+  --dropdown-bottom-gap: 20px;
+}
+
+.site-header__menu-dropdown--women .site-header__menu-columns {
+  --dropdown-items-gap: 10px;
+  grid-template-columns: 222px max-content;
+  padding-left: 80px;
 }
 
 .site-header__menu-column {
@@ -263,31 +310,14 @@
   text-align: center;
 }
 
-.site-header__menu-dropdown--men .site-header__menu-column--left,
-.site-header__menu-dropdown--women .site-header__menu-column--left,
-.site-header__menu-dropdown--men .site-header__menu-column--right,
-.site-header__menu-dropdown--women .site-header__menu-column--right {
-  position: absolute;
-  top: var(--site-header-dropdown-content-top);
-}
-
-.site-header__menu-dropdown--men .site-header__menu-column--left,
-.site-header__menu-dropdown--women .site-header__menu-column--left {
-  left: 80px;
-}
-
-.site-header__menu-dropdown--men .site-header__menu-column--right,
-.site-header__menu-dropdown--women .site-header__menu-column--right {
-  left: 302px;
-}
-
 .site-header__menu-column-title {
-  margin: 0 0 10px;
+  margin: 0 0 var(--dropdown-items-gap, 10px);
   color: rgba(0, 0, 0, 0.8);
   font-family: var(--site-font-ui);
   font-size: 16px;
   font-weight: 500;
-  line-height: normal;
+  /* Figma text box height for 16px column headings. */
+  line-height: 24px;
 }
 
 .site-header__menu-column-title--link {
@@ -298,29 +328,9 @@
   cursor: pointer;
 }
 
-.site-header__menu-dropdown--new .site-header__menu-column-items {
+.site-header__menu-dropdown .site-header__menu-column-items {
   display: grid;
-  gap: 13px;
-}
-
-.site-header__menu-dropdown--designers .site-header__menu-column--left,
-.site-header__menu-dropdown--designers .site-header__menu-column--right {
-  padding-bottom: 49px;
-}
-
-.site-header__menu-dropdown--designers .site-header__menu-column-items {
-  display: grid;
-  gap: 14px;
-}
-
-.site-header__menu-dropdown--men .site-header__menu-column-items {
-  display: grid;
-  gap: 12px;
-}
-
-.site-header__menu-dropdown--women .site-header__menu-column-items {
-  display: grid;
-  gap: 10px;
+  gap: var(--dropdown-items-gap, 13px);
 }
 
 .site-header__menu-link {
@@ -336,7 +346,8 @@
   font-family: var(--site-font-ui);
   font-size: 14px;
   font-weight: 400;
-  line-height: normal;
+  /* Figma text box height for 14px menu items; keeps row steps exact. */
+  line-height: 17px;
   white-space: nowrap;
   text-align: inherit;
   transition: opacity 160ms ease;
@@ -346,7 +357,8 @@
   color: rgba(0, 0, 0, 0.8);
   font-size: 16px;
   font-weight: 500;
-  line-height: normal;
+  /* Figma text box height for 16px headings inside the lists. */
+  line-height: 24px;
 }
 
 .site-header__menu-column--center .site-header__menu-link {
@@ -361,9 +373,16 @@
   outline: none;
 }
 
+/* Fixed reserve for the absolutely positioned designers footer button below:
+   21px gap between the last row and the button + 19px button height (Figma).
+   Part of the natural content height, never scaled with the window. */
+.site-header__menu-dropdown-content--with-footer {
+  padding-bottom: 40px;
+}
+
 .site-header__menu-footer-link {
   position: absolute;
-  bottom: 21px;
+  bottom: calc(var(--dropdown-bottom-gap, 21px) * var(--menu-scale));
   left: 50%;
   display: inline-flex;
   align-items: center;
@@ -376,7 +395,8 @@
   font-family: var(--site-font-ui);
   font-size: 16px;
   font-weight: 500;
-  line-height: 24px;
+  /* Figma footer button text box: 19px. */
+  line-height: 19px;
   white-space: nowrap;
   cursor: pointer;
   transition: opacity 160ms ease;
