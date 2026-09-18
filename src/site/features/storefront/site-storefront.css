@@ -151,11 +151,13 @@
 .site-carousel__dots {
   position: relative;
   /* Above the carousel's composited layer: iOS Safari paints transformed
-     carousel slides over later in-flow content (the dots) otherwise. */
+     carousel slides over later in-flow content (the dots) otherwise. Promote
+     the dots to their own compositing layer so their stacking is respected. */
   z-index: 1;
   width: var(--site-carousel-dot-track-width);
   height: var(--site-carousel-dot-track-height);
   overflow: visible;
+  transform: translateZ(0);
 }
 
 .site-carousel__dot {
@@ -163,9 +165,11 @@
   top: 50%;
   width: var(--site-carousel-dot-small);
   height: var(--site-carousel-dot-small);
-  border-radius: 999px;
+  border-radius: 50%;
   background: rgba(226, 226, 226, 0.86);
-  transform: translate(-50%, -50%) scale(1);
+  /* Own compositing layer: iOS Safari must not paint the transformed slides
+     over these dots regardless of layer ordering heuristics. */
+  transform: translate(-50%, -50%) scale(1) translateZ(0);
   transform-origin: center center;
   will-change: transform, opacity;
   transition:
@@ -181,7 +185,7 @@
 .site-carousel__dot--center {
   left: var(--site-carousel-dot-center);
   background: rgba(206, 206, 206, 0.98);
-  transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
+  transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale)) translateZ(0);
 }
 
 .site-carousel__dot--right {
@@ -217,14 +221,14 @@
     left: var(--site-carousel-dot-left);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 
   100% {
     left: var(--site-carousel-dot-center);
     background: rgba(206, 206, 206, 0.98);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
+    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale)) translateZ(0);
   }
 }
 
@@ -233,14 +237,14 @@
     left: var(--site-carousel-dot-center);
     background: rgba(206, 206, 206, 0.98);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
+    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale)) translateZ(0);
   }
 
   100% {
     left: var(--site-carousel-dot-right);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 }
 
@@ -249,28 +253,28 @@
     left: var(--site-carousel-dot-right);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 
   32% {
     left: var(--site-carousel-dot-center);
     opacity: 0;
     background: rgba(214, 214, 214, 0.2);
-    transform: translate(-50%, -50%) scale(0);
+    transform: translate(-50%, -50%) scale(0) translateZ(0);
   }
 
   64% {
     left: var(--site-carousel-dot-left);
     opacity: 0.82;
     background: rgba(226, 226, 226, 0.86);
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 
   100% {
     left: var(--site-carousel-dot-left);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 }
 
@@ -279,14 +283,14 @@
     left: var(--site-carousel-dot-right);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 
   100% {
     left: var(--site-carousel-dot-center);
     background: rgba(206, 206, 206, 0.98);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
+    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale)) translateZ(0);
   }
 }
 
@@ -295,14 +299,14 @@
     left: var(--site-carousel-dot-center);
     background: rgba(206, 206, 206, 0.98);
     opacity: 1;
-    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale));
+    transform: translate(-50%, -50%) scale(var(--site-carousel-dot-small-to-large-scale)) translateZ(0);
   }
 
   100% {
     left: var(--site-carousel-dot-left);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 }
 
@@ -311,28 +315,28 @@
     left: var(--site-carousel-dot-left);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 
   32% {
     left: var(--site-carousel-dot-center);
     opacity: 0;
     background: rgba(214, 214, 214, 0.2);
-    transform: translate(-50%, -50%) scale(0);
+    transform: translate(-50%, -50%) scale(0) translateZ(0);
   }
 
   64% {
     left: var(--site-carousel-dot-right);
     opacity: 0.82;
     background: rgba(226, 226, 226, 0.86);
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 
   100% {
     left: var(--site-carousel-dot-right);
     background: rgba(226, 226, 226, 0.86);
     opacity: 0.82;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) translateZ(0);
   }
 }
 
