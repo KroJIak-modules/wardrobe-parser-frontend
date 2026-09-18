@@ -150,6 +150,9 @@
 
 .site-carousel__dots {
   position: relative;
+  /* Above the carousel's composited layer: iOS Safari paints transformed
+     carousel slides over later in-flow content (the dots) otherwise. */
+  z-index: 1;
   width: var(--site-carousel-dot-track-width);
   height: var(--site-carousel-dot-track-height);
   overflow: visible;
