@@ -17,6 +17,13 @@ export function useAdminProductFilters() {
     setSearchDraft(value);
   }, []);
 
+  const commitProductSearch = useCallback(() => {
+    setSearchParams(
+      (previous) => withProductsQueryParam(previous, PRODUCTS_QUERY_KEYS.search, searchDraft),
+      { replace: true }
+    );
+  }, [searchDraft, setSearchParams]);
+
   const setProductNewOnlyFilter = useCallback((checked: boolean) => {
     setParam(PRODUCTS_QUERY_KEYS.newOnly, checked ? "1" : "");
   }, [setParam]);
@@ -83,7 +90,9 @@ export function useAdminProductFilters() {
 
   return {
     productSearch: searchDraft,
+    productSearchPending: searchDraft.trim() !== state.search.trim(),
     setProductSearch,
+    commitProductSearch,
     resetProductFilters,
     productNewOnlyFilter: state.newOnly,
     setProductNewOnlyFilter,

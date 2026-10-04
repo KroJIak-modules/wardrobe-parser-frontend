@@ -294,7 +294,9 @@ export function AdminPage() {
 
   const {
     productSearch,
+    productSearchPending,
     setProductSearch,
+    commitProductSearch,
     resetProductFilters,
     productNewOnlyFilter,
     setProductNewOnlyFilter,
@@ -524,7 +526,7 @@ export function AdminPage() {
   const tabContentProps = useAdminTabContentProps({
     tab,
     productsTabProps: {
-      tableLoading,
+      tableLoading: tableLoading || productSearchPending,
       initialTableLoading,
       tableProducts,
       productsReturnHref,
@@ -532,6 +534,7 @@ export function AdminPage() {
       tableOverallTotal,
       productSearch,
       setProductSearch,
+      commitProductSearch,
       resetProductFilters,
       productNewOnlyFilter,
       setProductNewOnlyFilter,

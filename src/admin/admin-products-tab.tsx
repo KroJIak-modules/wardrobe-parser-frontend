@@ -18,6 +18,7 @@ type Props = {
   tableOverallTotal: number;
   productSearch: string;
   setProductSearch: (value: string) => void;
+  commitProductSearch: () => void;
   resetProductFilters: () => void;
   productNewOnlyFilter: boolean;
   setProductNewOnlyFilter: (checked: boolean) => void;
@@ -65,6 +66,7 @@ export function AdminProductsTab({
   tableOverallTotal,
   productSearch,
   setProductSearch,
+  commitProductSearch,
   resetProductFilters,
   productNewOnlyFilter,
   setProductNewOnlyFilter,
@@ -114,6 +116,7 @@ export function AdminProductsTab({
             <AdminProductsFilters
               productSearch={productSearch}
               setProductSearch={setProductSearch}
+              commitProductSearch={commitProductSearch}
               resetProductFilters={resetProductFilters}
               productNewOnlyFilter={productNewOnlyFilter}
               setProductNewOnlyFilter={setProductNewOnlyFilter}

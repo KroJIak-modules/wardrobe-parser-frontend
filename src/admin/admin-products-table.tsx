@@ -441,20 +441,28 @@ export function AdminProductsTable({
           </tr>
         </thead>
         <tbody>
-          {tableProducts.map((product) => (
-            <AdminProductsTableRow
-              key={product.id}
-              product={product}
-              productsReturnHref={productsReturnHref}
-              loadedCount={tableProducts.length}
-              sourceById={sourceById}
-              deleting={deletingProductId === product.id}
-              updatingStatus={statusUpdatingProductId === product.id}
-              onDeleteProduct={onDeleteProduct}
-              onUpdateProductStatus={onUpdateProductStatus}
-              onMarkProductViewed={onMarkProductViewed}
-            />
-          ))}
+          {tableLoading ? (
+            <tr>
+              <td colSpan={9}>
+                <AdminTableSkeleton rows={8} cols={9} portraitThumbs />
+              </td>
+            </tr>
+          ) : (
+            tableProducts.map((product) => (
+              <AdminProductsTableRow
+                key={product.id}
+                product={product}
+                productsReturnHref={productsReturnHref}
+                loadedCount={tableProducts.length}
+                sourceById={sourceById}
+                deleting={deletingProductId === product.id}
+                updatingStatus={statusUpdatingProductId === product.id}
+                onDeleteProduct={onDeleteProduct}
+                onUpdateProductStatus={onUpdateProductStatus}
+                onMarkProductViewed={onMarkProductViewed}
+              />
+            ))
+          )}
         </tbody>
       </table>
       {!tableLoading && tableProducts.length === 0 ? (

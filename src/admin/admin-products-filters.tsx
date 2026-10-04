@@ -4,6 +4,7 @@ import "./admin-products-filters.css";
 type Props = {
   productSearch: string;
   setProductSearch: (value: string) => void;
+  commitProductSearch: () => void;
   resetProductFilters: () => void;
   productNewOnlyFilter: boolean;
   setProductNewOnlyFilter: (checked: boolean) => void;
@@ -38,6 +39,7 @@ export function AdminProductsFilters(props: Props) {
   const {
     productSearch,
     setProductSearch,
+    commitProductSearch,
     resetProductFilters,
     productNewOnlyFilter,
     setProductNewOnlyFilter,
@@ -71,7 +73,20 @@ export function AdminProductsFilters(props: Props) {
   return (
     <aside className="products-filters card">
       <h3>Фильтры</h3>
-      <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Поиск" />
+      <input
+        value={productSearch}
+        inputMode="search"
+        enterKeyHint="search"
+        onChange={(event) => setProductSearch(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") {
+            return;
+          }
+          event.preventDefault();
+          commitProductSearch();
+        }}
+        placeholder="Поиск"
+      />
       <div className="products-filters-view-mode" role="group" aria-label="Показывать товары">
         <label className="products-filters-view-mode__option">
           <input
