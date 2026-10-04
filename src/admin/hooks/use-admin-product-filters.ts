@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PRODUCTS_QUERY_KEYS, readProductsQuery, withProductsQueryParam } from "../products-query";
 import { useDebouncedValue } from "../../shared/hooks/use-debounced-value";
@@ -8,18 +8,12 @@ export function useAdminProductFilters() {
   const state = readProductsQuery(searchParams);
   const [searchDraft, setSearchDraft] = useState<string>(state.search);
   const debouncedSearchDraft = useDebouncedValue(searchDraft, 220);
-  const resettingFiltersRef = useRef(false);
-
-  useEffect(() => {
-    setSearchDraft(state.search);
-  }, [state.search]);
 
   const setParam = useCallback((key: string, value: string) => {
     setSearchParams((previous) => withProductsQueryParam(previous, key, value), { replace: true });
   }, [setSearchParams]);
 
   const setProductSearch = useCallback((value: string) => {
-    resettingFiltersRef.current = false;
     setSearchDraft(value);
   }, []);
 
@@ -28,7 +22,6 @@ export function useAdminProductFilters() {
   }, [setParam]);
 
   const resetProductFilters = useCallback(() => {
-    resettingFiltersRef.current = true;
     setSearchDraft("");
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
@@ -39,13 +32,10 @@ export function useAdminProductFilters() {
     }, { replace: true });
   }, [setSearchParams]);
 
+  // Draft owns the input. URL is only the debounced query, so it must not
+  // write back into the field: that echo arrives before debounce and wipes
+  // keystrokes.
   useEffect(() => {
-    if (resettingFiltersRef.current) {
-      if (debouncedSearchDraft !== "") {
-        return;
-      }
-      resettingFiltersRef.current = false;
-    }
     if (debouncedSearchDraft === state.search) {
       return;
     }
