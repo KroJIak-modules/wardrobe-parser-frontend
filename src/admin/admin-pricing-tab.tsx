@@ -9,6 +9,7 @@ import { AdminPricingSvcSection } from "./admin-pricing-svc-section";
 import { AdminPricingWorkerSection } from "./admin-pricing-worker-section";
 import { AdminPricingSourcesSection } from "./admin-pricing-sources-section";
 import type { BybitWorkerInfo, FinalRoundingMode, PricingExampleView, PricingFieldKey, SvcRuleDraft, SvcRuleFieldError, TriCurrencyAmountKey, TriCurrencyDraft } from "./admin-types";
+import type { ThresholdDrafts } from "./hooks/admin-source-pricing-helpers";
 
 type SourceItem = {
   key: string;
@@ -44,8 +45,8 @@ type Props = {
   setPricingDrafts: Dispatch<SetStateAction<Record<PricingFieldKey, string>>>;
   finalRoundingModeDraft: FinalRoundingMode;
   setFinalRoundingModeDraft: Dispatch<SetStateAction<FinalRoundingMode>>;
-  thresholdDraft: TriCurrencyDraft | null;
-  setThresholdField: (field: TriCurrencyAmountKey, raw: string) => void;
+  thresholdDrafts: ThresholdDrafts | null;
+  setThresholdField: (kind: keyof ThresholdDrafts, field: TriCurrencyAmountKey, raw: string) => void;
   svcRuleDrafts: SvcRuleDraft[];
   setSvcRuleDrafts: Dispatch<SetStateAction<SvcRuleDraft[]>>;
   svcRuleFieldErrors: Record<string, SvcRuleFieldError>;
@@ -89,7 +90,7 @@ export function AdminPricingTab({
   setPricingDrafts,
   finalRoundingModeDraft,
   setFinalRoundingModeDraft,
-  thresholdDraft,
+  thresholdDrafts,
   setThresholdField,
   svcRuleDrafts,
   setSvcRuleDrafts,
@@ -148,7 +149,7 @@ export function AdminPricingTab({
             setFinalRoundingModeDraft={setFinalRoundingModeDraft}
           />
 
-          <AdminPricingThresholdSection thresholdDraft={thresholdDraft} setThresholdField={setThresholdField} />
+          <AdminPricingThresholdSection thresholdDrafts={thresholdDrafts} setThresholdField={setThresholdField} />
 
           <AdminPricingSvcSection
             svcRuleDrafts={svcRuleDrafts}

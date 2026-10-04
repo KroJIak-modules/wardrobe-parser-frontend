@@ -24,6 +24,11 @@ export type PricingRates = {
   gbpToRub: number;
 };
 
+export type ThresholdDrafts = {
+  customs: TriCurrencyDraft;
+  shippingAlt: TriCurrencyDraft;
+};
+
 export function computePricingRates(pricingSettings: PricingSettings | null, pricingDrafts: Record<PricingFieldKey, string>): PricingRates {
   if (!pricingSettings) {
     return { usdToRub: 0, eurToRub: 0, gbpToRub: 0 };
@@ -39,8 +44,7 @@ export function computePricingRates(pricingSettings: PricingSettings | null, pri
   return { usdToRub, eurToRub, gbpToRub };
 }
 
-export function buildThresholdDraft(pricingSettings: PricingSettings, rates: PricingRates): TriCurrencyDraft {
-  const thresholdEur = Number(pricingSettings.customs_threshold_eur);
+function buildThresholdDraft(thresholdEur: number, rates: PricingRates): TriCurrencyDraft {
   const thresholdRub = thresholdEur * rates.eurToRub;
   const thresholdUsd = rates.usdToRub > 0 ? thresholdRub / rates.usdToRub : 0;
   return {
@@ -49,6 +53,13 @@ export function buildThresholdDraft(pricingSettings: PricingSettings, rates: Pri
     usd: formatCompactNumber(thresholdUsd, 4),
     eur: formatCompactNumber(thresholdEur, 4),
     gbp: "0",
+  };
+}
+
+export function buildThresholdDrafts(pricingSettings: PricingSettings, rates: PricingRates): ThresholdDrafts {
+  return {
+    customs: buildThresholdDraft(Number(pricingSettings.customs_threshold_eur), rates),
+    shippingAlt: buildThresholdDraft(Number(pricingSettings.shipping_alt_threshold_eur), rates),
   };
 }
 

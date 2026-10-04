@@ -442,6 +442,7 @@ export type PricingSettings = {
   markup_multiplier: number;
   weight_tolerance: number;
   customs_threshold_eur: number;
+  shipping_alt_threshold_eur: number;
   customs_duty_rate: number;
   eur_to_usd_rate: number;
   gbp_to_usd_rate: number;
@@ -633,6 +634,7 @@ export type SettingsTransferPricingSettings = {
   markup_multiplier: number;
   weight_tolerance: number;
   customs_threshold_eur: number;
+  shipping_alt_threshold_eur: number;
   customs_duty_rate: number;
   eur_to_usd_rate: number;
   gbp_to_usd_rate: number;

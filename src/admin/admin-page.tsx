@@ -423,7 +423,7 @@ export function AdminPage() {
   });
   const {
     pricingRates,
-    thresholdDraft,
+    thresholdDrafts,
     setThresholdField,
     sourcePricingDrafts,
     setSourcePricingDrafts,
@@ -654,7 +654,7 @@ export function AdminPage() {
       setPricingDrafts,
       finalRoundingModeDraft,
       setFinalRoundingModeDraft,
-      thresholdDraft,
+      thresholdDrafts,
       setThresholdField,
       svcRuleDrafts,
       setSvcRuleDrafts,

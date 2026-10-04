@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseNonNegativeNumber, toRubByRates, fromRubByRates } from "../admin-formatters";
 import type { CurrencyCode, PricingFieldKey, PricingSettings, TriCurrencyAmountKey, TriCurrencyDraft } from "../admin-types";
-import { buildSourceDraft, buildThresholdDraft, computePricingRates, rebuildTriCurrencyDraft, toSourceSyncPayload, type SourceEntry, type SourcePricingDraft } from "./admin-source-pricing-helpers";
+import { buildSourceDraft, buildThresholdDrafts, computePricingRates, rebuildTriCurrencyDraft, toSourceSyncPayload, type SourceEntry, type SourcePricingDraft, type ThresholdDrafts } from "./admin-source-pricing-helpers";
 
 type UseAdminSourcePricingParams = {
   pricingSettings: PricingSettings | null;
@@ -21,7 +21,7 @@ type UseAdminSourcePricingParams = {
 export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
   const { pricingSettings, pricingDrafts, sources, assignSourceSupplier, updatePricingSettings, pushToast } = params;
 
-  const [thresholdDraft, setThresholdDraft] = useState<TriCurrencyDraft | null>(null);
+  const [thresholdDrafts, setThresholdDrafts] = useState<ThresholdDrafts | null>(null);
   const [sourcePricingDrafts, setSourcePricingDrafts] = useState<Record<string, SourcePricingDraft>>({});
 
   const pricingRates = useMemo(
@@ -29,17 +29,18 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
     [pricingSettings, pricingDrafts]
   );
 
-  const setThresholdField = (field: TriCurrencyAmountKey, raw: string) => {
-    setThresholdDraft((previous) => {
-      if (!previous) {
+  const setThresholdField = (kind: keyof ThresholdDrafts, field: TriCurrencyAmountKey, raw: string) => {
+    setThresholdDrafts((previous) => {
+      const current = previous?.[kind];
+      if (!current) {
         return previous;
       }
-      const next = { ...previous, [field]: raw };
+      const next = { ...current, [field]: raw };
       const parsed = parseNonNegativeNumber(raw);
       if (parsed === null) {
-        return next;
+        return { ...previous, [kind]: next };
       }
-      return rebuildTriCurrencyDraft(previous, field, String(parsed), pricingRates);
+      return { ...previous, [kind]: rebuildTriCurrencyDraft(current, field, String(parsed), pricingRates) };
     });
   };
 
@@ -58,35 +59,51 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
     if (!pricingSettings) {
       return;
     }
-    setThresholdDraft(buildThresholdDraft(pricingSettings, pricingRates));
-  }, [pricingSettings?.customs_threshold_eur, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
+    setThresholdDrafts(buildThresholdDrafts(pricingSettings, pricingRates));
+  }, [
+    pricingSettings?.customs_threshold_eur,
+    pricingSettings?.shipping_alt_threshold_eur,
+    pricingRates.usdToRub,
+    pricingRates.eurToRub,
+    pricingRates.gbpToRub,
+  ]);
 
   useEffect(() => {
-    if (!pricingSettings || !thresholdDraft) {
+    if (!pricingSettings || !thresholdDrafts) {
       return;
     }
-    const activeCurrency = thresholdDraft.currency;
-    const activeRaw = thresholdDraft[activeCurrency.toLowerCase() as TriCurrencyAmountKey];
-    const activeValue = parseNonNegativeNumber(activeRaw || "");
-    if (activeValue === null) {
-      return;
+    const nextPatch: Partial<PricingSettings> = {};
+    const candidates: Array<[keyof ThresholdDrafts, "customs_threshold_eur" | "shipping_alt_threshold_eur"]> = [
+      ["customs", "customs_threshold_eur"],
+      ["shippingAlt", "shipping_alt_threshold_eur"],
+    ];
+    for (const [kind, settingKey] of candidates) {
+      const draft = thresholdDrafts[kind];
+      const activeCurrency = draft.currency;
+      const activeRaw = draft[activeCurrency.toLowerCase() as TriCurrencyAmountKey];
+      const activeValue = parseNonNegativeNumber(activeRaw || "");
+      if (activeValue === null) {
+        continue;
+      }
+      const thresholdRub = toRubByRates(activeValue, activeCurrency, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
+      const nextThresholdEur = fromRubByRates(thresholdRub, "EUR", pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
+      const currentThresholdEur = Number(pricingSettings[settingKey]);
+      if (Math.abs(nextThresholdEur - currentThresholdEur) <= 0.0001) {
+        continue;
+      }
+      nextPatch[settingKey] = Number(nextThresholdEur.toFixed(6));
     }
-    const thresholdRub = toRubByRates(activeValue, activeCurrency, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
-    const nextThresholdEur = fromRubByRates(thresholdRub, "EUR", pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub);
-    const currentThresholdEur = Number(pricingSettings.customs_threshold_eur);
-    if (Math.abs(nextThresholdEur - currentThresholdEur) <= 0.0001) {
+    if (Object.keys(nextPatch).length === 0) {
       return;
     }
     const timer = window.setTimeout(async () => {
-      const result = await updatePricingSettings({
-        customs_threshold_eur: Number(nextThresholdEur.toFixed(6)),
-      });
+      const result = await updatePricingSettings(nextPatch);
       if (!result.ok) {
         pushToast(result.message);
       }
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [pricingSettings, thresholdDraft, updatePricingSettings, pushToast, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
+  }, [pricingSettings, thresholdDrafts, updatePricingSettings, pushToast, pricingRates.usdToRub, pricingRates.eurToRub, pricingRates.gbpToRub]);
 
   useEffect(() => {
     if (!sources || sources.length === 0) {
@@ -132,8 +149,8 @@ export function useAdminSourcePricing(params: UseAdminSourcePricingParams) {
 
   return {
     pricingRates,
-    thresholdDraft,
-    setThresholdDraft,
+    thresholdDrafts,
+    setThresholdDrafts,
     setThresholdField,
     sourcePricingDrafts,
     setSourcePricingDrafts,
