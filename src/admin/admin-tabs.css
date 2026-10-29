@@ -1,0 +1,55 @@
+.admin-tabs-navigation { position: relative; }
+.admin-tabs__mobile-layer { display: none; }
+
+@media (min-width: 761px) {
+  .admin .tabs.admin-tabs__desktop { display: flex; }
+}
+
+@media (max-width: 760px) {
+  .admin-tabs__desktop { display: none !important; }
+  .admin-tabs__mobile-layer { position: fixed; inset: 0; z-index: 1000; display: block; }
+  .admin-tabs__backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    background: rgb(15 23 42 / 32%);
+    cursor: pointer;
+    animation: admin-tabs-fade-in 220ms ease both;
+  }
+  .admin-tabs__drawer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(328px, calc(100vw - 48px));
+    padding: 22px 16px;
+    overflow-y: auto;
+    background: #fff;
+    box-shadow: 12px 0 32px rgb(15 23 42 / 14%);
+    animation: admin-tabs-slide-in 220ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+  .admin-tabs__mobile-layer--closing .admin-tabs__backdrop { animation: admin-tabs-fade-out 220ms ease both; }
+  .admin-tabs__mobile-layer--closing .admin-tabs__drawer { animation: admin-tabs-slide-out 220ms ease both; }
+  .admin-tabs__drawer-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 2px 2px 22px; border-bottom: 1px solid #edf0f4; }
+  .admin-tabs__drawer-head div { display: grid; gap: 5px; }
+  .admin-tabs__drawer-eyebrow { color: #98a2b3; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .admin-tabs__drawer-head strong { color: #101828; font-size: 22px; letter-spacing: -.02em; }
+  .admin-tabs__close { display: inline-flex; width: 38px; height: 38px; align-items: center; justify-content: center; border: 1px solid #e2e6ec; border-radius: 10px; background: #fff; color: #344054; cursor: pointer; }
+  .admin-tabs__close:hover { background: #f5f7fa; }
+  .admin-tabs__drawer-list { display: grid; gap: 6px; padding-top: 18px; }
+  .admin-tabs__drawer-item { display: flex; min-height: 46px; align-items: center; justify-content: space-between; padding: 0 13px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #344054; font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+  .admin-tabs__drawer-item:hover { border-color: #e2e6ec; background: #f8fafc; }
+  .admin-tabs__drawer-item--active { border-color: #d8e0ea; background: #eef3f8; color: #102a43; }
+  .admin-tabs__drawer-check { width: 7px; height: 7px; border-radius: 50%; background: #38658a; }
+}
+
+@keyframes admin-tabs-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes admin-tabs-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes admin-tabs-slide-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes admin-tabs-slide-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-tabs__backdrop,
+  .admin-tabs__drawer { animation: none !important; }
+}

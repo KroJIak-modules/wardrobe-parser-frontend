@@ -144,6 +144,7 @@ export function AdminPage() {
   } = useLiveData();
 
   const { toasts, pushToast, closeToast, pauseToast, resumeToast } = useToasts();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const {
     isSyncInProgress,
     canRunSync,
@@ -739,7 +740,7 @@ export function AdminPage() {
 
   return (
     <div className="shell">
-      <AdminTopbar onLogout={onLogout} />
+      <AdminTopbar onLogout={onLogout} onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
       <main className={`container container--admin${tab === "products" ? " container--admin-products" : ""}`}>
         <section className={`section admin${tab === "products" ? " admin--products" : ""}`}>
           <AdminHead
@@ -754,8 +755,14 @@ export function AdminPage() {
             formatSyncStatusRu={formatSyncStatusRu}
           />
 
-          <AdminTabs tabs={tabs} activeTab={tab} onSelectTab={(nextTab) => navigate(`/control/${nextTab}`)} />
-          <AdminTabContent {...tabContentProps} />
+          <AdminTabs
+            tabs={tabs}
+            activeTab={tab}
+            onSelectTab={(nextTab) => navigate(`/control/${nextTab}`)}
+            isMobileMenuOpen={isMobileMenuOpen}
+            onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+          />
+          <AdminTabContent {...tabContentProps} pushToast={pushToast} />
           <AdminOverlays
             setZoomedImageUrl={setZoomedImageUrl}
             toasts={toasts}

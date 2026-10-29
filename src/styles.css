@@ -697,6 +697,8 @@ a {
   gap: 8px;
 }
 
+.admin-mobile-menu-trigger { display: none; }
+
 button.topbar-cta {
   appearance: none;
   margin: 0;
@@ -6477,10 +6479,15 @@ button:disabled {
   }
 
   .topbar-inner {
-    flex-wrap: wrap;
-    row-gap: 10px;
-    min-height: 0;
+    position: relative;
+    min-height: 44px;
     padding: 0;
+  }
+
+  .brand {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   .brand-logo {
@@ -6488,17 +6495,39 @@ button:disabled {
   }
 
   .topbar .topbar-actions-stack {
-    flex: 1 1 100%;
+    display: flex;
+    width: 100%;
     flex-direction: row;
     align-items: center;
-    gap: 8px;
+    justify-content: flex-end;
   }
 
   .topbar .topbar-actions {
-    flex: 1 1 auto;
     justify-content: flex-end;
     gap: 6px;
   }
+
+  .topbar .topbar-actions .topbar-cta--primary { display: none; }
+  .topbar .topbar-cta { min-width: 38px; padding: 0 9px; }
+  .topbar .topbar-cta--default { width: 38px; padding: 0; font-size: 0; }
+  .topbar .topbar-cta--default .topbar-cta-icon { display: inline-flex; }
+  .admin-mobile-menu-trigger {
+    position: absolute;
+    left: 0;
+    z-index: 1;
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d9e0e8;
+    border-radius: 10px;
+    background: #fff;
+    color: #344054;
+    cursor: pointer;
+  }
+
+  .admin-mobile-menu-trigger:hover { background: #f5f7fa; }
 
   .shell .showcase-nav-row {
     flex-wrap: wrap;
@@ -6640,8 +6669,8 @@ button:disabled {
   border: 1px solid #d9dde7;
   background: #ffffff;
   border-radius: 14px;
-  padding: 10px 16px;
-  font-size: 15px;
+  padding: 8px 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #1c1f24;
   transition: all 0.15s ease;

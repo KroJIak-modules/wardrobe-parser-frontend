@@ -1,6 +1,6 @@
 import type { ProductPriceSummary } from "../shared/live-data-types";
 
-export type AdminTab = "products" | "dedup" | "showcase-structure" | "designers" | "sources" | "pricing" | "weight" | "content" | "security";
+export type AdminTab = "products" | "dedup" | "showcase-structure" | "designers" | "sources" | "pricing" | "weight" | "content" | "security" | "payments";
 
 export type UploadPreview = {
   file: File;

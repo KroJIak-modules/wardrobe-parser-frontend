@@ -13,12 +13,14 @@ type HeaderAction = {
 type SiteHeaderProps = {
   actions?: HeaderAction[];
   belowActions?: ReactNode;
+  leadingAction?: ReactNode;
 };
 
-export function SiteHeader({ actions = [], belowActions }: SiteHeaderProps) {
+export function SiteHeader({ actions = [], belowActions, leadingAction }: SiteHeaderProps) {
   return (
     <header className="topbar">
       <div className="topbar-inner">
+        {leadingAction}
         <Link to="/" className="brand" aria-label="Anton Shell">
           <img src="/logo_anton_shell.svg" alt="Anton Shell" className="brand-logo" />
         </Link>
