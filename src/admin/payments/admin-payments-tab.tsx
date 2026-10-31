@@ -17,7 +17,7 @@ export function AdminPaymentsTab({ pushToast }: { pushToast: (message: string) =
   const [listError, setListError] = useState("");
   const [actionError, setActionError] = useState("");
   const [canEdit, setCanEdit] = useState(false);
-  const [paymentsConfigured, setPaymentsConfigured] = useState(false);
+  const [paymentReadiness, setPaymentReadiness] = useState<boolean | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [modal, setModal] = useState<Payment | "create" | null>(null);
   const [version, setVersion] = useState(0);
@@ -39,8 +39,8 @@ export function AdminPaymentsTab({ pushToast }: { pushToast: (message: string) =
       }
     }).catch(() => { if (active) setCanEdit(false); });
     void getPaymentReadiness().then((readiness) => {
-      if (active) setPaymentsConfigured(readiness.configured);
-    }).catch(() => { if (active) setPaymentsConfigured(false); });
+      if (active) setPaymentReadiness(readiness.configured);
+    }).catch(() => { if (active) setPaymentReadiness(false); });
     return () => { active = false; };
   }, []);
 
@@ -153,8 +153,8 @@ export function AdminPaymentsTab({ pushToast }: { pushToast: (message: string) =
       </div>
       {canEdit ? (
         <div className="payments-create-row">
-          {!paymentsConfigured ? <p className="payment-error">Платежи не настроены: добавьте параметры Antilopay в окружение backend.</p> : null}
-          <button type="button" className="payments-create-button" onClick={() => setModal("create")} disabled={busy || !paymentsConfigured} title={!paymentsConfigured ? "Платежи Antilopay не настроены" : undefined}>
+          {paymentReadiness === false ? <p className="payment-error">Платежи не настроены: добавьте параметр Antilopay</p> : null}
+          <button type="button" className="payments-create-button" onClick={() => setModal("create")} disabled={busy || paymentReadiness !== true} title={paymentReadiness === false ? "Платежи Antilopay не настроены" : undefined}>
             Создать платёж
           </button>
         </div>
