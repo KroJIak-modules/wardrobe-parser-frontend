@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAdminMeCached } from "../../shared/admin-auth";
 import { PaymentModal } from "./payment-modal";
-import { createPayment, listPayments, refreshPayment, type Payment, type PaymentDraft } from "./payments-api";
+import { createPayment, getPaymentReadiness, listPayments, refreshPayment, type Payment, type PaymentDraft } from "./payments-api";
 import { formatPaymentLinkLifetime, getPaymentLinkRemainingSeconds } from "./payment-lifetime";
 import { getPaymentStatusLabel } from "./payment-status";
 import "./payments.css";
@@ -17,6 +17,7 @@ export function AdminPaymentsTab({ pushToast }: { pushToast: (message: string) =
   const [listError, setListError] = useState("");
   const [actionError, setActionError] = useState("");
   const [canEdit, setCanEdit] = useState(false);
+  const [paymentsConfigured, setPaymentsConfigured] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const [modal, setModal] = useState<Payment | "create" | null>(null);
   const [version, setVersion] = useState(0);
@@ -37,6 +38,9 @@ export function AdminPaymentsTab({ pushToast }: { pushToast: (message: string) =
         setCanEdit(Boolean(me && (me.is_superuser || me.permissions?.includes("control.settings.edit"))));
       }
     }).catch(() => { if (active) setCanEdit(false); });
+    void getPaymentReadiness().then((readiness) => {
+      if (active) setPaymentsConfigured(readiness.configured);
+    }).catch(() => { if (active) setPaymentsConfigured(false); });
     return () => { active = false; };
   }, []);
 
@@ -149,7 +153,8 @@ export function AdminPaymentsTab({ pushToast }: { pushToast: (message: string) =
       </div>
       {canEdit ? (
         <div className="payments-create-row">
-          <button type="button" className="payments-create-button" onClick={() => setModal("create")} disabled={busy}>
+          {!paymentsConfigured ? <p className="payment-error">Платежи не настроены: добавьте параметры Antilopay в окружение backend.</p> : null}
+          <button type="button" className="payments-create-button" onClick={() => setModal("create")} disabled={busy || !paymentsConfigured} title={!paymentsConfigured ? "Платежи Antilopay не настроены" : undefined}>
             Создать платёж
           </button>
         </div>

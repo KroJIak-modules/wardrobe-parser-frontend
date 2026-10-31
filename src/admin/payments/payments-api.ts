@@ -20,7 +20,12 @@ export type Payment = PaymentDraft & {
 };
 
 export type PaymentList = { items: Payment[]; total: number };
+export type PaymentReadiness = { configured: boolean; callback_configured: boolean };
 export const PAYMENT_PAGE_SIZE = 30;
+
+export function getPaymentReadiness(): Promise<PaymentReadiness> {
+  return apiJson(`${API_BASE}/admin/payments/readiness`);
+}
 
 export function listPayments(offset: number): Promise<PaymentList> {
   return apiJson(`${API_BASE}/admin/payments?limit=${PAYMENT_PAGE_SIZE}&offset=${offset}`);
