@@ -1,0 +1,23 @@
+.dedup-item > .dedup-grid { position: relative; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; align-items: stretch; }
+.dedup-pair-actions { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; gap: 8px; }
+.dedup-pair-actions button, .dedup-legend__icons > span, .dedup-card-choose { width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #dce2eb; border-radius: 9px; background: #fff; color: #344054; }
+.dedup-pair-actions button:hover:not(:disabled) { background: #f1f4f8; border-color: #aebdce; }
+.dedup-legend { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 18px; color: #667085; }
+.dedup-legend__icons { display: flex; gap: 8px; }
+.dedup-legend__icons > span { background: #f8fafc; color: #667085; cursor: help; }
+.dedup-tooltip, [data-tooltip] { position: relative; }
+.dedup-tooltip__content, [data-tooltip]::after { position: absolute; z-index: 10; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: max-content; max-width: min(260px, 75vw); padding: 8px 10px; border-radius: 8px; background: #253246; color: #fff; font-size: 12px; line-height: 1.4; text-align: center; white-space: normal; pointer-events: none; opacity: 0; visibility: hidden; }
+[data-tooltip]::after { content: attr(data-tooltip); }
+.dedup-tooltip:hover .dedup-tooltip__content, .dedup-tooltip:focus .dedup-tooltip__content, [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after { opacity: 1; visibility: visible; }
+.dedup-card { position: relative; min-height: 0; }
+.dedup-card-title { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-height: 2.7em; }
+.dedup-card-choose { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 3px 14px #0003; }
+.admin .dedup-card-choose:hover:not(:disabled),
+.admin .dedup-card-choose:focus-visible:not(:disabled) { transform: translate(-50%, -50%); background: #f1f4f8; border-color: #aebdce; }
+.dedup-card--disabled { pointer-events: none; color: #667085; background: #e9edf2; }
+.dedup-card--disabled .dedup-card-image { filter: brightness(.62); opacity: .72; }
+.dedup-merged-card { position: absolute; z-index: 4; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(50%, 270px); padding: 0; background: transparent; }
+.dedup-merged-card .dedup-card { min-height: 0; border: 0; border-radius: 18px; background: #fff; box-shadow: 0 8px 28px #0003; overflow: hidden; }
+.dedup-merged-card .dedup-card-body { padding: 8px; }
+.dedup-merged-card .dedup-card-title { font-size: 12px; }
+@media (max-width: 600px) { .dedup-pair-actions button { width: 34px; height: 34px; } .dedup-merged-card { width: 52%; } }

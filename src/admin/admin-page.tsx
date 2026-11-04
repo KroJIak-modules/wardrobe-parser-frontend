@@ -227,6 +227,8 @@ export function AdminPage() {
     dedupChoosingPairKey,
     setDedupChoosingPairKey,
     dedupBusyPairKeys,
+    dedupCandidatesResetKey,
+    resetDedupCandidates,
     dedupView,
     setDedupView,
     onMergeProducts,
@@ -239,12 +241,30 @@ export function AdminPage() {
     pushToast,
   });
 
+  const onRunDedupScan = async () => {
+    const result = await runDedupScan();
+    if (result.ok) {
+      resetDedupCandidates();
+    }
+  };
+
   useEffect(() => {
     if (tab !== "dedup" || dedupView !== "decisions") {
       return;
     }
     void ensureDedupDecisionsLoaded();
   }, [tab, dedupView, ensureDedupDecisionsLoaded]);
+
+  const ensureDedupLoadedRef = useRef(ensureDedupLoaded);
+  useEffect(() => {
+    ensureDedupLoadedRef.current = ensureDedupLoaded;
+  }, [ensureDedupLoaded]);
+
+  useEffect(() => {
+    if (tab === "dedup" && dedupView === "candidates") {
+      void ensureDedupLoadedRef.current(true);
+    }
+  }, [tab, dedupView]);
 
   useEffect(() => {
     if (tab !== "dedup") {
@@ -263,10 +283,18 @@ export function AdminPage() {
     }
     const timer = window.setInterval(() => {
       void refreshDedupStatusOnly();
-      void ensureDedupLoaded(true);
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [tab, dedupScanStatus.is_running, refreshDedupStatusOnly, ensureDedupLoaded]);
+  }, [tab, dedupScanStatus.is_running, refreshDedupStatusOnly]);
+
+  const previousDedupRunningRef = useRef(dedupScanStatus.is_running);
+  useEffect(() => {
+    const wasRunning = previousDedupRunningRef.current;
+    previousDedupRunningRef.current = dedupScanStatus.is_running;
+    if (tab === "dedup" && wasRunning && !dedupScanStatus.is_running) {
+      void ensureDedupLoaded(true);
+    }
+  }, [tab, dedupScanStatus.is_running, ensureDedupLoaded]);
 
   const previousWeightRecalcRunningRef = useRef<boolean>(weightRecalcStatus.is_running);
 
@@ -578,6 +606,7 @@ export function AdminPage() {
       setDedupView,
       dedupScanStatus,
       dedupCandidates,
+      dedupScanResetKey: String(dedupCandidatesResetKey),
       dedupCandidatesTotal,
       loadingDedupCandidates,
       dedupCandidatesHasMore,
@@ -591,8 +620,8 @@ export function AdminPage() {
       dedupBusyPairKeys,
       dedupChoosingPairKey,
       setDedupChoosingPairKey,
-      openProductCard,
-      onRunDedupScan: runDedupScan,
+      getProductById,
+      onRunDedupScan,
       onMergeProducts,
       onRejectProducts,
       onUndoDecision,

@@ -1,0 +1,3 @@
+.dedup-card-image { position: relative; width: 100%; aspect-ratio: 3 / 4; background: #f1f1f1; }
+.dedup-card-image .dedup-card-media { width: 100%; height: 100%; object-fit: cover; }
+.dedup-card-image .dedup-source-btn { position: absolute; top: 10px; right: 10px; margin: 0; background: #fff; }

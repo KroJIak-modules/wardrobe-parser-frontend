@@ -150,6 +150,7 @@ export type SiteApiProductResponse = {
       name: string;
       url: string | null;
       logo_url: string | null;
+      image_urls: string[];
     };
   }>;
   primary_source_url: string | null;

@@ -1,11 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import type { DedupDecision } from "../shared/live-data-context";
+import type { DedupDecision, ServiceProduct } from "../shared/live-data-types";
 import { AdminDedupSkeleton } from "../shared/skeleton";
 import { EmptyState } from "../shared/empty-state";
 import { formatDedupAction } from "./admin-formatters";
 import { AdminDedupProductCard } from "./admin-dedup-product-card";
+import "./admin-dedup-actions.css";
 
 type Props = {
   dedupDecisions: DedupDecision[];
@@ -18,6 +18,45 @@ type Props = {
   onLoadMore: () => Promise<void>;
 };
 
+function isDisabledMember(action: string, members: ServiceProduct[], productId: number): boolean {
+  const normalizedAction = String(action || "").trim().toLowerCase();
+  if (normalizedAction === "combine" || normalizedAction === "reject") {
+    return true;
+  }
+  if (normalizedAction === "keep_left") {
+    return members.length > 0 && productId !== members[0].id;
+  }
+  if (normalizedAction === "keep_right") {
+    return members.length > 0 && productId !== members[members.length - 1].id;
+  }
+  return false;
+}
+
+function ProductCard({
+  product,
+  disabled,
+  onOpen,
+}: {
+  product: ServiceProduct;
+  disabled?: boolean;
+  onOpen: Props["openProductCard"];
+}) {
+  return (
+    <AdminDedupProductCard
+      id={product.id}
+      title={product.title}
+      designerName={product.display_designer_name || product.designer_name || product.source_designer_name || null}
+      priceSummary={product.price_summary}
+      imageCount={product.image_count}
+      imageUrls={product.image_urls}
+      imageIds={product.image_ids || []}
+      url={product.url}
+      onOpen={onOpen}
+      disabled={disabled}
+    />
+  );
+}
+
 export function AdminDedupDecisionsView({
   dedupDecisions,
   loadingDedupDecisions,
@@ -28,15 +67,12 @@ export function AdminDedupDecisionsView({
   onUndoDecision,
   onLoadMore,
 }: Props) {
-  const navigate = useNavigate();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [autoLoadArmed, setAutoLoadArmed] = useState(false);
 
   useEffect(() => {
     const armAutoLoad = () => {
-      if (window.scrollY > 0) {
-        setAutoLoadArmed(true);
-      }
+      if (window.scrollY > 0) setAutoLoadArmed(true);
     };
     window.addEventListener("scroll", armAutoLoad, { passive: true });
     return () => window.removeEventListener("scroll", armAutoLoad);
@@ -48,12 +84,9 @@ export function AdminDedupDecisionsView({
     if (!target) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        const entry = entries[0];
-        if (entry?.isIntersecting) {
-          void onLoadMore();
-        }
+        if (entries[0]?.isIntersecting) void onLoadMore();
       },
-      { root: null, rootMargin: "300px 0px", threshold: 0.01 }
+      { root: null, rootMargin: "300px 0px", threshold: 0.01 },
     );
     observer.observe(target);
     return () => observer.disconnect();
@@ -65,44 +98,34 @@ export function AdminDedupDecisionsView({
       <div className="dedup-list">
         {dedupDecisions.map((decision) => {
           const members = Array.isArray(decision.members) ? decision.members : [];
-          const createdProductId = Number(decision.created_product?.id || 0);
-          const canOpenCreatedProduct =
-            String(decision.action || "").trim().toLowerCase() === "combine"
-            && createdProductId > 0;
+          const action = String(decision.action || "").trim().toLowerCase();
           return (
             <div key={decision.pair_key} className="dedup-item">
               <div className="dedup-grid">
                 {members.map((member) => (
-                  <AdminDedupProductCard
+                  <ProductCard
                     key={`${decision.pair_key}-${member.id}`}
-                    id={member.id}
-                    title={member.title}
-                    designerName={member.display_designer_name || member.designer_name || member.source_designer_name || null}
-                    priceSummary={member.price_summary}
-                    imageCount={member.image_count}
-                    imageUrls={member.image_urls}
-                    imageIds={member.image_ids}
-                    url={member.url}
+                    product={member}
+                    disabled={isDisabledMember(action, members, member.id)}
                     onOpen={openProductCard}
                   />
                 ))}
+                {action === "combine" && decision.created_product ? (
+                  <div className="dedup-merged-card">
+                    <ProductCard product={decision.created_product} onOpen={openProductCard} />
+                  </div>
+                ) : null}
               </div>
               <div className="dedup-reasons">
                 <span className="muted dedup-reasons-label">Решение:</span>
                 <span className="dedup-reason-pill">{formatDedupAction(decision.action)}</span>
                 {decision.decided_at ? (
-                  <span className="muted dedup-reasons-label dedup-reasons-label--soft">{new Date(decision.decided_at).toLocaleString("ru-RU")}</span>
+                  <span className="muted dedup-reasons-label dedup-reasons-label--soft">
+                    {new Date(decision.decided_at).toLocaleString("ru-RU")}
+                  </span>
                 ) : null}
               </div>
               <div className="actions dedup-actions">
-                {canOpenCreatedProduct ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/product/${createdProductId}`, { state: { fromControlPanel: true } })}
-                  >
-                    Новый товар
-                  </button>
-                ) : null}
                 <button
                   type="button"
                   disabled={dedupBusyPairKeys.has(`undo:${decision.id}`) || decision.can_undo === false}
@@ -115,7 +138,7 @@ export function AdminDedupDecisionsView({
             </div>
           );
         })}
-        {loadingDedupDecisions ? <AdminDedupSkeleton rows={1} /> : null}
+        {loadingDedupDecisions && dedupDecisions.length > 0 ? <AdminDedupSkeleton rows={1} /> : null}
         {!loadingDedupDecisions && dedupDecisionsHasMore ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
         {loadingMoreDedupDecisions ? (
           <div className="actions">
@@ -129,7 +152,9 @@ export function AdminDedupDecisionsView({
             </button>
           </div>
         ) : null}
-        {!loadingDedupDecisions && dedupDecisions.length === 0 ? <EmptyState compact title="Решений пока нет" /> : null}
+        {!loadingDedupDecisions && !loadingMoreDedupDecisions && dedupDecisions.length === 0 ? (
+          <EmptyState compact title="Решений пока нет" />
+        ) : null}
       </div>
     </>
   );

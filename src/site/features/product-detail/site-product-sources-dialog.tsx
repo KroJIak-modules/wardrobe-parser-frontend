@@ -139,7 +139,7 @@ export function SiteProductSourcesDialog({
                     ) : (
                       <p className="site-product-detail__source-label">{source.label}</p>
                     )}
-                    <p className="site-product-detail__source-price">{formatSiteRubles(source.priceRub)} ₽</p>
+                    <p className="site-product-detail__source-price">{source.priceRub === null ? "Цена недоступна" : `${formatSiteRubles(source.priceRub)} ₽`}</p>
                   </div>
 
                   <div className="site-product-detail__source-actions">

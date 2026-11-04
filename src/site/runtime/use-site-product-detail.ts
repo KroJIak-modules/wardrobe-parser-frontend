@@ -66,10 +66,11 @@ function groupVariants(raw: SiteApiProductResponse["variants"]): SiteProductDeta
       id: `${variant.source.id}-${variant.id}`,
       variantId: variant.id,
       label: variant.source.name,
-      priceRub: variant.price_rub ?? 0,
+      priceRub: variant.price_rub,
       oldPriceRub: variant.old_price_rub,
       url: variant.source.url ?? "#",
       logoSrc: variant.source.logo_url ?? undefined,
+      imageUrls: Array.isArray(variant.source.image_urls) ? variant.source.image_urls : [],
     };
 
     if (existing) {
@@ -90,7 +91,13 @@ function groupVariants(raw: SiteApiProductResponse["variants"]): SiteProductDeta
 function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
   const description = payload.description?.content ?? "";
   const sourceVariants = groupVariants(payload.variants);
-  const defaultPrice = payload.variants.find((variant) => variant.price_rub !== null)?.price_rub ?? 0;
+  const cheapestVariant = payload.variants
+    .filter((variant) => variant.price_rub !== null)
+    .reduce<(typeof payload.variants)[number] | null>(
+      (best, variant) => !best || variant.price_rub! < best.price_rub! ? variant : best,
+      null,
+    );
+  const defaultPrice = cheapestVariant?.price_rub ?? 0;
   const firstPhoto = payload.photos[0] ?? null;
   const mainImage = optimizeImageUrl(firstPhoto, { width: 1280, quality: 80 }) ?? firstPhoto;
 
@@ -101,7 +108,7 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
     designerId: payload.brand.slug ?? undefined,
     name: payload.name,
     priceRub: defaultPrice,
-    oldPriceRub: payload.variants.find((variant) => variant.price_rub !== null)?.old_price_rub ?? null,
+    oldPriceRub: cheapestVariant?.old_price_rub ?? null,
     availability: statusLabel(payload.status),
     availabilityCode: statusCode(payload.status),
     imageSrc: mainImage,

@@ -1,6 +1,13 @@
 import { useState } from "react";
+import type { DedupCandidate, ServiceProduct } from "../../shared/live-data-types";
 
-type ResultMessage = { ok: boolean; message: string };
+type ResultMessage = {
+  ok: boolean;
+  message: string;
+  createdProductId?: number;
+  createdProduct?: ServiceProduct;
+  relatedCandidates?: DedupCandidate[];
+};
 type MergeMode = "combine" | "keep_left" | "keep_right";
 
 type MergePayload = {
@@ -27,6 +34,8 @@ export function useAdminDedupActions(params: UseAdminDedupActionsParams) {
   const [dedupChoosingPairKey, setDedupChoosingPairKey] = useState<string | null>(null);
   const [dedupBusyPairKeys, setDedupBusyPairKeys] = useState<Set<string>>(new Set());
   const [dedupView, setDedupView] = useState<"candidates" | "decisions">("candidates");
+  const [dedupCandidatesResetKey, setDedupCandidatesResetKey] = useState(0);
+  const resetDedupCandidates = () => setDedupCandidatesResetKey((value) => value + 1);
 
   const withDedupBusy = async (pairKey: string, task: () => Promise<ResultMessage>, successMessage?: string) => {
     setDedupBusyPairKeys((previous) => new Set(previous).add(pairKey));
@@ -46,7 +55,11 @@ export function useAdminDedupActions(params: UseAdminDedupActionsParams) {
     }
   };
 
-  const onMergeProducts = async (productIds: number[], mergeMode: MergeMode = "combine") => {
+  const onMergeProducts = async (
+    productIds: number[],
+    mergeMode: MergeMode = "combine",
+    primaryProductId?: number,
+  ) => {
     const normalizedIds = normalizeProductIds(productIds);
     if (normalizedIds.length < 2) {
       pushToast("Для объединения выбери минимум два товара");
@@ -61,6 +74,8 @@ export function useAdminDedupActions(params: UseAdminDedupActionsParams) {
       payload.primary_product_id = normalizedIds[0];
     } else if (mergeMode === "keep_right") {
       payload.primary_product_id = normalizedIds[normalizedIds.length - 1];
+    } else if (primaryProductId && normalizedIds.includes(Number(primaryProductId))) {
+      payload.primary_product_id = Number(primaryProductId);
     }
     const successMessage =
       mergeMode === "combine"
@@ -69,7 +84,7 @@ export function useAdminDedupActions(params: UseAdminDedupActionsParams) {
           ? "Оставлен левый товар"
           : "Оставлен правый товар";
     const result = await withDedupBusy(pairKey, () => mergeDedupProducts(payload), successMessage);
-    void result;
+    return result;
   };
 
   const onRejectProducts = async (productIds: number[]) => {
@@ -79,7 +94,7 @@ export function useAdminDedupActions(params: UseAdminDedupActionsParams) {
       return;
     }
     const pairKey = `reject:${normalizedIds.join(",")}`;
-    await withDedupBusy(pairKey, () => rejectDedupProducts(normalizedIds), "Пара помечена как не дубль");
+    return withDedupBusy(pairKey, () => rejectDedupProducts(normalizedIds), "Пара помечена как не дубль");
   };
 
   const onUndoDecision = async (decisionId: number) => {
@@ -88,7 +103,10 @@ export function useAdminDedupActions(params: UseAdminDedupActionsParams) {
       pushToast("Решение не найдено");
       return;
     }
-    await withDedupBusy(`undo:${normalizedId}`, () => undoDedupDecision(normalizedId), "Решение отменено");
+    const result = await withDedupBusy(`undo:${normalizedId}`, () => undoDedupDecision(normalizedId), "Решение отменено");
+    if (result.ok) {
+      resetDedupCandidates();
+    }
   };
 
   return {
@@ -97,6 +115,8 @@ export function useAdminDedupActions(params: UseAdminDedupActionsParams) {
     dedupBusyPairKeys,
     dedupView,
     setDedupView,
+    dedupCandidatesResetKey,
+    resetDedupCandidates,
     onMergeProducts,
     onRejectProducts,
     onUndoDecision,

@@ -8,7 +8,7 @@ type UseAdminTabPreloadParams = {
   ensurePricingLoaded: (force?: boolean) => Promise<void>;
   ensureAdminUiLoaded: (force?: boolean) => Promise<void>;
   ensureWeightLoaded: () => Promise<void>;
-  ensureDedupLoaded: () => Promise<void>;
+  ensureDedupLoaded: (force?: boolean) => Promise<void>;
   ensureCategoriesLoaded: (force?: boolean) => Promise<void>;
   refreshSourcesOnly: () => Promise<void>;
 };
@@ -81,7 +81,7 @@ export function useAdminTabPreload({
         return;
       }
       if (tab === "dedup") {
-        await ensureDedupLoadedRef.current();
+        await ensureDedupLoadedRef.current(true);
         return;
       }
       if (tab === "showcase-structure") {

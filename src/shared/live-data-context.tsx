@@ -89,7 +89,6 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     loadingCategoriesTree,
     loadingCategoryCounts,
     setAdminCategories,
-    setDedupCandidates,
     setDedupDecisions,
     setPricingSettings,
     setAdminUiSettings,
@@ -139,21 +138,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     setProductsHasMore(normalizedItems.length + (payload.offset || 0) < (payload.total || 0));
   }, []);
 
-  const refreshAfterDedupMutation = useCallback(async (affectedProductIds?: number[]) => {
-    if (Array.isArray(affectedProductIds) && affectedProductIds.length > 0) {
-      const affectedIds = new Set(
-        affectedProductIds
-          .map((value) => Number(value))
-          .filter((value) => Number.isFinite(value) && value > 0)
-      );
-      if (affectedIds.size > 0) {
-        setDedupCandidates((previous) =>
-          previous.filter(
-            (candidate) => !affectedIds.has(Number(candidate.left?.id)) && !affectedIds.has(Number(candidate.right?.id))
-          )
-        );
-      }
-    }
+  const refreshAfterDedupMutation = useCallback(async () => {
     try {
       await Promise.all([refreshDedupOnly(), refreshDedupDecisionsOnly()]);
       void refreshProductsOnly().catch((e) => {
@@ -165,7 +150,7 @@ export function LiveDataProvider({ children, routePath }: { children: ReactNode;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     }
-  }, [refreshCategoriesOnly, refreshDedupDecisionsOnly, refreshDedupOnly, refreshProductsOnly, setDedupCandidates]);
+  }, [refreshCategoriesOnly, refreshDedupDecisionsOnly, refreshDedupOnly, refreshProductsOnly]);
 
   const {
     runDedupScan,

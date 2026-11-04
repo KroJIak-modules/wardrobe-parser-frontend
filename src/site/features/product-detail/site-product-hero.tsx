@@ -37,12 +37,16 @@ export function SiteProductHero({
     selectedGalleryItem,
     selectedSize,
     selectedSourceId,
+    activeSource,
+    gallery,
     closeSourcesDialog,
     openSourcesDialog,
     setSelectedGalleryItemId,
     setSelectedSize,
     setSelectedSourceId,
   } = useSiteProductHeroState(product);
+  const displayPrice = activeSource ? activeSource.priceRub : product.priceRub;
+  const displayOldPrice = activeSource ? activeSource.oldPriceRub : product.oldPriceRub;
 
   useEffect(() => {
     if (!selectedGalleryItem) {
@@ -102,7 +106,7 @@ export function SiteProductHero({
     >
       <div className="site-product-detail__gallery">
         <div className="site-product-detail__thumbs" aria-label="Миниатюры товара">
-          {product.gallery.map((item, index) => {
+          {gallery.map((item, index) => {
             const isActive = item.id === selectedGalleryItem?.id;
             return (
               <button
@@ -149,7 +153,7 @@ export function SiteProductHero({
                 } as CSSProperties
               }
             >
-              {product.gallery.map((item, index) => (
+              {gallery.map((item, index) => (
                 <figure
                   key={item.id}
                   className="site-product-detail__main-image-slide"
@@ -185,8 +189,10 @@ export function SiteProductHero({
             <h1 className="site-product-detail__name">{product.name.toUpperCase()}</h1>
           </div>
           <div className="site-product-detail__price-line">
-            {product.oldPriceRub && product.oldPriceRub > product.priceRub ? <SiteOldPrice className="site-product-detail__old-price" valueRub={product.oldPriceRub} /> : null}
-            <span className="site-product-detail__price">{formatSiteRubles(product.priceRub)} ₽</span>
+            {displayPrice !== null && displayOldPrice && displayOldPrice > displayPrice
+              ? <SiteOldPrice className="site-product-detail__old-price" valueRub={displayOldPrice} />
+              : null}
+            <span className="site-product-detail__price">{displayPrice === null ? "Цена недоступна" : `${formatSiteRubles(displayPrice)} ₽`}</span>
             <span className="site-product-detail__price-divider">-</span>
             <span className="site-product-detail__availability">{product.availability}</span>
           </div>
@@ -207,7 +213,7 @@ export function SiteProductHero({
               { backdropImageSrc: selectedGalleryItem?.imageSrc ?? null },
             );
           }}
-          disabled={selectedSize === null}
+          disabled={selectedSize === null || activeSource?.priceRub == null}
         >
           ДОБАВИТЬ В КОРЗИНУ
         </button>

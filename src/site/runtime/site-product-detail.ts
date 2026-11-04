@@ -17,10 +17,11 @@ export type SiteProductDetailSourceItem = {
   id: string;
   variantId: number;
   label: string;
-  priceRub: number;
+  priceRub: number | null;
   oldPriceRub?: number | null;
   url: string;
   logoSrc?: string;
+  imageUrls: string[];
 };
 
 export type SiteProductDetailSourceVariant = {
@@ -54,6 +55,16 @@ export function resolveSiteProductDetailSourceVariant(product: SiteProductDetail
   }
 
   return product.sourceVariants[0] ?? null;
+}
+
+export function resolveSiteProductDetailSource(
+  product: SiteProductDetailItem,
+  size: string | null,
+  sourceId?: string | null,
+) {
+  if (!size) return null;
+  const variant = resolveSiteProductDetailSourceVariant(product, size);
+  return variant?.sources.find((source) => source.id === sourceId) ?? variant?.sources[0] ?? null;
 }
 
 export function resolveSiteProductDetailInitialSourceVariant(product: SiteProductDetailItem, size: string | null) {
@@ -95,13 +106,10 @@ export function buildSiteCartItemFromProduct(
 ): SiteCartItem {
   const productPath = `/show/${product.path ?? product.id}`;
   const productUrl = typeof window === "undefined" ? productPath : new URL(productPath, window.location.origin).toString();
-  const variant = resolveSiteProductDetailSourceVariant(product, size);
-  const preferredSource = preferredSourceId ? variant?.sources.find((source) => source.id === preferredSourceId) ?? null : null;
-  const fallbackSource = variant?.sources[0] ?? null;
-  const effectiveSource = preferredSource ?? fallbackSource;
+  const effectiveSource = resolveSiteProductDetailSource(product, size, preferredSourceId);
 
-  if (!effectiveSource) {
-    throw new Error("Невозможно добавить товар без варианта");
+  if (!effectiveSource || effectiveSource.priceRub === null) {
+    throw new Error("Невозможно добавить товар без цены варианта");
   }
 
   return {
@@ -113,7 +121,7 @@ export function buildSiteCartItemFromProduct(
       designerId: product.designerId,
       brand: product.brand,
       name: product.name,
-      imageSrc: product.imageSrc,
+      imageSrc: effectiveSource.imageUrls?.[0] ?? product.imageSrc,
       imageAlt: product.imageAlt,
       availabilityLabel: product.availability,
       availabilityCode: product.availabilityCode === "sold-out" ? "preorder" : product.availabilityCode,

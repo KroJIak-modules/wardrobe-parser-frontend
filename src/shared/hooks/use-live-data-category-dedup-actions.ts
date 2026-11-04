@@ -1,11 +1,12 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { API_BASE } from "../admin-auth";
 import { errResult, okResult } from "../action-result";
-import { apiNoContent } from "../api-client";
-import type { DedupDecision } from "../live-data-types";
+import { apiJson, apiNoContent } from "../api-client";
+import { normalizeServiceProduct } from "../live-product-normalizer";
+import type { DedupCandidate, DedupDecision } from "../live-data-types";
 
 export function useLiveDataCategoryDedupActions(params: {
-  refreshAfterDedupMutation: (affectedProductIds?: number[]) => Promise<void>;
+  refreshAfterDedupMutation: () => Promise<void>;
   refreshDedupOnly: () => Promise<void>;
   refreshDedupStatusOnly: () => Promise<void>;
   setDedupDecisions: Dispatch<SetStateAction<DedupDecision[]>>;
@@ -31,17 +32,31 @@ export function useLiveDataCategoryDedupActions(params: {
     merge_mode?: "combine" | "keep_left" | "keep_right" | null;
   }) => {
     try {
-      await apiNoContent(`${API_BASE}/dedup/merge`, {
+      const result = await apiJson<{
+        created_product_id: number;
+        created_product?: unknown;
+        related_candidates?: DedupCandidate[];
+      }>(`${API_BASE}/dedup/merge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      await refreshAfterDedupMutation(payload.product_ids);
-      return okResult("ok");
+      void refreshAfterDedupMutation();
+      return {
+        ...okResult("ok"),
+        createdProductId: result.created_product_id,
+        createdProduct: result.created_product ? normalizeServiceProduct(result.created_product as never) : undefined,
+        relatedCandidates: (result.related_candidates || []).map((candidate) => ({
+          ...candidate,
+          left: normalizeServiceProduct(candidate.left as never),
+          right: normalizeServiceProduct(candidate.right as never),
+        })),
+      };
     } catch (e) {
+      void refreshDedupOnly();
       return errResult(e instanceof Error ? e.message : "Unknown error");
     }
-  }, [refreshAfterDedupMutation]);
+  }, [refreshAfterDedupMutation, refreshDedupOnly]);
 
   const rejectDedupProducts = useCallback(async (productIds: number[]) => {
     try {
@@ -50,7 +65,7 @@ export function useLiveDataCategoryDedupActions(params: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product_ids: productIds }),
       });
-      await refreshAfterDedupMutation();
+      void refreshAfterDedupMutation();
       return okResult("ok");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");
@@ -63,7 +78,7 @@ export function useLiveDataCategoryDedupActions(params: {
         method: "POST",
       });
       setDedupDecisions((previous) => previous.filter((decision) => Number(decision.id) !== Number(decisionId)));
-      await refreshAfterDedupMutation();
+      void refreshAfterDedupMutation();
       return okResult("ok");
     } catch (e) {
       return errResult(e instanceof Error ? e.message : "Unknown error");

@@ -1,5 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from "react";
-import type { DedupCandidate, DedupDecision, DedupScanStatus } from "../shared/live-data-types";
+import type { DedupCandidate, DedupDecision, DedupScanStatus, ServiceProduct } from "../shared/live-data-types";
 import { AdminDedupSkeleton } from "../shared/skeleton";
 import { AdminDedupCandidatesView } from "./admin-dedup-candidates-view";
 import { AdminDedupDecisionsView } from "./admin-dedup-decisions-view";
@@ -11,6 +11,7 @@ type Props = {
   setDedupView: (view: "candidates" | "decisions") => void;
   dedupScanStatus: DedupScanStatus;
   dedupCandidates: DedupCandidate[];
+  dedupScanResetKey: string;
   dedupCandidatesTotal: number;
   loadingDedupCandidates: boolean;
   dedupCandidatesHasMore: boolean;
@@ -24,10 +25,15 @@ type Props = {
   dedupBusyPairKeys: Set<string>;
   dedupChoosingPairKey: string | null;
   setDedupChoosingPairKey: (key: string | null | ((prev: string | null) => string | null)) => void;
-  openProductCard: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => void;
+  getProductById: (id: number, opts?: { forceFetch?: boolean }) => Promise<ServiceProduct | null>;
   onRunDedupScan: () => Promise<void>;
-  onMergeProducts: (productIds: number[], mergeMode?: DedupMergeMode) => Promise<void>;
-  onRejectProducts: (productIds: number[]) => Promise<void>;
+  onMergeProducts: (productIds: number[], mergeMode?: DedupMergeMode, primaryProductId?: number) => Promise<{
+    ok: boolean;
+    createdProductId?: number;
+    createdProduct?: ServiceProduct;
+    relatedCandidates?: DedupCandidate[];
+  } | undefined>;
+  onRejectProducts: (productIds: number[]) => Promise<{ ok: boolean } | undefined>;
   onUndoDecision: (decisionId: number) => Promise<void>;
   onLoadMoreCandidates: () => Promise<void>;
   onLoadMoreDecisions: () => Promise<void>;
@@ -38,6 +44,7 @@ export function AdminDedupTab({
   setDedupView,
   dedupScanStatus,
   dedupCandidates,
+  dedupScanResetKey,
   dedupCandidatesTotal,
   loadingDedupCandidates,
   dedupCandidatesHasMore,
@@ -51,7 +58,7 @@ export function AdminDedupTab({
   dedupBusyPairKeys,
   dedupChoosingPairKey,
   setDedupChoosingPairKey,
-  openProductCard,
+  getProductById,
   onRunDedupScan,
   onMergeProducts,
   onRejectProducts,
@@ -59,6 +66,10 @@ export function AdminDedupTab({
   onLoadMoreCandidates,
   onLoadMoreDecisions,
 }: Props) {
+  const openDedupProductCard = (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, productId: number) => {
+    event.preventDefault();
+    window.open(`/product/${productId}`, "_blank", "noopener,noreferrer");
+  };
   const scanButtonLabel = dedupScanStatus.is_running ? "Поиск дубликатов..." : "Найти дубликаты";
   const lastRunAt = dedupScanStatus.started_at;
   const scanMeta = `Последний запуск: ${lastRunAt ? new Date(lastRunAt).toLocaleString("ru-RU") : "—"}`;
@@ -94,13 +105,15 @@ export function AdminDedupTab({
       {dedupView === "candidates" ? (
         <AdminDedupCandidatesView
           dedupCandidates={dedupCandidates}
+          dedupScanResetKey={dedupScanResetKey}
           loadingDedupCandidates={loadingDedupCandidates}
           dedupCandidatesHasMore={dedupCandidatesHasMore}
           loadingMoreDedupCandidates={loadingMoreDedupCandidates}
           dedupBusyPairKeys={dedupBusyPairKeys}
           dedupChoosingPairKey={dedupChoosingPairKey}
           setDedupChoosingPairKey={setDedupChoosingPairKey}
-          openProductCard={openProductCard}
+          openProductCard={openDedupProductCard}
+          getProductById={getProductById}
           onMergeProducts={onMergeProducts}
           onRejectProducts={onRejectProducts}
           onLoadMore={onLoadMoreCandidates}
@@ -112,7 +125,7 @@ export function AdminDedupTab({
           dedupDecisionsHasMore={dedupDecisionsHasMore}
           loadingMoreDedupDecisions={loadingMoreDedupDecisions}
           dedupBusyPairKeys={dedupBusyPairKeys}
-          openProductCard={openProductCard}
+          openProductCard={openDedupProductCard}
           onUndoDecision={onUndoDecision}
           onLoadMore={onLoadMoreDecisions}
         />

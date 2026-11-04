@@ -769,7 +769,13 @@ export type LiveDataContextValue = {
     primary_product_id?: number | null;
     primary_listing_id?: number | null;
     merge_mode?: "combine" | "keep_left" | "keep_right" | null;
-  }) => Promise<{ ok: boolean; message: string }>;
+  }) => Promise<{
+    ok: boolean;
+    message: string;
+    createdProductId?: number;
+    createdProduct?: ServiceProduct;
+    relatedCandidates?: DedupCandidate[];
+  }>;
   rejectDedupProducts: (productIds: number[]) => Promise<{ ok: boolean; message: string }>;
   undoDedupDecision: (decisionId: number) => Promise<{ ok: boolean; message: string }>;
   runDedupScan: () => Promise<{ ok: boolean; message: string }>;
