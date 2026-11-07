@@ -12,6 +12,17 @@ export async function markAdminProductViewed(productId: number): Promise<boolean
   return response.ok;
 }
 
+export async function markAdminProductAgainViewed(productId: number): Promise<boolean> {
+  const normalizedProductId = Number(productId);
+  if (!Number.isFinite(normalizedProductId) || normalizedProductId <= 0) {
+    return false;
+  }
+  const response = await authFetch(`${API_BASE}/admin/products/${normalizedProductId}/again-view`, {
+    method: "POST",
+  });
+  return response.ok;
+}
+
 export async function markAllAdminProductsViewed(query: ProductsQueryState): Promise<number> {
   const params = buildProductsApiQuery(query, { includeLimit: false });
   const response = await authFetch(`${API_BASE}/admin/products/mark-all-viewed?${params.toString()}`, {

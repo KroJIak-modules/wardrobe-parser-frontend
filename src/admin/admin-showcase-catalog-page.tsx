@@ -263,7 +263,7 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
       const normalized = new URLSearchParams(nextParams);
       normalized.delete("page");
       setSearchParams(normalized);
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     },
     [setSearchParams],
   );
@@ -276,7 +276,7 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
       } else {
         nextParams.set("page", String(page));
       }
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       setSearchParams(nextParams);
     },
     [searchParams, setSearchParams],
@@ -347,10 +347,11 @@ export function AdminShowcaseCatalogPage({ viewKey }: { viewKey: CatalogViewKey 
           <div className="showcase-catalog-products__empty">Ничего не найдено</div>
         ) : (
           <div className="showcase-catalog-products__grid">
-            {products.map((product) => (
+            {products.map((product, index) => (
               <AdminShowcaseProductCard
                 key={product.id}
                 product={product}
+                priority={index < 8}
                 hidden={hiddenProductIds.has(product.id)}
                 updating={updatingProductIds.has(product.id)}
                 onHide={toggleProductVisibility}

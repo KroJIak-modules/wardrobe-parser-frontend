@@ -18,7 +18,9 @@ type Props = {
   markAllViewedPending: DesignerViewKind | null;
   onMarkAllViewed: (kind: DesignerViewKind) => void;
   onMarkBrandViewed: (sourceBrand: string) => void;
+  onMarkBrandAgainViewed: (sourceBrand: string) => void;
   onMarkDesignerViewed: (designerId: string) => void;
+  onMarkDesignerAgainViewed: (designerId: string) => void;
   onChangeDesignerName: (sourceBrand: string, designerName: string) => void;
   onToggleIncludeInDesigners: (sourceBrand: string, includeInDesigners: boolean) => void;
   onChangeFinalDesignerName: (designerId: string, designerName: string) => void;
@@ -104,7 +106,9 @@ export function AdminDesignersTab({
   markAllViewedPending,
   onMarkAllViewed,
   onMarkBrandViewed,
+  onMarkBrandAgainViewed,
   onMarkDesignerViewed,
+  onMarkDesignerAgainViewed,
   onChangeDesignerName,
   onToggleIncludeInDesigners,
   onChangeFinalDesignerName,
@@ -394,6 +398,16 @@ export function AdminDesignersTab({
                           NEW
                         </button>
                       ) : null}
+                      {row.is_again ? (
+                        <button
+                          type="button"
+                          className="designers-again-badge"
+                          onClick={() => onMarkBrandAgainViewed(row.source_brand)}
+                          title="Бренд снова появился в источниках"
+                        >
+                          AGAIN
+                        </button>
+                      ) : null}
                     </div>
                     <label className="ui-switch designers-item__toggle">
                       <input
@@ -475,6 +489,16 @@ export function AdminDesignersTab({
                           title="Отметить дизайнера просмотренным"
                         >
                           NEW
+                        </button>
+                      ) : null}
+                      {item.designer.is_again ? (
+                        <button
+                          type="button"
+                          className="designers-again-badge"
+                          onClick={() => onMarkDesignerAgainViewed(item.designer.id)}
+                          title="У дизайнера снова появились товары"
+                        >
+                          AGAIN
                         </button>
                       ) : null}
                       <span className="designers-item__count-pill">

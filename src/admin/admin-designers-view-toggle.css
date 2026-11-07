@@ -86,3 +86,28 @@
   outline: none;
   transform: none;
 }
+
+.admin .designers-again-badge {
+  display: inline-block;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 3px 12px;
+  border: 1px solid #aeb6c2;
+  border-radius: 999px;
+  background: #bfc6d0;
+  color: #303844;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.admin .designers-again-badge:hover:not(:disabled),
+.admin .designers-again-badge:focus-visible {
+  background: #aeb6c2;
+  border-color: #939dab;
+  color: #202631;
+  outline: none;
+  transform: none;
+}

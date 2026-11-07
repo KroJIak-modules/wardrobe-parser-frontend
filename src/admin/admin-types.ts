@@ -114,6 +114,7 @@ export type AdminProductsTableItem = {
   internal_category_name?: string | null;
   internal_category_names?: string[];
   is_new?: boolean;
+  is_again?: boolean;
 };
 
 export type AdminFilterFacetOption = {
@@ -131,6 +132,7 @@ export type AdminDesignerSourceRow = {
   designer_name: string;
   include_in_designers: boolean;
   is_new?: boolean;
+  is_again?: boolean;
 };
 
 export type AdminFinalDesigner = {
@@ -138,6 +140,7 @@ export type AdminFinalDesigner = {
   name: string;
   description: string;
   is_new?: boolean;
+  is_again?: boolean;
 };
 
 export type AdminUiSettings = {

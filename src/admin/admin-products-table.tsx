@@ -42,6 +42,7 @@ type Props = {
   onDeleteProduct: (productId: number) => Promise<boolean>;
   onUpdateProductStatus: (productId: number, state: ProductWriteState) => Promise<boolean>;
   onMarkProductViewed: (productId: number) => void;
+  onMarkProductAgainViewed: (productId: number) => void;
 };
 
 function formatPriceSummary(price: number | null | undefined, currency: string | null | undefined, hasRange: boolean): string {
@@ -194,6 +195,7 @@ function AdminProductsTableRow({
   onDeleteProduct,
   onUpdateProductStatus,
   onMarkProductViewed,
+  onMarkProductAgainViewed,
 }: {
   product: AdminProductsTableItem;
   productsReturnHref: string;
@@ -204,6 +206,7 @@ function AdminProductsTableRow({
   onDeleteProduct: (productId: number) => Promise<boolean>;
   onUpdateProductStatus: (productId: number, state: ProductWriteState) => Promise<boolean>;
   onMarkProductViewed: (productId: number) => void;
+  onMarkProductAgainViewed: (productId: number) => void;
 }) {
   const deleteAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
@@ -301,6 +304,16 @@ function AdminProductsTableRow({
           >
             {product.title}
           </Link>
+          {product.is_again ? (
+            <button
+              type="button"
+              className="products-table-again-badge"
+              onClick={() => onMarkProductAgainViewed(product.id)}
+              title="Товар снова появился в источнике"
+            >
+              AGAIN
+            </button>
+          ) : null}
           {product.is_new ? (
             <button
               type="button"
@@ -423,6 +436,7 @@ export function AdminProductsTable({
   onDeleteProduct,
   onUpdateProductStatus,
   onMarkProductViewed,
+  onMarkProductAgainViewed,
 }: Props) {
   return (
     <div className="table-wrap table-wrap--spaced">
@@ -460,6 +474,7 @@ export function AdminProductsTable({
                 onDeleteProduct={onDeleteProduct}
                 onUpdateProductStatus={onUpdateProductStatus}
                 onMarkProductViewed={onMarkProductViewed}
+                onMarkProductAgainViewed={onMarkProductAgainViewed}
               />
             ))
           )}

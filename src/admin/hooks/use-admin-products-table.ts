@@ -9,7 +9,7 @@ import { normalizeServiceProduct } from "../../shared/live-product-normalizer";
 import type { ProductWriteState } from "../../shared/product-state";
 import { readAdminProductsTableCache, saveAdminProductsTableCache } from "../admin-products-table-cache";
 import { markAdminProductsReturnStateRestored, readAdminProductsReturnState } from "../admin-products-return-state";
-import { markAdminProductViewed, markAllAdminProductsViewed } from "../admin-product-views-api";
+import { markAdminProductAgainViewed, markAdminProductViewed, markAllAdminProductsViewed } from "../admin-product-views-api";
 import {
   forgetLocallyViewedProductIds,
   readLocallyViewedProductIds,
@@ -72,6 +72,7 @@ function mapAdminTableItem(raw: Record<string, unknown>, locallyViewedIds?: Set<
     internal_category_name: String(raw.internal_category_name || internalCategoryNames[0] || "").trim() || null,
     internal_category_names: internalCategoryNames,
     is_new: Boolean(raw.is_new) && !(locallyViewedIds?.has(normalized.id) ?? false),
+    is_again: Boolean(raw.is_again),
   };
 }
 
@@ -554,7 +555,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       if (!ok) {
         throw new Error("Не удалось отметить товар просмотренным");
       }
-      if (debouncedQuery.newOnly) {
+      if (debouncedQuery.newOnly && !tableProducts.find((item) => item.id === normalizedProductId)?.is_again) {
         // In "only new" mode the viewed row no longer matches the filter.
         startTransition(() => {
           setTableProducts((previous) => previous.filter((item) => item.id !== normalizedProductId));
@@ -574,7 +575,9 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       forgetLocallyViewedProductIds([normalizedProductId]);
       startTransition(() => {
         setTableProducts((previous) => previous.map((item) => (
-          item.id === normalizedProductId ? { ...item, is_new: true } : item
+          item.id === normalizedProductId
+            ? { ...item, is_new: true }
+            : item
         )));
       });
       pushToast(error instanceof Error ? error.message : "Не удалось отметить товар просмотренным");
@@ -614,6 +617,36 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       setMarkAllViewedPending(false);
     }
   }, [markAllViewedPending, debouncedQuery, reloadTableFacets, pushToast]);
+
+  const markTableProductAgainViewed = useCallback(async (productId: number) => {
+    const normalizedProductId = Number(productId);
+    if (!Number.isFinite(normalizedProductId) || normalizedProductId <= 0) {
+      return;
+    }
+    if (!tableProducts.some((item) => item.id === normalizedProductId && item.is_again)) {
+      return;
+    }
+    startTransition(() => {
+      setTableProducts((previous) => previous.map((item) => (
+        item.id === normalizedProductId ? { ...item, is_again: false } : item
+      )));
+    });
+    try {
+      if (!await markAdminProductAgainViewed(normalizedProductId)) {
+        throw new Error("Не удалось отметить AGAIN просмотренным");
+      }
+      if (debouncedQuery.newOnly && !tableProducts.find((item) => item.id === normalizedProductId)?.is_new) {
+        await reloadTableData();
+      }
+    } catch (error) {
+      startTransition(() => {
+        setTableProducts((previous) => previous.map((item) => (
+          item.id === normalizedProductId ? { ...item, is_again: true } : item
+        )));
+      });
+      pushToast(error instanceof Error ? error.message : "Не удалось отметить AGAIN просмотренным");
+    }
+  }, [tableProducts, pushToast, debouncedQuery.newOnly, reloadTableData]);
 
   useEffect(() => {
     if (tab !== "products" || tableProducts.length === 0) {
@@ -659,6 +692,7 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     deleteTableProduct,
     updateTableProductStatus,
     markTableProductViewed,
+    markTableProductAgainViewed,
     refreshProductsTable,
   };
 }

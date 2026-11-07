@@ -16,7 +16,7 @@ import { EmptyState } from "../shared/empty-state";
 import { buildProductPriceDisplay, getProductPriceSummary, withPriceRangePrefix } from "../shared/product-pricing";
 import { useToasts } from "../shared/use-toasts";
 import { useShowcaseEditPermission } from "../shared/use-showcase-edit-permission";
-import { markAdminProductViewed } from "./admin-product-views-api";
+import { markAdminProductAgainViewed, markAdminProductViewed } from "./admin-product-views-api";
 import { forgetLocallyViewedProductIds, rememberLocallyViewedProductIds } from "./admin-product-views-local";
 import { getAdminProductsReturnHref } from "./admin-products-return-state";
 import { FloatingPopover } from "./floating-popover";
@@ -202,6 +202,8 @@ export function ShowcaseProductPage() {
     openEditMode?: boolean;
     adminReturnHref?: string;
     fromControlPanel?: boolean;
+    showcaseReturnHref?: string;
+    showcaseReturnIndex?: number | null;
   } | null;
   const openEditModeFromState = Boolean(navigationState?.openEditMode);
   // Control panel origin: explicit state, legacy ?from=admin, or stored products return href.
@@ -292,6 +294,7 @@ export function ShowcaseProductPage() {
           rememberLocallyViewedProductIds([productId]);
           try {
             const ok = await markAdminProductViewed(productId);
+              void markAdminProductAgainViewed(productId);
             if (!ok) {
               forgetLocallyViewedProductIds([productId]);
             }
@@ -1316,7 +1319,22 @@ export function ShowcaseProductPage() {
             ← Назад в панель управления
           </Link>
         ) : (
-          <Link className="btn-link" to="/catalog">
+          <Link
+            className="btn-link"
+            to={navigationState?.showcaseReturnHref || "/catalog"}
+            onClick={(event) => {
+              if (
+                navigationState?.showcaseReturnHref
+                && typeof navigationState.showcaseReturnIndex === "number"
+                && window.history.state?.idx === navigationState.showcaseReturnIndex + 1
+                && event.button === 0
+                && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+              ) {
+                event.preventDefault();
+                navigate(-1);
+              }
+            }}
+          >
             ← Назад на витрину
           </Link>
         )}

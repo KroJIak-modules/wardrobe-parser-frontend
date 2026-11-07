@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchAdminDesignerMappings,
+  markAdminBrandAgainViewed,
   markAdminBrandViewed,
+  markAdminDesignerAgainViewed,
   markAdminDesignerViewed,
   markAllAdminDesignerViewsViewed,
   readAdminDesignerMappingsState,
@@ -22,6 +24,7 @@ function normalizeRow(row: AdminDesignerSourceRow): AdminDesignerSourceRow {
     designer_name: String(row.designer_name || "").trim(),
     include_in_designers: Boolean(row.include_in_designers),
     is_new: Boolean(row.is_new),
+    is_again: Boolean(row.is_again),
   };
 }
 
@@ -53,6 +56,7 @@ function normalizeDesigner(designer: AdminFinalDesigner): AdminFinalDesigner {
     name: String(designer.name || "").trim(),
     description: String(designer.description || "").trim(),
     is_new: Boolean(designer.is_new),
+    is_again: Boolean(designer.is_again),
   };
 }
 
@@ -187,7 +191,9 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
       if (kind === "brands") {
         setRows((prev) => prev.map((row) => (row.is_new ? { ...row, is_new: false } : row)));
       } else {
-        setDesigners((prev) => prev.map((designer) => (designer.is_new ? { ...designer, is_new: false } : designer)));
+        setDesigners((prev) => prev.map((designer) => (
+          designer.is_new ? { ...designer, is_new: false } : designer
+        )));
       }
       pushToast(marked > 0 ? `Отмечено просмотренным: ${marked}` : "Всё уже просмотрено");
     } catch (error) {
@@ -209,6 +215,18 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     });
   }, [pushToast]);
 
+  const onMarkBrandAgainViewed = useCallback((sourceBrand: string) => {
+    setRows((prev) => prev.map((row) => (
+      row.source_brand === sourceBrand ? { ...row, is_again: false } : row
+    )));
+    markAdminBrandAgainViewed(sourceBrand).catch((error) => {
+      setRows((prev) => prev.map((row) => (
+        row.source_brand === sourceBrand ? { ...row, is_again: true } : row
+      )));
+      pushToast(error instanceof Error ? error.message : "Не удалось отметить AGAIN бренда");
+    });
+  }, [pushToast]);
+
   const onMarkDesignerViewed = useCallback((designerId: string) => {
     setDesigners((prev) => prev.map((designer) => (
       designer.id === designerId ? { ...designer, is_new: false } : designer
@@ -218,6 +236,18 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
         designer.id === designerId ? { ...designer, is_new: true } : designer
       )));
       pushToast(error instanceof Error ? error.message : "Не удалось отметить дизайнера просмотренным");
+    });
+  }, [pushToast]);
+
+  const onMarkDesignerAgainViewed = useCallback((designerId: string) => {
+    setDesigners((prev) => prev.map((designer) => (
+      designer.id === designerId ? { ...designer, is_again: false } : designer
+    )));
+    markAdminDesignerAgainViewed(designerId).catch((error) => {
+      setDesigners((prev) => prev.map((designer) => (
+        designer.id === designerId ? { ...designer, is_again: true } : designer
+      )));
+      pushToast(error instanceof Error ? error.message : "Не удалось отметить AGAIN дизайнера");
     });
   }, [pushToast]);
 
@@ -299,7 +329,9 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     markAllViewedPending,
     onMarkAllViewed,
     onMarkBrandViewed,
+    onMarkBrandAgainViewed,
     onMarkDesignerViewed,
+    onMarkDesignerAgainViewed,
     onChangeDesignerName,
     onToggleIncludeInDesigners,
     onChangeFinalDesignerName,

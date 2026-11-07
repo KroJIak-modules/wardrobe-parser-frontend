@@ -77,6 +77,21 @@ export function optimizeImageUrl(
   }
 }
 
+// Only Shopify's CDN has a verified width API; leave unknown and signed URLs intact.
+export function getShopifyImageSrcSet(url: string | null | undefined): string | undefined {
+  const normalized = normalizeImageSourceUrl(url);
+  if (!normalized) return undefined;
+  try {
+    const parsed = new URL(normalized, window.location.origin);
+    if (parsed.hostname.toLowerCase() !== "cdn.shopify.com") return undefined;
+    return [480, 640, 960, 1280]
+      .map((width) => `${optimizeImageUrl(normalized, { width })} ${width}w`)
+      .join(", ");
+  } catch {
+    return undefined;
+  }
+}
+
 export function getProductPrimaryImageUrl(
   product: {
     image_urls?: string[] | null;

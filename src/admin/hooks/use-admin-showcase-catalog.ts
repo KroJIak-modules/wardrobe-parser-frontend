@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { fetchCatalogExperience, fetchCatalogProducts } from "../showcase-api";
 import type {
   CatalogExperienceResponse,
@@ -11,6 +12,7 @@ import { resolveAdminCatalogHeader } from "../showcase-catalog-header";
 import { adaptShowcaseFilterGroups } from "../showcase-catalog-filter-logic";
 import { createShowcaseFilterShell } from "../showcase-filter-shell";
 import { useAdminShowcaseNavigation } from "./use-admin-showcase-navigation";
+import { readShowcaseCatalogCache, updateShowcaseCatalogCache } from "../showcase-catalog-cache";
 
 const DEFAULT_PAGE_SIZE = 48;
 
@@ -20,6 +22,9 @@ function readPage(searchParams: URLSearchParams): number {
 }
 
 export function useAdminShowcaseCatalog(viewKey: CatalogViewKey, searchParams: URLSearchParams) {
+  const location = useLocation();
+  const cacheKey = `${viewKey}:${location.pathname}${location.search}`;
+  const cached = readShowcaseCatalogCache(cacheKey);
   const page = readPage(searchParams);
   const searchKey = searchParams.toString();
   const { sections: navigationSections } = useAdminShowcaseNavigation();
@@ -29,12 +34,14 @@ export function useAdminShowcaseCatalog(viewKey: CatalogViewKey, searchParams: U
     return `${viewKey}::${next.toString()}`;
   }, [searchKey, viewKey]);
 
-  const [experience, setExperience] = useState<CatalogExperienceResponse | null>(null);
-  const [experienceKey, setExperienceKey] = useState<string>("");
-  const [filterGroups, setFilterGroups] = useState<CatalogFilterGroup[]>(() => createShowcaseFilterShell());
-  const [products, setProducts] = useState<readonly ShowcaseCatalogProduct[]>([]);
-  const [total, setTotal] = useState(0);
-  const [productsLoading, setProductsLoading] = useState(true);
+  const [experience, setExperience] = useState<CatalogExperienceResponse | null>(() => cached?.experience ?? null);
+  const [experienceKey, setExperienceKey] = useState<string>(() => cached?.experience ? experienceSearchKey : "");
+  const [filterGroups, setFilterGroups] = useState<CatalogFilterGroup[]>(
+    () => cached?.experience ? adaptShowcaseFilterGroups(cached.experience.filterGroups) : createShowcaseFilterShell(),
+  );
+  const [products, setProducts] = useState<readonly ShowcaseCatalogProduct[]>(() => cached?.products?.items ?? []);
+  const [total, setTotal] = useState(() => cached?.products?.total ?? 0);
+  const [productsLoading, setProductsLoading] = useState(() => !cached?.products);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,6 +53,7 @@ export function useAdminShowcaseCatalog(viewKey: CatalogViewKey, searchParams: U
         return;
       }
       if (result) {
+        updateShowcaseCatalogCache(cacheKey, { experience: result });
         setExperience(result);
         setExperienceKey(experienceSearchKey);
         setFilterGroups(adaptShowcaseFilterGroups(result.filterGroups));
@@ -56,11 +64,11 @@ export function useAdminShowcaseCatalog(viewKey: CatalogViewKey, searchParams: U
     return () => {
       aborted = true;
     };
-  }, [experienceSearchKey, viewKey]);
+  }, [cacheKey, experienceSearchKey, viewKey]);
 
   useEffect(() => {
     let aborted = false;
-    setProductsLoading(true);
+    if (!cached?.products) setProductsLoading(true);
     setErrorMessage(null);
 
     void (async () => {
@@ -76,13 +84,16 @@ export function useAdminShowcaseCatalog(viewKey: CatalogViewKey, searchParams: U
       }
 
       if (result) {
+        updateShowcaseCatalogCache(cacheKey, { products: result });
         setProducts(result.items);
         setTotal(result.total);
         setErrorMessage(null);
       } else {
-        setProducts([]);
-        setTotal(0);
-        setErrorMessage("Не удалось загрузить товары витрины");
+        if (!cached?.products) {
+          setProducts([]);
+          setTotal(0);
+          setErrorMessage("Не удалось загрузить товары витрины");
+        }
       }
       setProductsLoading(false);
     })();
@@ -90,7 +101,7 @@ export function useAdminShowcaseCatalog(viewKey: CatalogViewKey, searchParams: U
     return () => {
       aborted = true;
     };
-  }, [page, searchKey, viewKey]);
+  }, [cacheKey, page, searchKey, viewKey]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE)), [total]);
 

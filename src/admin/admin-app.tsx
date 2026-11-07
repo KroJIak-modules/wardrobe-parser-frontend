@@ -16,6 +16,8 @@ import { AdminShowcaseDesignersPage } from "./admin-showcase-designers-page";
 import { AdminPage } from "./admin-page";
 import { AdminShowcaseLayout } from "./admin-showcase-layout";
 import { ShowcaseProductPage } from "./showcase-product-page";
+import { AdminRouteScroll } from "./admin-route-scroll";
+import { clearShowcaseCatalogCache } from "./showcase-catalog-cache";
 
 const MANAGEMENT_PATH = "/control";
 const LOGIN_PATH = "/login";
@@ -180,6 +182,7 @@ function AdminRoutes() {
   const defaultAdminPath = `${MANAGEMENT_PATH}/${DEFAULT_ADMIN_TAB}`;
 
   useEffect(() => {
+    if (isLoginRoute) clearShowcaseCatalogCache();
     setAuthChecking(true);
     let alive = true;
     void (async () => {
@@ -221,10 +224,10 @@ function AdminRoutes() {
     <Routes>
       <Route path="/" element={<AdminShowcaseRoute />}>
         <Route index element={<Navigate to="/catalog" replace />} />
-        <Route path="catalog" element={<AdminShowcaseCatalogPage viewKey="default" />} />
-        <Route path="catalog/designers" element={<AdminShowcaseCatalogPage viewKey="designers" />} />
+        <Route path="catalog" element={<AdminShowcaseCatalogPage key={location.key} viewKey="default" />} />
+        <Route path="catalog/designers" element={<AdminShowcaseCatalogPage key={location.key} viewKey="designers" />} />
         <Route path="catalog/sale" element={<Navigate to="/sale" replace />} />
-        <Route path="sale" element={<AdminShowcaseCatalogPage viewKey="sale" />} />
+        <Route path="sale" element={<AdminShowcaseCatalogPage key={location.key} viewKey="sale" />} />
         <Route path="designers" element={<AdminShowcaseDesignersPage />} />
         <Route path="product/:id" element={<ShowcaseProductPage />} />
       </Route>
@@ -250,6 +253,7 @@ function AdminRoutes() {
       <RouteTitleSync />
       <RouteTransitionIndicator />
       {routes}
+      <AdminRouteScroll />
     </LiveDataProvider>
   );
 }

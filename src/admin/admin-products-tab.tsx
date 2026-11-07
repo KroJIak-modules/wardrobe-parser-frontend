@@ -55,6 +55,7 @@ type Props = {
   onDeleteProduct: (productId: number) => Promise<boolean>;
   onUpdateProductStatus: (productId: number, state: ProductWriteState) => Promise<boolean>;
   onMarkProductViewed: (productId: number) => void;
+  onMarkProductAgainViewed: (productId: number) => void;
 };
 
 export function AdminProductsTab({
@@ -103,6 +104,7 @@ export function AdminProductsTab({
   onDeleteProduct,
   onUpdateProductStatus,
   onMarkProductViewed,
+  onMarkProductAgainViewed,
 }: Props) {
   return (
     <div className="card">
@@ -158,6 +160,7 @@ export function AdminProductsTab({
               onDeleteProduct={onDeleteProduct}
               onUpdateProductStatus={onUpdateProductStatus}
               onMarkProductViewed={onMarkProductViewed}
+              onMarkProductAgainViewed={onMarkProductAgainViewed}
             />
           </div>
         </>

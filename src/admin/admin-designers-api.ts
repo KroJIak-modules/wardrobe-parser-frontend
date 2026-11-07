@@ -46,12 +46,14 @@ function normalizePayload(payload: AdminDesignerMappingsPayload): AdminDesignerM
       designer_name: normalizeText(row.designer_name),
       include_in_designers: Boolean(row.include_in_designers),
       is_new: Boolean(row.is_new),
+      is_again: Boolean(row.is_again),
     })),
     designers: cloneDesigners(payload.designers).map((designer) => ({
       id: normalizeText(designer.id),
       name: normalizeText(designer.name),
       description: String(designer.description || "").trim(),
       is_new: Boolean(designer.is_new),
+      is_again: Boolean(designer.is_again),
     })),
   };
 }
@@ -128,12 +130,30 @@ export async function markAdminBrandViewed(sourceBrand: string): Promise<void> {
   }
 }
 
+export async function markAdminBrandAgainViewed(sourceBrand: string): Promise<void> {
+  const response = await postWithTimeout(
+    `${API_BASE}/admin/designers/brands/${encodeURIComponent(sourceBrand)}/again-view`,
+  );
+  if (!response.ok) {
+    throw new Error(`Mark brand AGAIN error: ${response.status}`);
+  }
+}
+
 export async function markAdminDesignerViewed(designerId: string): Promise<void> {
   const response = await postWithTimeout(
     `${API_BASE}/admin/designers/designers/${encodeURIComponent(designerId)}/view`,
   );
   if (!response.ok) {
     throw new Error(`Mark designer viewed API error: ${response.status}`);
+  }
+}
+
+export async function markAdminDesignerAgainViewed(designerId: string): Promise<void> {
+  const response = await postWithTimeout(
+    `${API_BASE}/admin/designers/designers/${encodeURIComponent(designerId)}/again-view`,
+  );
+  if (!response.ok) {
+    throw new Error(`Mark designer AGAIN error: ${response.status}`);
   }
 }
 

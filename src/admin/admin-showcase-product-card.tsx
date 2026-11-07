@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Eye, EyeOff, ExternalLink, Star } from "lucide-react";
-import { Link } from "react-router-dom";
-import { optimizeImageUrl } from "../shared/product-image";
+import { Link, useLocation } from "react-router-dom";
+import { getShopifyImageSrcSet, optimizeImageUrl } from "../shared/product-image";
 import { FloatingPopover } from "./floating-popover";
 import {
   fetchShowcaseProductCustomCatalogs,
@@ -11,6 +11,7 @@ import {
   type ShowcaseProductSource,
 } from "./showcase-api";
 import type { ShowcaseCatalogProduct } from "./showcase-contracts";
+import { saveAdminRouteScroll } from "./admin-route-scroll";
 
 function statusLabel(status: ShowcaseCatalogProduct["status"]): string {
   if (status === "in_stock") {
@@ -32,22 +33,30 @@ function formatPriceRub(value: number | null): string {
 function ShowcaseProductCardMedia({
   imageUrl,
   alt,
+  priority = false,
 }: {
   imageUrl: string | null;
   alt: string;
+  priority?: boolean;
 }) {
   const imageSrc = optimizeImageUrl(imageUrl, { width: 480, height: 640, quality: 60 });
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [imageState, setImageState] = useState<{ src: string | null; status: "loading" | "loaded" | "failed" }>({
+    src: imageSrc,
+    status: "loading",
+  });
+  const status = imageState.src === imageSrc ? imageState.status : "loading";
 
-  useEffect(() => {
-    setImageLoaded(false);
-    setImageFailed(false);
+  useLayoutEffect(() => {
+    const image = imageRef.current;
+    if (image?.complete && image.naturalWidth > 0) {
+      setImageState({ src: imageSrc, status: "loaded" });
+    }
   }, [imageSrc]);
 
-  const showEmpty = !imageSrc || imageFailed;
+  const showEmpty = !imageSrc || status === "failed";
   // Same pulse layer as catalog skeleton — stays until the real photo paints.
-  const showSkeleton = !showEmpty && !imageLoaded;
+  const showSkeleton = !showEmpty && status !== "loaded";
 
   return (
     <div className="showcase-product-card__media">
@@ -63,22 +72,24 @@ function ShowcaseProductCardMedia({
           {showEmpty ? "Нет фото" : null}
         </div>
       ) : null}
-      {imageSrc && !imageFailed ? (
+      {imageSrc && status !== "failed" ? (
         <img
+          ref={imageRef}
+          key={imageSrc}
           src={imageSrc}
+          srcSet={getShopifyImageSrcSet(imageUrl)}
+          sizes="(max-width: 760px) 50vw, (max-width: 1180px) 33vw, 25vw"
           alt={alt}
           className={
-            imageLoaded
+            status === "loaded"
               ? "showcase-product-card__image showcase-product-card__image--ready"
               : "showcase-product-card__image"
           }
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
           decoding="async"
-          onLoad={() => setImageLoaded(true)}
-          onError={() => {
-            setImageFailed(true);
-            setImageLoaded(false);
-          }}
+          fetchPriority={priority ? "high" : "auto"}
+          onLoad={() => setImageState({ src: imageSrc, status: "loaded" })}
+          onError={() => setImageState({ src: imageSrc, status: "failed" })}
         />
       ) : null}
     </div>
@@ -95,16 +106,24 @@ function updateMembership(
 
 export function AdminShowcaseProductCard({
   product,
+  priority = false,
   hidden = false,
   updating = false,
   onHide,
 }: {
   product: ShowcaseCatalogProduct;
+  priority?: boolean;
   hidden?: boolean;
   updating?: boolean;
   onHide: (productId: number) => void;
 }) {
+  const location = useLocation();
   const href = `/product/${product.id}`;
+  const productNavigationState = {
+    showcaseReturnHref: `${location.pathname}${location.search}${location.hash}`,
+    showcaseReturnIndex: typeof window.history.state?.idx === "number" ? window.history.state.idx : null,
+  };
+  const rememberScroll = () => saveAdminRouteScroll(location.key, window.scrollY);
   const [sources, setSources] = useState<ShowcaseProductSource[] | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [sourcesLoading, setSourcesLoading] = useState(false);
@@ -218,8 +237,8 @@ export function AdminShowcaseProductCard({
 
   return (
     <article className={hidden ? "showcase-product-card showcase-product-card--hidden" : "showcase-product-card"}>
-      <Link to={href} className="showcase-product-card__media-link" aria-label={`${product.brand.name} ${product.name}`}>
-        <ShowcaseProductCardMedia imageUrl={product.image_url} alt={product.name} />
+      <Link to={href} state={productNavigationState} onClick={rememberScroll} className="showcase-product-card__media-link" aria-label={`${product.brand.name} ${product.name}`}>
+        <ShowcaseProductCardMedia imageUrl={product.image_url} alt={product.name} priority={priority} />
       </Link>
       <div className="showcase-product-card__meta">
         {designerHref ? (
@@ -229,7 +248,7 @@ export function AdminShowcaseProductCard({
         ) : (
           <p className="showcase-product-card__brand showcase-product-card__brand--static">{product.brand.name || "—"}</p>
         )}
-        <Link to={href} className="showcase-product-card__title-link">
+        <Link to={href} state={productNavigationState} onClick={rememberScroll} className="showcase-product-card__title-link">
           <p className="showcase-product-card__title">{product.name}</p>
           <p className="showcase-product-card__statusline">
             <span className="showcase-product-card__price">{formatPriceRub(product.price_rub)}</span>
