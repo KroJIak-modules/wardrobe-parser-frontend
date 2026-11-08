@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Eye, EyeOff, ExternalLink, Star } from "lucide-react";
+import { Eye, EyeOff, ExternalLink, Globe2, Star } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { getShopifyImageSrcSet, optimizeImageUrl } from "../shared/product-image";
 import { FloatingPopover } from "./floating-popover";
@@ -12,6 +12,7 @@ import {
 } from "./showcase-api";
 import type { ShowcaseCatalogProduct } from "./showcase-contracts";
 import { saveAdminRouteScroll } from "./admin-route-scroll";
+import { publicProductUrl, publicSiteLabel } from "../shared/public-product-links";
 
 function statusLabel(status: ShowcaseCatalogProduct["status"]): string {
   if (status === "in_stock") {
@@ -322,6 +323,16 @@ export function AdminShowcaseProductCard({
             </div>
           </FloatingPopover>
           <div className="showcase-product-card__source-menu">
+            <a
+              className="showcase-product-card__quick-action"
+              href={publicProductUrl(product.id)}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Открыть ${publicSiteLabel()}`}
+              title={`Открыть ${publicSiteLabel()}`}
+            >
+              <Globe2 size={18} aria-hidden="true" />
+            </a>
             <button
               type="button"
               className="showcase-product-card__quick-action"

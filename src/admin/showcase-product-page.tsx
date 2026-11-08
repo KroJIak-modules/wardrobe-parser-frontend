@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Globe2 } from "lucide-react";
 import { fetchAdminDesignerMappings } from "./admin-designers-api";
 import { buildPricingExampleView } from "./admin-pricing-view-model";
 import { formatDisplayMoney, renderLegendSymbol } from "./admin-formatters";
 import { toExternalHttpUrl } from "../shared/external-links";
+import { publicProductUrl, publicSiteLabel } from "../shared/public-product-links";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { LatexBrand } from "../shared/latex-brand";
 import { IconChevronLeft, IconChevronRight, IconExternalLink, IconEye, IconEyeOff, IconPlus } from "../shared/mono-icons";
@@ -1462,6 +1464,16 @@ export function ShowcaseProductPage() {
                     <X className="icon-svg" />
                   </button>
                 ) : null}
+                <a
+                  className="btn-link product-action-btn svp-icon-action svp-icon-action--secondary"
+                  href={publicProductUrl(product.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`Открыть ${publicSiteLabel()}`}
+                  aria-label={`Открыть ${publicSiteLabel()}`}
+                >
+                  <Globe2 className="icon-svg" />
+                </a>
                 {externalProductUrl ? (
                   <a
                     className="btn-link product-action-btn svp-icon-action svp-icon-action--secondary"

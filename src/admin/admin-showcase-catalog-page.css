@@ -576,6 +576,9 @@
 
 .showcase-product-card__source-menu {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .showcase-product-card__source-options {

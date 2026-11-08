@@ -218,3 +218,12 @@
   transform: none;
   cursor: not-allowed;
 }
+.products-table-site-links {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+}
+
+.products-table-site-links__public {
+  font-size: 12px;
+}

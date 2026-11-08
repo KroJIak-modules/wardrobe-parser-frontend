@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import { toExternalHttpUrl } from "../shared/external-links";
+import { publicProductUrl, publicSiteLabel } from "../shared/public-product-links";
 import { ImageWithFallback } from "../shared/image-with-fallback";
 import { getProductPrimaryImageUrl } from "../shared/product-image";
 import { getProductPriceSummary, withPriceRangePrefix } from "../shared/product-pricing";
@@ -233,6 +234,7 @@ function AdminProductsTableRow({
   const canSwitchToInStock = canSwitchAvailabilityToInStock(orderabilityStatus);
   const availabilityLockedReason = getAvailabilityModeLockedReason(orderabilityStatus);
   const externalProductUrl = toExternalHttpUrl(product.url);
+  const publicProductHref = publicProductUrl(product.id);
   const assignedCatalogsAndFilters = (product.internal_category_names || [])
     .map((item) => String(item || "").trim())
     .filter(Boolean);
@@ -327,13 +329,16 @@ function AdminProductsTableRow({
         </div>
       </td>
       <td>
-        {externalProductUrl ? (
-          <a className="btn-link" href={externalProductUrl} target="_blank" rel="noreferrer">
-            {sourceLabel}
+        <div className="products-table-site-links">
+          {externalProductUrl ? (
+            <a className="btn-link" href={externalProductUrl} target="_blank" rel="noreferrer">
+              {sourceLabel}
+            </a>
+          ) : <span>{sourceLabel}</span>}
+          <a className="btn-link products-table-site-links__public" href={publicProductHref} target="_blank" rel="noreferrer">
+            {publicSiteLabel()}
           </a>
-        ) : (
-          sourceLabel
-        )}
+        </div>
       </td>
       <td>
         {assignedCatalogsAndFilters.length > 0
