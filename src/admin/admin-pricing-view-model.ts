@@ -9,7 +9,7 @@ export function isPricingBlockedByInitialBybit(pricingSettings: PricingSettings 
   }
   const hasSuccessfulRefresh = Boolean(pricingSettings.bybit_last_updated_at);
   const status = String(pricingSettings.bybit_rate_status || "").toLowerCase();
-  const failedNow = status === "fallback_stored" || status === "unknown";
+  const failedNow = status === "fallback_stored" || status === "fallback_market" || status === "unknown";
   return !hasSuccessfulRefresh && failedNow;
 }
 
@@ -27,6 +27,7 @@ export function buildBybitWorkerInfo(pricingSettings: PricingSettings | null, no
   const intervalSecRaw = Number(pricingSettings.bybit_worker_interval_sec);
   const intervalSec = Number.isFinite(intervalSecRaw) && intervalSecRaw > 0 ? Math.floor(intervalSecRaw) : 0;
   const intervalHours = intervalSec / 3600;
+  const status = String(pricingSettings.bybit_rate_status || "").toLowerCase();
   const intervalLabel = intervalSec <= 0
     ? "-"
     : Number.isInteger(intervalHours) && intervalHours >= 1
@@ -38,7 +39,10 @@ export function buildBybitWorkerInfo(pricingSettings: PricingSettings | null, no
 
   let stateLabel = "Нет обновлений";
   let stateClass = "status-pill status-pill--muted";
-  if (pricingSettings.bybit_last_error) {
+  if (status === "fallback_market") {
+    stateLabel = "Нет предложений";
+    stateClass = "status-pill status-pill--warn";
+  } else if (pricingSettings.bybit_last_error) {
     stateLabel = "Ошибка";
     stateClass = "status-pill status-pill--bad";
   } else if (lastUpdatedDate && !Number.isNaN(lastUpdatedDate.getTime()) && (nowTickMs - lastUpdatedDate.getTime()) <= staleAfterMs) {
@@ -59,7 +63,9 @@ export function buildBybitWorkerInfo(pricingSettings: PricingSettings | null, no
     intervalSec,
     intervalLabel,
     ageLabel,
-    errorMessage: pricingSettings.bybit_last_error || null,
+    errorMessage: status === "fallback_market"
+      ? "Bybit P2P сейчас не вернул предложений USDT/RUB. Используется сохраненный курс; следующая проверка будет выполнена автоматически."
+      : pricingSettings.bybit_last_error || null,
   };
 }
 
