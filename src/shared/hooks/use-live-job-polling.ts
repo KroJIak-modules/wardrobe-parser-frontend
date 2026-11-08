@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { API_BASE, authFetch } from "../admin-auth";
+import { API_BASE, authFetch, getAdminMeCached } from "../admin-auth";
+import { hasAnyAdminPermission } from "../admin-permissions";
 
 type JobsLatest = {
   job_id?: string;
@@ -26,6 +27,10 @@ export function useLiveJobPolling({ latestJob, setLatestJob, refreshAfterTermina
     const inProgress = Boolean(latestJob && ["queued", "running"].includes(latestJob.status));
     const timer = window.setInterval(async () => {
       try {
+        const admin = await getAdminMeCached();
+        if (!hasAnyAdminPermission(admin, "control.sync.read", "control.sources.read")) {
+          return;
+        }
         const res = await authFetch(`${API_BASE}/jobs/latest`);
         if (!res.ok) {
           return;

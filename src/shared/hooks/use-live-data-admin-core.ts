@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { API_BASE, authFetch } from "../admin-auth";
+import { API_BASE, authFetch, getAdminMeCached } from "../admin-auth";
+import { hasAnyAdminPermission } from "../admin-permissions";
 
 type Source = {
   key: string;
@@ -29,6 +30,11 @@ export function useLiveDataAdminCore({ setSources, setLatestJob }: Params) {
   }, [setSources]);
 
   const refreshAdminCoreOnly = useCallback(async () => {
+    const admin = await getAdminMeCached();
+    if (!hasAnyAdminPermission(admin, "control.sync.read", "control.sources.read")) {
+      setLatestJob(null);
+      return;
+    }
     const latestJobRes = await authFetch(`${API_BASE}/jobs/latest`);
     if (!latestJobRes.ok) {
       throw new Error(`Jobs API error: ${latestJobRes.status}`);

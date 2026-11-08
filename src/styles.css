@@ -2455,9 +2455,9 @@ button {
   border: 1px solid #dbe4f2;
   border-radius: 12px;
   background: #fff;
-  padding: 12px;
+  padding: 18px;
   display: grid;
-  gap: 10px;
+  gap: 14px;
   align-content: start;
   align-items: start;
 }
@@ -2477,7 +2477,7 @@ button {
 
 .admin-accounts-list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   max-height: 240px;
   overflow: auto;
 }
@@ -2492,6 +2492,14 @@ button {
   border-radius: 10px;
   background: #fbfcff;
   text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin .admin-accounts-role:hover:not(:disabled) {
+  border-color: #bdcde5;
+  background: #f4f8ff;
+  box-shadow: 0 3px 10px rgba(42, 70, 112, 0.08);
+  transform: none;
 }
 
 .admin-accounts-role span {
@@ -2511,12 +2519,48 @@ button {
 .admin-accounts-form-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
 .admin-accounts-form-grid label {
   display: grid;
   gap: 6px;
+}
+
+.admin-accounts-form-grid > span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3b4658;
+}
+
+.admin-accounts-create-modal > .admin-accounts-form-grid {
+  margin-bottom: 2px;
+}
+
+.admin-accounts-create-modal {
+  width: min(920px, 100%);
+  max-height: min(90vh, 900px);
+  overflow: auto;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.admin-accounts-create-modal .modal-head {
+  margin-bottom: 0;
+}
+
+.admin-accounts-modal-close {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 9px;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
 }
 
 .admin-accounts-form-grid label > span {
@@ -2527,23 +2571,29 @@ button {
 
 .admin-accounts-form-grid--users {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
   align-items: end;
+}
+
+.admin-accounts-user-create-form {
+  display: grid;
+  gap: 16px;
+  margin: 0;
 }
 
 .admin-accounts-permissions-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 }
 
 .admin-accounts-scope {
   border: 1px solid #dfe7f4;
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 12px;
   background: #fcfdff;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .admin-accounts-scope__title {
@@ -2556,7 +2606,7 @@ button {
 .admin-accounts-scope__actions {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 6px;
+  gap: 8px;
 }
 
 .admin-accounts-perm-check {

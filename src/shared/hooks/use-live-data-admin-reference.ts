@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { API_BASE } from "../admin-auth";
+import { API_BASE, getAdminMeCached } from "../admin-auth";
+import { hasAnyAdminPermission } from "../admin-permissions";
 import { apiJson } from "../api-client";
 import { normalizeServiceProduct } from "../live-product-normalizer";
 import { toSlug } from "../utils";
@@ -259,6 +260,12 @@ export function useLiveDataAdminReference(onError: (message: string) => void) {
   }, []);
 
   const refreshAdminUiOnly = useCallback(async () => {
+    const admin = await getAdminMeCached();
+    if (!hasAnyAdminPermission(admin, "control.sync.read", "control.settings.read")) {
+      setAdminUiSettings(null);
+      setAdminUiLoaded(true);
+      return;
+    }
     const payload = await apiJson<AdminUiSettings>(`${API_BASE}/settings/admin-ui`);
     setAdminUiSettings(payload || null);
     setAdminUiLoaded(true);

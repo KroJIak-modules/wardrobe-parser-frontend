@@ -11,17 +11,19 @@ type UseAdminSyncControlsParams = {
   runSync: () => Promise<{ ok: boolean; message: string }>;
   cancelSync: (jobId: string) => Promise<{ ok: boolean; message: string }>;
   pushToast: (message: string) => void;
+  canReadSync: boolean;
+  canEditSync: boolean;
 };
 
 export function useAdminSyncControls(params: UseAdminSyncControlsParams) {
-  const { latestJob, runSync, cancelSync, pushToast } = params;
+  const { latestJob, runSync, cancelSync, pushToast, canReadSync, canEditSync } = params;
 
   const isSyncInProgress = useMemo(
     () => Boolean(latestJob && ["queued", "running"].includes(latestJob.status)),
     [latestJob]
   );
-  const canRunSync = !isSyncInProgress;
-  const canCancelSync = Boolean(latestJob?.can_cancel && latestJob?.job_id);
+  const canRunSync = canEditSync && !isSyncInProgress;
+  const canCancelSync = canEditSync && Boolean(latestJob?.can_cancel && latestJob?.job_id);
 
   const onRunSync = async () => {
     const result = await runSync();
@@ -42,6 +44,7 @@ export function useAdminSyncControls(params: UseAdminSyncControlsParams) {
     isSyncInProgress,
     canRunSync,
     canCancelSync,
+    canReadSync,
     onRunSync,
     onCancelSync,
   };

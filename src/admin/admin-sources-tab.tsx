@@ -6,6 +6,7 @@ import { normalizeServiceProduct } from "../shared/live-product-normalizer";
 import { deriveProductWriteStateFromVariants, getProductStateClass, getProductStateLabel } from "../shared/product-state";
 import { optimizeImageUrl } from "../shared/product-image";
 import { getAdminMeCached } from "../shared/admin-auth";
+import { hasAnyAdminPermission } from "../shared/admin-permissions";
 import { API_BASE, authFetch } from "./auth-fetch";
 import { AdminManualProductEditModal, type ManualProductEditDraft, type ManualEditVariant } from "./admin-manual-product-edit-modal";
 import "./admin-sources-tab.css";
@@ -73,6 +74,7 @@ type Props = {
   autoSyncNextRunAt: string | null;
   autoSyncLastError: string | null;
   updateAdminUiSettings: (payload: { auto_sync_period_minutes?: number }) => Promise<{ ok: boolean; message: string }>;
+  canEditSync: boolean;
   latestJob: {
     job_id?: string;
     status?: string;
@@ -259,6 +261,7 @@ export function AdminSourcesTab({
   autoSyncNextRunAt,
   autoSyncLastError,
   updateAdminUiSettings,
+  canEditSync,
   latestJob,
   runSyncForSource,
   cancelSync,
@@ -321,14 +324,8 @@ export function AdminSourcesTab({
           setCanEditSources(false);
           return;
         }
-        if (me?.is_superuser) {
-          setCanEditSources(true);
-          setCanEditAutoSyncPeriod(true);
-          return;
-        }
-        const perms = Array.isArray(me?.permissions) ? me.permissions : [];
-        setCanEditSources(perms.includes("control.sources.edit"));
-        setCanEditAutoSyncPeriod(perms.includes("control.settings.edit"));
+        setCanEditSources(hasAnyAdminPermission(me, "control.sources.edit"));
+        setCanEditAutoSyncPeriod(hasAnyAdminPermission(me, "control.sync.edit", "control.settings.edit"));
       } catch {
         setCanEditSources(false);
         setCanEditAutoSyncPeriod(false);
@@ -820,7 +817,7 @@ export function AdminSourcesTab({
                         className={sourceMode === "auto" ? "source-badge--ready" : "source-badge--manual"}
                         label={getSourceModeLabel(sourceMode)}
                         actionLabel={sourceMode === "auto" ? "Перевести источник в ручной режим" : "Перевести источник в автоматический режим"}
-                        disabled={cardLocked}
+                        disabled={!canEditSync || thisSourceDisabled || !source.enabled}
                         onClick={() => {
                           void (async () => {
                             const result = await updateSourceMode(source.key, sourceMode === "auto" ? "manual" : "auto");
@@ -871,7 +868,7 @@ export function AdminSourcesTab({
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={cardLocked}
+                        disabled={!canEditSync || thisSourceDisabled || !source.enabled}
                         onClick={() => {
                           void (async () => {
                             const result = await runSyncForSource(source.key);

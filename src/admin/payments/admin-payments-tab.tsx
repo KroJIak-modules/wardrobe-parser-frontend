@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAdminMeCached } from "../../shared/admin-auth";
+import { hasAnyAdminPermission } from "../../shared/admin-permissions";
 import { PaymentModal } from "./payment-modal";
 import { createPayment, getPaymentReadiness, listPayments, refreshPayment, type Payment, type PaymentDraft } from "./payments-api";
 import { formatPaymentLinkLifetime, getPaymentLinkRemainingSeconds } from "./payment-lifetime";
@@ -35,7 +36,7 @@ export function AdminPaymentsTab({ pushToast }: { pushToast: (message: string) =
     void getAdminMeCached().then((me) => {
       if (active) {
         setUserId(me?.user_id ?? null);
-        setCanEdit(Boolean(me && (me.is_superuser || me.permissions?.includes("control.settings.edit"))));
+        setCanEdit(hasAnyAdminPermission(me, "control.payments.edit", "control.settings.edit"));
       }
     }).catch(() => { if (active) setCanEdit(false); });
     void getPaymentReadiness().then((readiness) => {

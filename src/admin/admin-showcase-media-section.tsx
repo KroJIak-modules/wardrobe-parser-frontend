@@ -75,6 +75,7 @@ function renderMediaPreview(asset: ShowcaseMediaAsset, { label }: { label: strin
 type Props = {
   showcaseState: ShowcaseMediaState;
   showcaseSaving: boolean;
+  canEdit: boolean;
   heroInputRefs: Record<ShowcaseViewportKey, RefObject<HTMLInputElement | null>>;
   carouselInputRefs: Record<ShowcaseViewportKey, RefObject<HTMLInputElement | null>>;
   onPickHeroAsset: (viewport: ShowcaseViewportKey, event: ChangeEvent<HTMLInputElement>) => Promise<void>;
@@ -250,6 +251,7 @@ function ShowcaseCarouselDragOverlay({
 export function AdminShowcaseMediaSection({
   showcaseState,
   showcaseSaving,
+  canEdit,
   heroInputRefs,
   carouselInputRefs,
   onPickHeroAsset,
@@ -258,6 +260,7 @@ export function AdminShowcaseMediaSection({
   onRemoveCarouselAsset,
   onCommitCarouselOrder,
 }: Props) {
+  const interactionDisabled = showcaseSaving || !canEdit;
   const [localCarouselAssets, setLocalCarouselAssets] = useState<Record<ShowcaseViewportKey, ShowcaseMediaAsset[]>>({
     desktop: showcaseState.desktop.carouselAssets,
     mobile: showcaseState.mobile.carouselAssets,
@@ -427,7 +430,7 @@ export function AdminShowcaseMediaSection({
     event: ReactPointerEvent<HTMLDivElement>,
     asset: ShowcaseMediaAsset,
   ) => {
-    if (showcaseSaving || dragState) {
+    if (interactionDisabled || dragState) {
       return;
     }
     const target = event.target;
@@ -473,12 +476,12 @@ export function AdminShowcaseMediaSection({
                 <div
                   className={`showcase-media-editor__hero-tile ${viewport.heroToneClassName}`}
                   onClick={() => {
-                    if (!showcaseSaving) {
+                    if (!interactionDisabled) {
                       heroInputRefs[viewport.key].current?.click();
                     }
                   }}
                   onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
-                    if (showcaseSaving) {
+                    if (interactionDisabled) {
                       return;
                     }
                     if (event.key === "Enter" || event.key === " ") {
@@ -488,7 +491,7 @@ export function AdminShowcaseMediaSection({
                   }}
                   role="button"
                   tabIndex={0}
-                  aria-disabled={showcaseSaving}
+                  aria-disabled={interactionDisabled}
                 >
                   {state.heroAsset ? (
                     <>
@@ -497,6 +500,7 @@ export function AdminShowcaseMediaSection({
                         type="button"
                         className="showcase-media-editor__remove-btn"
                         onClick={(event) => void onRemoveHeroAsset(viewport.key, event)}
+                        disabled={interactionDisabled}
                         aria-label={`Удалить заставку ${viewport.title}`}
                       >
                         <IconClose className="icon-svg icon-svg--sm" />
@@ -520,6 +524,7 @@ export function AdminShowcaseMediaSection({
                   accept=".png,.jpg,.jpeg,.webp,.gif,.svg,.mp4,.webm,.mov,image/*,video/mp4,video/webm,video/quicktime"
                   className="input-hidden"
                   onChange={(event) => void onPickHeroAsset(viewport.key, event)}
+                  disabled={interactionDisabled}
                 />
               </div>
 
@@ -536,7 +541,7 @@ export function AdminShowcaseMediaSection({
                       index={index}
                       isDragging={dragState?.viewport === viewport.key && dragState.assetId === asset.id}
                       registerRef={(assetId, element) => registerCardRef(viewport.key, assetId, element)}
-                      disabled={showcaseSaving}
+                      disabled={interactionDisabled}
                       onPointerDown={(event, currentAsset) => handleCardPointerDown(viewport.key, event, currentAsset)}
                       onRemove={() => void onRemoveCarouselAsset(viewport.key, asset.id)}
                     />
@@ -547,7 +552,7 @@ export function AdminShowcaseMediaSection({
                       type="button"
                       className="showcase-media-editor__add-card"
                       onClick={() => carouselInputRefs[viewport.key].current?.click()}
-                      disabled={showcaseSaving}
+                      disabled={interactionDisabled}
                     >
                       <span className="showcase-media-editor__empty-state">
                         <IconPlus className="icon-svg icon-svg--sm" />
@@ -564,6 +569,7 @@ export function AdminShowcaseMediaSection({
                   className="input-hidden"
                   multiple
                   onChange={(event) => void onPickCarouselAssets(viewport.key, event)}
+                  disabled={interactionDisabled}
                 />
               </div>
             </div>

@@ -16,6 +16,8 @@ type Props = {
   onRequestResetSettings: () => void;
   onCancelResetSettings: () => void;
   onConfirmResetSettings: () => Promise<void>;
+  canRead: boolean;
+  canEdit: boolean;
 };
 
 export function AdminSettingsTransferSection({
@@ -33,7 +35,12 @@ export function AdminSettingsTransferSection({
   onRequestResetSettings,
   onCancelResetSettings,
   onConfirmResetSettings,
+  canRead,
+  canEdit,
 }: Props) {
+  if (!canRead) {
+    return null;
+  }
   return (
     <>
       {settingsExportInProgress || settingsImportInProgress || settingsResetInProgress ? <AdminSectionSkeleton rows={2} /> : null}
@@ -45,10 +52,10 @@ export function AdminSettingsTransferSection({
         <button type="button" onClick={() => void onExportSettings()} disabled={settingsExportInProgress || settingsImportInProgress || settingsResetInProgress}>
           {settingsExportInProgress ? "Экспорт..." : "Экспорт"}
         </button>
-        <button type="button" onClick={onOpenImportDialog} disabled={settingsExportInProgress || settingsImportInProgress || settingsResetInProgress}>
+        <button type="button" onClick={onOpenImportDialog} disabled={!canEdit || settingsExportInProgress || settingsImportInProgress || settingsResetInProgress}>
           {settingsImportInProgress ? "Импорт..." : "Импорт"}
         </button>
-        <button type="button" className="topbar-cta--danger" onClick={onRequestResetSettings} disabled={settingsExportInProgress || settingsImportInProgress || settingsResetInProgress || Boolean(pendingImport)}>
+        <button type="button" className="topbar-cta--danger" onClick={onRequestResetSettings} disabled={!canEdit || settingsExportInProgress || settingsImportInProgress || settingsResetInProgress || Boolean(pendingImport)}>
           {settingsResetInProgress ? "Сброс..." : "Сброс настроек"}
         </button>
         <input

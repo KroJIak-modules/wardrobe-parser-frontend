@@ -21,6 +21,8 @@ type Props = {
   onRemoveCarouselAsset: (viewport: ShowcaseViewportKey, assetId: number) => Promise<void>;
   onPickCarouselAssets: (viewport: ShowcaseViewportKey, event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   onToast: (message: string, type?: "success" | "error") => void;
+  canEditContent: boolean;
+  canReadContent: boolean;
 };
 
 const SUBTAB_STORAGE_KEY = "admin-settings-subtab";
@@ -43,6 +45,8 @@ export function AdminSettingsTab({
   onRemoveCarouselAsset,
   onPickCarouselAssets,
   onToast,
+  canEditContent,
+  canReadContent,
 }: Props) {
   const [activeSubtab, setActiveSubtab] = useState<SettingsSubtab>(() => {
     if (typeof window === "undefined") {
@@ -85,6 +89,10 @@ export function AdminSettingsTab({
     }
   }, [activeSubtab]);
 
+  if (!canReadContent) {
+    return null;
+  }
+
   return (
     <div className="admin-settings-shell">
       <section className="card admin-settings-section">
@@ -116,6 +124,7 @@ export function AdminSettingsTab({
             <AdminShowcaseMediaSection
               showcaseState={showcaseState}
               showcaseSaving={showcaseSaving}
+              canEdit={canEditContent}
               heroInputRefs={heroInputRefs}
               carouselInputRefs={carouselInputRefs}
               onRemoveHeroAsset={onRemoveHeroAsset}
@@ -131,7 +140,7 @@ export function AdminSettingsTab({
       {activeSubtab === "about" ? (
         <AdminSettingsAboutSection
           draft={aboutDraft}
-          loading={loading}
+          loading={loading || !canEditContent}
           saving={savingAbout}
           uploadingPhoto={uploadingPhoto}
           onChangeText={updateAboutText}
@@ -144,7 +153,7 @@ export function AdminSettingsTab({
       {activeSubtab === "questions" ? (
         <AdminSettingsQuestionsSection
           questions={questionsDraft}
-          loading={loading}
+          loading={loading || !canEditContent}
           onAddQuestion={addQuestion}
           onUpdateQuestion={updateQuestion}
           onMoveQuestion={moveQuestion}
@@ -156,7 +165,7 @@ export function AdminSettingsTab({
         <AdminSettingsNotificationSection
           draft={notificationDraft}
           items={notificationItems}
-          loading={loading}
+          loading={loading || !canEditContent}
           dirty={notificationDirty}
           saving={savingNotification}
           uploadingImage={uploadingNotificationImage}

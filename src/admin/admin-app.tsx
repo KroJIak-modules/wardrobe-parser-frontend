@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { LiveDataProvider } from "../shared/live-data-context";
+import { getAdminMeCached, type AdminMePayload } from "../shared/admin-auth";
 import { ToastStack } from "../shared/toast-stack";
 import { useToasts } from "../shared/use-toasts";
 import {
@@ -18,6 +19,8 @@ import { AdminShowcaseLayout } from "./admin-showcase-layout";
 import { ShowcaseProductPage } from "./showcase-product-page";
 import { AdminRouteScroll } from "./admin-route-scroll";
 import { clearShowcaseCatalogCache } from "./showcase-catalog-cache";
+import { hasAnyAdminPermission } from "../shared/admin-permissions";
+import { tabs } from "./admin-constants";
 
 const MANAGEMENT_PATH = "/control";
 const LOGIN_PATH = "/login";
@@ -158,6 +161,55 @@ function AdminLoginRoute() {
 }
 
 function AdminProtectedRoute() {
+  const { tab: tabParam } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
+  const [adminMe, setAdminMe] = useState<AdminMePayload | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getAdminMeCached().then((payload) => {
+      if (active) {
+        setAdminMe(payload);
+        setLoaded(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const visibleTabs = tabs.filter((item) => {
+    if (!loaded) return false;
+    const allowed = (...permissions: string[]) => hasAnyAdminPermission(adminMe, ...permissions);
+    switch (item.key) {
+      case "products": return allowed("control.products.read");
+      case "dedup": return allowed("control.dedup.read");
+      case "showcase-structure": return allowed("control.categories.read");
+      case "designers": return allowed("control.designers.read");
+      case "sources": return allowed("control.sources.read");
+      case "pricing": return allowed("control.pricing.read");
+      case "payments": return allowed("control.payments.read", "control.settings.read");
+      case "weight": return allowed("control.weight.read");
+      case "content": return allowed("control.content.read", "showcase.read");
+      case "security":
+        return Boolean(adminMe?.is_superuser)
+          || allowed("control.site_access.read", "control.settings.read")
+          || allowed("control.settings_transfer.read", "control.settings.read");
+      default: return false;
+    }
+  });
+
+  useEffect(() => {
+    if (loaded && visibleTabs.length > 0 && !visibleTabs.some((item) => item.key === tabParam)) {
+      navigate(`/control/${visibleTabs[0].key}`, { replace: true });
+    }
+  }, [loaded, navigate, tabParam, visibleTabs]);
+
+  if (!loaded || visibleTabs.length === 0 || !visibleTabs.some((item) => item.key === tabParam)) {
+    return null;
+  }
+
   return (
     <AdminErrorBoundary>
       <AdminPage />

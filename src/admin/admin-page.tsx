@@ -3,7 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import "katex/dist/katex.min.css";
 import { useLiveData } from "../shared/live-data-context";
 import { useToasts } from "../shared/use-toasts";
-import { logoutAdminSession } from "../shared/admin-auth";
+import { getAdminMeCached, logoutAdminSession, type AdminMePayload } from "../shared/admin-auth";
+import { hasAnyAdminPermission } from "../shared/admin-permissions";
 import {
   normalizeAdminTab,
   tabs,
@@ -43,6 +44,30 @@ import type {
 } from "./admin-types";
 
 export function AdminPage() {
+  const [adminMe, setAdminMe] = useState<AdminMePayload | null>(null);
+  const [adminMeLoaded, setAdminMeLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getAdminMeCached().then((payload) => {
+      if (active) {
+        setAdminMe(payload);
+        setAdminMeLoaded(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!adminMeLoaded) {
+    return null;
+  }
+
+  return <AdminPageContent adminMe={adminMe} />;
+}
+
+function AdminPageContent({ adminMe }: { adminMe: AdminMePayload | null }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { tab: tabParam } = useParams<{ tab?: string }>();
@@ -58,6 +83,41 @@ export function AdminPage() {
   };
 
   useAdminPageLifecycle(navigate, tab, tabParam);
+
+  const canReadSync = hasAnyAdminPermission(adminMe, "control.sync.read", "control.sources.read");
+  const canEditSync = hasAnyAdminPermission(adminMe, "control.sync.edit", "control.sources.edit");
+  const canCreateProduct = hasAnyAdminPermission(adminMe, "control.products.edit");
+  const canEditContent = hasAnyAdminPermission(adminMe, "control.content.edit", "showcase.edit");
+  const canReadContent = hasAnyAdminPermission(adminMe, "control.content.read", "showcase.read");
+  const canReadSettingsTransfer = hasAnyAdminPermission(adminMe, "control.settings_transfer.read", "control.settings.read");
+  const canEditSettingsTransfer = hasAnyAdminPermission(adminMe, "control.settings_transfer.edit", "control.settings.edit");
+  const visibleTabs = useMemo(() => {
+    const allowed = (read: string, ...fallback: string[]) => hasAnyAdminPermission(adminMe, read, ...fallback);
+    return tabs.filter((item) => {
+      switch (item.key) {
+        case "products": return allowed("control.products.read");
+        case "dedup": return allowed("control.dedup.read");
+        case "showcase-structure": return allowed("control.categories.read");
+        case "designers": return allowed("control.designers.read");
+        case "sources": return allowed("control.sources.read");
+        case "pricing": return allowed("control.pricing.read");
+        case "payments": return allowed("control.payments.read", "control.settings.read");
+        case "weight": return allowed("control.weight.read");
+        case "content": return allowed("control.content.read", "showcase.read");
+        case "security":
+          return Boolean(adminMe?.is_superuser)
+            || allowed("control.site_access.read", "control.settings.read")
+            || allowed("control.settings_transfer.read", "control.settings.read");
+        default: return false;
+      }
+    });
+  }, [adminMe]);
+
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some((item) => item.key === tab)) {
+      navigate(`/control/${visibleTabs[0].key}`, { replace: true });
+    }
+  }, [navigate, tab, visibleTabs]);
 
   const {
     products,
@@ -156,6 +216,8 @@ export function AdminPage() {
     runSync,
     cancelSync,
     pushToast,
+    canReadSync,
+    canEditSync,
   });
   const {
     settingsImportInputRef,
@@ -204,6 +266,7 @@ export function AdminPage() {
     onCancel: onCloseProductCreate,
     onCreateDraft: onCreateProductDraft,
   } = useAdminProductCreate({
+    enabled: canCreateProduct,
     sources,
     products,
     onToast: (message, type = "success") => pushToast(message, type),
@@ -489,7 +552,7 @@ export function AdminPage() {
     onRemoveCarouselAsset,
     onCommitCarouselOrder,
   } = useAdminShowcase({
-    enabled: tab === "content",
+    enabled: tab === "content" && canReadContent,
     pushToast,
   });
 
@@ -672,6 +735,7 @@ export function AdminPage() {
       autoSyncNextRunAt: adminUiSettings?.auto_sync_next_run_at || null,
       autoSyncLastError: adminUiSettings?.auto_sync_last_error || null,
       updateAdminUiSettings,
+      canEditSync,
       pushToast,
       onZoomImage: (url: string) => setZoomedImageUrl(url),
     },
@@ -743,6 +807,8 @@ export function AdminPage() {
       onLoadMoreWeightMissing: loadMoreWeightMissingProducts,
     },
     settingsTabProps: {
+      canEditContent,
+      canReadContent,
       showcaseState,
       showcaseSaving,
       heroInputRefs,
@@ -770,6 +836,8 @@ export function AdminPage() {
       onCancelResetSettings,
       onConfirmResetSettings,
       pushToast,
+      canReadSettingsTransfer,
+      canEditSettingsTransfer,
     },
   });
 
@@ -782,6 +850,8 @@ export function AdminPage() {
             isSyncInProgress={isSyncInProgress}
             canRunSync={canRunSync}
             canCancelSync={canCancelSync}
+            canReadSync={canReadSync}
+            canCreateProduct={canCreateProduct}
             latestJob={latestJob}
             onRunSync={onRunSync}
             onCancelSync={onCancelSync}
@@ -791,7 +861,7 @@ export function AdminPage() {
           />
 
           <AdminTabs
-            tabs={tabs}
+            tabs={visibleTabs}
             activeTab={tab}
             onSelectTab={(nextTab) => navigate(`/control/${nextTab}`)}
             isMobileMenuOpen={isMobileMenuOpen}

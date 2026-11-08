@@ -20,6 +20,8 @@ type Props = {
   onCancelResetSettings: () => void;
   onConfirmResetSettings: () => Promise<void>;
   pushToast: (message: string) => void;
+  canReadSettingsTransfer: boolean;
+  canEditSettingsTransfer: boolean;
 };
 
 export function AdminSettingsSecuritySection({
@@ -38,6 +40,8 @@ export function AdminSettingsSecuritySection({
   onCancelResetSettings,
   onConfirmResetSettings,
   pushToast,
+  canReadSettingsTransfer,
+  canEditSettingsTransfer,
 }: Props) {
   return (
     <div className="admin-settings-pane">
@@ -52,25 +56,29 @@ export function AdminSettingsSecuritySection({
         <AdminSettingsAccountsSection pushToast={pushToast} />
       </section>
 
-      <section className="card admin-settings-panel admin-settings-panel--utility">
-        <h3>Экспорт и импорт настроек</h3>
-        <AdminSettingsTransferSection
-          settingsExportInProgress={settingsExportInProgress}
-          settingsImportInProgress={settingsImportInProgress}
-          settingsResetInProgress={settingsResetInProgress}
-          resetConfirmOpen={resetConfirmOpen}
-          pendingImport={pendingImport}
-          onExportSettings={onExportSettings}
-          onOpenImportDialog={onOpenImportDialog}
-          settingsImportInputRef={settingsImportInputRef}
-          onImportSettingsFile={onImportSettingsFile}
-          onCancelImportSettings={onCancelImportSettings}
-          onConfirmImportSettings={onConfirmImportSettings}
-          onRequestResetSettings={onRequestResetSettings}
-          onCancelResetSettings={onCancelResetSettings}
-          onConfirmResetSettings={onConfirmResetSettings}
-        />
-      </section>
+      {canReadSettingsTransfer ? (
+        <section className="card admin-settings-panel admin-settings-panel--utility">
+          <h3>Экспорт и импорт настроек</h3>
+          <AdminSettingsTransferSection
+            settingsExportInProgress={settingsExportInProgress}
+            settingsImportInProgress={settingsImportInProgress}
+            settingsResetInProgress={settingsResetInProgress}
+            resetConfirmOpen={resetConfirmOpen}
+            pendingImport={pendingImport}
+            onExportSettings={onExportSettings}
+            onOpenImportDialog={onOpenImportDialog}
+            settingsImportInputRef={settingsImportInputRef}
+            onImportSettingsFile={onImportSettingsFile}
+            onCancelImportSettings={onCancelImportSettings}
+            onConfirmImportSettings={onConfirmImportSettings}
+            onRequestResetSettings={onRequestResetSettings}
+            onCancelResetSettings={onCancelResetSettings}
+            onConfirmResetSettings={onConfirmResetSettings}
+            canRead={canReadSettingsTransfer}
+            canEdit={canEditSettingsTransfer}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }

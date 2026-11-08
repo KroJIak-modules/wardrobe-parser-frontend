@@ -56,8 +56,12 @@ const SCOPE_LABELS: Record<string, string> = {
   "control.designers": "Дизайнеры",
   "control.pricing": "Ценообразование",
   "control.weight": "Вес",
-  "control.settings": "Контент",
-  accounts: "Аккаунты и роли",
+  "control.settings": "Системные настройки",
+  "control.payments": "Платежи",
+  "control.content": "Контент",
+  "control.sync": "Синхронизация",
+  "control.settings_transfer": "Перенос настроек",
+  "control.site_access": "Доступ к витрине",
 };
 
 const EMPTY_BOOTSTRAP: BootstrapPayload = {
@@ -146,6 +150,26 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
     setEditRoleName(selectedRole.name);
     setEditRolePermissions(new Set(selectedRole.permissions || []));
   }, [selectedRole?.id]);
+
+  const closeCreateRoleModal = useCallback(() => {
+    if (!busy) {
+      setIsCreateRoleOpen(false);
+    }
+  }, [busy]);
+
+  useEffect(() => {
+    if (!isCreateRoleOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeCreateRoleModal();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [closeCreateRoleModal, isCreateRoleOpen]);
 
   const resetCreateRoleDraft = useCallback(() => {
     setCreateRoleName("");
@@ -467,10 +491,13 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
       </section>
 
       {isCreateRoleOpen ? (
-        <div className="modal-backdrop" onClick={() => (!busy ? setIsCreateRoleOpen(false) : undefined)}>
+        <div className="modal-backdrop" onClick={closeCreateRoleModal}>
           <div className="modal admin-accounts-create-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-head">
               <h3>Создание роли</h3>
+              <button type="button" className="admin-accounts-modal-close" onClick={closeCreateRoleModal} disabled={busy} aria-label="Закрыть создание роли">
+                ×
+              </button>
             </div>
             <label className="admin-accounts-form-grid">
               <span>Название роли</span>
@@ -509,7 +536,7 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
               ))}
             </div>
             <div className="admin-accounts-actions">
-              <button type="button" onClick={() => setIsCreateRoleOpen(false)} disabled={busy}>
+              <button type="button" onClick={closeCreateRoleModal} disabled={busy}>
                 Отмена
               </button>
               <button type="button" onClick={() => void onCreateRole()} disabled={busy}>
@@ -526,6 +553,7 @@ export function AdminSettingsAccountsSection({ pushToast }: Props) {
         </div>
 
         <form
+          className="admin-accounts-user-create-form"
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             void onCreateUser();

@@ -61,6 +61,7 @@ type AllowedSourceDomain = {
 };
 
 type Params = {
+  enabled: boolean;
   sources: Source[];
   products: ServiceProduct[];
   onToast: (message: string, type?: "success" | "error") => void;
@@ -311,6 +312,7 @@ function previewToSyntheticProduct(preview: ProductUrlPreview, fallbackUrl: stri
 }
 
 export function useAdminProductCreate({
+  enabled,
   sources,
   products,
   onToast,
@@ -418,6 +420,10 @@ export function useAdminProductCreate({
   }, [draft.sourceUrl, allowedDomains]);
 
   useEffect(() => {
+    if (!enabled) {
+      setSourceDesignerOptions([]);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
@@ -436,7 +442,7 @@ export function useAdminProductCreate({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enabled]);
 
   const productDesignerOptions = useMemo(() => {
     const set = new Set<string>();

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
-import { API_BASE, authFetch } from "../shared/admin-auth";
+import { API_BASE, authFetch, getAdminMeCached } from "../shared/admin-auth";
+import { hasAnyAdminPermission } from "../shared/admin-permissions";
 import { IconEye, IconEyeOff } from "../shared/mono-icons";
 
 type SiteAccessSettings = {
@@ -55,6 +56,9 @@ async function readJsonOrError<T>(response: Response): Promise<T> {
 export function AdminSiteAccessSection({ pushToast }: Props) {
   const [draft, setDraft] = useState<SiteAccessSettings>(EMPTY_SETTINGS);
   const [loading, setLoading] = useState(true);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+  const [canRead, setCanRead] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -79,19 +83,39 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
   }, [pushToast]);
 
   useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
+    let active = true;
+    void getAdminMeCached()
+      .then((admin) => {
+        if (!active) return;
+        setCanRead(hasAnyAdminPermission(admin, "control.site_access.read", "control.settings.read"));
+        setCanEdit(hasAnyAdminPermission(admin, "control.site_access.edit", "control.settings.edit"));
+      })
+      .finally(() => {
+        if (active) setPermissionsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (canRead) {
+      void loadSettings();
+    }
+  }, [canRead, loadSettings]);
 
   useEffect(() => {
     const reloadAfterSettingsTransfer = () => {
       // Discard any pending local draft so it cannot overwrite imported access settings.
       saveSeqRef.current += 1;
       saveAbortControllerRef.current?.abort();
-      void loadSettings();
+      if (canRead) {
+        void loadSettings();
+      }
     };
     window.addEventListener("admin:settings-transfer-applied", reloadAfterSettingsTransfer);
     return () => window.removeEventListener("admin:settings-transfer-applied", reloadAfterSettingsTransfer);
-  }, [loadSettings]);
+  }, [canRead, loadSettings]);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -133,7 +157,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
   }, [pushToast]);
 
   useEffect(() => {
-    if (loading || saving) {
+    if (!canEdit || loading || saving) {
       return;
     }
     const currentSignature = settingsSignature(draft);
@@ -144,9 +168,10 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
       void saveSettings(draftRef.current);
     }, AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [draft, loading, saveSettings, saving]);
+  }, [canEdit, draft, loading, saveSettings, saving]);
 
   const generatePassword = useCallback(async () => {
+    if (!canEdit) return;
     setGenerating(true);
     try {
       const response = await authFetch(`${API_BASE}/admin/site-content/access/generate-password`, { method: "POST" });
@@ -158,7 +183,14 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
     } finally {
       setGenerating(false);
     }
-  }, [pushToast]);
+  }, [canEdit, pushToast]);
+
+  if (permissionsLoading) {
+    return <section className="card admin-settings-panel"><p className="muted">Проверка прав доступа...</p></section>;
+  }
+  if (!canRead) {
+    return null;
+  }
 
   return (
     <section className="card admin-settings-panel admin-site-access">
@@ -175,7 +207,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
             className="input"
             value={draft.title}
             onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-            disabled={loading}
+            disabled={loading || !canEdit}
           />
         </label>
         <label className="admin-settings-field">
@@ -183,7 +215,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
           <textarea
             value={draft.description}
             onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-            disabled={loading}
+            disabled={loading || !canEdit}
           />
         </label>
         <div className="admin-settings-field">
@@ -197,7 +229,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
               aria-label="Пароль сайта"
               value={draft.password}
               onChange={(event) => setDraft((current) => ({ ...current, password: event.target.value }))}
-              disabled={loading}
+              disabled={loading || !canEdit}
             />
             <button
               type="button"
@@ -212,7 +244,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
               type="button"
               className="admin-site-access__icon-btn"
               onClick={() => void generatePassword()}
-              disabled={loading || generating}
+              disabled={loading || generating || !canEdit}
               aria-label="Сгенерировать пароль"
             >
               <RotateCcw className="icon-svg" />
@@ -222,7 +254,7 @@ export function AdminSiteAccessSection({ pushToast }: Props) {
                 type="checkbox"
                 checked={draft.enabled}
                 onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))}
-                disabled={loading}
+                disabled={loading || !canEdit}
               />
               <span className="ui-switch-track"><span className="ui-switch-thumb" /></span>
               <span className="ui-switch-text">{draft.enabled ? "Включен" : "Выключен"}</span>
