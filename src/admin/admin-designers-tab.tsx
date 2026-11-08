@@ -26,7 +26,8 @@ type Props = {
   onChangeFinalDesignerName: (designerId: string, designerName: string) => void;
   onChangeFinalDesignerDescription: (designerId: string, description: string) => void;
   onCreateDesigner: (designerName: string) => void;
-  onDeleteDesigner: (designerId: string) => void;
+  onDeleteDesigner: (designerId: string) => Promise<void>;
+  saving: boolean;
 };
 
 function normalizeText(value: string | null | undefined) {
@@ -115,6 +116,7 @@ export function AdminDesignersTab({
   onChangeFinalDesignerDescription,
   onCreateDesigner,
   onDeleteDesigner,
+  saving,
 }: Props) {
   const [search, setSearch] = useState<string>("");
   const [viewMode, setViewMode] = useState<DesignersViewMode>("sources");
@@ -344,7 +346,7 @@ export function AdminDesignersTab({
             <button
               type="button"
               onClick={() => onMarkAllViewed(viewMode === "sources" ? "brands" : "designers")}
-              disabled={markAllViewedPending !== null}
+              disabled={saving || markAllViewedPending !== null}
               title={
                 viewMode === "sources"
                   ? "Пометить все бренды-источники как просмотренные"
@@ -356,7 +358,7 @@ export function AdminDesignersTab({
             <button
               type="button"
               className="designers-tab-create"
-              disabled={designerNameOptions.length === 0}
+              disabled={saving || designerNameOptions.length === 0}
               onClick={() => onCreateDesigner("")}
             >
               Создать дизайнера
@@ -413,6 +415,7 @@ export function AdminDesignersTab({
                       <input
                         type="checkbox"
                         checked={Boolean(row.include_in_designers)}
+                        disabled={saving}
                         onChange={(event) => onToggleIncludeInDesigners(row.source_brand, event.target.checked)}
                       />
                       <span className="ui-switch-track">
@@ -437,6 +440,7 @@ export function AdminDesignersTab({
                         <input
                           className="input"
                           value={row.designer_name}
+                          disabled={saving}
                           onChange={(event) => onChangeDesignerName(row.source_brand, event.target.value)}
                           placeholder="Например, Rick Owens"
                         />
@@ -510,7 +514,7 @@ export function AdminDesignersTab({
                         <input
                           type="checkbox"
                           checked={item.allIncluded}
-                          disabled={item.linkedRows.length === 0}
+                        disabled={saving || item.linkedRows.length === 0}
                           onChange={(event) => {
                             for (const row of item.linkedRows) {
                               onToggleIncludeInDesigners(row.source_brand, event.target.checked);
@@ -525,7 +529,8 @@ export function AdminDesignersTab({
                       <button
                         type="button"
                         className="designers-item__delete"
-                        onClick={() => onDeleteDesigner(item.designer.id)}
+                        onClick={() => void onDeleteDesigner(item.designer.id)}
+                        disabled={saving}
                       >
                         Удалить
                       </button>
@@ -539,6 +544,7 @@ export function AdminDesignersTab({
                         <select
                           className="input"
                           value={item.hasValidName || !normalizeText(item.designer.name) ? item.designer.name : ""}
+                          disabled={saving}
                           onChange={(event) => onChangeFinalDesignerName(item.designer.id, event.target.value)}
                         >
                           <option value="" disabled={item.hasValidName}>
@@ -564,6 +570,7 @@ export function AdminDesignersTab({
                       <textarea
                         rows={4}
                         value={item.designer.description}
+                        disabled={saving}
                         onChange={(event) => onChangeFinalDesignerDescription(item.designer.id, event.target.value)}
                         placeholder="Описание дизайнера."
                       />

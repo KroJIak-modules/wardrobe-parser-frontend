@@ -603,6 +603,7 @@ function AdminPageContent({ adminMe }: { adminMe: AdminMePayload | null }) {
   const sourceById = useAdminSourceMap(sources);
   const {
     loading: designersLoading,
+    saving: designersSaving,
     rows: designersRows,
     designers: finalDesigners,
     markAllViewedPending: designersMarkAllViewedPending,
@@ -700,6 +701,7 @@ function AdminPageContent({ adminMe }: { adminMe: AdminMePayload | null }) {
     },
     designersTabProps: {
       loading: designersLoading,
+      saving: designersSaving,
       rows: designersRows,
       designers: finalDesigners,
       markAllViewedPending: designersMarkAllViewedPending,

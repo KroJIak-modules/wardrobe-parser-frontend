@@ -88,9 +88,17 @@ export async function saveAdminDesignerMappings(payload: AdminDesignerMappingsPa
   return writeStore(saved);
 }
 
+export async function deleteAdminDesigner(designerId: string): Promise<AdminDesignerMappingsPayload> {
+  const saved = await apiJson<AdminDesignerMappingsPayload>(
+    `${API_BASE}/admin/designers/${encodeURIComponent(designerId)}`,
+    { method: "DELETE" },
+  );
+  return writeStore(saved);
+}
+
 export async function setAdminDesignerSourceEnabled(sourceBrand: string, includeInDesigners: boolean): Promise<boolean> {
   const payload = await apiJson<{ include_in_designers: boolean }>(
-    `${API_BASE}/admin/designers/editor/sources/${encodeURIComponent(sourceBrand)}/enabled`,
+    `${API_BASE}/admin/designers/editor/sources/enabled`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -102,11 +110,16 @@ export async function setAdminDesignerSourceEnabled(sourceBrand: string, include
 
 export type DesignerViewKind = "brands" | "designers";
 
-async function postWithTimeout(url: string): Promise<Response> {
+async function postWithTimeout(url: string, payload?: object): Promise<Response> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 15000);
   try {
-    return await authFetch(url, { method: "POST", signal: controller.signal });
+    return await authFetch(url, {
+      method: "POST",
+      signal: controller.signal,
+      headers: payload ? { "Content-Type": "application/json" } : undefined,
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
   } finally {
     window.clearTimeout(timer);
   }
@@ -122,18 +135,14 @@ export async function markAllAdminDesignerViewsViewed(kind: DesignerViewKind): P
 }
 
 export async function markAdminBrandViewed(sourceBrand: string): Promise<void> {
-  const response = await postWithTimeout(
-    `${API_BASE}/admin/designers/brands/${encodeURIComponent(sourceBrand)}/view`,
-  );
+  const response = await postWithTimeout(`${API_BASE}/admin/designers/brands/view`, { source_brand: sourceBrand });
   if (!response.ok) {
     throw new Error(`Mark brand viewed API error: ${response.status}`);
   }
 }
 
 export async function markAdminBrandAgainViewed(sourceBrand: string): Promise<void> {
-  const response = await postWithTimeout(
-    `${API_BASE}/admin/designers/brands/${encodeURIComponent(sourceBrand)}/again-view`,
-  );
+  const response = await postWithTimeout(`${API_BASE}/admin/designers/brands/again-view`, { source_brand: sourceBrand });
   if (!response.ok) {
     throw new Error(`Mark brand AGAIN error: ${response.status}`);
   }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  deleteAdminDesigner,
   fetchAdminDesignerMappings,
   markAdminBrandAgainViewed,
   markAdminBrandViewed,
@@ -74,6 +75,7 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
   const [baselineRows, setBaselineRows] = useState<AdminDesignerSourceRow[]>(() => readAdminDesignerMappingsState().rows);
   const [baselineDesigners, setBaselineDesigners] = useState<AdminFinalDesigner[]>(() => readAdminDesignerMappingsState().designers);
   const saveTimeoutRef = useRef<number | null>(null);
+  const persistInFlightRef = useRef<Promise<void> | null>(null);
   const draftRevisionRef = useRef(0);
   const sourceToggleRevisionRef = useRef(new Map<string, number>());
 
@@ -176,10 +178,26 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
     ]);
   }, []);
 
-  const onDeleteDesigner = useCallback((designerId: string) => {
+  const onDeleteDesigner = useCallback(async (designerId: string) => {
     draftRevisionRef.current += 1;
-    setDesigners((prev) => prev.filter((designer) => designer.id !== designerId));
-  }, []);
+    if (saveTimeoutRef.current !== null) {
+      window.clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    await persistInFlightRef.current;
+    setSaving(true);
+    try {
+      const nextPayload = await deleteAdminDesigner(designerId);
+      setRows(nextPayload.rows);
+      setDesigners(nextPayload.designers);
+      setBaselineRows(nextPayload.rows);
+      setBaselineDesigners(nextPayload.designers);
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Не удалось удалить дизайнера");
+    } finally {
+      setSaving(false);
+    }
+  }, [pushToast]);
 
   const onMarkAllViewed = useCallback(async (kind: DesignerViewKind) => {
     if (markAllViewedPending) {
@@ -302,7 +320,13 @@ export function useAdminDesignerMappings(tab: string, pushToast: (message: strin
 
     saveTimeoutRef.current = window.setTimeout(() => {
       saveTimeoutRef.current = null;
-      void persistState(rows, designers);
+      const request = persistState(rows, designers);
+      persistInFlightRef.current = request;
+      void request.finally(() => {
+        if (persistInFlightRef.current === request) {
+          persistInFlightRef.current = null;
+        }
+      });
     }, AUTO_SAVE_DEBOUNCE_MS);
 
     return () => {
