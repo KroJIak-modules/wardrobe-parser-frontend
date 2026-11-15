@@ -5,12 +5,20 @@ import { useSitePageScrollLock } from "../shared/use-site-page-scroll-lock";
 
 const SITE_SIZE_SELECTOR_MOBILE_QUERY = "(max-width: 640px)";
 const SITE_SIZE_SELECTOR_SHEET_EXIT_MS = 220;
+const SITE_SIZE_OPTION_HEIGHT = 21;
+const SITE_SIZE_OPTION_GAP = 10;
+const SITE_SIZE_LIST_TOP_INSET = 22;
+const SITE_SIZE_LIST_BOTTOM_INSET = 7;
+// Минимальная высота выпадающего списка и отступ от края окна.
+const SITE_SIZE_MENU_MIN_HEIGHT = 180;
+const SITE_SIZE_MENU_VIEWPORT_MARGIN = 24;
 
 export function SiteSizeSelector({
   sizes,
   selectedSize,
   onSelect,
   placeholder = "РАЗМЕР",
+  sheetTitle = "ВЫБРАТЬ РАЗМЕР",
   displayValue,
   className = "",
   triggerClassName = "",
@@ -20,6 +28,7 @@ export function SiteSizeSelector({
   selectedSize: string | null;
   onSelect: (size: string) => void;
   placeholder?: string;
+  sheetTitle?: string;
   displayValue?: string | null;
   className?: string;
   triggerClassName?: string;
@@ -28,7 +37,9 @@ export function SiteSizeSelector({
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [activeSize, setActiveSize] = useState<string | null>(sizes[0] ?? null);
+  const [menuHeightPx, setMenuHeightPx] = useState<number | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeTimeoutRef = useRef<number | null>(null);
   const isMobileViewport = useSiteMediaQuery(SITE_SIZE_SELECTOR_MOBILE_QUERY);
   const shouldUseMobileSheet = mobileSheet && isMobileViewport;
@@ -45,11 +56,29 @@ export function SiteSizeSelector({
     closeTimeoutRef.current = null;
   }, []);
 
+  // Высота списка ограничивается свободным местом под триггером, иначе длинный
+  // список вариантов вылезает за экран и скроллится вся страница.
+  const measureMenuHeight = useCallback(() => {
+    const listHeight = sizes.length > 0 ? sizes.length * SITE_SIZE_OPTION_HEIGHT + (sizes.length - 1) * SITE_SIZE_OPTION_GAP : 0;
+    const panelHeight = SITE_SIZE_LIST_TOP_INSET + listHeight + SITE_SIZE_LIST_BOTTOM_INSET;
+    const trigger = triggerRef.current;
+    const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight;
+    if (!trigger || viewportHeight <= 0) {
+      setMenuHeightPx(panelHeight);
+      return;
+    }
+
+    const spaceBelow = viewportHeight - trigger.getBoundingClientRect().bottom - SITE_SIZE_MENU_VIEWPORT_MARGIN;
+    const capped = Math.max(SITE_SIZE_MENU_MIN_HEIGHT, Math.min(panelHeight, Math.floor(spaceBelow)));
+    setMenuHeightPx(capped);
+  }, [sizes.length]);
+
   const openSizeSelector = useCallback(() => {
     clearCloseTimeout();
     setIsClosing(false);
+    measureMenuHeight();
     setIsOpen(true);
-  }, [clearCloseTimeout]);
+  }, [clearCloseTimeout, measureMenuHeight]);
 
   const closeSizeSelector = useCallback(() => {
     clearCloseTimeout();
@@ -108,12 +137,26 @@ export function SiteSizeSelector({
     setActiveSize(selectedSize ?? sizes[0] ?? null);
   }, [isOpen, selectedSize, sizes]);
 
-  const optionHeight = 21;
-  const optionGap = 10;
-  const listTopInset = 22;
-  const listBottomInset = 7;
+  useEffect(() => {
+    if (!isOpen || shouldUseMobileSheet) {
+      return;
+    }
+
+    const handleResize = () => measureMenuHeight();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isOpen, shouldUseMobileSheet, measureMenuHeight]);
+
+  const optionHeight = SITE_SIZE_OPTION_HEIGHT;
+  const optionGap = SITE_SIZE_OPTION_GAP;
+  const listTopInset = SITE_SIZE_LIST_TOP_INSET;
+  const listBottomInset = SITE_SIZE_LIST_BOTTOM_INSET;
   const listHeight = sizes.length > 0 ? sizes.length * optionHeight + (sizes.length - 1) * optionGap : 0;
   const panelHeight = listTopInset + listHeight + listBottomInset;
+  const menuHeight = menuHeightPx ?? panelHeight;
+  const isMenuScrollable = menuHeight < panelHeight;
   const handleClose = () => closeSizeSelector();
   const handleSelectSize = (size: string) => {
     onSelect(size);
@@ -148,13 +191,14 @@ export function SiteSizeSelector({
       style={
         isOpen && !shouldUseMobileSheet
           ? ({
-              "--site-size-menu-height": `${panelHeight}px`,
+              "--site-size-menu-height": `${menuHeight}px`,
             } as CSSProperties)
           : undefined
       }
     >
       <button
         type="button"
+        ref={triggerRef}
         className={`${triggerClassName} site-product-detail__size-trigger${isSingleOption ? " site-product-detail__size-trigger--static" : ""}`.trim()}
         aria-haspopup={isSingleOption ? undefined : "listbox"}
         aria-expanded={isSingleOption ? undefined : isOpen}
@@ -191,7 +235,7 @@ export function SiteSizeSelector({
           />
           <div className="site-product-detail__size-sheet" role="dialog" aria-modal="true" aria-label="Выбор размера">
             <div className="site-product-detail__size-sheet-header">
-              <p className="site-product-detail__size-sheet-title">ВЫБРАТЬ РАЗМЕР</p>
+              <p className="site-product-detail__size-sheet-title">{sheetTitle}</p>
               <button type="button" className="site-product-detail__size-sheet-close" aria-label="Закрыть выбор размера" onClick={handleClose}>
                 <img src={resolveSitePublicAssetUrl("/site-mock/product-detail/size-sheet-close.svg")} alt="" aria-hidden="true" />
               </button>
@@ -204,7 +248,7 @@ export function SiteSizeSelector({
       ) : isOpen ? (
         <div className="site-product-detail__size-menu" role="listbox" aria-label="Выбор размера">
           <div className="site-product-detail__size-menu-surface">
-            <div className="site-product-detail__size-menu-list">
+            <div className={`site-product-detail__size-menu-list${isMenuScrollable ? " site-product-detail__size-menu-list--scrollable" : ""}`}>
               {renderedOptions}
             </div>
           </div>

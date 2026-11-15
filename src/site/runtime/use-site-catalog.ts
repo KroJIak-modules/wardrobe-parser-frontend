@@ -4,6 +4,7 @@ import { SHOW_ALL_DESIGNERS_VALUE } from "../features/catalog/site-catalog-filte
 import { createSiteCatalogFilterShell, getSiteCatalogFilterUiPreset } from "../features/catalog/site-catalog-filter-shell";
 import { readCatalogListParam } from "../features/catalog/site-catalog-query";
 import { siteApiJson, type SiteApiCatalogExperience, type SiteApiCatalogProductsResponse } from "./site-public-api";
+import { buildSiteImageSource } from "../features/image/site-image-source";
 
 const LEGACY_AVAILABILITY_OPTION_ORDER = ["preorder", "in-stock"] as const;
 const LEGACY_SORT_OPTION_ORDER = ["price-asc", "price-desc", "featured"] as const;
@@ -138,23 +139,30 @@ function adaptProducts(payload: SiteApiCatalogProductsResponse["items"], searchP
       : selectedGenderValues;
   const selectedSectionValues = readCatalogListParam(searchParams, "section");
   const selectedCatalogs = readCatalogListParam(searchParams, "collection");
-  return payload.map((item) => ({
-    id: String(item.id),
-    path: item.path,
-    brand: item.brand.name,
-    designerId: item.brand.slug ?? "",
-    name: item.name,
-    priceRub: item.price_rub ?? 0,
-    oldPriceRub: item.old_price_rub,
-    availability: statusLabel(item.status),
-    availabilityCode: availabilityCode(item.status),
-    imageSrc: item.image_url,
-    imageAlt: "",
-    genders: effectiveGenderValues,
-    sectionIds: selectedSectionValues,
-    customCatalogIds: selectedCatalogs,
-    isSale: false,
-  }));
+  return payload.map((item) => {
+    // Карточки грузят уменьшенную копию картинки: оригиналы весят по несколько мегабайт.
+    const image = buildSiteImageSource(item.image_url, "catalogTile");
+    return {
+      id: String(item.id),
+      path: item.path,
+      brand: item.brand.name,
+      designerId: item.brand.slug ?? "",
+      name: item.name,
+      priceRub: item.price_rub ?? 0,
+      oldPriceRub: item.old_price_rub,
+      priceHasRange: Boolean(item.price_has_range),
+      availability: statusLabel(item.status),
+      availabilityCode: availabilityCode(item.status),
+      imageSrc: image.src,
+      imageSrcSet: image.srcSet,
+      imageSizes: image.sizes,
+      imageAlt: "",
+      genders: effectiveGenderValues,
+      sectionIds: selectedSectionValues,
+      customCatalogIds: selectedCatalogs,
+      isSale: false,
+    };
+  });
 }
 
 function buildExperienceQuery(searchParams: URLSearchParams, forcedTop?: string) {

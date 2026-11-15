@@ -122,8 +122,11 @@ export function normalizeCatalogProductsForGrid(products: readonly SiteCatalogPr
     name: product.name,
     priceRub: product.priceRub,
     oldPriceRub: product.oldPriceRub,
+    priceHasRange: product.priceHasRange,
     availability: product.availability,
     imageSrc: product.imageSrc,
+    imageSrcSet: product.imageSrcSet,
+    imageSizes: product.imageSizes,
     imageAlt: product.imageAlt,
   }));
 }

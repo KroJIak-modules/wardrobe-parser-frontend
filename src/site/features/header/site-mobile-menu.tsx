@@ -135,10 +135,17 @@ export function SiteMobileMenu({
   const [panel, setPanel] = useState<SiteMobileMenuPanel>("root");
   const [searchValue, setSearchValue] = useState("");
   const menuRef = useRef<HTMLDivElement | null>(null);
+  // Прокручивается содержимое шторки, а не сама оболочка: сбрасывать надо именно его.
+  const menuContentRef = useRef<HTMLDivElement | null>(null);
   const nextPanelLayerIdRef = useRef(1);
   const [panelLayers, setPanelLayers] = useState<SiteMobileMenuPanelLayer[]>([
     { id: 0, panel: "root", direction: "forward", phase: "active" },
   ]);
+
+  const resetMenuScroll = () => {
+    menuContentRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    menuRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  };
 
   const startPanelTransition = (nextPanel: SiteMobileMenuPanel) => {
     setPanel((currentPanel) => {
@@ -163,7 +170,8 @@ export function SiteMobileMenu({
       return nextPanel;
     });
 
-    menuRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    // Новый раздел всегда открывается сверху: без сброса меню оставалось внизу.
+    resetMenuScroll();
   };
 
   useEffect(() => {
@@ -176,6 +184,8 @@ export function SiteMobileMenu({
       setPanelLayers((currentLayers) =>
         currentLayers.map((layer) => (layer.id === enterLayer.id ? { ...layer, phase: "active" } : layer)),
       );
+      // Высота содержимого меняется при переходе — докручиваем меню к началу раздела.
+      resetMenuScroll();
     });
 
     return () => window.cancelAnimationFrame(frameId);
@@ -227,6 +237,7 @@ export function SiteMobileMenu({
   return (
     <SiteMobileDrawerShell
       ref={menuRef}
+      contentRef={menuContentRef}
       ariaLabel="Мобильное меню"
       className="site-mobile-menu"
       presentation={presentation}
@@ -295,6 +306,9 @@ export function SiteMobileMenu({
 
                 if (layer.phase === "exit") {
                   setPanelLayers((currentLayers) => currentLayers.filter((currentLayer) => currentLayer.id !== layer.id));
+                  // Уходящий слой убирается — высота содержимого меняется,
+                  // поэтому возвращаем меню к началу активного раздела.
+                  resetMenuScroll();
                 }
               }}
             >

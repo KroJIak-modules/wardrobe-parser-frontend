@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { optimizeImageUrl } from "../../../shared/product-image";
+import { buildSiteImageSource } from "../image/site-image-source";
 import type { SiteProductDetailGalleryItem, SiteProductDetailItem } from "../../runtime/site-product-detail";
 import { resolveSiteProductDetailSource, resolveSiteProductDetailSourceVariant } from "../../runtime/site-product-detail";
 
@@ -37,14 +37,22 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
 
   const gallery = useMemo<readonly SiteProductDetailGalleryItem[]>(() => {
     if (!activeSource || !Array.isArray(activeSource.imageUrls)) return product.gallery;
-    return activeSource.imageUrls.map((url, index) => ({
-      id: `variant-${activeSource.id}-${index + 1}`,
-      imageSrc: optimizeImageUrl(url, { width: 480, quality: 65 }) ?? url,
-      thumbSrc: optimizeImageUrl(url, { width: 80, quality: 55 }) ?? url,
-      thumbWidth: 95,
-      thumbHeight: 126,
-      alt: "",
-    }));
+    return activeSource.imageUrls.map((url, index) => {
+      const main = buildSiteImageSource(url, "galleryMain");
+      const thumb = buildSiteImageSource(url, "galleryThumb");
+      return {
+        id: `variant-${activeSource.id}-${index + 1}`,
+        imageSrc: main.src ?? url,
+        imageSrcSet: main.srcSet,
+        imageSizes: main.sizes,
+        thumbSrc: thumb.src ?? url,
+        thumbSrcSet: thumb.srcSet,
+        thumbSizes: thumb.sizes,
+        thumbWidth: 97,
+        thumbHeight: 129,
+        alt: "",
+      };
+    });
   }, [activeSource, product.gallery]);
 
   useEffect(() => {

@@ -115,6 +115,7 @@ export type SiteApiCatalogProduct = {
   name: string;
   price_rub: number | null;
   old_price_rub: number | null;
+  price_has_range: boolean;
   status: "in_stock" | "preorder" | "sold_out";
   image_url: string | null;
 };
@@ -140,6 +141,8 @@ export type SiteApiProductResponse = {
   description: { format: "text"; content: string } | null;
   status: "in_stock" | "preorder" | "sold_out";
   photos: string[];
+  price_has_range: boolean;
+  size_label: string;
   variants: Array<{
     id: number;
     size: string;

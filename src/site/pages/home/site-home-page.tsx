@@ -153,6 +153,8 @@ export function SiteHomePage() {
             ) : heroAsset ? (
               <SiteImage
                 src={heroAsset.url}
+                srcSet={heroAsset.imageSrcSet ?? undefined}
+                sizes={heroAsset.imageSizes ?? undefined}
                 alt=""
                 className="site-landing__image"
                 fillContainer

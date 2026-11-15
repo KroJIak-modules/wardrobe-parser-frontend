@@ -34,9 +34,13 @@ export function computePricingRates(pricingSettings: PricingSettings | null, pri
     return { usdToRub: 0, eurToRub: 0, gbpToRub: 0 };
   }
   const draftUsdtToRub = parseLocaleNumber(pricingDrafts.usdt_to_rub_rate ?? String(pricingSettings.usdt_to_rub_rate));
+  const draftUsdtExtra = parseLocaleNumber(pricingDrafts.usdt_extra_rub ?? String(pricingSettings.usdt_extra_rub));
   const draftEurToUsd = parseLocaleNumber(pricingDrafts.eur_to_usd_rate ?? String(pricingSettings.eur_to_usd_rate));
   const draftGbpToUsd = parseLocaleNumber(pricingDrafts.gbp_to_usd_rate ?? String(pricingSettings.gbp_to_usd_rate));
-  const usdToRub = Number.isFinite(draftUsdtToRub) && draftUsdtToRub > 0 ? draftUsdtToRub : Number(pricingSettings.usd_to_rub_rate);
+  const bbr = Number.isFinite(draftUsdtToRub) && draftUsdtToRub > 0 ? draftUsdtToRub : Number(pricingSettings.usdt_to_rub_rate);
+  const bex = Number.isFinite(draftUsdtExtra) && draftUsdtExtra >= 0 ? draftUsdtExtra : Number(pricingSettings.usdt_extra_rub);
+  // BFX = BBR + BEX: the effective USDT/RUB rate used by the pricing formula.
+  const usdToRub = bbr + bex;
   const eurToUsd = Number.isFinite(draftEurToUsd) && draftEurToUsd > 0 ? draftEurToUsd : Number(pricingSettings.eur_to_usd_rate);
   const gbpToUsd = Number.isFinite(draftGbpToUsd) && draftGbpToUsd > 0 ? draftGbpToUsd : Number(pricingSettings.gbp_to_usd_rate);
   const eurToRub = eurToUsd * usdToRub;

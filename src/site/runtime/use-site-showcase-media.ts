@@ -4,6 +4,7 @@ import {
   siteApiJson,
   type SiteApiMediaAsset,
 } from "./site-public-api";
+import { buildSiteImageProbeUrl, buildSiteImageSource } from "../features/image/site-image-source";
 
 function preloadImage(src: string) {
   return new Promise<void>((resolve, reject) => {
@@ -16,9 +17,12 @@ function preloadImage(src: string) {
 }
 
 function toSlide(asset: SiteApiMediaAsset) {
+  const image = buildSiteImageSource(asset.url, "showcaseSlide");
   return {
     id: String(asset.id),
-    imageSrc: asset.url,
+    imageSrc: image.src ?? asset.url,
+    imageSrcSet: image.srcSet,
+    imageSizes: image.sizes,
     mediaKind: asset.media_kind,
     mimeType: asset.mime_type,
     alt: "",
@@ -29,9 +33,13 @@ function toAsset(asset: SiteApiMediaAsset | null): SiteShowcaseMediaAsset | null
   if (!asset) {
     return null;
   }
+  const image = buildSiteImageSource(asset.url, "showcaseHero");
   return {
     id: String(asset.id),
     url: asset.url,
+    imageSrcSet: image.srcSet,
+    imageSizes: image.sizes,
+    imageProbeSrc: buildSiteImageProbeUrl(asset.url),
     mediaKind: asset.media_kind,
     mimeType: asset.mime_type,
     widthPx: asset.width_px,

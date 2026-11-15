@@ -271,6 +271,8 @@ export function SiteCarouselSection({
                 ) : (
                   <img
                     src={resolveSitePublicAssetUrl(slide.imageSrc)}
+                    srcSet={slide.imageSrcSet ?? undefined}
+                    sizes={slide.imageSizes ?? undefined}
                     alt={slide.alt}
                     className="site-carousel__image"
                     loading={shouldPrioritizeSlideMedia ? "eager" : "lazy"}

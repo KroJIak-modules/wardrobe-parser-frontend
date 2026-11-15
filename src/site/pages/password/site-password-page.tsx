@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { storefrontHomeState } from "../../app/site-home-entry";
 import { siteTelegramHref } from "../../app/site-static-content";
 import { SiteImage } from "../../features/image/site-image";
+import { buildSiteImageProbeUrl, buildSiteImageSource } from "../../features/image/site-image-source";
 import {
   siteApiJson,
   type SiteApiAccessStatusResponse,
@@ -89,10 +90,18 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
   }, [status.title]);
 
   const heroAsset = isMobileLayout ? hero.mobile ?? hero.desktop : hero.desktop;
+  const heroImage = useMemo(
+    () => buildSiteImageSource(heroAsset?.url ?? null, "showcaseHero"),
+    [heroAsset?.url],
+  );
   const imageAsset = useMemo(
     () => (
       heroAsset?.media_kind === "image"
-        ? { url: heroAsset.url, widthPx: heroAsset.width_px, heightPx: heroAsset.height_px }
+        ? {
+            url: buildSiteImageProbeUrl(heroAsset.url) ?? heroAsset.url,
+            widthPx: heroAsset.width_px,
+            heightPx: heroAsset.height_px,
+          }
         : null
     ),
     [heroAsset],
@@ -128,7 +137,16 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
         heroAsset.media_kind === "video" ? (
           <video className="site-password__hero" src={heroAsset.url} autoPlay loop muted playsInline preload="metadata" />
         ) : (
-          <SiteImage src={heroAsset.url} alt="" className="site-password__hero-media" wrapperClassName="site-password__hero" fillContainer enableSkeleton={false} />
+          <SiteImage
+            src={heroImage.src ?? heroAsset.url}
+            srcSet={heroImage.srcSet ?? undefined}
+            sizes={heroImage.sizes ?? undefined}
+            alt=""
+            className="site-password__hero-media"
+            wrapperClassName="site-password__hero"
+            fillContainer
+            enableSkeleton={false}
+          />
         )
       ) : (
         <div className="site-password__hero" aria-hidden="true" />

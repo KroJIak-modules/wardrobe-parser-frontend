@@ -5,6 +5,7 @@ import {
 } from "./site-about-model";
 import type { SiteCarouselSlide } from "../features/storefront/site-storefront-contracts";
 import { siteApiJson, type SiteApiAboutResponse } from "./site-public-api";
+import { buildSiteImageSource } from "../features/image/site-image-source";
 
 export function useSiteAbout() {
   const [payload, setPayload] = useState<SiteApiAboutResponse | null>(null);
@@ -31,11 +32,16 @@ export function useSiteAbout() {
 
   const photoSlides = useMemo<SiteCarouselSlide[]>(
     () =>
-      (payload?.photos ?? []).map((photo) => ({
-        id: String(photo.id),
-        imageSrc: photo.url,
-        alt: "",
-      })),
+      (payload?.photos ?? []).map((photo) => {
+        const image = buildSiteImageSource(photo.url, "showcaseSlide");
+        return {
+          id: String(photo.id),
+          imageSrc: image.src ?? photo.url,
+          imageSrcSet: image.srcSet,
+          imageSizes: image.sizes,
+          alt: "",
+        };
+      }),
     [payload],
   );
 

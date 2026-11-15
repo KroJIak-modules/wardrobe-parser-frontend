@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SiteProduct } from "../features/storefront/site-storefront-contracts";
 import { siteApiJson, type SiteApiCatalogProductsResponse } from "./site-public-api";
+import { buildSiteImageSource } from "../features/image/site-image-source";
 
 function siteStatusLabel(status: "in_stock" | "preorder" | "sold_out") {
   if (status === "in_stock") {
@@ -37,18 +38,24 @@ export function useSiteProducts(query: string, options?: { limit?: number }) {
           return;
         }
         setProducts(
-          payload.items.map((item) => ({
-            id: String(item.id),
-            path: item.path,
-            brand: item.brand.name,
-            designerId: item.brand.slug ?? undefined,
-            name: item.name,
-            priceRub: item.price_rub ?? 0,
-            oldPriceRub: item.old_price_rub,
-            availability: siteStatusLabel(item.status),
-            imageSrc: item.image_url,
-            imageAlt: "",
-          })),
+          payload.items.map((item) => {
+            const image = buildSiteImageSource(item.image_url, "catalogTile");
+            return {
+              id: String(item.id),
+              path: item.path,
+              brand: item.brand.name,
+              designerId: item.brand.slug ?? undefined,
+              name: item.name,
+              priceRub: item.price_rub ?? 0,
+              oldPriceRub: item.old_price_rub,
+              priceHasRange: Boolean(item.price_has_range),
+              availability: siteStatusLabel(item.status),
+              imageSrc: image.src,
+              imageSrcSet: image.srcSet,
+              imageSizes: image.sizes,
+              imageAlt: "",
+            };
+          }),
         );
         setTotal(payload.total);
         setLoading(false);

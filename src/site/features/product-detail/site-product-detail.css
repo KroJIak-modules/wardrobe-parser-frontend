@@ -335,12 +335,21 @@
   height: 100%;
   padding: 20px 0 7px;
   background: transparent;
+  overflow: hidden;
 }
 
 .site-product-detail__size-menu-list {
   display: grid;
   gap: 10px;
   width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* Скролл внутри списка не должен уводить страницу (scroll chaining). */
+.site-product-detail__size-menu-list--scrollable {
+  overscroll-behavior: contain;
 }
 
 .site-product-detail__size-option {

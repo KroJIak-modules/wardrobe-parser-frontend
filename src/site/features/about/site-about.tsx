@@ -181,7 +181,14 @@ function SiteAboutPhotoCarousel({
                 data-active={selectedIndex === index ? "true" : "false"}
                 aria-hidden={selectedIndex === index ? "false" : "true"}
               >
-                <SiteImage src={slide.imageSrc} alt={slide.alt} className="site-about__carousel-image" fillContainer />
+                <SiteImage
+                  src={slide.imageSrc}
+                  srcSet={slide.imageSrcSet ?? undefined}
+                  sizes={slide.imageSizes ?? undefined}
+                  alt={slide.alt}
+                  className="site-about__carousel-image"
+                  fillContainer
+                />
               </figure>
             ))}
           </div>

@@ -11,7 +11,9 @@ type LandingGlassButtonsProps = {
 
 export function LandingGlassButtons({ label, onEnter, heroAsset }: LandingGlassButtonsProps) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const imageAsset = heroAsset?.mediaKind === "image" ? heroAsset : null;
+  const imageAsset = heroAsset?.mediaKind === "image"
+    ? { ...heroAsset, url: heroAsset.imageProbeSrc ?? heroAsset.url }
+    : null;
   const { tone } = useSiteImageTone({
     asset: imageAsset,
     targetRef: buttonRef,

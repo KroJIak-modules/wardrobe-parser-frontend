@@ -7,7 +7,11 @@ export type SiteProductGender = "men" | "women";
 export type SiteProductDetailGalleryItem = {
   id: string;
   imageSrc: string;
+  imageSrcSet?: string | null;
+  imageSizes?: string;
   thumbSrc: string;
+  thumbSrcSet?: string | null;
+  thumbSizes?: string;
   thumbWidth: number;
   thumbHeight: number;
   alt: string;
@@ -38,6 +42,7 @@ export type SiteProductDetailItem = SiteProduct & {
   descriptionPreview?: string;
   sourceUrl: string | null;
   sizes: readonly string[];
+  sizeLabel?: string;
   sourceVariants?: readonly SiteProductDetailSourceVariant[];
   gallery: readonly SiteProductDetailGalleryItem[];
 };

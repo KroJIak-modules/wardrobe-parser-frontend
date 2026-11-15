@@ -14,12 +14,8 @@
   font-family: var(--site-font-ui);
 }
 
-.site-mobile-menu.site-mobile-drawer-shell {
-  overflow-y: auto;
-  overflow-x: hidden;
-  border-radius: 15px;
-}
-
+/* Прокручивается содержимое шторки: класс .site-mobile-menu стоит на внутреннем
+   слое .site-mobile-drawer-shell__content, а не на самой оболочке. */
 .site-mobile-menu::-webkit-scrollbar {
   display: none;
 }

@@ -6,6 +6,8 @@ export type SiteNavItem = {
 export type SiteCarouselSlide = {
   id: string;
   imageSrc: string;
+  imageSrcSet?: string | null;
+  imageSizes?: string;
   mediaKind?: "image" | "video";
   mimeType?: string | null;
   alt: string;
@@ -14,6 +16,9 @@ export type SiteCarouselSlide = {
 export type SiteShowcaseMediaAsset = {
   id: string;
   url: string;
+  imageSrcSet?: string | null;
+  imageSizes?: string;
+  imageProbeSrc?: string | null;
   mediaKind: "image" | "video";
   mimeType?: string | null;
   widthPx?: number | null;
@@ -28,8 +33,11 @@ export type SiteProduct = {
   name: string;
   priceRub: number;
   oldPriceRub?: number | null;
+  priceHasRange?: boolean;
   availability: string;
   imageSrc: string | null;
+  imageSrcSet?: string | null;
+  imageSizes?: string;
   imageAlt: string;
 };
 

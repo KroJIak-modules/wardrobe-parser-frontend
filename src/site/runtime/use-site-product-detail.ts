@@ -10,7 +10,7 @@ import {
   type SiteApiCatalogProductsResponse,
   type SiteApiProductResponse,
 } from "./site-public-api";
-import { optimizeImageUrl } from "../../shared/product-image";
+import { buildSiteImageSource } from "../features/image/site-image-source";
 
 const SITE_RECOMMENDATIONS_LIMIT = 8;
 const SITE_RECOMMENDATIONS_MOBILE_QUERY = "(max-width: 640px)";
@@ -99,7 +99,7 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
     );
   const defaultPrice = cheapestVariant?.price_rub ?? 0;
   const firstPhoto = payload.photos[0] ?? null;
-  const mainImage = optimizeImageUrl(firstPhoto, { width: 1280, quality: 80 }) ?? firstPhoto;
+  const mainImage = buildSiteImageSource(firstPhoto, "galleryMain");
 
   return {
     id: String(payload.id),
@@ -109,9 +109,13 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
     name: payload.name,
     priceRub: defaultPrice,
     oldPriceRub: cheapestVariant?.old_price_rub ?? null,
+    priceHasRange: Boolean(payload.price_has_range),
+    sizeLabel: payload.size_label,
     availability: statusLabel(payload.status),
     availabilityCode: statusCode(payload.status),
-    imageSrc: mainImage,
+    imageSrc: mainImage.src ?? firstPhoto,
+    imageSrcSet: mainImage.srcSet,
+    imageSizes: mainImage.sizes,
     imageAlt: "",
     genders: payload.recommendation_context.gender ? [payload.recommendation_context.gender] : [],
     sectionIds: payload.recommendation_context.section_slug ? [payload.recommendation_context.section_slug] : [],
@@ -120,17 +124,20 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
     sizes: sourceVariants.map((variant) => variant.size),
     sourceVariants,
     gallery: payload.photos.map((photo, index) => {
-      // Keep memory under control on product detail.
-      // Visual box is ~577x770. Requesting 480px is plenty sharp.
-      // Far slides get a thumbnail so Chrome doesn't decode 10 full bitmaps.
-      const main = optimizeImageUrl(photo, { width: 480, quality: 65 }) ?? photo;
-      const thumb = optimizeImageUrl(photo, { width: 80, quality: 55 }) ?? photo;
+      // Ширины подбираются под фактический размер бокса и devicePixelRatio,
+      // иначе картинка растягивается и мылится.
+      const main = buildSiteImageSource(photo, "galleryMain");
+      const thumb = buildSiteImageSource(photo, "galleryThumb");
       return {
         id: `photo-${index + 1}`,
-        imageSrc: main,
-        thumbSrc: thumb,
-        thumbWidth: 95,
-        thumbHeight: 126,
+        imageSrc: main.src ?? photo,
+        imageSrcSet: main.srcSet,
+        imageSizes: main.sizes,
+        thumbSrc: thumb.src ?? photo,
+        thumbSrcSet: thumb.srcSet,
+        thumbSizes: thumb.sizes,
+        thumbWidth: 97,
+        thumbHeight: 129,
         alt: "",
       };
     }),
@@ -138,6 +145,7 @@ function adaptProduct(payload: SiteApiProductResponse): SiteProductDetailItem {
 }
 
 function adaptRecommendation(item: SiteApiCatalogProductsResponse["items"][number]): SiteProduct {
+  const image = buildSiteImageSource(item.image_url, "catalogTile");
   return {
     id: String(item.id),
     path: item.path,
@@ -146,8 +154,11 @@ function adaptRecommendation(item: SiteApiCatalogProductsResponse["items"][numbe
     name: item.name,
     priceRub: item.price_rub ?? 0,
     oldPriceRub: item.old_price_rub,
+    priceHasRange: Boolean(item.price_has_range),
     availability: statusLabel(item.status),
-    imageSrc: item.image_url,
+    imageSrc: image.src,
+    imageSrcSet: image.srcSet,
+    imageSizes: image.sizes,
     imageAlt: "",
   };
 }

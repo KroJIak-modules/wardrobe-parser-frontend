@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useNavigationType, useSearchParams } from "re
 import type { SiteCatalogTopKey } from "../../features/catalog/site-catalog-contracts";
 import { resolveOptimisticCatalogHeader } from "../../features/catalog/site-catalog-optimistic-header";
 import { SiteCatalogMobileView } from "../../features/catalog/site-catalog-mobile-view";
-import { isSiteCatalogFilterNavigation } from "../../features/catalog/site-catalog-navigation";
 import { clearSiteCatalogReturnSnapshot, readSiteCatalogReturnSnapshot } from "../../features/catalog/site-catalog-return";
 import { readCatalogListParam } from "../../features/catalog/site-catalog-query";
 import { SiteCatalogExperienceView } from "../../features/catalog/site-catalog-sections";
@@ -82,7 +81,6 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
 
     return snapshot;
   }, [location.key, location.pathname, location.search]);
-  const isCatalogFilterNavigation = isSiteCatalogFilterNavigation(location.state);
   const { header, filterGroups, products, currentPage: normalizedPage, totalPages, loading, errorMessage } = useSiteCatalog(
     effectiveSearchParams,
     { forcedTop, restoreFromHistory: catalogReturnSnapshot !== null },
@@ -115,20 +113,25 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
   useLayoutEffect(() => {
     catalogReturnSnapshotRef.current = catalogReturnSnapshot;
 
-    if (!hasMountedCatalogRef.current && !catalogReturnSnapshot && !isCatalogFilterNavigation) {
-      window.scrollTo(0, 0);
+    if (!hasMountedCatalogRef.current && !catalogReturnSnapshot) {
+      // Открытие раздела из мобильного меню должно открывать страницу сразу сверху.
+      // Плавный скролл здесь отменяется: шторка меню ещё держит блокировку скролла
+      // страницы и снимает её уже после монтирования каталога.
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
     hasMountedCatalogRef.current = true;
-  }, [catalogReturnSnapshot, isCatalogFilterNavigation]);
+  }, [catalogReturnSnapshot]);
 
   useEffect(() => {
     const previousSignature = previousFilterSignatureRef.current;
     previousFilterSignatureRef.current = filterSignature;
 
-    const shouldScrollForFilterChange = previousSignature === null
-      ? isCatalogFilterNavigation && navigationType !== "POP"
-      : previousSignature !== filterSignature && navigationType !== "POP";
-    if (!shouldScrollForFilterChange) {
+    // Первичный показ раздела уже прокручен вверх в useLayoutEffect выше.
+    if (previousSignature === null) {
+      return;
+    }
+
+    if (previousSignature === filterSignature || navigationType === "POP") {
       return;
     }
 
@@ -140,7 +143,7 @@ export function SiteCatalogPage({ forcedTop }: { forcedTop?: SiteCatalogTopKey }
     clearSiteCatalogReturnSnapshot();
     catalogReturnSnapshotRef.current = null;
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-  }, [filterSignature, isCatalogFilterNavigation, navigationType]);
+  }, [filterSignature, navigationType]);
 
   useLayoutEffect(() => {
     const snapshot = catalogReturnSnapshotRef.current;

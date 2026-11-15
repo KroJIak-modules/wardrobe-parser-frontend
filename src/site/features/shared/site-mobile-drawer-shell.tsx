@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { forwardRef, useEffect, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 
 import "./site-mobile-drawer-shell.css";
 
@@ -21,6 +21,7 @@ type SiteMobileDrawerShellProps = {
   ariaLabel: string;
   children: ReactNode;
   className?: string;
+  contentRef?: Ref<HTMLDivElement>;
   isClosing?: boolean;
   presentation?: "mobile" | "tablet";
   onClose: () => void;
@@ -44,6 +45,7 @@ export const SiteMobileDrawerShell = forwardRef<HTMLDivElement, SiteMobileDrawer
       ariaLabel,
       children,
       className,
+      contentRef,
       isClosing = false,
       presentation = "mobile",
       onClose,
@@ -109,7 +111,8 @@ export const SiteMobileDrawerShell = forwardRef<HTMLDivElement, SiteMobileDrawer
           style={drawerStyle}
         >
           <div aria-hidden="true" className="site-mobile-drawer-shell__surface" />
-          <div className={contentClassName}>{children}</div>
+          {/* Прокручиваемый слой содержимого: сама оболочка не прокручивается. */}
+          <div className={contentClassName} ref={contentRef}>{children}</div>
         </div>
       </>
     );

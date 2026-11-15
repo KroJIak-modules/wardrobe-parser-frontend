@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { formatSiteRubles } from "../../app/site-format";
+import { formatSitePriceFrom } from "../../app/site-format";
 import { SiteOldPrice } from "../price/site-old-price";
 import type { SiteProductDetailItem } from "../../runtime/site-product-detail";
 import {
@@ -47,6 +47,10 @@ export function SiteProductHero({
   } = useSiteProductHeroState(product);
   const displayPrice = activeSource ? activeSource.priceRub : product.priceRub;
   const displayOldPrice = activeSource ? activeSource.oldPriceRub : product.oldPriceRub;
+  // Пока вариант не выбран, показываем минимальную цену с пометкой "От".
+  const showPriceFrom = !activeSource && Boolean(product.priceHasRange);
+  const sizeLabel = product.sizeLabel ?? "РАЗМЕР";
+  const sizeSheetTitle = sizeLabel === "ВАРИАНТЫ" ? "ВЫБРАТЬ ВАРИАНТ" : "ВЫБРАТЬ РАЗМЕР";
 
   useEffect(() => {
     if (!selectedGalleryItem) {
@@ -127,6 +131,8 @@ export function SiteProductHero({
               >
                 <SiteImage
                   src={item.thumbSrc}
+                  srcSet={item.thumbSrcSet ?? undefined}
+                  sizes={item.thumbSizes ?? undefined}
                   alt=""
                   aria-hidden="true"
                   className="site-product-detail__thumb-image"
@@ -161,6 +167,8 @@ export function SiteProductHero({
                 >
                   <SiteImage
                     src={item.imageSrc}
+                    srcSet={item.imageSrcSet ?? undefined}
+                    sizes={item.imageSizes ?? undefined}
                     alt={item.alt}
                     className="site-product-detail__main-image"
                     fillContainer
@@ -192,13 +200,20 @@ export function SiteProductHero({
             {displayPrice !== null && displayOldPrice && displayOldPrice > displayPrice
               ? <SiteOldPrice className="site-product-detail__old-price" valueRub={displayOldPrice} />
               : null}
-            <span className="site-product-detail__price">{displayPrice === null ? "Цена недоступна" : `${formatSiteRubles(displayPrice)} ₽`}</span>
+            <span className="site-product-detail__price">{displayPrice === null ? "Цена недоступна" : formatSitePriceFrom(displayPrice, showPriceFrom)}</span>
             <span className="site-product-detail__price-divider">-</span>
             <span className="site-product-detail__availability">{product.availability}</span>
           </div>
         </div>
 
-        <SiteSizeSelector sizes={product.sizes} selectedSize={selectedSize} onSelect={setSelectedSize} mobileSheet />
+        <SiteSizeSelector
+          sizes={product.sizes}
+          selectedSize={selectedSize}
+          onSelect={setSelectedSize}
+          placeholder={sizeLabel}
+          sheetTitle={sizeSheetTitle}
+          mobileSheet
+        />
 
         <button
           type="button"
