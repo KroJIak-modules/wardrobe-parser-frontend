@@ -1,5 +1,5 @@
 import { buildCatalogHref } from "../catalog/site-catalog-query";
-import type { SiteApiNavigation, SiteApiNavigationMenuEntry } from "../../runtime/site-public-api";
+import type { SiteApiNavigation, SiteApiNavigationMenuEntry, SiteApiRouteTarget } from "../../runtime/site-public-api";
 import { buildHrefFromTarget } from "../../runtime/use-site-navigation";
 
 export type SiteMobileMenuGender = "men" | "women";
@@ -18,6 +18,29 @@ export type SiteMobileMenuGroup = {
   actions: readonly SiteMobileMenuAction[];
 };
 
+/**
+ * Подставляет выбранный в бургере пол в ссылку каталога.
+ *
+ * Пол в бургере переключается вкладками «Мужское»/«Женское», поэтому он должен
+ * доезжать до каталога — иначе фильтр «ПОЛ» в каталоге оказывается пустым,
+ * хотя в меню пол выбран.
+ */
+function withGenderTarget(
+  target: SiteApiRouteTarget | null | undefined,
+  gender: SiteMobileMenuGender,
+): SiteApiRouteTarget | null | undefined {
+  if (!target) {
+    return target;
+  }
+
+  const query = { ...(target.query ?? {}) };
+  if (!query.gender) {
+    query.gender = gender;
+  }
+
+  return { ...target, query };
+}
+
 function toAction(entry: SiteApiNavigationMenuEntry): SiteMobileMenuAction {
   return {
     label: entry.label,
@@ -26,7 +49,15 @@ function toAction(entry: SiteApiNavigationMenuEntry): SiteMobileMenuAction {
   };
 }
 
-function createNewActions(payload: SiteApiNavigation): readonly SiteMobileMenuAction[] {
+function toActionWithGender(entry: SiteApiNavigationMenuEntry, gender: SiteMobileMenuGender): SiteMobileMenuAction {
+  return {
+    label: entry.label,
+    presentation: entry.presentation,
+    to: buildHrefFromTarget(withGenderTarget(entry.target, gender)) ?? undefined,
+  };
+}
+
+function createNewActions(payload: SiteApiNavigation, gender: SiteMobileMenuGender): readonly SiteMobileMenuAction[] {
   const menu = payload.desktop_menus.new;
   if (!menu) {
     return [];
@@ -41,7 +72,7 @@ function createNewActions(payload: SiteApiNavigation): readonly SiteMobileMenuAc
     ...(collections.title
       ? [{ label: collections.title.label, presentation: "heading" as const }]
       : []),
-    ...collections.entries.map(toAction),
+    ...collections.entries.map((entry) => toActionWithGender(entry, gender)),
   ];
 }
 
@@ -62,7 +93,7 @@ function createDesignerActions(payload: SiteApiNavigation): readonly SiteMobileM
           },
         ]
       : []),
-    ...menu.columns.flatMap((column) => column.entries).slice(0, MOBILE_DESIGNER_LIMIT).map(toAction),
+    ...menu.columns.flatMap((column) => column.entries).slice(0, MOBILE_DESIGNER_LIMIT).map((entry) => toAction(entry)),
   ];
 }
 
@@ -88,7 +119,7 @@ function createRootGroupActions(payload: SiteApiNavigation, groupId: string, gen
     return [];
   }
 
-  return [{ id: rootGroup.id, actions: rootGroup.entries.map(toAction) }];
+  return [{ id: rootGroup.id, actions: rootGroup.entries.map((entry) => toActionWithGender(entry, gender)) }];
 }
 
 export function getSiteMobileMenuGroups(
@@ -101,7 +132,7 @@ export function getSiteMobileMenuGroups(
   }
 
   if (panel === "new") {
-    return [{ id: "new", actions: createNewActions(payload) }];
+    return [{ id: "new", actions: createNewActions(payload, gender) }];
   }
 
   if (panel === "designers") {
