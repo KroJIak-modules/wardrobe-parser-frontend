@@ -1,14 +1,29 @@
 /* Mobile action placement is derived from one centred logo strip. The logo is
  * as wide as the viewport permits after reserving each 40px control and the
  * two required 35px clear spaces; it then grows smoothly up to the tablet
- * hand-off size. Buttons are positioned from the same geometry. */
-.site-mobile-home-header {
+ * hand-off size. Buttons are positioned from the same geometry.
+ *
+ * The geometry lives on :root so that every page can reserve exactly the
+ * height the header currently takes: the logo grows with the viewport, and a
+ * hardcoded offset lets it overlap the content underneath (the product photo
+ * on the product page, the title on the catalogue). */
+:root {
   --site-mobile-header-button-width: 40px;
   --site-mobile-header-button-height: 34px;
   --site-mobile-header-logo-gap: 35px;
   --site-mobile-header-logo-width: min(250px, max(10px, calc(100vw - 190px)));
   --site-mobile-header-logo-height: calc(var(--site-mobile-header-logo-width) * 3 / 10);
   --site-mobile-header-height: max(60px, var(--site-mobile-header-logo-height));
+}
+
+/* The tablet header keeps its fixed 89px strip instead of the mobile one. */
+@media (min-width: 641px) and (max-width: 1100px) {
+  :root {
+    --site-mobile-header-height: 89px;
+  }
+}
+
+.site-mobile-home-header {
   position: fixed;
   inset: 0 0 auto;
   z-index: 60;
@@ -18,9 +33,6 @@
 }
 
 .site-mobile-home-header__logo-shell {
-  --site-mobile-header-logo-width: min(250px, max(10px, calc(100vw - 190px)));
-  --site-mobile-header-logo-height: calc(var(--site-mobile-header-logo-width) * 3 / 10);
-  --site-mobile-header-height: max(60px, var(--site-mobile-header-logo-height));
   position: fixed;
   top: 0;
   left: 50%;

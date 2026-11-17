@@ -144,7 +144,7 @@
   .site-questions {
     width: auto;
     margin: 0;
-    padding: 67px 20px 56px;
+    padding: calc(var(--site-mobile-header-height) + 7px) 20px 56px;
   }
 
   .site-questions__page-title {

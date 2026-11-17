@@ -1181,7 +1181,9 @@
     align-items: center;
     gap: 0;
     min-height: 0;
-    padding: 60px 0 0;
+    /* Отступ равен текущей высоте шапки: логотип растёт вместе с экраном,
+       и жёсткие 60px приводили к наложению логотипа на фотографию товара. */
+    padding: var(--site-mobile-header-height) 0 0;
   }
 
   .site-product-detail__main-image-shell {

@@ -399,7 +399,7 @@
   .site-about {
     box-sizing: border-box;
     width: 100%;
-    padding-top: 67px;
+    padding-top: calc(var(--site-mobile-header-height) + 7px);
     --site-about-mobile-shell-width: calc(100vw - 120px);
     --site-about-mobile-media-width: calc(var(--site-about-mobile-shell-width) - 4px);
     --site-about-mobile-media-height: calc(var(--site-about-mobile-media-width) * 4 / 3);

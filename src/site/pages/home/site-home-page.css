@@ -177,6 +177,6 @@
   }
 
   .site-home-surface__content {
-    padding-top: 60px;
+    padding-top: var(--site-mobile-header-height);
   }
 }
