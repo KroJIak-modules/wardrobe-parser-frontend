@@ -1195,27 +1195,35 @@
   }
 
   .site-product-detail__main-image-viewport {
+    /* Мобильная галерея листается нативным скроллом: вьюпорт — скролл-контейнер,
+       слайды примапливаются браузером, поэтому рядом с фотографией никогда не
+       торчит край соседнего кадра и лента не залипает на половине свайпа. */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
     cursor: default;
-    touch-action: pan-y pinch-zoom;
+  }
+
+  .site-product-detail__main-image-viewport::-webkit-scrollbar {
+    display: none;
   }
 
   .site-product-detail__main-image-container {
     flex-direction: row;
-    width: 100%;
-    transform: translate3d(
-      calc((var(--site-product-detail-gallery-index, 0) * -100%) + var(--site-product-detail-gallery-drag-offset, 0px)),
-      0,
-      0
-    );
-    touch-action: pan-y pinch-zoom;
-  }
-
-  .site-product-detail__main-image-container--dragging {
+    width: max-content;
+    transform: none;
     transition: none;
+    touch-action: pan-x pan-y;
   }
 
   .site-product-detail__main-image-slide {
-    flex: 0 0 100%;
+    flex: 0 0 auto;
+    width: calc(100vw - 40px);
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
   }
 
   .site-product-detail__main-image {

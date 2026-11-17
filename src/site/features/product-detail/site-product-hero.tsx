@@ -28,9 +28,7 @@ export function SiteProductHero({
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [summaryExpansionHeightPx, setSummaryExpansionHeightPx] = useState(0);
   const {
-    dragOffsetPx,
     hasMultipleSourceVariants,
-    isDraggingGallery,
     isSourcesDialogOpen,
     mainImageViewportRef,
     selectedGalleryIndex,
@@ -147,15 +145,10 @@ export function SiteProductHero({
         <div className="site-product-detail__main-image-shell">
           <div className="site-product-detail__main-image-viewport" ref={mainImageViewportRef}>
             <div
-              className={
-                isDraggingGallery
-                  ? "site-product-detail__main-image-container site-product-detail__main-image-container--dragging"
-                  : "site-product-detail__main-image-container"
-              }
+              className="site-product-detail__main-image-container"
               style={
                 {
                   "--site-product-detail-gallery-index": selectedGalleryIndex,
-                  "--site-product-detail-gallery-drag-offset": `${dragOffsetPx}px`,
                 } as CSSProperties
               }
             >

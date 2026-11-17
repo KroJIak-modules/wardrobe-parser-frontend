@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import useEmblaCarousel from "embla-carousel-react";
 import { buildSiteImageSource } from "../image/site-image-source";
 import type { SiteProductDetailGalleryItem, SiteProductDetailItem } from "../../runtime/site-product-detail";
 import { resolveSiteProductDetailSource, resolveSiteProductDetailSourceVariant } from "../../runtime/site-product-detail";
 
 const GALLERY_WHEEL_THROTTLE_MS = 240;
+const GALLERY_SCROLL_GUARD_MS = 450;
 const PRODUCT_GALLERY_MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 
 export function useSiteProductHeroState(product: SiteProductDetailItem) {
@@ -15,20 +15,14 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
   const mainImageViewportRef = useRef<HTMLDivElement | null>(null);
   const wheelThrottleRef = useRef<number | null>(null);
   const [isMobileGallery, setIsMobileGallery] = useState(false);
-  const [emblaViewportRef, emblaApi] = useEmblaCarousel({
-    active: false,
-    containScroll: "trimSnaps",
-    breakpoints: {
-      [PRODUCT_GALLERY_MOBILE_MEDIA_QUERY]: { active: true },
-    },
-  });
+  const isProgrammaticScrollRef = useRef(false);
+  const scrollGuardTimeoutRef = useRef<number | null>(null);
 
   const setMainImageViewportRef = useCallback(
     (node: HTMLDivElement | null) => {
       mainImageViewportRef.current = node;
-      emblaViewportRef(node);
     },
-    [emblaViewportRef],
+    [],
   );
 
   const activeSource = useMemo(() => {
@@ -120,30 +114,88 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
   }, []);
 
   useEffect(() => {
-    if (!emblaApi || !isMobileGallery) {
-      return;
+    if (!isMobileGallery) {
+      return undefined;
     }
 
-    const syncSelectedGalleryItem = () => {
-      const item = gallery[emblaApi.selectedScrollSnap()];
-      if (item) {
+    // Мобильная галерея листается нативным скроллом: вьюпорт — скролл-контейнер,
+    // слайды примапливаются средствами браузера. Так рядом с фотографией никогда не
+    // показывается край соседнего кадра, а лента не «залипает» на половине свайпа.
+    const viewport = mainImageViewportRef.current;
+    if (!viewport) {
+      return undefined;
+    }
+
+    const handleScroll = () => {
+      if (isProgrammaticScrollRef.current) {
+        return;
+      }
+
+      const slideWidth = viewport.clientWidth;
+      if (!slideWidth) {
+        return;
+      }
+
+      const index = Math.round(viewport.scrollLeft / slideWidth);
+      const item = gallery[index];
+      if (item && item.id !== selectedGalleryItemId) {
         setSelectedGalleryItemId(item.id);
       }
     };
 
-    emblaApi.on("select", syncSelectedGalleryItem);
-    emblaApi.on("reInit", syncSelectedGalleryItem);
+    viewport.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
-      emblaApi.off("select", syncSelectedGalleryItem);
-      emblaApi.off("reInit", syncSelectedGalleryItem);
+      viewport.removeEventListener("scroll", handleScroll);
     };
-  }, [emblaApi, gallery, isMobileGallery]);
+  }, [gallery, isMobileGallery, selectedGalleryItemId]);
 
   useEffect(() => {
-    if (emblaApi && isMobileGallery) {
-      emblaApi.scrollTo(selectedGalleryIndex);
+    if (!isMobileGallery) {
+      return;
     }
-  }, [emblaApi, isMobileGallery, selectedGalleryIndex]);
+
+    const viewport = mainImageViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    const slideWidth = viewport.clientWidth;
+    if (!slideWidth) {
+      return;
+    }
+
+    // Цель берём у самого слайда: из-за дробных пикселей позиция слайда
+    // отличается от index * ширины, и браузер откатывает скролл, если
+    // примапливание не совпало с точкой привязки.
+    const slide = viewport.querySelectorAll<HTMLElement>(".site-product-detail__main-image-slide")[selectedGalleryIndex];
+    const target = slide
+      ? slide.getBoundingClientRect().left - viewport.getBoundingClientRect().left + viewport.scrollLeft
+      : selectedGalleryIndex * slideWidth;
+    if (Math.abs(viewport.scrollLeft - target) < 1) {
+      return;
+    }
+
+    isProgrammaticScrollRef.current = true;
+    // Мгновенный переход: плавный скролл браузер отменяет при обязательном
+    // привязывании к слайдам (scroll-snap-type: mandatory).
+    viewport.scrollTo({ left: target, behavior: "auto" });
+    if (scrollGuardTimeoutRef.current !== null) {
+      window.clearTimeout(scrollGuardTimeoutRef.current);
+    }
+    scrollGuardTimeoutRef.current = window.setTimeout(() => {
+      scrollGuardTimeoutRef.current = null;
+      isProgrammaticScrollRef.current = false;
+    }, GALLERY_SCROLL_GUARD_MS);
+  }, [isMobileGallery, selectedGalleryIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollGuardTimeoutRef.current !== null) {
+        window.clearTimeout(scrollGuardTimeoutRef.current);
+        scrollGuardTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const handleGalleryWheel = useCallback(
     (deltaX: number, deltaY: number) => {
@@ -195,9 +247,7 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
   }, [handleGalleryWheel, isMobileGallery]);
 
   return {
-    dragOffsetPx: 0,
     hasMultipleSourceVariants,
-    isDraggingGallery: false,
     isSourcesDialogOpen,
     mainImageViewportRef: setMainImageViewportRef,
     selectedGalleryIndex,
