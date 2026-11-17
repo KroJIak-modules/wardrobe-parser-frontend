@@ -1,5 +1,10 @@
 .site-product-tile {
   container-type: inline-size;
+  /* Плитки вне экрана не рисуем: без этого каждая из десятков карточек держит
+     свой анимируемый скелетон, а это десятки композитных слоёв и постоянная
+     работа GPU — на телефоне от этого сайт заметно подтормаживает.
+     Размер плитки задаёт aspect-ratio, поэтому вёрстка не меняется. */
+  content-visibility: auto;
   /* 325×577 is the single desktop reference. Every card dimension is expressed
    * in container units so it follows its actual grid track proportionally. */
   --site-product-tile-shell-width: 100%;
