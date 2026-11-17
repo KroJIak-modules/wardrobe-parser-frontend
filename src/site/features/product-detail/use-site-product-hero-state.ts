@@ -17,6 +17,7 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
   const [isMobileGallery, setIsMobileGallery] = useState(false);
   const isProgrammaticScrollRef = useRef(false);
   const scrollGuardTimeoutRef = useRef<number | null>(null);
+  const indexSourceRef = useRef<"scroll" | null>(null);
 
   const setMainImageViewportRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -139,6 +140,9 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
       const index = Math.round(viewport.scrollLeft / slideWidth);
       const item = gallery[index];
       if (item && item.id !== selectedGalleryItemId) {
+        // Индекс изменился из-за прокрутки — дальше скроллить его нельзя,
+        // иначе жест прерывается мгновенным переходом.
+        indexSourceRef.current = "scroll";
         setSelectedGalleryItemId(item.id);
       }
     };
@@ -158,6 +162,13 @@ export function useSiteProductHeroState(product: SiteProductDetailItem) {
     if (!viewport) {
       return;
     }
+
+    if (indexSourceRef.current === "scroll") {
+      // Фотографию листает палец: не перебиваем браузерную анимацию привязки.
+      indexSourceRef.current = null;
+      return;
+    }
+    indexSourceRef.current = null;
 
     const slideWidth = viewport.clientWidth;
     if (!slideWidth) {
