@@ -97,11 +97,7 @@ export function SitePasswordPage({ status, onUnlock }: Props) {
   const imageAsset = useMemo(
     () => (
       heroAsset?.media_kind === "image"
-        ? {
-            url: buildSiteImageProbeUrl(heroAsset.url) ?? heroAsset.url,
-            widthPx: heroAsset.width_px,
-            heightPx: heroAsset.height_px,
-          }
+        ? { url: buildSiteImageProbeUrl(heroAsset.url) ?? heroAsset.url }
         : null
     ),
     [heroAsset],

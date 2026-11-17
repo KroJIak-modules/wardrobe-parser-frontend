@@ -4,8 +4,6 @@ export type SiteImageTone = "light" | "dark";
 
 export type SiteImageToneAsset = {
   url: string;
-  widthPx?: number | null;
-  heightPx?: number | null;
 };
 
 type UseSiteImageToneOptions = {
@@ -22,14 +20,21 @@ function sampleImageTone(
   image: HTMLImageElement,
   surfaceRect: DOMRect,
   targetRect: DOMRect,
-  assetWidth: number,
-  assetHeight: number,
 ): SiteImageTone {
   const canvas = document.createElement("canvas");
   canvas.width = 24;
   canvas.height = 24;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) {
+    return "light";
+  }
+
+  // Область выборки считаем по пикселям той картинки, которую реально
+  // загрузили: уменьшенная копия и оригинал дают одну и ту же область,
+  // но считать её от размеров оригинала нельзя — координаты уедут.
+  const assetWidth = image.naturalWidth;
+  const assetHeight = image.naturalHeight;
+  if (assetWidth <= 0 || assetHeight <= 0) {
     return "light";
   }
 
@@ -87,7 +92,7 @@ export function useSiteImageTone({ asset, targetRef, surfaceSelector }: UseSiteI
   useEffect(() => {
     const target = targetRef.current;
     const surface = target?.closest(surfaceSelector);
-    if (!target || !(surface instanceof HTMLElement) || !asset?.url || !asset.widthPx || !asset.heightPx) {
+    if (!target || !(surface instanceof HTMLElement) || !asset?.url) {
       setTone("dark");
       setIsResolved(true);
       return;
@@ -112,7 +117,7 @@ export function useSiteImageTone({ asset, targetRef, surfaceSelector }: UseSiteI
       }
 
       try {
-        setTone(sampleImageTone(image, surface.getBoundingClientRect(), target.getBoundingClientRect(), asset.widthPx, asset.heightPx));
+        setTone(sampleImageTone(image, surface.getBoundingClientRect(), target.getBoundingClientRect()));
         setIsResolved(true);
       } catch {
         resolveFallback();

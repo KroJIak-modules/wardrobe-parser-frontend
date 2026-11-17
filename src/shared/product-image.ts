@@ -78,6 +78,32 @@ export function optimizeImageUrl(
 }
 
 // Only Shopify's CDN has a verified width API; leave unknown and signed URLs intact.
+const IMAGE_RESIZE_PARAMS = ["width", "w", "q", "quality", "format"];
+
+function stripImageResizeParams(url: string): string {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    IMAGE_RESIZE_PARAMS.forEach((param) => parsed.searchParams.delete(param));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Сравнивает адреса картинок, игнорируя параметры уменьшения.
+ *
+ * С адаптивными картинками (srcset) браузер подставляет в currentSrc свой
+ * вариант с ?width=, поэтому простое сравнение строк перестаёт работать.
+ */
+export function matchesImageSource(candidate: string | null | undefined, expected: string | null | undefined): boolean {
+  if (!candidate || !expected) {
+    return false;
+  }
+
+  return stripImageResizeParams(candidate) === stripImageResizeParams(expected);
+}
+
 export function getShopifyImageSrcSet(
   url: string | null | undefined,
   options?: { widths?: number[] },

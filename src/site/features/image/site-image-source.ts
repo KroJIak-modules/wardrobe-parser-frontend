@@ -70,16 +70,30 @@ function buildSiteMediaSrcSet(url: string, widths: number[]): string {
 
 /**
  * Маленькая копия картинки для сэмплирования цвета (canvas).
- * Оригинал грузить не нужно — цвета уменьшенной копии те же.
+ *
+ * Тянуть оригинал ради одного кадра цвета незачем: у Shopify-CDN есть
+ * ?width=, а свои медиа отдаются с ?w=.
  */
 export function buildSiteImageProbeUrl(url: string | null | undefined): string | null {
   const normalized = (url || "").trim();
   if (!normalized) {
     return null;
   }
+
   if (isSiteMediaUrl(normalized)) {
     return withSiteMediaWidth(normalized, 320);
   }
+
+  try {
+    const parsed = new URL(normalized, window.location.origin);
+    if (parsed.hostname.toLowerCase() === "cdn.shopify.com") {
+      parsed.searchParams.set("width", "320");
+      return parsed.toString();
+    }
+  } catch {
+    return normalized;
+  }
+
   return normalized;
 }
 

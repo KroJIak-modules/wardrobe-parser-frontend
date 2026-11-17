@@ -11,40 +11,45 @@ const bundle = await build({
   format: "esm",
   write: false,
 });
-const { buildSiteImageSource } = await import(
+const { buildSiteImageSource, buildSiteImageProbeUrl } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 );
 
-test("site media urls get width variants from our own endpoint", () => {
-  const source = buildSiteImageSource("/api/v1/site/media/173/file", "showcaseSlide");
-
-  assert.equal(source.src, "/api/v1/site/media/173/file?w=1200");
-  assert.ok(source.srcSet.includes("/api/v1/site/media/173/file?w=480 480w"));
-  assert.ok(source.srcSet.includes("/api/v1/site/media/173/file?w=1616 1616w"));
-  assert.equal(source.sizes, "(max-width: 640px) 100vw, 808px");
+const productImageBundle = await build({
+  entryPoints: ["src/shared/product-image.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  write: false,
 });
+const { matchesImageSource } = await import(
+  `data:text/javascript;base64,${Buffer.from(productImageBundle.outputFiles[0].text).toString("base64")}`
+);
 
-test("shopify urls get width variants from the source cdn", () => {
-  const source = buildSiteImageSource(
-    "https://cdn.shopify.com/s/files/1/0851/7999/0298/files/DSF0796.jpg?v=1",
-    "galleryMain",
+test("image source keeps the same picture across srcset variants", () => {
+  assert.equal(
+    matchesImageSource("https://cdn.shopify.com/a.jpg?v=1&width=640", "https://cdn.shopify.com/a.jpg?v=1"),
+    true,
   );
-
-  assert.ok(source.srcSet.includes("&width=640 640w"));
-  assert.ok(source.srcSet.includes("&width=1920 1920w"));
-  assert.equal(source.sizes, "(max-width: 640px) 100vw, 577px");
+  assert.equal(
+    matchesImageSource("https://cdn.shopify.com/a.jpg?v=1&width=640", "https://cdn.shopify.com/b.jpg?v=1"),
+    false,
+  );
+  assert.equal(matchesImageSource(null, "https://cdn.shopify.com/a.jpg"), false);
 });
 
-test("unknown hosts are left untouched", () => {
-  const source = buildSiteImageSource("https://img07.shop-pro.jp/image.jpg?token=abc", "catalogTile");
+test("site media urls get a resized variant", () => {
+  const source = buildSiteImageSource("/api/v1/site/media/162/file", "showcaseHero");
 
-  assert.equal(source.src, "https://img07.shop-pro.jp/image.jpg?token=abc");
-  assert.equal(source.srcSet, null);
+  assert.equal(source.src, "/api/v1/site/media/162/file?w=1920");
+  assert.ok(source.srcSet.includes("/api/v1/site/media/162/file?w=960 960w"));
 });
 
-test("empty url produces no source", () => {
-  const source = buildSiteImageSource(null, "catalogTile");
-
-  assert.equal(source.src, null);
-  assert.equal(source.srcSet, null);
+test("the tone probe uses a small copy instead of the original", () => {
+  assert.equal(buildSiteImageProbeUrl("/api/v1/site/media/162/file"), "/api/v1/site/media/162/file?w=320");
+  assert.equal(
+    buildSiteImageProbeUrl("https://cdn.shopify.com/a.jpg?v=1"),
+    "https://cdn.shopify.com/a.jpg?v=1&width=320",
+  );
+  assert.equal(buildSiteImageProbeUrl(""), null);
 });

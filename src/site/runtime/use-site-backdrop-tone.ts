@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
+import { matchesImageSource } from "../../shared/product-image";
 
 export type SiteBackdropTone = "light" | "dark";
 
@@ -7,12 +8,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function matchesSource(image: HTMLImageElement, assetSrc: string) {
-  try {
-    const expected = new URL(assetSrc, window.location.href).href;
-    return image.currentSrc === expected || image.src === expected;
-  } catch {
-    return false;
-  }
+  return matchesImageSource(image.currentSrc, assetSrc) || matchesImageSource(image.src, assetSrc);
 }
 
 function sampleImageTone(source: HTMLImageElement, rendered: HTMLImageElement, targetRect: DOMRect): SiteBackdropTone | null {
