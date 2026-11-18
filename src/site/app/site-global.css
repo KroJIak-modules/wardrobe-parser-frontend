@@ -1,6 +1,7 @@
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("/fonts/site/sf-compact-rounded-thin.ttf") format("truetype");
+  src: url("/fonts/site/sf-compact-rounded-thin.woff2") format("woff2"),
+    url("/fonts/site/sf-compact-rounded-thin.ttf") format("truetype");
   font-style: normal;
   font-weight: 100;
   font-display: swap;
@@ -8,7 +9,8 @@
 
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("/fonts/site/sf-compact-rounded-light.ttf") format("truetype");
+  src: url("/fonts/site/sf-compact-rounded-light.woff2") format("woff2"),
+    url("/fonts/site/sf-compact-rounded-light.ttf") format("truetype");
   font-style: normal;
   font-weight: 300;
   font-display: swap;
@@ -16,7 +18,8 @@
 
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("/fonts/site/sf-compact-rounded.ttf") format("truetype");
+  src: url("/fonts/site/sf-compact-rounded.woff2") format("woff2"),
+    url("/fonts/site/sf-compact-rounded.ttf") format("truetype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -24,7 +27,8 @@
 
 @font-face {
   font-family: "SF Compact Rounded";
-  src: url("/fonts/site/sf-compact-rounded-medium.ttf") format("truetype");
+  src: url("/fonts/site/sf-compact-rounded-medium.woff2") format("woff2"),
+    url("/fonts/site/sf-compact-rounded-medium.ttf") format("truetype");
   font-style: normal;
   font-weight: 500;
   font-display: swap;
