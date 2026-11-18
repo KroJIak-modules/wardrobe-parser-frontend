@@ -343,6 +343,8 @@
   gap: 10px;
   width: 100%;
   height: 100%;
+  /* Пункты занимают высоту своего содержимого и не растягиваются на панель. */
+  align-content: start;
   overflow-y: auto;
   scrollbar-width: thin;
 }

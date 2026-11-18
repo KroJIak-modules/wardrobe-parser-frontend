@@ -69,7 +69,12 @@ export function SiteSizeSelector({
     }
 
     const spaceBelow = viewportHeight - trigger.getBoundingClientRect().bottom - SITE_SIZE_MENU_VIEWPORT_MARGIN;
-    const capped = Math.max(SITE_SIZE_MENU_MIN_HEIGHT, Math.min(panelHeight, Math.floor(spaceBelow)));
+    // Минимальная высота нужна только длинному списку. Короткий список
+    // растягивать незачем: пункты тогда разъезжаются по пустому месту.
+    const capped =
+      panelHeight > SITE_SIZE_MENU_MIN_HEIGHT
+        ? Math.max(SITE_SIZE_MENU_MIN_HEIGHT, Math.floor(spaceBelow))
+        : panelHeight;
     setMenuHeightPx(capped);
   }, [sizes.length]);
 
