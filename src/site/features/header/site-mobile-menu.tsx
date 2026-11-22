@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { siteFooterColumns } from "../../app/site-static-content";
 import type { SiteFooterColumn } from "../storefront/site-storefront-contracts";
 import type { SiteApiNavigation } from "../../runtime/site-public-api";
 import { SiteMobileDrawerShell } from "../shared/site-mobile-drawer-shell";
 import { SiteWindowCloseButton } from "../window-shell/site-window-shell";
 import { prepareSiteCatalogFilterNavigation } from "../catalog/site-catalog-navigation";
+import { prepareSiteDesignersDirectoryNavigation } from "../designers/site-designers-navigation";
 import {
   buildSiteMobileSearchHref,
   getSiteMobileMenuGroups,
@@ -131,6 +132,7 @@ export function SiteMobileMenu({
   onCloseAnimationEnd: () => void;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [gender, setGender] = useState<SiteMobileMenuGender>("men");
   const [panel, setPanel] = useState<SiteMobileMenuPanel>("root");
   const [searchValue, setSearchValue] = useState("");
@@ -218,7 +220,10 @@ export function SiteMobileMenu({
     }
 
     onClose();
-    const destination = prepareSiteCatalogFilterNavigation(action.to, action.navigationState);
+    // Переход на страницу дизайнеров не должен терять выбор из каталога:
+    // иначе подчёркивание выбранных дизайнеров исчезает.
+    const designersDestination = prepareSiteDesignersDirectoryNavigation(action.to, action.navigationState, location.search);
+    const destination = prepareSiteCatalogFilterNavigation(designersDestination.to, designersDestination.state);
     navigate(destination.to, destination.state ? { state: destination.state } : undefined);
   };
 

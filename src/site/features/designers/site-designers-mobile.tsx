@@ -23,6 +23,7 @@ export function SiteDesignersMobileDirectory({
   mode,
   searchParams,
   onApply,
+  onSelectionChange,
   onBrowseSelect,
 }: {
   alphabet: readonly string[];
@@ -30,6 +31,7 @@ export function SiteDesignersMobileDirectory({
   mode: SiteDesignersEntryMode;
   searchParams: URLSearchParams;
   onApply: (next: URLSearchParams) => void;
+  onSelectionChange?: (designerIds: string[]) => void;
   onBrowseSelect: (designerId: string) => void;
 }) {
   const groupedEntries = useMemo(() => buildGroupedDesignerEntries(alphabet, entries), [alphabet, entries]);
@@ -51,7 +53,7 @@ export function SiteDesignersMobileDirectory({
     toggleDesigner,
     clearSelectedDesigners,
     buildAppliedSearchParams,
-  } = useSiteDesignersSelection(searchParams);
+  } = useSiteDesignersSelection(searchParams, onSelectionChange);
   const alphabetAvailability = useMemo(() => new Set(groupedEntries.map((section) => section.letter)), [groupedEntries]);
 
   useEffect(() => {

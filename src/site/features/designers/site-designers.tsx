@@ -11,6 +11,7 @@ export function SiteDesignersDirectory({
   mode,
   searchParams,
   onApply,
+  onSelectionChange,
   onBrowseSelect,
 }: {
   alphabet: readonly string[];
@@ -18,6 +19,7 @@ export function SiteDesignersDirectory({
   mode: SiteDesignersEntryMode;
   searchParams: URLSearchParams;
   onApply: (next: URLSearchParams) => void;
+  onSelectionChange?: (designerIds: string[]) => void;
   onBrowseSelect: (designerId: string) => void;
 }) {
   const isMobileLayout = useSiteMediaQuery(SITE_DESIGNERS_MOBILE_MEDIA_QUERY);
@@ -29,6 +31,7 @@ export function SiteDesignersDirectory({
       mode={mode}
       searchParams={searchParams}
       onApply={onApply}
+      onSelectionChange={onSelectionChange}
       onBrowseSelect={onBrowseSelect}
     />
   ) : (
@@ -38,6 +41,7 @@ export function SiteDesignersDirectory({
       mode={mode}
       searchParams={searchParams}
       onApply={onApply}
+      onSelectionChange={onSelectionChange}
       onBrowseSelect={onBrowseSelect}
     />
   );

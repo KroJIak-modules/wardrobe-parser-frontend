@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { heroHomeState } from "../../app/site-home-entry";
 import { prepareSiteCatalogFilterNavigation } from "../catalog/site-catalog-navigation";
 import type { SiteDesignersLocationState } from "../designers/site-designers-navigation";
+import { prepareSiteDesignersDirectoryNavigation } from "../designers/site-designers-navigation";
 import type { SiteNavItem } from "../storefront/site-storefront-contracts";
 import type { SiteHeaderProps } from "./site-header-contracts";
 import { SiteHeaderActions } from "./site-header-actions";
@@ -79,10 +80,13 @@ export function SiteHeader({
   const navigateFromDropdown = useCallback(
     (to: string, navigationState?: SiteDesignersLocationState) => {
       resetMenuState();
-      const destination = prepareSiteCatalogFilterNavigation(to, navigationState);
+      // Переход на страницу дизайнеров не должен терять выбор из каталога:
+      // иначе подчёркивание выбранных дизайнеров исчезает.
+      const designersDestination = prepareSiteDesignersDirectoryNavigation(to, navigationState, location.search);
+      const destination = prepareSiteCatalogFilterNavigation(designersDestination.to, designersDestination.state);
       navigate(destination.to, destination.state ? { state: destination.state } : undefined);
     },
-    [navigate, resetMenuState],
+    [location.search, navigate, resetMenuState],
   );
 
   const handleMenuActivate = useCallback(

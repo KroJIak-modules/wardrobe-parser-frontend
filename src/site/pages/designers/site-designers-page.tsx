@@ -5,6 +5,7 @@ import { SiteDesignersDirectory } from "../../features/designers/site-designers"
 import {
   buildBrowseDesignerCatalogSearchParams,
   resolveSiteDesignersEntryMode,
+  type SiteDesignersEntryMode,
 } from "../../features/designers/site-designers-navigation";
 import {
   SITE_DESIGNERS_MOBILE_MEDIA_QUERY,
@@ -25,7 +26,7 @@ export function SiteDesignersPage() {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
   const persistedSearchParams = useMemo(() => new URLSearchParams(searchParams), [searchParams]);
@@ -38,10 +39,19 @@ export function SiteDesignersPage() {
   const { alphabet, entries } = useSiteDesignersDirectory(selectedDesignerIds);
   const isMobileLayout = useSiteMediaQuery(SITE_DESIGNERS_MOBILE_MEDIA_QUERY);
   const usesTabletHeader = useSiteMediaQuery(SITE_DESIGNERS_TABLET_HEADER_MEDIA_QUERY);
-  const entryMode = useMemo(
-    () => resolveSiteDesignersEntryMode(location.state, persistedSearchParams),
-    [location.state, persistedSearchParams],
+  // Режим фиксируем при входе: снятие последнего выбранного дизайнера не должно
+  // убирать кнопки «Применить» и «Очистить».
+  const [entryMode, setEntryMode] = useState<SiteDesignersEntryMode>(() =>
+    resolveSiteDesignersEntryMode(location.state, persistedSearchParams),
   );
+
+  useEffect(() => {
+    setEntryMode((current) =>
+      resolveSiteDesignersEntryMode(location.state, persistedSearchParams) === "catalog-filter"
+        ? "catalog-filter"
+        : current,
+    );
+  }, [location.state, persistedSearchParams]);
 
   useEffect(() => {
     document.title = "Anton Shell — Дизайнеры";
@@ -61,6 +71,24 @@ export function SiteDesignersPage() {
       });
     },
     [navigate],
+  );
+
+  // Выбор дизайнеров отражаем в адресе: подчёркивание сохраняется при
+  // перезагрузке страницы и при возврате из меню.
+  const handleSelectionChange = useCallback(
+    (designerIds: string[]) => {
+      const current = readCatalogListParam(persistedSearchParams, "designer");
+      if (current.join(",") === designerIds.join(",")) {
+        return;
+      }
+
+      const nextParams = patchCatalogSearchParams(persistedSearchParams, {
+        designer: designerIds,
+        page: null,
+      });
+      setSearchParams(nextParams, { replace: true });
+    },
+    [persistedSearchParams, setSearchParams],
   );
 
   return (
@@ -99,6 +127,7 @@ export function SiteDesignersPage() {
         mode={entryMode}
         searchParams={persistedSearchParams}
         onApply={navigateToCatalog}
+        onSelectionChange={handleSelectionChange}
         onBrowseSelect={(designerId) => {
           navigateToCatalog(buildBrowseDesignerCatalogSearchParams(persistedSearchParams, designerId));
         }}
