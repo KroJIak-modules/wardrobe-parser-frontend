@@ -71,7 +71,9 @@
 }
 
 .site-designers-shell__designer {
-  display: inline-flex;
+  /* Именно block, а не flex: text-decoration не распространяется внутрь
+     flex-контейнера, поэтому подчёркивание выбранного дизайнера не рисовалось. */
+  display: block;
   width: 100%;
   padding: 0;
   border: 0;
@@ -80,7 +82,9 @@
   font-family: var(--site-font-ui);
   font-size: 18px;
   font-weight: 400;
-  line-height: 1;
+  /* Межстрочный интервал даёт место под линию подчёркивания: при line-height: 1
+     она уходила за нижнюю границу и срезалась overflow: hidden. */
+  line-height: 1.15;
   text-align: left;
   text-decoration: none;
   overflow: hidden;
@@ -99,7 +103,7 @@
 .site-designers-shell__designer--selected {
   text-decoration-line: underline;
   text-decoration-thickness: 0.07em;
-  text-underline-offset: 0.21em;
+  text-underline-offset: 0.14em;
   text-decoration-skip-ink: none;
 }
 
