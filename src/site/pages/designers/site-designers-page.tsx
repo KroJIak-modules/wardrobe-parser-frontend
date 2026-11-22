@@ -13,7 +13,7 @@ import {
 import { SiteHeader } from "../../features/header/site-header";
 import { SiteMobileHomeHeader } from "../../features/header/site-mobile-home-header";
 import { SiteFooterSection } from "../../features/storefront/site-storefront-sections";
-import { patchCatalogSearchParams } from "../../features/catalog/site-catalog-query";
+import { patchCatalogSearchParams, readCatalogListParam } from "../../features/catalog/site-catalog-query";
 import { useSiteActionItems } from "../../runtime/use-site-cart";
 import { useSiteMediaQuery } from "../../runtime/use-site-media-query";
 import { useSiteNavigation } from "../../runtime/use-site-navigation";
@@ -25,11 +25,17 @@ export function SiteDesignersPage() {
   const navigate = useNavigate();
   const actionItems = useSiteActionItems();
   const { payload: navigation, menuItems, dropdownMenus } = useSiteNavigation();
-  const { alphabet, entries } = useSiteDesignersDirectory();
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [searchValue, setSearchValue] = useState(urlQuery);
   const persistedSearchParams = useMemo(() => new URLSearchParams(searchParams), [searchParams]);
+  // Дизайнеры, выбранные в каталоге, должны быть видны и подчёркнуты,
+  // даже если у них сейчас нет публичных товаров.
+  const selectedDesignerIds = useMemo(
+    () => readCatalogListParam(persistedSearchParams, "designer"),
+    [persistedSearchParams],
+  );
+  const { alphabet, entries } = useSiteDesignersDirectory(selectedDesignerIds);
   const isMobileLayout = useSiteMediaQuery(SITE_DESIGNERS_MOBILE_MEDIA_QUERY);
   const usesTabletHeader = useSiteMediaQuery(SITE_DESIGNERS_TABLET_HEADER_MEDIA_QUERY);
   const entryMode = useMemo(
