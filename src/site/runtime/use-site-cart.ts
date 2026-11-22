@@ -195,6 +195,13 @@ export function useSiteCart() {
   );
 
   useEffect(() => {
+    if (items.length === 0) {
+      // Пустая корзина: считать нечего, и запрос на пустую цитату лишь
+      // занимает соединение на каждой странице витрины.
+      setQuote(null);
+      setQuoteStatus("idle");
+      return undefined;
+    }
     const controller = new AbortController();
     setQuoteStatus("loading");
     const request: SiteApiCartQuoteRequest = {
