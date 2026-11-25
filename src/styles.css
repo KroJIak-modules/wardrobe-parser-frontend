@@ -1430,6 +1430,22 @@ button.topbar-cta {
   height: 96px;
 }
 
+/* Строка-скелетон внутри таблицы товаров: высота совпадает с настоящей
+   строкой, поэтому подгрузка не дёргает список. */
+.admin-skeleton-table-line {
+  height: 120px;
+}
+
+.admin-skeleton-table-thumb--portrait {
+  width: 72px;
+  height: 96px;
+}
+
+.admin-skeleton-table-line .admin-skeleton-table-cell {
+  height: 14px;
+  border-radius: 999px;
+}
+
 .admin-skeleton-table-cell {
   height: 14px;
   border-radius: 999px;
@@ -5027,6 +5043,10 @@ textarea {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  /* Строки добавляются только вниз, поэтому браузерному «якорю» скролла
+     тут нечего держать: без этого Chrome подтягивал страницу на несколько
+     пикселей при подстановке товаров на место скелетонов. */
+  overflow-anchor: none;
 }
 
 .products-table th,

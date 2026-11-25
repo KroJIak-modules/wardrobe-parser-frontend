@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import { toExternalHttpUrl } from "../shared/external-links";
@@ -7,7 +7,7 @@ import { ImageWithFallback } from "../shared/image-with-fallback";
 import { getProductPrimaryImageUrl } from "../shared/product-image";
 import { getProductPriceSummary, withPriceRangePrefix } from "../shared/product-pricing";
 import { getProductSourceLabel } from "../shared/product-source-label";
-import { AdminTableSkeleton } from "../shared/skeleton";
+import { AdminTableSkeleton, AdminTableSkeletonRow } from "../shared/skeleton";
 import { EmptyState } from "../shared/empty-state";
 import {
   buildHiddenProductWriteState,
@@ -186,10 +186,9 @@ function DeleteConfirmPopover({
   );
 }
 
-function AdminProductsTableRow({
+const AdminProductsTableRow = memo(function AdminProductsTableRow({
   product,
   productsReturnHref,
-  loadedCount,
   sourceById,
   deleting,
   updatingStatus,
@@ -197,10 +196,10 @@ function AdminProductsTableRow({
   onUpdateProductStatus,
   onMarkProductViewed,
   onMarkProductAgainViewed,
+  onRememberTableState,
 }: {
   product: AdminProductsTableItem;
   productsReturnHref: string;
-  loadedCount: number;
   sourceById: Map<number, SourceLabel>;
   deleting: boolean;
   updatingStatus: boolean;
@@ -208,6 +207,7 @@ function AdminProductsTableRow({
   onUpdateProductStatus: (productId: number, state: ProductWriteState) => Promise<boolean>;
   onMarkProductViewed: (productId: number) => void;
   onMarkProductAgainViewed: (productId: number) => void;
+  onRememberTableState: (event?: MouseEvent) => void;
 }) {
   const deleteAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
@@ -241,14 +241,6 @@ function AdminProductsTableRow({
   const sourceTags = (product.source_tags || [])
     .map((item) => String(item || "").trim())
     .filter(Boolean);
-  const rememberTableState = () => {
-    captureAdminProductsReturnState({
-      href: productsReturnHref,
-      scrollY: window.scrollY,
-      loadedCount,
-    });
-  };
-
   useEffect(() => {
     if (!deleting) {
       return;
@@ -283,7 +275,7 @@ function AdminProductsTableRow({
           to={adminProductHref}
           state={{ fromControlPanel: true, adminReturnHref: productsReturnHref }}
           title={unavailableReason || undefined}
-          onClick={rememberTableState}
+          onClick={onRememberTableState}
         >
           <ImageWithFallback
             src={getProductPrimaryImageUrl(product, { w: 216, h: 288, q: 55 })}
@@ -302,7 +294,7 @@ function AdminProductsTableRow({
             to={adminProductHref}
             state={{ fromControlPanel: true, adminReturnHref: productsReturnHref }}
             title={unavailableReason || undefined}
-            onClick={rememberTableState}
+            onClick={onRememberTableState}
           >
             {product.title}
           </Link>
@@ -398,7 +390,7 @@ function AdminProductsTableRow({
             state={{ openEditMode: true, fromControlPanel: true, adminReturnHref: productsReturnHref }}
             title={unavailableReason || "Открыть товар сразу в режиме редактирования"}
             aria-label="Редактировать товар"
-            onClick={rememberTableState}
+            onClick={onRememberTableState}
           >
             <Pencil className="icon-svg" />
           </Link>
@@ -427,7 +419,7 @@ function AdminProductsTableRow({
       </td>
     </tr>
   );
-}
+});
 
 export function AdminProductsTable({
   tableLoading,
@@ -443,6 +435,19 @@ export function AdminProductsTable({
   onMarkProductViewed,
   onMarkProductAgainViewed,
 }: Props) {
+  // Позицию списка сохраняем перед уходом в карточку товара, чтобы вернуться
+  // ровно туда же. Открытие в новой вкладке со списка не уводит — сохранять нечего.
+  const rememberTableState = useCallback((event?: MouseEvent) => {
+    if (event && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0)) {
+      return;
+    }
+    captureAdminProductsReturnState({
+      href: productsReturnHref,
+      scrollY: window.scrollY,
+      loadedCount: tableProducts.length,
+    });
+  }, [productsReturnHref, tableProducts.length]);
+
   return (
     <div className="table-wrap table-wrap--spaced">
       <table className="products-table">
@@ -467,28 +472,36 @@ export function AdminProductsTable({
               </td>
             </tr>
           ) : (
-            tableProducts.map((product) => (
-              <AdminProductsTableRow
-                key={product.id}
-                product={product}
-                productsReturnHref={productsReturnHref}
-                loadedCount={tableProducts.length}
-                sourceById={sourceById}
-                deleting={deletingProductId === product.id}
-                updatingStatus={statusUpdatingProductId === product.id}
-                onDeleteProduct={onDeleteProduct}
-                onUpdateProductStatus={onUpdateProductStatus}
-                onMarkProductViewed={onMarkProductViewed}
-                onMarkProductAgainViewed={onMarkProductAgainViewed}
-              />
-            ))
+            <>
+              {tableProducts.map((product) => (
+                <AdminProductsTableRow
+                  key={product.id}
+                  product={product}
+                  productsReturnHref={productsReturnHref}
+                  sourceById={sourceById}
+                  deleting={deletingProductId === product.id}
+                  updatingStatus={statusUpdatingProductId === product.id}
+                  onDeleteProduct={onDeleteProduct}
+                  onUpdateProductStatus={onUpdateProductStatus}
+                  onMarkProductViewed={onMarkProductViewed}
+                  onMarkProductAgainViewed={onMarkProductAgainViewed}
+                  onRememberTableState={rememberTableState}
+                />
+              ))}
+              {/* Пока идёт догрузка, на её месте стоят скелетоны строк:
+                  та же высота, поэтому список не прыгает. */}
+              {tableLoadingMore
+                ? Array.from({ length: 2 }).map((_, index) => (
+                    <AdminTableSkeletonRow key={`products-loading-more-${index}`} cols={9} portraitThumbs />
+                  ))
+                : null}
+            </>
           )}
         </tbody>
       </table>
       {!tableLoading && tableProducts.length === 0 ? (
         <EmptyState compact title="По текущим фильтрам товаров нет" />
       ) : null}
-      {tableLoadingMore ? <AdminTableSkeleton rows={3} cols={9} portraitThumbs /> : null}
       <div ref={productsSentinelRef} className="products-sentinel" />
     </div>
   );

@@ -56,6 +56,24 @@ export function AdminTableSkeleton({ rows = 6, cols = 6, portraitThumbs = false 
   );
 }
 
+export function AdminTableSkeletonRow({ cols = 6, portraitThumbs = false }: { cols?: number; portraitThumbs?: boolean }) {
+  const columns = Math.max(1, cols);
+  return (
+    <tr className="admin-skeleton-table-line" aria-hidden="true">
+      <td>
+        <SkeletonBlock className={`admin-skeleton-table-thumb${portraitThumbs ? " admin-skeleton-table-thumb--portrait" : ""}`} />
+      </td>
+      {Array.from({ length: Math.max(0, columns - 1) }).map((_, cidx) => (
+        <td key={`admin-table-line-cell-${cidx}`}>
+          <SkeletonBlock
+            className={`admin-skeleton-table-cell ${cidx === 0 ? "admin-skeleton-table-cell--title" : ""}`}
+          />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
 export function AdminProductsSkeleton() {
   return (
     <div className="admin-products-skeleton" aria-hidden="true">

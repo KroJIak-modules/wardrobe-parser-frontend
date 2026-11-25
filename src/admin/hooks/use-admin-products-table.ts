@@ -8,7 +8,11 @@ import { useDebouncedValue } from "../../shared/hooks/use-debounced-value";
 import { normalizeServiceProduct } from "../../shared/live-product-normalizer";
 import type { ProductWriteState } from "../../shared/product-state";
 import { readAdminProductsTableCache, saveAdminProductsTableCache } from "../admin-products-table-cache";
-import { markAdminProductsReturnStateRestored, readAdminProductsReturnState } from "../admin-products-return-state";
+import {
+  isAdminProductsReturnStateFresh,
+  markAdminProductsReturnStateRestored,
+  readAdminProductsReturnState,
+} from "../admin-products-return-state";
 import { markAdminProductAgainViewed, markAdminProductViewed, markAllAdminProductsViewed } from "../admin-product-views-api";
 import {
   forgetLocallyViewedProductIds,
@@ -137,6 +141,9 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
   const backgroundReloadInFlightRef = useRef(false);
   const previousJobStatusRef = useRef<string | null>(latestJobStatus ?? null);
   const restoreRequestInFlightRef = useRef(false);
+  // Позиция возврата: цель восстановления и отметка, что она уже применена.
+  const restoreTargetRef = useRef<{ scrollY: number; loadedCount: number } | null>(null);
+  const restoreAppliedCapturedAtRef = useRef(0);
   const cachedReturnState = useRef(false);
 
   useEffect(() => {
@@ -407,22 +414,44 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
     return () => observer.disconnect();
   }, [tab, tableHasMore, tableLoadingMore, loadMoreTableProducts]);
 
+  // Позиция возврата из карточки товара восстанавливается ровно один раз.
+  // Раньше эффект срабатывал на каждую догрузку списка и уводил страницу
+  // наверх, из-за чего дальше товаров было не доскроллить.
   useEffect(() => {
-    if (tab !== "products" || tableLoading || !tableLoadedOnce) {
+    if (tab !== "products") {
       return;
     }
     const currentHref = `${location.pathname}${location.search}`;
     const returnState = readAdminProductsReturnState();
     if (!returnState?.pending || returnState.href !== currentHref) {
-      restoreRequestInFlightRef.current = false;
       return;
     }
-    const viewportBottom = returnState.scrollY + window.innerHeight;
+    if (returnState.capturedAt <= restoreAppliedCapturedAtRef.current) {
+      return;
+    }
+    restoreAppliedCapturedAtRef.current = returnState.capturedAt;
+    if (!isAdminProductsReturnStateFresh(returnState)) {
+      // Пользователь давно не возвращался к списку: позиция больше не нужна.
+      markAdminProductsReturnStateRestored();
+      return;
+    }
+    restoreTargetRef.current = {
+      scrollY: returnState.scrollY,
+      loadedCount: returnState.loadedCount,
+    };
+  }, [tab, location.pathname, location.search]);
+
+  useEffect(() => {
+    const target = restoreTargetRef.current;
+    if (!target || tableLoading || tableLoadingMore) {
+      return;
+    }
+    const viewportBottom = target.scrollY + window.innerHeight;
     const pageHeight = document.documentElement.scrollHeight;
-    const needsMoreRows = tableProducts.length < returnState.loadedCount;
+    const needsMoreRows = tableProducts.length < target.loadedCount;
     const needsMoreHeight = pageHeight + 24 < viewportBottom;
     if ((needsMoreRows || needsMoreHeight) && tableHasMore) {
-      if (!tableLoadingMore && !restoreRequestInFlightRef.current) {
+      if (!restoreRequestInFlightRef.current) {
         restoreRequestInFlightRef.current = true;
         void loadMoreTableProducts().finally(() => {
           restoreRequestInFlightRef.current = false;
@@ -430,27 +459,20 @@ export function useAdminProductsTable(params: UseAdminProductsTableParams) {
       }
       return;
     }
-    if (tableLoadingMore) {
-      return;
-    }
     const frame = window.requestAnimationFrame(() => {
       const maxScrollTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-      window.scrollTo({ top: Math.min(returnState.scrollY, maxScrollTop), left: 0, behavior: "auto" });
+      window.scrollTo({ top: Math.min(target.scrollY, maxScrollTop), left: 0, behavior: "auto" });
+      restoreTargetRef.current = null;
       markAdminProductsReturnStateRestored();
     });
     return () => window.cancelAnimationFrame(frame);
   }, [
-    tab,
     tableLoading,
-    tableLoadedOnce,
     tableLoadingMore,
     tableHasMore,
     tableProducts.length,
     loadMoreTableProducts,
-    location.pathname,
-    location.search,
   ]);
-
   const deleteTableProduct = useCallback(async (productId: number) => {
     const normalizedProductId = Number(productId);
     if (!Number.isFinite(normalizedProductId) || normalizedProductId <= 0) {
