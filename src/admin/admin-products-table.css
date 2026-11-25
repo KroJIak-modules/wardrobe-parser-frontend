@@ -227,3 +227,15 @@
 .products-table-site-links__public {
   font-size: 12px;
 }
+.admin-products-table {
+  table-layout: fixed;
+  min-width: 1200px;
+}
+
+.admin-products-table th:first-child {
+  width: 93px;
+}
+
+.admin-products-table td {
+  overflow-wrap: anywhere;
+}

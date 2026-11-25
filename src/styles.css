@@ -1434,6 +1434,8 @@ button.topbar-cta {
    строкой, поэтому подгрузка не дёргает список. */
 .admin-skeleton-table-line {
   height: 120px;
+  /* Исчезающий плейсхолдер не должен становиться якорем прокрутки. */
+  overflow-anchor: none;
 }
 
 .admin-skeleton-table-thumb--portrait {
@@ -5043,10 +5045,6 @@ textarea {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-  /* Строки добавляются только вниз, поэтому браузерному «якорю» скролла
-     тут нечего держать: без этого Chrome подтягивал страницу на несколько
-     пикселей при подстановке товаров на место скелетонов. */
-  overflow-anchor: none;
 }
 
 .products-table th,

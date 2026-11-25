@@ -450,7 +450,7 @@ export function AdminProductsTable({
 
   return (
     <div className="table-wrap table-wrap--spaced">
-      <table className="products-table">
+      <table className="products-table admin-products-table">
         <thead>
           <tr>
             <th>Фото</th>
