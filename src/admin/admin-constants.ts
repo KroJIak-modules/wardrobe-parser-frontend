@@ -127,6 +127,8 @@ const dedupReasonLabelMap: Record<string, string> = {
   handle_match: "Совпадение ссылки",
   handle_similar: "Похожая ссылка",
   shared_tokens: "Общие слова",
+  shared_description_words: "Общие слова в описании",
+  shared_source_tags: "Общие теги источников",
   image_overlap: "Фото",
   variant_overlap: "Варианты",
   auto_match: "Автосопоставление",
